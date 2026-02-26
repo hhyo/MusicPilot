@@ -46,4 +46,3 @@ Thumbs.db
 Dockerfile
 .dockerignore
 docker-compose*.yml
-nginx.conf
