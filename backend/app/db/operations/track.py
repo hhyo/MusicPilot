@@ -206,3 +206,48 @@ class TrackOper(OperBase[Track]):
             await session.commit()
             track.play_count = new_count
             return track
+
+    async def get_by_size_and_duration(
+        self,
+        file_size: int,
+        duration: Optional[float] = None
+    ) -> List[Track]:
+        """
+        根据文件大小和时长获取曲目（用于去重）
+
+        Args:
+            file_size: 文件大小（字节）
+            duration: 时长（秒）
+
+        Returns:
+            曲目列表
+        """
+        async with self.db_manager.get_session() as session:
+            conditions = [Track.file_size == file_size]
+
+            if duration is not None:
+                # 允许 1 秒的误差
+                conditions.append(
+                    Track.duration >= duration - 1,
+                    Track.duration <= duration + 1
+                )
+
+            query = select(Track).where(and_(*conditions))
+            result = await session.execute(query)
+            return result.scalars().all()
+
+    async def get_by_file_hash(self, file_hash: str) -> Optional[Track]:
+        """
+        根据文件哈希获取曲目（用于去重）
+
+        Args:
+            file_hash: 文件哈希值
+
+        Returns:
+            曲目对象
+        """
+        async with self.db_manager.get_session() as session:
+            result = await session.execute(
+                select(Track).where(Track.file_hash == file_hash)
+            )
+            return result.scalar_one_or_none()
