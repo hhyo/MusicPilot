@@ -4,12 +4,9 @@ Alembic 环境配置
 """
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
+from alembic import context
 from sqlalchemy import pool
 
-from alembic import context
-
-# 导入应用配置
 from app.core.config import settings
 from app.db.models import Base
 
