@@ -9,10 +9,13 @@ from .base import (
     DownloaderBase,
 )
 
+from .netease import NeteaseDownloader
+
 __all__ = [
     "DownloadStatus",
     "DownloadQuality",
     "DownloadSource",
     "DownloadTask",
     "DownloaderBase",
+    "NeteaseDownloader",
 ]

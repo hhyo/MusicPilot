@@ -33,6 +33,7 @@ class Track(Base, TimestampMixin):
     # 文件信息
     path: Mapped[str] = mapped_column(String(1000), nullable=True, index=True)
     file_format: Mapped[str] = mapped_column(String(10), nullable=True)  # mp3, flac, etc.
+    file_hash: Mapped[str] = mapped_column(String(32), nullable=True, index=True)  # MD5 哈希
     bitrate: Mapped[int] = mapped_column(Integer, nullable=True)  # kbps
     sample_rate: Mapped[int] = mapped_column(Integer, nullable=True)  # Hz
     channels: Mapped[int] = mapped_column(Integer, nullable=True)  # 1=mono, 2=stereo

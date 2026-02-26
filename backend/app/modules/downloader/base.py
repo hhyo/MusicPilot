@@ -3,8 +3,10 @@
 定义下载器接口
 """
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple, List
 from enum import Enum
+
+from app.core.module import ModuleBase
 
 
 class DownloadStatus(str, Enum):
@@ -89,16 +91,20 @@ class DownloadTask:
         }
 
 
-class DownloaderBase(ABC):
+class DownloaderBase(ModuleBase, ABC):
     """
     下载器基类
 
     所有下载器必须继承此类并实现抽象方法
+    继承自 ModuleBase 以支持模块管理
     """
 
     def __init__(self):
+        super().__init__()
+        self.module_type = "downloader"
         self.source: DownloadSource = DownloadSource.CUSTOM
         self.supported_qualities: list[DownloadQuality] = []
+        self.config: Dict[str, Any] = {}
 
     @abstractmethod
     async def search(
@@ -157,14 +163,32 @@ class DownloaderBase(ABC):
         pass
 
     @abstractmethod
-    async def test(self) -> bool:
+    async def test(self) -> Tuple[bool, str]:
         """
         测试下载器连接
 
         Returns:
-            是否可用
+            (是否可用, 错误信息)
         """
         pass
+
+    def get_type(self) -> DownloadSource:
+        """
+        获取下载器类型
+
+        Returns:
+            下载器类型
+        """
+        return self.source
+
+    def init_setting(self) -> Optional[Tuple[str, bool]]:
+        """
+        初始化下载器设置
+
+        Returns:
+            (字段定义, 是否必需) 或 None
+        """
+        return None
 
     def supports_quality(self, quality: DownloadQuality) -> bool:
         """
