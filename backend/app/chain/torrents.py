@@ -2,6 +2,8 @@
 资源搜索链
 处理资源搜索、结果排序和过滤
 """
+import asyncio
+import hashlib
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
@@ -9,6 +11,7 @@ from app.core.log import logger
 from app.core.context import MusicInfo
 from app.core.event import event_bus, EventType
 from app.core.module import ModuleManager
+from app.core.cache import AsyncFileCache
 from app.db.operations.site import SiteOper
 from app.db.models.site import Site
 from app.db import db_manager
@@ -66,10 +69,48 @@ class TorrentsChain:
     负责搜索资源、排序结果、过滤结果
     """
 
-    def __init__(self):
+    def __init__(self, cache_dir: str = "/tmp/torrent_cache", cache_ttl: int = 1800):
+        """
+        初始化资源搜索链
+
+        Args:
+            cache_dir: 缓存目录
+            cache_ttl: 缓存过期时间（秒），默认 30 分钟
+        """
         self.logger = logger
         self.site_oper = SiteOper(Site, db_manager)
         self.module_manager = ModuleManager()
+        self.cache = AsyncFileCache(cache_dir, cache_ttl)
+
+    def _generate_cache_key(
+        self,
+        music_info: MusicInfo,
+        format: str,
+        sites: Optional[List[str]] = None,
+    ) -> str:
+        """
+        生成缓存键
+
+        Args:
+            music_info: 音乐信息
+            format: 音质格式
+            sites: 站点列表
+
+        Returns:
+            缓存键
+        """
+        # 将所有参数组合成字符串
+        cache_data = {
+            "artist": music_info.artist or "",
+            "album": music_info.album or "",
+            "title": music_info.title or "",
+            "format": format,
+            "sites": sorted(sites) if sites else [],
+        }
+
+        # 生成哈希键
+        data_str = str(cache_data)
+        return f"torrent_search:{hashlib.md5(data_str.encode()).hexdigest()}"
 
     async def search(
         self,
@@ -78,6 +119,7 @@ class TorrentsChain:
         format: str = "FLAC",
         min_size: Optional[int] = None,
         max_size: Optional[int] = None,
+        use_cache: bool = True,
     ) -> List[TorrentInfo]:
         """
         搜索资源
@@ -88,13 +130,38 @@ class TorrentsChain:
             format: 音质格式（FLAC, MP3, 等）
             min_size: 最小文件大小（字节）
             max_size: 最大文件大小（字节）
+            use_cache: 是否使用缓存
 
         Returns:
             种子信息列表
         """
         self.logger.info(f"开始搜索资源: {music_info.artist} - {music_info.album}")
 
-        # 1. 获取启用的站点
+        # 1. 检查缓存
+        cache_key = self._generate_cache_key(music_info, format, sites)
+        if use_cache:
+            cached_results = await self.cache.async_get(cache_key)
+            if cached_results:
+                self.logger.info(f"从缓存获取结果: {len(cached_results)} 个")
+                # 缓存中的结果是 TorrentInfo.to_dict() 的结果，需要转换回来
+                return [
+                    TorrentInfo(
+                        torrent_id=r["torrent_id"],
+                        site_name=r["site_name"],
+                        title=r["title"],
+                        size=r["size"],
+                        download_url=r["download_url"],
+                        upload_time=datetime.fromisoformat(r["upload_time"]) if r.get("upload_time") else None,
+                        seeders=r.get("seeders", 0),
+                        leechers=r.get("leechers", 0),
+                        is_free=r.get("is_free", False),
+                        format=r.get("format", "FLAC"),
+                        bitrate=r.get("bitrate", ""),
+                    )
+                    for r in cached_results
+                ]
+
+        # 2. 获取启用的站点
         enabled_sites = await self.site_oper.get_enabled()
         if sites:
             enabled_sites = [s for s in enabled_sites if s.name in sites]
@@ -103,27 +170,43 @@ class TorrentsChain:
             self.logger.warning("没有启用的站点")
             return []
 
-        # 2. 并发搜索所有站点
+        # 3. 并发搜索所有站点
+        tasks = [
+            self._search_site(site, music_info, format)
+            for site in enabled_sites
+        ]
+
+        # 使用 asyncio.gather 并发执行搜索
+        site_results_list = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # 处理结果
         results = []
-        for site in enabled_sites:
-            try:
-                site_results = await self._search_site(site, music_info, format)
+        for site, site_results in zip(enabled_sites, site_results_list):
+            if isinstance(site_results, Exception):
+                self.logger.error(f"站点 {site.name} 搜索失败: {site_results}")
+            else:
                 results.extend(site_results)
                 self.logger.info(f"站点 {site.name} 找到 {len(site_results)} 个结果")
-            except Exception as e:
-                self.logger.error(f"站点 {site.name} 搜索失败: {e}")
 
-        # 3. 排序结果
+        # 4. 排序结果
         sorted_results = self._sort_results(results)
 
-        # 4. 过滤结果
+        # 5. 过滤结果
         filtered_results = self._filter_results(
             sorted_results, format, min_size, max_size
         )
 
         self.logger.info(f"搜索完成，找到 {len(filtered_results)} 个结果")
 
-        # 5. 发送搜索事件
+        # 6. 缓存结果（转换为字典格式）
+        if use_cache and filtered_results:
+            await self.cache.async_set(
+                cache_key,
+                [r.to_dict() for r in filtered_results],
+                ttl=self.cache.default_ttl
+            )
+
+        # 7. 发送搜索事件
         await event_bus.emit(
             EventType.TORRENT_SEARCH,
             {
