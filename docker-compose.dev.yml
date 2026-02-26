@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: musicpilot-db-dev
+    environment:
+      POSTGRES_USER: musicpilot
+      POSTGRES_PASSWORD: musicpilot
+      POSTGRES_DB: musicpilot
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - musicpilot-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: musicpilot-redis-dev
+    ports:
+      - "6379:6379"
+    networks:
+      - musicpilot-network
+
+  # 后端服务（开发环境热重载）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: musicpilot-backend-dev
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://musicpilot:musicpilot@postgres:5432/musicpilot
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - APP_ENV=development
+      - APP_DEBUG=true
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/pyproject.toml:/app/pyproject.toml
+      - ./backend/media:/app/media
+      - ./backend/logs:/app/logs
+      - ./backend/cache:/app/cache
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - musicpilot-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+
+  # 前端服务（开发环境）
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: musicpilot-frontend-dev
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+      - ./frontend/tsconfig.json:/app/tsconfig.json
+      - ./frontend/package.json:/app/package.json
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - musicpilot-network
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+
+networks:
+  musicpilot-network:
+    driver: bridge
+
+volumes:
+  postgres_data_dev:

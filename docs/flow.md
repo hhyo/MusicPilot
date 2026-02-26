@@ -61,6 +61,38 @@
 
 ---
 
+## 🏆 里程碑记录
+
+### M1: 项目基础设施 (v0.1.0) ✅
+**状态**: 已完成 (100%)  
+**完成时间**: 2026-02-26  
+**实际工时**: 20h (预估 45h)
+
+**已完成任务**:
+- [x] M1-T0: 需求分析文档编写
+- [x] M1-T1: MoviePilot 架构深入研究
+- [x] M1-T2: 技术设计文档编写 v2.0
+- [x] M1-T3: GitHub 仓库初始化
+- [x] M1-T4: 后端核心框架搭建
+- [x] M1-T5: 数据库模型实现
+- [x] M1-T6: Pydantic Schemas 实现
+- [x] M1-T7: API 路由实现
+- [x] M1-T8: Chain 层实现
+- [x] M1-T9: 前端基础框架搭建
+- [x] M1-T10: 前端页面组件开发
+- [x] M1-T11: Docker 开发环境配置
+- [x] M1-T12: CI/CD 流水线配置
+- [x] M1-T13: 研发流程规范文档
+- [x] M1-T14: 任务清单文档
+
+**技术栈建立**:
+- 后端: FastAPI + SQLAlchemy + Pydantic + Alembic + APScheduler
+- 前端: Vue3 + Vite + TypeScript + Naive UI + Pinia
+- 数据库: PostgreSQL + Redis
+- 部署: Docker + Docker Compose + Nginx
+
+---
+
 ## 📝 代码提交规范 (Conventional Commits)
 
 ### 格式
