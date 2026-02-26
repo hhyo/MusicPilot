@@ -2,8 +2,9 @@
 Media Schema
 媒体服务器相关的数据模型
 """
-from typing import Optional
 from datetime import datetime
+
+
 from pydantic import BaseModel, Field
 
 from app.schemas.types import MediaServerType
