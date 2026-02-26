@@ -3,22 +3,23 @@ Site Schema
 """
 from datetime import datetime
 from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
 class SiteBase(BaseModel):
     """站点基础模型"""
     name: str = Field(..., description="站点名称")
-    domain: Optional[str] = Field(None, description="站点域名")
+    domain: str | None = Field(None, description="站点域名")
     url: str = Field(..., description="站点URL")
-    cookie: Optional[str] = Field(None, description="Cookie")
-    passkey: Optional[str] = Field(None, description="Passkey")
-    username: Optional[str] = Field(None, description="用户名")
-    password: Optional[str] = Field(None, description="密码")
-    proxy: Optional[str] = Field(None, description="代理")
-    ua: Optional[str] = Field(None, description="User-Agent")
+    cookie: str | None = Field(None, description="Cookie")
+    passkey: str | None = Field(None, description="Passkey")
+    username: str | None = Field(None, description="用户名")
+    password: str | None = Field(None, description="密码")
+    proxy: str | None = Field(None, description="代理")
+    ua: str | None = Field(None, description="User-Agent")
     timeout: int = Field(30, description="超时时间（秒）")
-    rss: Optional[str] = Field(None, description="RSS地址")
+    rss: str | None = Field(None, description="RSS地址")
     rss_interval: int = Field(60, description="RSS刷新间隔（秒）")
     downloader: str = Field("qbittorrent", description="下载器类型")
     priority: int = Field(1, description="优先级")
@@ -33,22 +34,22 @@ class SiteCreate(SiteBase):
 
 class SiteUpdate(BaseModel):
     """更新站点"""
-    name: Optional[str] = None
-    domain: Optional[str] = None
-    url: Optional[str] = None
-    cookie: Optional[str] = None
-    passkey: Optional[str] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
-    proxy: Optional[str] = None
-    ua: Optional[str] = None
-    timeout: Optional[int] = None
-    rss: Optional[str] = None
-    rss_interval: Optional[int] = None
-    downloader: Optional[str] = None
-    priority: Optional[int] = None
-    enabled: Optional[bool] = None
-    site_type: Optional[str] = None
+    name: str | None = None
+    domain: str | None = None
+    url: str | None = None
+    cookie: str | None = None
+    passkey: str | None = None
+    username: str | None = None
+    password: str | None = None
+    proxy: str | None = None
+    ua: str | None = None
+    timeout: int | None = None
+    rss: str | None = None
+    rss_interval: int | None = None
+    downloader: str | None = None
+    priority: int | None = None
+    enabled: bool | None = None
+    site_type: str | None = None
 
 
 class SiteResponse(SiteBase):
