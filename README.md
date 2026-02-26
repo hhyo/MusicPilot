@@ -153,7 +153,7 @@ MusicPilot 的诞生源于一个大胆的想法：**能否让 AI 完全自主开
 │                           │                                 │
 │  ┌────────────────────────▼──────────────────┐             │
 │  │              Chain 层                      │             │
-│  │  PTTorrentsChain | TorrentsChain          │             │
+│  │  TorrentsChain | TorrentsChain          │             │
 │  │  MetadataChain  | TransferChain          │             │
 │  │  PlaylistChain   | PlaybackChain          │             │
 │  └──────────────────────────────────────────┘             │
