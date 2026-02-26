@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "musicpilot"
+version = "0.1.0"
+description = "MusicPilot - A powerful music management system"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    {name = "hhyo", email = "hhyo@example.com"}
+]
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "python-dotenv>=1.0.1",
+    "python-multipart>=0.0.17",
+    "httpx>=0.28.1",
+    "aiofiles>=24.1.0",
+    "loguru>=0.7.3",
+    "apscheduler>=3.11.0",
+    "redis>=5.2.1",
+    "musicbrainzngs>=0.7.1",
+    "mutagen>=1.47.0",
+    "neteaseCloudMusicApi>=4.10.0",
+    "PlexAPI>=4.15.7",
+    "jellyfin-apiclient-python>=1.11.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "black>=24.0.0",
+    "ruff>=0.9.0",
+    "mypy>=1.13.0",
+]
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "TCH"]
+ignore = ["E501", "B008"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
