@@ -10,6 +10,7 @@ from app.chain.playback import PlaybackChain
 from app.chain.playlist import PlaylistChain
 from app.chain.musicbrainz import MusicBrainzChain
 from app.chain.media import MediaChain
+from app.chain.torrents import TorrentsChain, TorrentInfo
 
 __all__ = [
     "MetadataChain",
@@ -20,4 +21,6 @@ __all__ = [
     "PlaylistChain",
     "MusicBrainzChain",
     "MediaChain",
+    "TorrentsChain",
+    "TorrentInfo",
 ]
