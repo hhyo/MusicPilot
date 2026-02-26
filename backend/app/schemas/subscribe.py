@@ -2,19 +2,22 @@
 Subscribe Schema
 订阅相关的数据模型
 """
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 
 
 class SubscribeBase(BaseModel):
     """Subscribe 基础模型"""
-    type: str = Field(..., description="订阅类型：artist, album")
+    type: str = Field(..., description="订阅类型：artist, album, playlist, chart")
+    source_type: str = Field(default="musicbrainz", description="来源类型：musicbrainz, netease, qq")
     musicbrainz_id: Optional[str] = None
+    playlist_id: Optional[str] = None
     name: str = Field(..., description="订阅名称")
     description: Optional[str] = None
     auto_download: bool = Field(default=True, description="是否自动下载")
     download_format: Optional[str] = Field(None, description="下载格式：mp3, flac")
+    rules: Optional[Dict[str, Any]] = Field(None, description="订阅规则（JSON）")
 
 
 class SubscribeCreate(SubscribeBase):
@@ -28,6 +31,7 @@ class SubscribeUpdate(BaseModel):
     description: Optional[str] = None
     auto_download: Optional[bool] = None
     download_format: Optional[str] = None
+    rules: Optional[Dict[str, Any]] = None
     state: Optional[str] = Field(None, description="状态：active, paused")
 
 
@@ -49,6 +53,7 @@ class SubscribeListResponse(BaseModel):
     """订阅列表响应模型"""
     id: int
     type: str
+    source_type: str
     name: str
     auto_download: bool
     last_check: Optional[str]
@@ -60,17 +65,8 @@ class SubscribeListResponse(BaseModel):
         from_attributes = True
 
 
-class SubscribeRelease(BaseModel):
-    """订阅发布信息"""
-    id: Optional[int] = None
-    title: str
-    release_date: Optional[str] = None
-    release_type: Optional[str] = None
-    cover_url: Optional[str] = None
-
-
 class CheckSubscribeResponse(BaseModel):
     """检查订阅响应模型"""
     has_new_releases: bool = Field(..., description="是否有新发布")
-    new_releases: list[SubscribeRelease] = Field(default_factory=list)
+    new_releases_count: int = Field(default=0, description="新发布数量")
     last_check: str

@@ -2,7 +2,7 @@
 Subscribe 操作类
 """
 from typing import Optional, List
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.subscribe import Subscribe
@@ -28,12 +28,28 @@ class SubscribeOper(OperBase[Subscribe]):
             )
             return result.scalar_one_or_none()
 
+    async def get_by_playlist_id(self, playlist_id: str) -> Optional[Subscribe]:
+        """
+        根据歌单/榜单 ID 获取订阅
+
+        Args:
+            playlist_id: 歌单/榜单 ID
+
+        Returns:
+            订阅对象
+        """
+        async with self.db_manager.get_session() as session:
+            result = await session.execute(
+                select(Subscribe).where(Subscribe.playlist_id == playlist_id)
+            )
+            return result.scalar_one_or_none()
+
     async def get_by_type(self, sub_type: str, skip: int = 0, limit: int = 100) -> List[Subscribe]:
         """
         根据类型获取订阅
 
         Args:
-            sub_type: 订阅类型（artist, album）
+            sub_type: 订阅类型（artist, album, playlist, chart）
             skip: 跳过的记录数
             limit: 返回的最大记录数
 
@@ -41,6 +57,20 @@ class SubscribeOper(OperBase[Subscribe]):
             订阅列表
         """
         return await self.get_all(skip=skip, limit=limit, type=sub_type)
+
+    async def get_by_source_type(self, source_type: str, skip: int = 0, limit: int = 100) -> List[Subscribe]:
+        """
+        根据来源类型获取订阅
+
+        Args:
+            source_type: 来源类型（musicbrainz, netease, qq）
+            skip: 跳过的记录数
+            limit: 返回的最大记录数
+
+        Returns:
+            订阅列表
+        """
+        return await self.get_all(skip=skip, limit=limit, source_type=source_type)
 
     async def get_active(self, skip: int = 0, limit: int = 100) -> List[Subscribe]:
         """
