@@ -2,6 +2,7 @@
 事件管理器
 实现事件的发送、注册、处理，支持消息通知
 """
+import asyncio
 from typing import Dict, Callable, List, Any, Optional
 from enum import Enum
 from collections import defaultdict
@@ -21,6 +22,11 @@ class EventType(str, Enum):
     DownloadProgress = "download.progress"
     DownloadCompleted = "download.completed"
     DownloadFailed = "download.failed"
+
+    # 种子搜索事件
+    TorrentSearch = "torrent.search"
+    TorrentSearchResult = "torrent.search_result"
+    TorrentSearchFailed = "torrent.search_failed"
 
     # 转移事件
     TransferStarted = "transfer.started"
@@ -107,10 +113,19 @@ class EventManager:
                     result = handler(data)
                     # 支持异步处理器
                     if hasattr(result, "__await__"):
-                        import asyncio
                         asyncio.create_task(result)
                 except Exception as e:
                     self.logger.error(f"事件处理器执行失败: {event_type}, 错误: {e}")
+
+    def emit(self, event_type: str, data: Optional[Dict[str, Any]] = None):
+        """
+        发送事件（别名）
+
+        Args:
+            event_type: 事件类型
+            data: 事件数据
+        """
+        self.send_event(event_type, data)
 
     def put_message(
         self,
@@ -140,3 +155,7 @@ class EventManager:
                 **kwargs
             }
         )
+
+
+# 全局事件管理器实例
+event_bus = EventManager()
