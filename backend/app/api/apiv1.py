@@ -7,12 +7,15 @@ from fastapi import APIRouter
 api_router = APIRouter()
 
 # 注册各模块路由
-from app.api.endpoints import artist, album, track, playlist
+from app.api.endpoints import artist, album, track, playlist, library, metadata, covers
 
 api_router.include_router(artist.router, prefix="/artists", tags=["artists"])
 api_router.include_router(album.router, prefix="/albums", tags=["albums"])
 api_router.include_router(track.router, prefix="/tracks", tags=["tracks"])
 api_router.include_router(playlist.router, prefix="/playlists", tags=["playlists"])
+api_router.include_router(library.router, prefix="/libraries", tags=["libraries"])
+api_router.include_router(metadata.router, prefix="/metadata", tags=["metadata"])
+api_router.include_router(covers.router, prefix="/covers", tags=["covers"])
 
 # TODO: 注册其他路由
 # from app.api.endpoints import library, download, subscribe, media, system
