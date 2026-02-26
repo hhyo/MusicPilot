@@ -85,8 +85,26 @@ from app.schemas.subscribe import (
     SubscribeUpdate,
     SubscribeResponse,
     SubscribeListResponse,
-    SubscribeRelease,
     CheckSubscribeResponse,
+)
+
+from app.schemas.site import (
+    SiteBase,
+    SiteCreate,
+    SiteUpdate,
+    SiteResponse,
+    SiteListResponse,
+    TestSiteRequest,
+    TestSiteResponse,
+)
+
+from app.schemas.subscribe_release import (
+    SubscribeReleaseBase,
+    SubscribeReleaseCreate,
+    SubscribeReleaseUpdate,
+    SubscribeReleaseResponse,
+    SubscribeReleaseListResponse,
+    SubscribeReleaseStatistics,
 )
 
 from app.schemas.media import (
@@ -179,8 +197,22 @@ __all__ = [
     "SubscribeUpdate",
     "SubscribeResponse",
     "SubscribeListResponse",
-    "SubscribeRelease",
     "CheckSubscribeResponse",
+    # Site
+    "SiteBase",
+    "SiteCreate",
+    "SiteUpdate",
+    "SiteResponse",
+    "SiteListResponse",
+    "TestSiteRequest",
+    "TestSiteResponse",
+    # SubscribeRelease
+    "SubscribeReleaseBase",
+    "SubscribeReleaseCreate",
+    "SubscribeReleaseUpdate",
+    "SubscribeReleaseResponse",
+    "SubscribeReleaseListResponse",
+    "SubscribeReleaseStatistics",
     # Media
     "MediaServerBase",
     "MediaServerCreate",
