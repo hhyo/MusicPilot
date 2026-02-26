@@ -28,6 +28,7 @@ dependencies = [
     "musicbrainzngs>=0.7.1",
     "mutagen>=1.47.0",
     "neteaseCloudMusicApi>=4.10.0",
+    "pycryptodome>=3.21.0",
     "PlexAPI>=4.15.7",
     "jellyfin-apiclient-python>=1.11.0",
 ]

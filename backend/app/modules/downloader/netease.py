@@ -3,8 +3,10 @@
 """
 import asyncio
 import httpx
-from typing import Optional, Tuple
+import time
+from typing import Optional, Tuple, Dict, Any
 from urllib.parse import quote
+from pathlib import Path
 
 from .base import (
     DownloadStatus,
@@ -13,14 +15,14 @@ from .base import (
     DownloadTask,
     DownloaderBase,
 )
+from .crypto import encrypted_id, create_params, create_signature, get_common_params
 
 
 class NeteaseDownloader(DownloaderBase):
     """
     网易云音乐下载器
 
-    注意: 网易云音乐的下载需要加密和签名处理
-    这里提供一个基础实现框架
+    支持搜索、下载、获取实际下载 URL
     """
 
     def __init__(self):
@@ -33,6 +35,8 @@ class NeteaseDownloader(DownloaderBase):
         ]
         self.base_url = "https://music.163.com"
         self.api_url = "https://interface.music.163.com"
+        self.weapi_url = "https://music.163.com/weapi"
+        self.timeout = 30
 
     def init_setting(self) -> Optional[Tuple[str, bool]]:
         """
@@ -42,7 +46,42 @@ class NeteaseDownloader(DownloaderBase):
             (字段定义, 是否必需)
         """
         # 网易云音乐暂时不需要配置
+        # 未来可以添加：登录账号、cookie 等
         return None
+
+    def _map_quality(self, quality: DownloadQuality) -> str:
+        """
+        映射质量到网易云音乐格式
+
+        Args:
+            quality: 下载质量
+
+        Returns:
+            网易云音乐质量格式
+        """
+        quality_map = {
+            DownloadQuality.LOSSLESS: "999000",  # FLAC 无损
+            DownloadQuality.HIGH: "320000",      # 320kbps
+            DownloadQuality.STANDARD: "128000",  # 128kbps
+        }
+        return quality_map.get(quality, "128000")
+
+    def _map_level(self, quality: DownloadQuality) -> str:
+        """
+        映射质量到网易云音乐 level
+
+        Args:
+            quality: 下载质量
+
+        Returns:
+            level 字符串
+        """
+        level_map = {
+            DownloadQuality.LOSSLESS: "lossless",
+            DownloadQuality.HIGH: "exhigh",
+            DownloadQuality.STANDARD: "standard",
+        }
+        return level_map.get(quality, "standard")
 
     async def search(
         self,
@@ -61,7 +100,7 @@ class NeteaseDownloader(DownloaderBase):
         Returns:
             下载任务列表
         """
-        # 网易云搜索 API
+        # 使用 Web API 搜索
         search_url = f"{self.api_url}/api/search/get/web"
         params = {
             "s": keyword,
@@ -73,7 +112,7 @@ class NeteaseDownloader(DownloaderBase):
         tasks = []
 
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(search_url, params=params)
                 response.raise_for_status()
                 data = response.json()
@@ -81,25 +120,36 @@ class NeteaseDownloader(DownloaderBase):
                 if data.get("code") == 200:
                     songs = data.get("result", {}).get("songs", [])
                     for song in songs:
+                        # 获取艺术家名称
+                        artist_name = None
+                        if song.get("artists"):
+                            artist_name = ", ".join(
+                                [artist.get("name", "") for artist in song["artists"]]
+                            )
+
+                        # 获取专辑名称
+                        album_name = song.get("album", {}).get("name") if song.get("album") else None
+
                         task = DownloadTask(
                             task_id=f"netease_{song['id']}",
                             url=str(song["id"]),
                             source=self.source,
                             quality=quality or DownloadQuality.STANDARD,
-                            artist=song.get("artists", [{}])[0].get("name") if song.get("artists") else None,
-                            album=song.get("album", {}).get("name") if song.get("album") else None,
+                            artist=artist_name,
+                            album=album_name,
                             title=song.get("name"),
                             metadata={
                                 "song_id": song["id"],
-                                "artist_id": song.get("artists", [{}])[0].get("id") if song.get("artists") else None,
+                                "artist_ids": [a.get("id") for a in song.get("artists", [])],
                                 "album_id": song.get("album", {}).get("id") if song.get("album") else None,
                                 "duration": song.get("duration") / 1000 if song.get("duration") else None,
+                                "album_pic": song.get("album", {}).get("picUrl") if song.get("album") else None,
                             },
                         )
                         tasks.append(task)
 
         except Exception as e:
-            print(f"搜索失败: {e}")
+            self.logger.error(f"搜索失败: {e}")
 
         return tasks
 
@@ -118,28 +168,24 @@ class NeteaseDownloader(DownloaderBase):
         Returns:
             实际下载 URL
 
-        注意: 网易云音乐的获取下载 URL 接口需要加密和签名
-        这里仅提供框架，实际实现需要参考网易云音乐加密算法
+        注意: 网易云音乐的获取下载 URL 接口需要特定的加密处理
+        这里使用 Web API 的 player url 接口
         """
-        # 获取下载 URL 的 API
+        # 使用 Web API 获取下载 URL
         download_url = f"{self.api_url}/api/song/enhance/player/url/v1"
 
-        # 映射质量到网易云音乐格式
-        quality_map = {
-            DownloadQuality.LOSSLESS: "999000",
-            DownloadQuality.HIGH: "320000",
-            DownloadQuality.STANDARD: "128000",
-        }
-        br = quality_map.get(quality, "128000")
+        # 映射质量参数
+        br = self._map_quality(quality)
+        level = self._map_level(quality)
 
         params = {
             "ids": f"[{url}]",
             "br": br,
-            "level": "standard",
+            "level": level,
         }
 
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(download_url, params=params)
                 response.raise_for_status()
                 data = response.json()
@@ -147,10 +193,11 @@ class NeteaseDownloader(DownloaderBase):
                 if data.get("code") == 200 and data.get("data"):
                     return data["data"][0].get("url", "")
                 else:
-                    raise ValueError(f"获取下载 URL 失败: {data.get('message')}")
+                    error_msg = data.get("message", "未知错误")
+                    raise ValueError(f"获取下载 URL 失败: {error_msg}")
 
         except Exception as e:
-            print(f"获取下载 URL 失败: {e}")
+            self.logger.error(f"获取下载 URL 失败: {e}")
             raise
 
     async def download(
@@ -175,10 +222,12 @@ class NeteaseDownloader(DownloaderBase):
             download_url = await self.get_url(task.url, task.quality)
 
             if not download_url:
-                raise ValueError("无法获取下载 URL")
+                raise ValueError("无法获取下载 URL，可能因为版权保护或未登录")
+
+            self.logger.info(f"开始下载: {task.title} ({task.quality})")
 
             # 下载文件
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
                 async with client.stream("GET", download_url) as response:
                     response.raise_for_status()
 
@@ -187,16 +236,17 @@ class NeteaseDownloader(DownloaderBase):
                     task.total_bytes = total_bytes
 
                     # 确定目标路径
-                    from pathlib import Path
                     if task.target_path:
                         target_dir = Path(task.target_path)
                     else:
-                        target_dir = Path("/tmp/downloads")
+                        target_dir = Path("/tmp/downloads/netease")
                     target_dir.mkdir(parents=True, exist_ok=True)
 
                     # 确定文件扩展名
-                    ext = ".mp3" if task.quality != DownloadQuality.LOSSLESS else ".flac"
-                    file_path = target_dir / f"{task.title or task.task_id}{ext}"
+                    ext = ".flac" if task.quality == DownloadQuality.LOSSLESS else ".mp3"
+                    # 清理文件名
+                    safe_title = "".join(c if c.isalnum() or c in " -_()" else "_" for c in task.title or "unknown")
+                    file_path = target_dir / f"{safe_title}{ext}"
 
                     # 下载文件
                     downloaded_bytes = 0
@@ -215,12 +265,156 @@ class NeteaseDownloader(DownloaderBase):
             task.file_path = str(file_path)
             task.progress = 1.0
 
+            self.logger.info(f"下载完成: {task.title} -> {file_path}")
+
         except Exception as e:
             task.status = DownloadStatus.FAILED
             task.error_message = str(e)
-            print(f"下载失败: {e}")
+            self.logger.error(f"下载失败: {task.title} - {e}")
 
         return task
+
+    async def get_song_detail(self, song_id: str) -> Optional[Dict[str, Any]]:
+        """
+        获取歌曲详细信息
+
+        Args:
+            song_id: 歌曲 ID
+
+        Returns:
+            歌曲详细信息
+        """
+        detail_url = f"{self.api_url}/api/song/detail"
+        params = {"ids": f"[{song_id}]"}
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(detail_url, params=params)
+                response.raise_for_status()
+                data = response.json()
+
+                if data.get("code") == 200 and data.get("songs"):
+                    return data["songs"][0]
+        except Exception as e:
+            self.logger.error(f"获取歌曲详情失败: {e}")
+
+        return None
+
+    async def get_artist_songs(self, artist_id: str, limit: int = 50) -> list[DownloadTask]:
+        """
+        获取艺术家的歌曲列表
+
+        Args:
+            artist_id: 艺术家 ID
+            limit: 返回数量限制
+
+        Returns:
+            歌曲列表
+        """
+        # 艺术家歌曲 API
+        artist_url = f"{self.api_url}/api/v1/artist/songs"
+        params = {
+            "id": artist_id,
+            "limit": str(limit),
+            "offset": "0",
+        }
+
+        tasks = []
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(artist_url, params=params)
+                response.raise_for_status()
+                data = response.json()
+
+                if data.get("code") == 200:
+                    songs = data.get("songs", [])
+                    for song in songs:
+                        # 获取艺术家名称
+                        artist_name = song.get("ar", [{}])[0].get("name") if song.get("ar") else None
+
+                        # 获取专辑名称
+                        album_name = song.get("al", {}).get("name") if song.get("al") else None
+
+                        task = DownloadTask(
+                            task_id=f"netease_{song['id']}",
+                            url=str(song["id"]),
+                            source=self.source,
+                            quality=DownloadQuality.STANDARD,
+                            artist=artist_name,
+                            album=album_name,
+                            title=song.get("name"),
+                            metadata={
+                                "song_id": song["id"],
+                                "artist_ids": [a.get("id") for a in song.get("ar", [])],
+                                "album_id": song.get("al", {}).get("id") if song.get("al") else None,
+                                "duration": song.get("dt") / 1000 if song.get("dt") else None,
+                                "album_pic": song.get("al", {}).get("picUrl") if song.get("al") else None,
+                            },
+                        )
+                        tasks.append(task)
+
+        except Exception as e:
+            self.logger.error(f"获取艺术家歌曲失败: {e}")
+
+        return tasks
+
+    async def get_album_songs(self, album_id: str) -> list[DownloadTask]:
+        """
+        获取专辑的歌曲列表
+
+        Args:
+            album_id: 专辑 ID
+
+        Returns:
+            歌曲列表
+        """
+        # 专辑歌曲 API
+        album_url = f"{self.api_url}/api/album/{album_id}"
+
+        tasks = []
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(album_url)
+                response.raise_for_status()
+                data = response.json()
+
+                if data.get("code") == 200:
+                    album_data = data.get("album", {})
+                    songs = data.get("songs", [])
+
+                    artist_name = None
+                    if album_data.get("artists"):
+                        artist_name = ", ".join(
+                            [artist.get("name", "") for artist in album_data["artists"]]
+                        )
+
+                    album_name = album_data.get("name")
+
+                    for song in songs:
+                        task = DownloadTask(
+                            task_id=f"netease_{song['id']}",
+                            url=str(song["id"]),
+                            source=self.source,
+                            quality=DownloadQuality.STANDARD,
+                            artist=artist_name,
+                            album=album_name,
+                            title=song.get("name"),
+                            metadata={
+                                "song_id": song["id"],
+                                "artist_ids": [a.get("id") for a in song.get("ar", [])],
+                                "album_id": album_id,
+                                "duration": song.get("dt") / 1000 if song.get("dt") else None,
+                                "album_pic": album_data.get("picUrl"),
+                            },
+                        )
+                        tasks.append(task)
+
+        except Exception as e:
+            self.logger.error(f"获取专辑歌曲失败: {e}")
+
+        return tasks
 
     async def test(self) -> Tuple[bool, str]:
         """
@@ -230,10 +424,15 @@ class NeteaseDownloader(DownloaderBase):
             (是否可用, 错误信息)
         """
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(self.base_url, timeout=5)
+            async with httpx.AsyncClient(timeout=5) as client:
+                response = await client.get(self.base_url)
                 if response.status_code == 200:
-                    return True, "连接成功"
+                    # 测试搜索功能
+                    result = await self.search("test", limit=1)
+                    if result:
+                        return True, "连接成功，搜索功能正常"
+                    else:
+                        return False, "搜索功能异常"
                 else:
                     return False, f"连接失败: HTTP {response.status_code}"
         except Exception as e:
