@@ -3,7 +3,7 @@
 """
 import asyncio
 import httpx
-from typing import Optional
+from typing import Optional, Tuple
 from urllib.parse import quote
 
 from .base import (
@@ -33,6 +33,16 @@ class NeteaseDownloader(DownloaderBase):
         ]
         self.base_url = "https://music.163.com"
         self.api_url = "https://interface.music.163.com"
+
+    def init_setting(self) -> Optional[Tuple[str, bool]]:
+        """
+        初始化下载器设置
+
+        Returns:
+            (字段定义, 是否必需)
+        """
+        # 网易云音乐暂时不需要配置
+        return None
 
     async def search(
         self,
@@ -212,16 +222,19 @@ class NeteaseDownloader(DownloaderBase):
 
         return task
 
-    async def test(self) -> bool:
+    async def test(self) -> Tuple[bool, str]:
         """
         测试下载器连接
 
         Returns:
-            是否可用
+            (是否可用, 错误信息)
         """
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(self.base_url, timeout=5)
-                return response.status_code == 200
-        except Exception:
-            return False
+                if response.status_code == 200:
+                    return True, "连接成功"
+                else:
+                    return False, f"连接失败: HTTP {response.status_code}"
+        except Exception as e:
+            return False, f"连接失败: {str(e)}"
