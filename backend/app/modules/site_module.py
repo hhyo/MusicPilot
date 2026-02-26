@@ -5,6 +5,7 @@
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from datetime import datetime
+import feedparser
 
 from app.core.module import ModuleBase
 from app.core.log import logger
@@ -316,3 +317,108 @@ class SiteModule(ModuleBase):
             种子搜索结果列表
         """
         return await self.search_torrent(title, format, page)
+
+    async def parse_rss(self, rss_url: str) -> List[TorrentResult]:
+        """
+        解析 RSS 种子源
+
+        Args:
+            rss_url: RSS 订阅 URL
+
+        Returns:
+            种子搜索结果列表
+        """
+        self.logger.info(f"解析 RSS: {rss_url}")
+
+        if not self.client:
+            self.logger.error("HTTP 客户端未初始化")
+            return []
+
+        try:
+            # 获取 RSS 内容
+            response = await self.client.get(rss_url)
+            response.raise_for_status()
+
+            # 解析 RSS
+            feed = feedparser.parse(response.text)
+
+            results = []
+            for entry in feed.entries:
+                try:
+                    # 解析上传时间
+                    upload_time = None
+                    if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                        upload_time = datetime(*entry.published_parsed[:6])
+
+                    # 解析种子大小（从标题或描述中提取）
+                    size = 0
+                    if hasattr(entry, 'size'):
+                        size = entry.size
+                    elif hasattr(entry, 'description'):
+                        # 尝试从描述中提取大小
+                        import re
+                        size_match = re.search(r'(\d+(?:\.\d+)?)\s*(GB|MB|KB)', entry.description, re.IGNORECASE)
+                        if size_match:
+                            value = float(size_match.group(1))
+                            unit = size_match.group(2).upper()
+                            if unit == 'GB':
+                                size = int(value * 1024 * 1024 * 1024)
+                            elif unit == 'MB':
+                                size = int(value * 1024 * 1024)
+                            elif unit == 'KB':
+                                size = int(value * 1024)
+
+                    # 检查是否免费
+                    is_free = False
+                    title_lower = entry.title.lower() if hasattr(entry, 'title') else ""
+                    if "free" in title_lower or "免费" in title_lower:
+                        is_free = True
+
+                    # 推断格式
+                    format = "FLAC"
+                    if "mp3" in title_lower:
+                        format = "MP3"
+                    elif "ape" in title_lower:
+                        format = "APE"
+
+                    # 创建 TorrentResult
+                    torrent_id = getattr(entry, 'id', str(hash(entry.get('link', ''))))
+                    download_url = entry.get('link', '')
+                    title = entry.get('title', '')
+
+                    # 获取种子数和下载数（如果有）
+                    seeders = getattr(entry, 'seeders', 0)
+                    leechers = getattr(entry, 'leechers', 0)
+
+                    # 如果是 NexusPHP 类型的站点，可能会在 torrent 属性中
+                    if hasattr(entry, 'torrent'):
+                        seeders = getattr(entry.torrent, 'seeders', seeders)
+                        leechers = getattr(entry.torrent, 'leechers', leechers)
+                        size = getattr(entry.torrent, 'contentLength', size)
+                        download_url = getattr(entry.torrent, 'downloadUrl', download_url)
+
+                    result = TorrentResult(
+                        torrent_id=torrent_id,
+                        title=title,
+                        size=size,
+                        download_url=download_url,
+                        upload_time=upload_time,
+                        seeders=seeders,
+                        leechers=leechers,
+                        is_free=is_free,
+                        format=format,
+                        bitrate="",
+                    )
+
+                    results.append(result)
+
+                except Exception as e:
+                    self.logger.warning(f"解析 RSS 条目失败: {e}")
+                    continue
+
+            self.logger.info(f"解析 RSS 完成，找到 {len(results)} 个结果")
+            return results
+
+        except Exception as e:
+            self.logger.error(f"解析 RSS 失败: {e}")
+            return []
