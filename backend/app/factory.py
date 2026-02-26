@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from pathlib import Path
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.core.config import settings
 from app.core.log import logger
@@ -16,6 +17,7 @@ from app.core.module import ModuleManager
 from app.core.plugin import PluginManager
 from app.core.cache import AsyncFileCache
 from app.db import db_manager, Base
+from app.tasks.download_monitor import DownloadMonitorTask
 
 
 @asynccontextmanager
@@ -59,12 +61,32 @@ async def lifespan(app: FastAPI):
     for plugin in plugin_manager.get_running_plugins():
         plugin.enable()
 
+    # 初始化定时任务调度器
+    scheduler = AsyncIOScheduler()
+    app.state.scheduler = scheduler
+
+    # 启动下载监控任务
+    download_monitor = DownloadMonitorTask(scheduler)
+    download_monitor.start(interval=60)  # 每 60 秒检查一次
+    app.state.download_monitor = download_monitor
+
+    # 启动调度器
+    scheduler.start()
+
     logger.info("MusicPilot 启动完成")
 
     yield
 
     # 关闭
     logger.info("MusicPilot 关闭中...")
+
+    # 停止下载监控任务
+    if hasattr(app.state, "download_monitor"):
+        app.state.download_monitor.stop()
+
+    # 停止调度器
+    if hasattr(app.state, "scheduler"):
+        app.state.scheduler.shutdown()
 
     # 停止所有模块
     app.state.module_manager.stop_all()
