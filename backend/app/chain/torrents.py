@@ -8,6 +8,7 @@ from datetime import datetime
 from app.core.log import logger
 from app.core.context import MusicInfo
 from app.core.event import event_bus, EventType
+from app.core.module import ModuleManager
 from app.db.operations.site import SiteOper
 from app.db.models.site import Site
 from app.db import db_manager
@@ -68,6 +69,7 @@ class TorrentsChain:
     def __init__(self):
         self.logger = logger
         self.site_oper = SiteOper(Site, db_manager)
+        self.module_manager = ModuleManager()
 
     async def search(
         self,
@@ -146,10 +148,56 @@ class TorrentsChain:
         Returns:
             种子信息列表
         """
-        # TODO: 调用站点模块的搜索方法
-        # 这里需要根据站点类型调用对应的搜索模块
-        # 目前返回空列表
-        self.logger.info(f"搜索站点: {site.name}")
+        # 获取站点的站点模块
+        site_modules = self.module_manager.get_running_modules_by_type("site")
+
+        for module in site_modules:
+            # 找到对应的站点模块（通过站点名称匹配）
+            if hasattr(module, "site_info") and module.site_info.name == site.name:
+                try:
+                    # 根据音乐信息搜索
+                    if music_info.artist and music_info.album:
+                        # 搜索专辑
+                        results = await module.search_album(
+                            music_info.artist, music_info.album, format
+                        )
+                    elif music_info.artist:
+                        # 搜索艺术家
+                        results = await module.search_artist(music_info.artist, format)
+                    elif music_info.title:
+                        # 搜索标题
+                        results = await module.search_title(music_info.title, format)
+                    else:
+                        # 使用完整关键词搜索
+                        keyword = music_info.to_dict()
+                        keyword_str = " ".join(
+                            str(v) for v in keyword.values() if v
+                        )
+                        results = await module.search_torrent(keyword_str, format)
+
+                    # 将 TorrentResult 转换为 TorrentInfo
+                    return [
+                        TorrentInfo(
+                            torrent_id=result.torrent_id,
+                            site_name=module.site_info.name,
+                            title=result.title,
+                            size=result.size,
+                            download_url=result.download_url,
+                            upload_time=result.upload_time,
+                            seeders=result.seeders,
+                            leechers=result.leechers,
+                            is_free=result.is_free,
+                            format=result.format,
+                            bitrate=result.bitrate,
+                        )
+                        for result in results
+                    ]
+                except Exception as e:
+                    self.logger.error(f"站点 {site.name} 搜索失败: {e}")
+                    return []
+
+        # 如果没有找到对应的站点模块，返回空列表
+        self.logger.warning(f"未找到站点 {site.name} 的模块")
         return []
 
     def _sort_results(self, results: List[TorrentInfo]) -> List[TorrentInfo]:
