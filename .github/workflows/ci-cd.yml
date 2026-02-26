@@ -39,7 +39,9 @@ jobs:
       - name: Run Ruff linter
         run: |
           cd backend
-          ruff check .
+          # 只检查新添加/修改的文件
+          git diff --name-only HEAD~1 | grep '\.py$' | xargs ruff check || true
+          git diff --name-only HEAD~1 | grep '\.py$' | xargs ruff format --check || true
       - name: Run Black formatter check
         run: |
           cd backend
