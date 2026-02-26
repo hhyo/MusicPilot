@@ -416,6 +416,159 @@ class NeteaseDownloader(DownloaderBase):
 
         return tasks
 
+    async def fetch_playlist(self, playlist_id: str) -> list[DownloadTask]:
+        """
+        抓取网易云音乐歌单
+
+        Args:
+            playlist_id: 歌单 ID
+
+        Returns:
+            歌曲列表
+        """
+        self.logger.info(f"抓取网易云音乐歌单: {playlist_id}")
+
+        # 歌单详情 API
+        playlist_url = f"{self.api_url}/api/v6/playlist/detail"
+        params = {"id": playlist_id}
+
+        tasks = []
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(playlist_url, params=params)
+                response.raise_for_status()
+                data = response.json()
+
+                if data.get("code") == 200:
+                    playlist_data = data.get("playlist", {})
+                    tracks = playlist_data.get("tracks", [])
+
+                    # 歌单名称
+                    playlist_name = playlist_data.get("name", "")
+                    self.logger.info(f"歌单 '{playlist_name}' 包含 {len(tracks)} 首歌曲")
+
+                    for track in tracks:
+                        # 获取艺术家名称
+                        artist_name = None
+                        if track.get("ar"):
+                            artist_name = ", ".join(
+                                [artist.get("name", "") for artist in track["ar"]]
+                            )
+
+                        # 获取专辑名称
+                        album_name = None
+                        if track.get("al"):
+                            album_name = track["al"].get("name")
+
+                        # 创建下载任务
+                        task = DownloadTask(
+                            task_id=f"netease_{track['id']}",
+                            url=str(track["id"]),
+                            source=self.source,
+                            quality=DownloadQuality.STANDARD,
+                            artist=artist_name,
+                            album=album_name,
+                            title=track.get("name"),
+                            metadata={
+                                "song_id": track["id"],
+                                "artist_ids": [a.get("id") for a in track.get("ar", [])],
+                                "album_id": track.get("al", {}).get("id") if track.get("al") else None,
+                                "duration": track.get("dt") / 1000 if track.get("dt") else None,
+                                "album_pic": track.get("al", {}).get("picUrl") if track.get("al") else None,
+                                "playlist_id": playlist_id,
+                                "playlist_name": playlist_name,
+                            },
+                        )
+                        tasks.append(task)
+
+                    self.logger.info(f"歌单抓取完成，获取 {len(tasks)} 首歌曲")
+
+        except Exception as e:
+            self.logger.error(f"抓取歌单失败: {e}")
+
+        return tasks
+
+    async def fetch_chart(self, chart_id: str = "19723756") -> list[DownloadTask]:
+        """
+        抓取网易云音乐榜单
+
+        Args:
+            chart_id: 榜单 ID，默认飙升榜 (19723756)
+                常见榜单:
+                - 飙升榜: 19723756
+                - 热歌榜: 3779629
+                - 新歌榜: 2884035
+                - 原创榜: 2884035
+                - 说唱榜: 991319590
+
+        Returns:
+            歌曲列表
+        """
+        self.logger.info(f"抓取网易云音乐榜单: {chart_id}")
+
+        # 榜单详情 API（使用歌单接口，榜单本质上是特殊歌单）
+        playlist_url = f"{self.api_url}/api/v6/playlist/detail"
+        params = {"id": chart_id}
+
+        tasks = []
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(playlist_url, params=params)
+                response.raise_for_status()
+                data = response.json()
+
+                if data.get("code") == 200:
+                    playlist_data = data.get("playlist", {})
+                    tracks = playlist_data.get("tracks", [])
+
+                    # 榜单名称
+                    chart_name = playlist_data.get("name", "")
+                    self.logger.info(f"榜单 '{chart_name}' 包含 {len(tracks)} 首歌曲")
+
+                    for idx, track in enumerate(tracks, start=1):
+                        # 获取艺术家名称
+                        artist_name = None
+                        if track.get("ar"):
+                            artist_name = ", ".join(
+                                [artist.get("name", "") for artist in track["ar"]]
+                            )
+
+                        # 获取专辑名称
+                        album_name = None
+                        if track.get("al"):
+                            album_name = track["al"].get("name")
+
+                        # 创建下载任务
+                        task = DownloadTask(
+                            task_id=f"netease_{track['id']}",
+                            url=str(track["id"]),
+                            source=self.source,
+                            quality=DownloadQuality.STANDARD,
+                            artist=artist_name,
+                            album=album_name,
+                            title=track.get("name"),
+                            metadata={
+                                "song_id": track["id"],
+                                "artist_ids": [a.get("id") for a in track.get("ar", [])],
+                                "album_id": track.get("al", {}).get("id") if track.get("al") else None,
+                                "duration": track.get("dt") / 1000 if track.get("dt") else None,
+                                "album_pic": track.get("al", {}).get("picUrl") if track.get("al") else None,
+                                "chart_id": chart_id,
+                                "chart_name": chart_name,
+                                "rank": idx,  # 排名
+                            },
+                        )
+                        tasks.append(task)
+
+                    self.logger.info(f"榜单抓取完成，获取 {len(tasks)} 首歌曲")
+
+        except Exception as e:
+            self.logger.error(f"抓取榜单失败: {e}")
+
+        return tasks
+
     async def test(self) -> Tuple[bool, str]:
         """
         测试下载器连接
