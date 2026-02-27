@@ -2,26 +2,25 @@
 API v1 路由聚合
 """
 
+from app.api.endpoints import (
+    album,
+    artist,
+    covers,
+    library,
+    metadata,
+    player,
+    playlist,
+    site,
+    stream,
+    subscribe,
+    subscribe_release,
+    track,
+)
+
 from fastapi import APIRouter
 
 # 创建 API 路由器
 api_router = APIRouter()
-
-# 注册各模块路由
-from app.api.endpoints import (
-    artist,
-    album,
-    track,
-    playlist,
-    library,
-    metadata,
-    covers,
-    stream,
-    player,
-    site,
-    subscribe_release,
-    subscribe,
-)
 
 api_router.include_router(artist.router, prefix="/artists", tags=["artists"])
 api_router.include_router(album.router, prefix="/albums", tags=["albums"])
