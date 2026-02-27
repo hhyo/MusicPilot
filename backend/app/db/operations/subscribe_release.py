@@ -2,7 +2,6 @@
 SubscribeRelease 操作类
 """
 
-
 from sqlalchemy import and_, func, select
 
 from app.db import OperBase

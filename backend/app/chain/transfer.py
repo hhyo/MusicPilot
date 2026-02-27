@@ -27,9 +27,7 @@ class TransferChain(ChainBase):
         self.logger = logger
         self.track_oper = TrackOper(self.db_manager)
 
-    async def organize(
-        self, task: DownloadTask, check_duplicate: bool = True
-    ) -> MusicInfo | None:
+    async def organize(self, task: DownloadTask, check_duplicate: bool = True) -> MusicInfo | None:
         """
         整理下载的文件
 

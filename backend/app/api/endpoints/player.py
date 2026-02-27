@@ -3,7 +3,6 @@ Player API 端点
 播放器状态管理
 """
 
-
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.chain.playback import PlaybackChain

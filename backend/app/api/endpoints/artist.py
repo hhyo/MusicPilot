@@ -3,7 +3,6 @@ Artist API 端点
 艺术家相关 API
 """
 
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 

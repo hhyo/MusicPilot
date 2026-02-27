@@ -2,7 +2,6 @@
 Track 操作类
 """
 
-
 from sqlalchemy import and_, or_, select
 
 from app.db import OperBase

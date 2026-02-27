@@ -3,7 +3,6 @@ qBittorrent 下载器模块
 支持 qBittorrent 4.1+ API
 """
 
-
 from app.modules.downloader_module import (
     DownloaderModule,
     DownloadProgress,
@@ -147,9 +146,7 @@ class QbittorrentModule(DownloaderModule):
             torrent = torrents[0]
 
             # 映射状态
-            DownloadStatus(
-                torrent.get("state", "downloading").replace("stalledDL", "downloading")
-            )
+            DownloadStatus(torrent.get("state", "downloading").replace("stalledDL", "downloading"))
 
             return DownloadProgress(
                 task_id=task_id,
