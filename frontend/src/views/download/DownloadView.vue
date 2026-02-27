@@ -181,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h } from 'vue'
 import {
   NPageHeader,
   NCard,
@@ -277,33 +277,27 @@ const qualityOptions = [
   { label: '无损 (FLAC)', value: 'lossless' },
 ]
 
-// 表格列定义
+// 表格列定义（使用 h 函数代替 JSX）
 const downloadingColumns: DataTableColumns<any> = [
   {
     title: '标题',
     key: 'title',
-    render(row) {
-      return row.title || row.task_id
-    },
+    render: (row) => row.title || row.task_id,
   },
   {
     title: '艺术家',
     key: 'artist',
-    render(row) {
-      return row.artist || '-'
-    },
+    render: (row) => row.artist || '-',
   },
   {
     title: '专辑',
     key: 'album',
-    render(row) {
-      return row.album || '-'
-    },
+    render: (row) => row.album || '-',
   },
   {
     title: '音质',
     key: 'quality',
-    render(row) {
+    render: (row) => {
       const qualityMap: Record<string, string> = {
         standard: '标准',
         high: '高品质',
@@ -315,31 +309,23 @@ const downloadingColumns: DataTableColumns<any> = [
   {
     title: '进度',
     key: 'progress',
-    render(row) {
+    render: (row) => {
       const percentage = (row.progress || 0) * 100
-      return (
-        <NProgress percentage={percentage} indicator-placement="inside" processing />
-      )
+      return h(NProgress, { percentage, indicatorPlacement: 'inside', processing: true })
     },
   },
   {
     title: '状态',
     key: 'status',
-    render(row) {
-      return <NTag type="info">下载中</NTag>
-    },
+    render: () => h(NTag, { type: 'info' }, () => '下载中'),
   },
   {
     title: '操作',
     key: 'actions',
-    render(row) {
-      return (
-        <NSpace>
-          <NButton size="small" onClick={() => cancelDownload(row.task_id)}>
-            取消
-          </NButton>
-        </NSpace>
-      )
+    render: (row) => {
+      return h(NSpace, null, {
+        default: () => h(NButton, { size: 'small', onClick: () => cancelDownload(row.task_id) }, () => '取消')
+      })
     },
   },
 ]
@@ -348,28 +334,22 @@ const completedColumns: DataTableColumns<any> = [
   {
     title: '标题',
     key: 'title',
-    render(row) {
-      return row.title || row.task_id
-    },
+    render: (row) => row.title || row.task_id,
   },
   {
     title: '艺术家',
     key: 'artist',
-    render(row) {
-      return row.artist || '-'
-    },
+    render: (row) => row.artist || '-',
   },
   {
     title: '专辑',
     key: 'album',
-    render(row) {
-      return row.album || '-'
-    },
+    render: (row) => row.album || '-',
   },
   {
     title: '音质',
     key: 'quality',
-    render(row) {
+    render: (row) => {
       const qualityMap: Record<string, string> = {
         standard: '标准',
         high: '高品质',
@@ -381,29 +361,22 @@ const completedColumns: DataTableColumns<any> = [
   {
     title: '文件大小',
     key: 'file_size',
-    render(row) {
-      return row.total_bytes ? formatFileSize(row.total_bytes) : '-'
-    },
+    render: (row) => row.total_bytes ? formatFileSize(row.total_bytes) : '-',
   },
   {
     title: '文件路径',
     key: 'file_path',
-    render(row) {
-      return row.file_path || '-'
-    },
+    render: (row) => row.file_path || '-',
   },
   {
     title: '操作',
     key: 'actions',
-    render(row) {
-      return (
-        <NSpace>
-          <NButton size="small" type="primary" onClick={() => playTrack(row.file_path)}>
-            <NIcon><PlayIcon /></NIcon>
-            播放
-          </NButton>
-        </NSpace>
-      )
+    render: (row) => {
+      return h(NSpace, null, {
+        default: () => h(NButton, { size: 'small', type: 'primary', onClick: () => playTrack(row.file_path) }, {
+          default: () => [h(NIcon, null, { default: () => h(PlayIcon) }), '播放']
+        })
+      })
     },
   },
 ]
@@ -412,43 +385,32 @@ const failedColumns: DataTableColumns<any> = [
   {
     title: '标题',
     key: 'title',
-    render(row) {
-      return row.title || row.task_id
-    },
+    render: (row) => row.title || row.task_id,
   },
   {
     title: '艺术家',
     key: 'artist',
-    render(row) {
-      return row.artist || '-'
-    },
+    render: (row) => row.artist || '-',
   },
   {
     title: '专辑',
     key: 'album',
-    render(row) {
-      return row.album || '-'
-    },
+    render: (row) => row.album || '-',
   },
   {
     title: '错误信息',
     key: 'error_message',
-    render(row) {
-      return row.error_message || '-'
-    },
+    render: (row) => row.error_message || '-',
   },
   {
     title: '操作',
     key: 'actions',
-    render(row) {
-      return (
-        <NSpace>
-          <NButton size="small" onClick={() => retryDownload(row)}>
-            <NIcon><RetryIcon /></NIcon>
-            重试
-          </NButton>
-        </NSpace>
-      )
+    render: (row) => {
+      return h(NSpace, null, {
+        default: () => h(NButton, { size: 'small', onClick: () => retryDownload(row) }, {
+          default: () => [h(NIcon, null, { default: () => h(RetryIcon) }), '重试']
+        })
+      })
     },
   },
 ]
@@ -457,28 +419,22 @@ const historyColumns: DataTableColumns<any> = [
   {
     title: '标题',
     key: 'title',
-    render(row) {
-      return row.title || '-'
-    },
+    render: (row) => row.title || '-',
   },
   {
     title: '艺术家',
     key: 'artist',
-    render(row) {
-      return row.artist || '-'
-    },
+    render: (row) => row.artist || '-',
   },
   {
     title: '专辑',
     key: 'album',
-    render(row) {
-      return row.album || '-'
-    },
+    render: (row) => row.album || '-',
   },
   {
     title: '来源',
     key: 'source',
-    render(row) {
+    render: (row) => {
       const sourceMap: Record<string, string> = {
         netease: '网易云音乐',
       }
@@ -488,24 +444,22 @@ const historyColumns: DataTableColumns<any> = [
   {
     title: '状态',
     key: 'status',
-    render(row) {
-      const statusMap = {
-        pending: { type: 'default' as const, text: '等待中' },
-        downloading: { type: 'info' as const, text: '下载中' },
-        completed: { type: 'success' as const, text: '已完成' },
-        failed: { type: 'error' as const, text: '失败' },
-        cancelled: { type: 'warning' as const, text: '已取消' },
+    render: (row) => {
+      const statusMap: Record<string, { type: any; text: string }> = {
+        pending: { type: 'default', text: '等待中' },
+        downloading: { type: 'info', text: '下载中' },
+        completed: { type: 'success', text: '已完成' },
+        failed: { type: 'error', text: '失败' },
+        cancelled: { type: 'warning', text: '已取消' },
       }
       const status = statusMap[row.status] || { type: 'default', text: row.status }
-      return <NTag type={status.type}>{status.text}</NTag>
+      return h(NTag, { type: status.type }, () => status.text)
     },
   },
   {
     title: '时间',
     key: 'created_at',
-    render(row) {
-      return row.created_at ? formatDate(row.created_at) : '-'
-    },
+    render: (row) => row.created_at ? formatDate(row.created_at) : '-',
   },
 ]
 
