@@ -2,7 +2,6 @@
 下载器模块基类
 所有下载器模块都继承此类
 """
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -206,7 +205,7 @@ class DownloaderModule(ModuleBase):
         # 子类必须实现此方法
         raise NotImplementedError("子类必须实现 remove_torrent 方法")
 
-    async def get_all_tasks(self) -> List[DownloadTaskInfo]:
+    async def get_all_tasks(self) -> list[DownloadTaskInfo]:
         """
         获取所有任务
 

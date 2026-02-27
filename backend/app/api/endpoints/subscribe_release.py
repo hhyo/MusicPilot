@@ -1,7 +1,6 @@
 """
 订阅发布记录 API 端点
 """
-from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,7 +32,7 @@ async def get_subscribe_releases(
     subscribe_id: int,
     skip: int = 0,
     limit: int = 100,
-    status: str = None,
+    status: str | None = None,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -128,7 +127,7 @@ async def delete_release(subscribe_id: int, release_id: int, db: AsyncSession = 
     return ResponseModel(success=True, message="发布记录删除成功")
 
 
-@router.get("/releases/downloading", response_model=List[SubscribeReleaseResponse], summary="获取正在下载的发布记录")
+@router.get("/releases/downloading", response_model=list[SubscribeReleaseResponse], summary="获取正在下载的发布记录")
 async def get_downloading_releases(limit: int = 100, db: AsyncSession = Depends(get_db)):
     """
     获取所有正在下载的发布记录
@@ -138,7 +137,7 @@ async def get_downloading_releases(limit: int = 100, db: AsyncSession = Depends(
     return releases[:limit]
 
 
-@router.get("/releases/failed", response_model=List[SubscribeReleaseResponse], summary="获取下载失败的发布记录")
+@router.get("/releases/failed", response_model=list[SubscribeReleaseResponse], summary="获取下载失败的发布记录")
 async def get_failed_releases(limit: int = 100, db: AsyncSession = Depends(get_db)):
     """
     获取所有下载失败的发布记录
