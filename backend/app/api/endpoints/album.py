@@ -3,7 +3,6 @@ Album API 端点
 专辑相关 API
 """
 
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession

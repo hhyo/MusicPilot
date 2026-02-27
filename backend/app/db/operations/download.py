@@ -2,7 +2,6 @@
 DownloadHistory 操作类
 """
 
-
 from sqlalchemy import select
 
 from app.core.context import DownloaderType, DownloadStatus

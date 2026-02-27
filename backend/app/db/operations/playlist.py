@@ -2,7 +2,6 @@
 Playlist 操作类
 """
 
-
 from sqlalchemy import and_, delete, select
 
 from app.db import OperBase

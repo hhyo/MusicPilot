@@ -3,7 +3,6 @@
 处理播放列表管理
 """
 
-
 from app.chain import ChainBase
 from app.core.context import PlaylistType, SmartQuery
 

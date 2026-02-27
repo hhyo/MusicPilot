@@ -2,7 +2,6 @@
 Site 操作类
 """
 
-
 from sqlalchemy import select
 
 from app.db import OperBase

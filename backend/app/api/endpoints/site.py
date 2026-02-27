@@ -2,7 +2,6 @@
 站点管理 API 端点
 """
 
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 

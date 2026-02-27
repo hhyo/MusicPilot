@@ -2,7 +2,6 @@
 Subscribe 操作类
 """
 
-
 from sqlalchemy import select
 
 from app.db import OperBase
@@ -117,9 +116,7 @@ class SubscribeOper(OperBase[Subscribe]):
 
         return await self.update(id, last_check=datetime.utcnow().isoformat())
 
-    async def update_release(
-        self, id: int, release_count: int | None = None
-    ) -> Subscribe | None:
+    async def update_release(self, id: int, release_count: int | None = None) -> Subscribe | None:
         """
         更新发布信息
 

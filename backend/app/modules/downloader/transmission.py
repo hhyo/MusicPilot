@@ -3,7 +3,6 @@ Transmission 下载器模块
 支持 Transmission RPC 2.0+
 """
 
-
 from app.modules.downloader_module import (
     DownloaderModule,
     DownloadProgress,

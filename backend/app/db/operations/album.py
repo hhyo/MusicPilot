@@ -2,7 +2,6 @@
 Album 操作类
 """
 
-
 from sqlalchemy import or_, select
 
 from app.db import OperBase
