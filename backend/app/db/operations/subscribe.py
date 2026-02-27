@@ -1,6 +1,7 @@
 """
 Subscribe 操作类
 """
+
 from typing import Optional, List
 from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,7 +59,9 @@ class SubscribeOper(OperBase[Subscribe]):
         """
         return await self.get_all(skip=skip, limit=limit, type=sub_type)
 
-    async def get_by_source_type(self, source_type: str, skip: int = 0, limit: int = 100) -> List[Subscribe]:
+    async def get_by_source_type(
+        self, source_type: str, skip: int = 0, limit: int = 100
+    ) -> List[Subscribe]:
         """
         根据来源类型获取订阅
 
@@ -97,9 +100,7 @@ class SubscribeOper(OperBase[Subscribe]):
             订阅列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Subscribe).where(
-                Subscribe.name.ilike(f"%{keyword}%")
-            ).limit(limit)
+            query = select(Subscribe).where(Subscribe.name.ilike(f"%{keyword}%")).limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
 
@@ -114,12 +115,11 @@ class SubscribeOper(OperBase[Subscribe]):
             更新后的订阅对象
         """
         from datetime import datetime
+
         return await self.update(id, last_check=datetime.utcnow().isoformat())
 
     async def update_release(
-        self,
-        id: int,
-        release_count: Optional[int] = None
+        self, id: int, release_count: Optional[int] = None
     ) -> Optional[Subscribe]:
         """
         更新发布信息
@@ -139,9 +139,7 @@ class SubscribeOper(OperBase[Subscribe]):
         else:
             # 增加发布数量
             async with self.db_manager.get_session() as session:
-                result = await session.execute(
-                    select(Subscribe).where(Subscribe.id == id)
-                )
+                result = await session.execute(select(Subscribe).where(Subscribe.id == id))
                 subscribe = result.scalar_one_or_none()
                 if subscribe:
                     update_data["release_count"] = (subscribe.release_count or 0) + 1

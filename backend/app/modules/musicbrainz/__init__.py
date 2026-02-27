@@ -2,6 +2,7 @@
 MusicBrainz 模块
 使用 musicbrainzngs 库集成 MusicBrainz API
 """
+
 import time
 from typing import Optional, List, Dict, Any
 from musicbrainzngs import set_useragent, get_artist_by_id, search_artists
@@ -27,7 +28,7 @@ class MusicBrainzModule(ModuleBase):
         # 设置 User-Agent（MusicBrainz 要求）
         set_useragent(
             f"{settings.musicbrainz_app_name}/{settings.musicbrainz_app_version}",
-            "https://github.com/hhyo/MusicPilot"
+            "https://github.com/hhyo/MusicPilot",
         )
         self._last_request_time = 0
         self._rate_limit = 1.0  # 1 请求/秒
@@ -40,11 +41,7 @@ class MusicBrainzModule(ModuleBase):
             time.sleep(self._rate_limit - elapsed)
         self._last_request_time = time.time()
 
-    async def search_artist(
-        self,
-        query: str,
-        limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    async def search_artist(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
         搜索艺术家
 
@@ -62,14 +59,16 @@ class MusicBrainzModule(ModuleBase):
         artists = []
 
         for artist in result.get("artist-list", []):
-            artists.append({
-                "id": artist.get("id"),
-                "name": artist.get("name"),
-                "type": artist.get("type"),
-                "disambiguation": artist.get("disambiguation"),
-                "country": artist.get("country"),
-                "gender": artist.get("gender"),
-            })
+            artists.append(
+                {
+                    "id": artist.get("id"),
+                    "name": artist.get("name"),
+                    "type": artist.get("type"),
+                    "disambiguation": artist.get("disambiguation"),
+                    "country": artist.get("country"),
+                    "gender": artist.get("gender"),
+                }
+            )
 
         self.logger.info(f"找到 {len(artists)} 个艺术家")
         return artists
@@ -113,13 +112,15 @@ class MusicBrainzModule(ModuleBase):
         releases = []
         release_groups = artist.get("release-group-list", [])
         for rg in release_groups[:50]:  # 限制最多 50 个专辑
-            releases.append({
-                "id": rg.get("id"),
-                "title": rg.get("title"),
-                "type": rg.get("type"),
-                "first_release_date": rg.get("first-release-date"),
-                "primary_type": rg.get("primary-type"),
-            })
+            releases.append(
+                {
+                    "id": rg.get("id"),
+                    "title": rg.get("title"),
+                    "type": rg.get("type"),
+                    "first_release_date": rg.get("first-release-date"),
+                    "primary_type": rg.get("primary-type"),
+                }
+            )
 
         artist_info["releases"] = releases
         artist_info["release_count"] = len(releases)
@@ -127,11 +128,7 @@ class MusicBrainzModule(ModuleBase):
         self.logger.info(f"获取艺术家详情成功: {artist_info['name']}")
         return artist_info
 
-    async def search_album(
-        self,
-        query: str,
-        limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    async def search_album(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
         搜索专辑
 
@@ -201,11 +198,7 @@ class MusicBrainzModule(ModuleBase):
         self.logger.info(f"获取专辑详情成功: {album_info['title']}")
         return album_info
 
-    async def search_track(
-        self,
-        query: str,
-        limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    async def search_track(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
         搜索曲目
 
@@ -267,11 +260,7 @@ class MusicBrainzModule(ModuleBase):
         self.logger.info(f"获取曲目详情成功: {track_info['title']}")
         return track_info
 
-    async def download_cover(
-        self,
-        musicbrainz_id: str,
-        cover_type: str = "front"
-    ) -> Optional[str]:
+    async def download_cover(self, musicbrainz_id: str, cover_type: str = "front") -> Optional[str]:
         """
         下载封面图片
 
@@ -308,8 +297,7 @@ class MusicBrainzModule(ModuleBase):
 
         if isinstance(artist_credit, list):
             # 多艺术家
-            names = [ac.get("name") or ac.get("artist", {}).get("name")
-                      for ac in artist_credit]
+            names = [ac.get("name") or ac.get("artist", {}).get("name") for ac in artist_credit]
             return {
                 "names": names,
                 "joinphrase": artist_credit[0].get("joinphrase", ", "),

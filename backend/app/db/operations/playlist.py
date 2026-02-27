@@ -1,6 +1,7 @@
 """
 Playlist 操作类
 """
+
 from typing import Optional, List
 from sqlalchemy import select, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,9 +25,7 @@ class PlaylistOper(OperBase[Playlist]):
             播放列表对象
         """
         async with self.db_manager.get_session() as session:
-            result = await session.execute(
-                select(Playlist).where(Playlist.id == playlist_id)
-            )
+            result = await session.execute(select(Playlist).where(Playlist.id == playlist_id))
             playlist = result.scalar_one_or_none()
             if playlist:
                 # 加载曲目关系
@@ -58,13 +57,11 @@ class PlaylistOper(OperBase[Playlist]):
             播放列表列表
         """
         from app.core.context import PlaylistType
+
         return await self.get_all(skip=skip, limit=limit, type=PlaylistType.SMART.value)
 
     async def add_track(
-        self,
-        playlist_id: int,
-        track_id: int,
-        position: Optional[int] = None
+        self, playlist_id: int, track_id: int, position: Optional[int] = None
     ) -> Optional[PlaylistTrack]:
         """
         添加曲目到播放列表
@@ -81,18 +78,17 @@ class PlaylistOper(OperBase[Playlist]):
             # 如果没有指定位置，获取当前最大位置
             if position is None:
                 result = await session.execute(
-                    select(PlaylistTrack.position).where(
-                        PlaylistTrack.playlist_id == playlist_id
-                    ).order_by(PlaylistTrack.position.desc()).limit(1)
+                    select(PlaylistTrack.position)
+                    .where(PlaylistTrack.playlist_id == playlist_id)
+                    .order_by(PlaylistTrack.position.desc())
+                    .limit(1)
                 )
                 max_position = result.scalar_one_or_none()
                 position = (max_position or 0) + 1
 
             # 创建关联
             playlist_track = PlaylistTrack(
-                playlist_id=playlist_id,
-                track_id=track_id,
-                position=position
+                playlist_id=playlist_id, track_id=track_id, position=position
             )
             session.add(playlist_track)
             await session.commit()
@@ -114,8 +110,7 @@ class PlaylistOper(OperBase[Playlist]):
             result = await session.execute(
                 delete(PlaylistTrack).where(
                     and_(
-                        PlaylistTrack.playlist_id == playlist_id,
-                        PlaylistTrack.track_id == track_id
+                        PlaylistTrack.playlist_id == playlist_id, PlaylistTrack.track_id == track_id
                     )
                 )
             )
@@ -134,18 +129,12 @@ class PlaylistOper(OperBase[Playlist]):
         """
         async with self.db_manager.get_session() as session:
             result = await session.execute(
-                delete(PlaylistTrack).where(
-                    PlaylistTrack.playlist_id == playlist_id
-                )
+                delete(PlaylistTrack).where(PlaylistTrack.playlist_id == playlist_id)
             )
             await session.commit()
             return result.rowcount > 0
 
-    async def reorder_tracks(
-        self,
-        playlist_id: int,
-        track_ids: List[int]
-    ) -> bool:
+    async def reorder_tracks(self, playlist_id: int, track_ids: List[int]) -> bool:
         """
         重新排序播放列表曲目
 
@@ -159,9 +148,9 @@ class PlaylistOper(OperBase[Playlist]):
         async with self.db_manager.get_session() as session:
             # 获取所有曲目关联
             result = await session.execute(
-                select(PlaylistTrack).where(
-                    PlaylistTrack.playlist_id == playlist_id
-                ).order_by(PlaylistTrack.position)
+                select(PlaylistTrack)
+                .where(PlaylistTrack.playlist_id == playlist_id)
+                .order_by(PlaylistTrack.position)
             )
             tracks = result.scalars().all()
 

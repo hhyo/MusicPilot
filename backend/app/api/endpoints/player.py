@@ -2,6 +2,7 @@
 Player API 端点
 播放器状态管理
 """
+
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,7 +14,6 @@ from app.core.log import logger
 from app.schemas.response import ResponseModel
 
 from app.db import get_db
-
 
 router = APIRouter()
 
@@ -67,8 +67,16 @@ async def get_current_state(
             "repeat_mode": queue_info.get("repeat_mode"),
             "shuffle": queue_info.get("is_shuffle"),
             "volume": 1.0,
-            "position": queue_info.get("current_track", {}).get("position", 0) if queue_info.get("current_track") else 0,
-            "duration": queue_info.get("current_track", {}).get("duration", 0) if queue_info.get("current_track") else 0,
+            "position": (
+                queue_info.get("current_track", {}).get("position", 0)
+                if queue_info.get("current_track")
+                else 0
+            ),
+            "duration": (
+                queue_info.get("current_track", {}).get("duration", 0)
+                if queue_info.get("current_track")
+                else 0
+            ),
             "history": history[:10],  # 最近 10 条
         }
     )
@@ -88,9 +96,7 @@ async def get_play_history(
     """
     history = await playback_chain.get_history(user_id=user_id, limit=min(limit, 100))
 
-    return ResponseModel(
-        data=history
-    )
+    return ResponseModel(data=history)
 
 
 @router.post("/play", response_model=ResponseModel[dict])
@@ -116,7 +122,7 @@ async def play_track(
                 "session_id": session.session_id,
                 "track_id": session.track_id,
                 "is_playing": session.is_playing,
-            }
+            },
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -142,7 +148,7 @@ async def pause(
         data={
             "session_id": session_id,
             "is_playing": False,
-        }
+        },
     )
 
 
@@ -158,10 +164,7 @@ async def stop(
     """
     await playback_chain.stop(session_id)
 
-    return ResponseModel(
-        message="已停止",
-        data={}
-    )
+    return ResponseModel(message="已停止", data={})
 
 
 @router.post("/next", response_model=ResponseModel[dict])
@@ -183,8 +186,12 @@ async def next_track(
         message="播放下一首",
         data={
             "session_id": session_id,
-            "track_id": playback_chain.get_current_session().track_id if playback_chain.get_current_session() else None,
-        }
+            "track_id": (
+                playback_chain.get_current_session().track_id
+                if playback_chain.get_current_session()
+                else None
+            ),
+        },
     )
 
 
@@ -208,7 +215,7 @@ async def previous_track(
         data={
             "session_id": session_id,
             "track_id": current_session.track_id if current_session else None,
-        }
+        },
     )
 
 
@@ -230,7 +237,7 @@ async def seek_to_position(
         message=f"跳转到 {position} 秒",
         data={
             "position": position,
-        }
+        },
     )
 
 
@@ -254,7 +261,7 @@ async def set_volume(
         message=f"音量设置为 {int(volume * 100)}%",
         data={
             "volume": volume,
-        }
+        },
     )
 
 
@@ -276,7 +283,7 @@ async def toggle_mute(
         message=f"静音: {'开启' if current_session and current_session.muted else '关闭'}",
         data={
             "muted": current_session.muted if current_session else False,
-        }
+        },
     )
 
 
@@ -300,7 +307,7 @@ async def set_repeat_mode(
         message=f"循环模式: {mode}",
         data={
             "repeat_mode": current_session.repeat_mode if current_session else "off",
-        }
+        },
     )
 
 
@@ -322,7 +329,7 @@ async def toggle_shuffle(
         message=f"随机播放: {'开启' if current_session and current_session.shuffle else '关闭'}",
         data={
             "shuffle": current_session.shuffle if current_session else False,
-        }
+        },
     )
 
 
@@ -342,18 +349,21 @@ async def get_queue(
     tracks = []
     if track_ids:
         from app.db.operations.track import TrackOper
+
         track_oper = TrackOper(playback_chain.db_manager)
         for track_id in track_ids[:20]:  # 最多显示 20 首
             track = await track_oper.get_by_id(track_id)
             if track:
-                tracks.append({
-                    "id": track.id,
-                    "title": track.title,
-                    "artist_id": track.artist_id,
-                    "album_id": track.album_id,
-                    "duration": track.duration,
-                    "file_format": track.file_format,
-                })
+                tracks.append(
+                    {
+                        "id": track.id,
+                        "title": track.title,
+                        "artist_id": track.artist_id,
+                        "album_id": track.album_id,
+                        "duration": track.duration,
+                        "file_format": track.file_format,
+                    }
+                )
 
     return ResponseModel(
         data={
@@ -381,8 +391,7 @@ async def add_to_queue(
     await playback_chain.enqueue([track_id])
 
     return ResponseModel(
-        message="已添加到队列",
-        data={"queue_count": len(playback_chain.get_queue())}
+        message="已添加到队列", data={"queue_count": len(playback_chain.get_queue())}
     )
 
 
@@ -395,7 +404,4 @@ async def clear_queue(
     """
     await playback_chain.clear_queue()
 
-    return ResponseModel(
-        message="队列已清空",
-        data={"queue_count": 0}
-    )
+    return ResponseModel(message="队列已清空", data={"queue_count": 0})

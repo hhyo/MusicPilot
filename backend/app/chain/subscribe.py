@@ -2,6 +2,7 @@
 订阅链
 处理艺术家、专辑、歌单、榜单订阅
 """
+
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
@@ -54,14 +55,16 @@ class SubscribeChain:
 
         # 记录到 SubscribeRelease
         for release in releases:
-            await self.subscribe_release_oper.create({
-                "subscribe_id": subscribe_id,
-                "release_type": "album",
-                "musicbrainz_id": release.get("id"),
-                "title": release.get("title"),
-                "artist": release.get("artist"),
-                "download_status": "pending",
-            })
+            await self.subscribe_release_oper.create(
+                {
+                    "subscribe_id": subscribe_id,
+                    "release_type": "album",
+                    "musicbrainz_id": release.get("id"),
+                    "title": release.get("title"),
+                    "artist": release.get("artist"),
+                    "download_status": "pending",
+                }
+            )
 
         return releases
 
@@ -83,7 +86,9 @@ class SubscribeChain:
         # 临时返回 None
         return None
 
-    async def check_playlist(self, subscribe_id: int, playlist_id: str, source_type: str = "netease") -> List[Dict[str, Any]]:
+    async def check_playlist(
+        self, subscribe_id: int, playlist_id: str, source_type: str = "netease"
+    ) -> List[Dict[str, Any]]:
         """
         检查歌单/榜单订阅
 
@@ -140,14 +145,16 @@ class SubscribeChain:
                         subscribe_id, song["song_id"]
                     )
                     if not existing:
-                        await self.subscribe_release_oper.create({
-                            "subscribe_id": subscribe_id,
-                            "release_type": "track",
-                            "musicbrainz_id": song["song_id"],
-                            "title": song["title"],
-                            "artist": song["artist"],
-                            "download_status": "pending",
-                        })
+                        await self.subscribe_release_oper.create(
+                            {
+                                "subscribe_id": subscribe_id,
+                                "release_type": "track",
+                                "musicbrainz_id": song["song_id"],
+                                "title": song["title"],
+                                "artist": song["artist"],
+                                "download_status": "pending",
+                            }
+                        )
 
             elif source_type == "qq":
                 # TODO: 实现 QQ 音乐歌单/榜单抓取

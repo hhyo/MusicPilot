@@ -1,6 +1,7 @@
 """
 SubscribeRelease Schema
 """
+
 from datetime import datetime
 from typing import Optional
 
@@ -9,6 +10,7 @@ from pydantic import BaseModel, Field
 
 class SubscribeReleaseBase(BaseModel):
     """订阅发布记录基础模型"""
+
     subscribe_id: int = Field(..., description="订阅ID")
     release_type: str = Field(..., description="发布类型")
     artist: str | None = Field(None, description="艺术家")
@@ -26,11 +28,13 @@ class SubscribeReleaseBase(BaseModel):
 
 class SubscribeReleaseCreate(SubscribeReleaseBase):
     """创建订阅发布记录"""
+
     pass
 
 
 class SubscribeReleaseUpdate(BaseModel):
     """更新订阅发布记录"""
+
     download_status: str | None = None
     torrent_id: str | None = None
     torrent_site: str | None = None
@@ -41,6 +45,7 @@ class SubscribeReleaseUpdate(BaseModel):
 
 class SubscribeReleaseResponse(SubscribeReleaseBase):
     """订阅发布记录响应模型"""
+
     id: int
     created_at: datetime
     updated_at: datetime
@@ -51,12 +56,14 @@ class SubscribeReleaseResponse(SubscribeReleaseBase):
 
 class SubscribeReleaseListResponse(BaseModel):
     """订阅发布记录列表响应"""
+
     total: int
     items: list[SubscribeReleaseResponse]
 
 
 class SubscribeReleaseStatistics(BaseModel):
     """订阅发布统计"""
+
     total: int = Field(..., description="总数量")
     pending: int = Field(..., description="待下载数量")
     downloading: int = Field(..., description="下载中数量")

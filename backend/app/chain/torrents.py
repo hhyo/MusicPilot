@@ -2,6 +2,7 @@
 资源搜索链
 处理资源搜索、结果排序和过滤
 """
+
 import asyncio
 import hashlib
 from typing import Optional, Dict, Any, List
@@ -151,7 +152,11 @@ class TorrentsChain:
                         title=r["title"],
                         size=r["size"],
                         download_url=r["download_url"],
-                        upload_time=datetime.fromisoformat(r["upload_time"]) if r.get("upload_time") else None,
+                        upload_time=(
+                            datetime.fromisoformat(r["upload_time"])
+                            if r.get("upload_time")
+                            else None
+                        ),
                         seeders=r.get("seeders", 0),
                         leechers=r.get("leechers", 0),
                         is_free=r.get("is_free", False),
@@ -171,10 +176,7 @@ class TorrentsChain:
             return []
 
         # 3. 并发搜索所有站点
-        tasks = [
-            self._search_site(site, music_info, format)
-            for site in enabled_sites
-        ]
+        tasks = [self._search_site(site, music_info, format) for site in enabled_sites]
 
         # 使用 asyncio.gather 并发执行搜索
         site_results_list = await asyncio.gather(*tasks, return_exceptions=True)
@@ -192,18 +194,14 @@ class TorrentsChain:
         sorted_results = self._sort_results(results)
 
         # 5. 过滤结果
-        filtered_results = self._filter_results(
-            sorted_results, format, min_size, max_size
-        )
+        filtered_results = self._filter_results(sorted_results, format, min_size, max_size)
 
         self.logger.info(f"搜索完成，找到 {len(filtered_results)} 个结果")
 
         # 6. 缓存结果（转换为字典格式）
         if use_cache and filtered_results:
             await self.cache.async_set(
-                cache_key,
-                [r.to_dict() for r in filtered_results],
-                ttl=self.cache.default_ttl
+                cache_key, [r.to_dict() for r in filtered_results], ttl=self.cache.default_ttl
             )
 
         # 7. 发送搜索事件
@@ -253,9 +251,7 @@ class TorrentsChain:
                     else:
                         # 使用完整关键词搜索
                         keyword = music_info.to_dict()
-                        keyword_str = " ".join(
-                            str(v) for v in keyword.values() if v
-                        )
+                        keyword_str = " ".join(str(v) for v in keyword.values() if v)
                         results = await module.search_torrent(keyword_str, format)
 
                     # 将 TorrentResult 转换为 TorrentInfo
@@ -299,17 +295,14 @@ class TorrentsChain:
         Returns:
             排序后的种子信息列表
         """
+
         def sort_key(torrent: TorrentInfo) -> tuple:
             # 免费种子优先级最高
             free_priority = 1 if torrent.is_free else 0
             # 种子活跃度
             activity = torrent.seeders - torrent.leechers
             # 上传时间（越新越好，使用时间戳的负数）
-            upload_time = (
-                -torrent.upload_time.timestamp()
-                if torrent.upload_time
-                else 0
-            )
+            upload_time = -torrent.upload_time.timestamp() if torrent.upload_time else 0
             # 文件大小（适中优先，使用绝对偏差的负数）
             # 假设理想大小为 500MB (500 * 1024 * 1024)
             ideal_size = 500 * 1024 * 1024

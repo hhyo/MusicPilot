@@ -2,6 +2,7 @@
 元数据编辑 API
 批量编辑和回写功能
 """
+
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +19,6 @@ from app.core.event import EventManager
 from app.core.module import ModuleManager
 from app.core.plugin import PluginManager
 from app.core.cache import AsyncFileCache
-
 
 router = APIRouter()
 
@@ -78,7 +78,7 @@ async def batch_update_artists(
             "success_count": success_count,
             "failed_count": failed_count,
             "failed_ids": failed_ids,
-        }
+        },
     )
 
 
@@ -122,7 +122,7 @@ async def batch_update_albums(
             "success_count": success_count,
             "failed_count": failed_count,
             "failed_ids": failed_ids,
-        }
+        },
     )
 
 
@@ -166,7 +166,7 @@ async def batch_update_tracks(
             "success_count": success_count,
             "failed_count": failed_count,
             "failed_ids": failed_ids,
-        }
+        },
     )
 
 
@@ -184,10 +184,7 @@ async def rewrite_track_metadata(
         success = await metadata_chain.rewrite_metadata(track_id)
 
         if success:
-            return ResponseModel(
-                message="元数据回写成功",
-                data={"track_id": track_id}
-            )
+            return ResponseModel(message="元数据回写成功", data={"track_id": track_id})
         else:
             raise HTTPException(status_code=400, detail="元数据回写失败")
 
@@ -232,7 +229,7 @@ async def batch_rewrite_tracks(
             "success_count": success_count,
             "failed_count": failed_count,
             "failed_ids": failed_ids,
-        }
+        },
     )
 
 
@@ -263,6 +260,7 @@ async def validate_track_metadata(
     # 检查文件是否存在
     if track.path:
         from pathlib import Path
+
         if not Path(track.path).exists():
             issues.append("文件不存在")
 

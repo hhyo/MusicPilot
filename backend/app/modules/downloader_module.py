@@ -2,6 +2,7 @@
 下载器模块基类
 所有下载器模块都继承此类
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -13,6 +14,7 @@ import httpx
 
 class DownloadStatus(str, Enum):
     """下载状态"""
+
     DOWNLOADING = "downloading"
     SEEDING = "seeding"
     COMPLETED = "completed"
@@ -122,6 +124,7 @@ class DownloaderModule(ModuleBase):
         # 关闭 HTTP 客户端
         if self.client:
             import asyncio
+
             try:
                 asyncio.create_task(self.client.aclose())
             except Exception:

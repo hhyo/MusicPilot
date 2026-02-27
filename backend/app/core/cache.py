@@ -2,6 +2,7 @@
 文件缓存模块
 提供文件和内存缓存功能
 """
+
 import json
 import hashlib
 import pickle
@@ -194,6 +195,7 @@ class AsyncFileCache(FileCache):
     异步文件缓存类
     支持异步操作
     """
+
     import asyncio
 
     async def async_get(self, key: str) -> Optional[Any]:
@@ -207,9 +209,7 @@ class AsyncFileCache(FileCache):
             缓存值
         """
         # 在线程池中执行同步操作
-        return await self.asyncio.get_event_loop().run_in_executor(
-            None, self.get, key
-        )
+        return await self.asyncio.get_event_loop().run_in_executor(None, self.get, key)
 
     async def async_set(self, key: str, value: Any, ttl: Optional[int] = None):
         """
@@ -220,9 +220,7 @@ class AsyncFileCache(FileCache):
             value: 缓存值
             ttl: 过期时间（秒）
         """
-        await self.asyncio.get_event_loop().run_in_executor(
-            None, self.set, key, value, ttl
-        )
+        await self.asyncio.get_event_loop().run_in_executor(None, self.set, key, value, ttl)
 
     async def async_delete(self, key: str):
         """
@@ -231,18 +229,12 @@ class AsyncFileCache(FileCache):
         Args:
             key: 缓存键
         """
-        await self.asyncio.get_event_loop().run_in_executor(
-            None, self.delete, key
-        )
+        await self.asyncio.get_event_loop().run_in_executor(None, self.delete, key)
 
     async def async_clear(self):
         """异步清空所有缓存"""
-        await self.asyncio.get_event_loop().run_in_executor(
-            None, self.clear
-        )
+        await self.asyncio.get_event_loop().run_in_executor(None, self.clear)
 
     async def async_cleanup_expired(self):
         """异步清理所有过期的缓存"""
-        await self.asyncio.get_event_loop().run_in_executor(
-            None, self.cleanup_expired
-        )
+        await self.asyncio.get_event_loop().run_in_executor(None, self.cleanup_expired)

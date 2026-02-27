@@ -1,6 +1,7 @@
 """
 订阅 API 端点
 """
+
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession

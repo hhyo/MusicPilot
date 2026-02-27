@@ -1,6 +1,7 @@
 """
 SystemConfig 操作类
 """
+
 from typing import Optional, List
 from sqlalchemy import select
 
@@ -22,9 +23,7 @@ class SystemConfigOper(OperBase[SystemConfig]):
             配置对象
         """
         async with self.db_manager.get_session() as session:
-            result = await session.execute(
-                select(SystemConfig).where(SystemConfig.key == key)
-            )
+            result = await session.execute(select(SystemConfig).where(SystemConfig.key == key))
             return result.scalar_one_or_none()
 
     async def get_value(self, key: str, default: Optional[str] = None) -> Optional[str]:

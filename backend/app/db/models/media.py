@@ -1,6 +1,7 @@
 """
 MediaServer 数据库模型
 """
+
 from sqlalchemy import String, Integer, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base, TimestampMixin
@@ -9,6 +10,7 @@ from app.core.context import MediaServerType
 
 class MediaServer(Base, TimestampMixin):
     """媒体服务器模型"""
+
     __tablename__ = "media_servers"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

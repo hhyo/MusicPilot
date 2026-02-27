@@ -2,6 +2,7 @@
 Track API 端点
 曲目相关 API
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,13 +19,13 @@ from app.schemas.track import (
 from app.schemas.response import ResponseModel, PaginatedResponse
 from app.core.config import settings
 
-
 router = APIRouter()
 
 
 def get_track_oper(db: AsyncSession = Depends(get_db)) -> TrackOper:
     """获取 Track 操作实例"""
     from app.db import db_manager
+
     return TrackOper(db_manager)
 
 
@@ -134,6 +135,7 @@ async def stream_track(
         raise HTTPException(status_code=404, detail="曲目文件不存在")
 
     from pathlib import Path
+
     file_path = Path(track.path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="曲目文件不存在")

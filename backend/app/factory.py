@@ -2,6 +2,7 @@
 FastAPI 应用工厂
 创建和配置 FastAPI 应用
 """
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -132,7 +133,7 @@ def create_app() -> FastAPI:
                 "success": False,
                 "message": "服务器内部错误",
                 "detail": str(exc) if settings.app_debug else None,
-            }
+            },
         )
 
     # 健康检查端点
@@ -163,4 +164,5 @@ def _register_routes(app: FastAPI):
     """
     # TODO: 注册 API 路由
     from app.api.apiv1 import api_router
+
     app.include_router(api_router, prefix=settings.api_v1_prefix)

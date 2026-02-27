@@ -1,6 +1,7 @@
 """
 数据库模型包
 """
+
 from app.db.models.artist import Artist
 from app.db.models.album import Album
 from app.db.models.track import Track

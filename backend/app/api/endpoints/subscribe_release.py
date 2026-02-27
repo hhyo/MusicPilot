@@ -1,6 +1,7 @@
 """
 订阅发布记录 API 端点
 """
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,13 +28,17 @@ async def get_db():
         yield session
 
 
-@router.get("/{subscribe_id}/releases", response_model=SubscribeReleaseListResponse, summary="获取订阅发布记录")
+@router.get(
+    "/{subscribe_id}/releases",
+    response_model=SubscribeReleaseListResponse,
+    summary="获取订阅发布记录",
+)
 async def get_subscribe_releases(
     subscribe_id: int,
     skip: int = 0,
     limit: int = 100,
     status: str | None = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     获取订阅的发布记录
@@ -47,7 +52,7 @@ async def get_subscribe_releases(
 
     if status:
         releases = await oper.get_by_status(status, subscribe_id=subscribe_id, limit=limit)
-        releases = releases[skip:skip + limit]
+        releases = releases[skip : skip + limit]
         total = len(releases)
     else:
         releases = await oper.get_by_subscribe_id(subscribe_id, limit=limit)
@@ -56,7 +61,11 @@ async def get_subscribe_releases(
     return SubscribeReleaseListResponse(total=total, items=releases)
 
 
-@router.get("/{subscribe_id}/releases/{release_id}", response_model=SubscribeReleaseResponse, summary="获取发布记录详情")
+@router.get(
+    "/{subscribe_id}/releases/{release_id}",
+    response_model=SubscribeReleaseResponse,
+    summary="获取发布记录详情",
+)
 async def get_release(subscribe_id: int, release_id: int, db: AsyncSession = Depends(get_db)):
     """
     根据ID获取发布记录详情
@@ -70,7 +79,11 @@ async def get_release(subscribe_id: int, release_id: int, db: AsyncSession = Dep
     return release
 
 
-@router.get("/{subscribe_id}/releases/statistics", response_model=SubscribeReleaseStatistics, summary="获取订阅发布统计")
+@router.get(
+    "/{subscribe_id}/releases/statistics",
+    response_model=SubscribeReleaseStatistics,
+    summary="获取订阅发布统计",
+)
 async def get_release_statistics(subscribe_id: int, db: AsyncSession = Depends(get_db)):
     """
     获取订阅的发布统计信息
@@ -80,12 +93,16 @@ async def get_release_statistics(subscribe_id: int, db: AsyncSession = Depends(g
     return SubscribeReleaseStatistics(**stats)
 
 
-@router.put("/{subscribe_id}/releases/{release_id}", response_model=SubscribeReleaseResponse, summary="更新发布记录")
+@router.put(
+    "/{subscribe_id}/releases/{release_id}",
+    response_model=SubscribeReleaseResponse,
+    summary="更新发布记录",
+)
 async def update_release(
     subscribe_id: int,
     release_id: int,
     release: SubscribeReleaseUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     更新发布记录（主要用于更新下载状态）
@@ -97,16 +114,15 @@ async def update_release(
     if not existing or existing.subscribe_id != subscribe_id:
         raise HTTPException(status_code=404, detail=f"发布记录 {release_id} 不存在")
 
-    updated_release = await oper.update(
-        release_id,
-        **release.model_dump(exclude_unset=True)
-    )
+    updated_release = await oper.update(release_id, **release.model_dump(exclude_unset=True))
 
     logger.info(f"更新发布记录: {release_id}, 状态: {release.download_status}")
     return updated_release
 
 
-@router.delete("/{subscribe_id}/releases/{release_id}", response_model=ResponseModel, summary="删除发布记录")
+@router.delete(
+    "/{subscribe_id}/releases/{release_id}", response_model=ResponseModel, summary="删除发布记录"
+)
 async def delete_release(subscribe_id: int, release_id: int, db: AsyncSession = Depends(get_db)):
     """
     删除发布记录
@@ -127,7 +143,11 @@ async def delete_release(subscribe_id: int, release_id: int, db: AsyncSession = 
     return ResponseModel(success=True, message="发布记录删除成功")
 
 
-@router.get("/releases/downloading", response_model=list[SubscribeReleaseResponse], summary="获取正在下载的发布记录")
+@router.get(
+    "/releases/downloading",
+    response_model=list[SubscribeReleaseResponse],
+    summary="获取正在下载的发布记录",
+)
 async def get_downloading_releases(limit: int = 100, db: AsyncSession = Depends(get_db)):
     """
     获取所有正在下载的发布记录
@@ -137,7 +157,11 @@ async def get_downloading_releases(limit: int = 100, db: AsyncSession = Depends(
     return releases[:limit]
 
 
-@router.get("/releases/failed", response_model=list[SubscribeReleaseResponse], summary="获取下载失败的发布记录")
+@router.get(
+    "/releases/failed",
+    response_model=list[SubscribeReleaseResponse],
+    summary="获取下载失败的发布记录",
+)
 async def get_failed_releases(limit: int = 100, db: AsyncSession = Depends(get_db)):
     """
     获取所有下载失败的发布记录

@@ -2,6 +2,7 @@
 Artist API 端点
 艺术家相关 API
 """
+
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,13 +17,13 @@ from app.schemas.artist import (
 )
 from app.schemas.response import ResponseModel, PaginatedResponse
 
-
 router = APIRouter()
 
 
 def get_artist_oper(db: AsyncSession = Depends(get_db)) -> ArtistOper:
     """获取 Artist 操作实例"""
     from app.db import db_manager
+
     return ArtistOper(db_manager)
 
 

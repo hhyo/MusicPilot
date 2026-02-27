@@ -2,6 +2,7 @@
 模块管理器
 管理所有系统模块的加载、启动、停止
 """
+
 from typing import Dict, List, Type, Optional, Any
 from importlib import import_module
 from pathlib import Path
@@ -91,10 +92,7 @@ class ModuleManager:
         Returns:
             运行中的模块列表
         """
-        return [
-            module for module in self._modules.values()
-            if module.is_enabled()
-        ]
+        return [module for module in self._modules.values() if module.is_enabled()]
 
     def get_running_modules_by_type(self, module_type: str) -> List[ModuleBase]:
         """
@@ -107,7 +105,8 @@ class ModuleManager:
             运行中的模块列表
         """
         return [
-            module for module in self._modules.values()
+            module
+            for module in self._modules.values()
             if module.is_enabled() and module.module_type == module_type
         ]
 

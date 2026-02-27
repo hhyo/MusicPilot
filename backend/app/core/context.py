@@ -2,6 +2,7 @@
 上下文数据类
 定义常用的数据类和上下文对象
 """
+
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from enum import Enum
@@ -9,6 +10,7 @@ from enum import Enum
 
 class MediaType(str, Enum):
     """媒体类型"""
+
     AUDIO = "audio"
     VIDEO = "video"
     IMAGE = "image"
@@ -16,6 +18,7 @@ class MediaType(str, Enum):
 
 class DownloadStatus(str, Enum):
     """下载状态"""
+
     PENDING = "pending"
     DOWNLOADING = "downloading"
     COMPLETED = "completed"
@@ -25,6 +28,7 @@ class DownloadStatus(str, Enum):
 
 class DownloaderType(str, Enum):
     """下载器类型"""
+
     NETEASE = "netease"
     QQ = "qq"
     KUGOU = "kugou"
@@ -34,6 +38,7 @@ class DownloaderType(str, Enum):
 
 class MediaServerType(str, Enum):
     """媒体服务器类型"""
+
     PLEX = "plex"
     JELLYFIN = "jellyfin"
     EMBY = "emby"
@@ -41,6 +46,7 @@ class MediaServerType(str, Enum):
 
 class MessageChannel(str, Enum):
     """消息渠道"""
+
     WEB = "web"
     TELEGRAM = "telegram"
     SLACK = "slack"
@@ -49,12 +55,14 @@ class MessageChannel(str, Enum):
 
 class PlaylistType(str, Enum):
     """播放列表类型"""
+
     NORMAL = "normal"  # 普通播放列表
-    SMART = "smart"    # 智能播放列表
+    SMART = "smart"  # 智能播放列表
 
 
 class NotificationType(str, Enum):
     """通知类型"""
+
     INFO = "info"
     SUCCESS = "success"
     WARNING = "warning"
@@ -66,6 +74,7 @@ class MusicInfo:
     """
     音乐信息数据类
     """
+
     # 艺术家信息
     artist: Optional[str] = None
     artist_id: Optional[str] = None
@@ -131,6 +140,7 @@ class DownloadSource:
     """
     下载源数据类
     """
+
     # 来源类型
     type: DownloaderType = DownloaderType.NETEASE
 
@@ -157,6 +167,7 @@ class DownloadTask:
     """
     下载任务数据类
     """
+
     # 任务 ID
     task_id: str
 
@@ -193,6 +204,7 @@ class PlaybackSession:
     """
     播放会话数据类
     """
+
     # 会话 ID
     session_id: str
 
@@ -230,6 +242,7 @@ class SmartQuery:
     智能查询数据类
     用于智能播放列表
     """
+
     # 条件列表
     conditions: List[Dict[str, Any]] = field(default_factory=list)
 
@@ -266,6 +279,7 @@ class Context:
     应用上下文数据类
     存储全局上下文信息
     """
+
     # 当前用户
     user_id: Optional[str] = None
 

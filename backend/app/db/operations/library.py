@@ -1,6 +1,7 @@
 """
 Library 操作类
 """
+
 from typing import Optional, List
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,9 +24,7 @@ class LibraryOper(OperBase[Library]):
             音乐库对象
         """
         async with self.db_manager.get_session() as session:
-            result = await session.execute(
-                select(Library).where(Library.path == path)
-            )
+            result = await session.execute(select(Library).where(Library.path == path))
             return result.scalar_one_or_none()
 
     async def get_auto_scan_libraries(self) -> List[Library]:
@@ -48,15 +47,11 @@ class LibraryOper(OperBase[Library]):
             更新后的音乐库对象
         """
         from datetime import datetime
+
         return await self.update(id, last_scan_time=datetime.utcnow().isoformat())
 
     async def update_stats(
-        self,
-        id: int,
-        track_count: int,
-        album_count: int,
-        artist_count: int,
-        total_size: int
+        self, id: int, track_count: int, album_count: int, artist_count: int, total_size: int
     ) -> Optional[Library]:
         """
         更新统计信息
@@ -76,5 +71,5 @@ class LibraryOper(OperBase[Library]):
             track_count=track_count,
             album_count=album_count,
             artist_count=artist_count,
-            total_size=total_size
+            total_size=total_size,
         )

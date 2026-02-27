@@ -2,6 +2,7 @@
 Album Schema
 专辑相关的数据模型
 """
+
 from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field
@@ -9,6 +10,7 @@ from pydantic import BaseModel, Field
 
 class AlbumBase(BaseModel):
     """Album 基础模型"""
+
     musicbrainz_id: Optional[str] = None
     artist_id: Optional[int] = None
     title: str = Field(..., description="专辑标题")
@@ -32,11 +34,13 @@ class AlbumBase(BaseModel):
 
 class AlbumCreate(AlbumBase):
     """创建专辑请求模型"""
+
     pass
 
 
 class AlbumUpdate(BaseModel):
     """更新专辑请求模型"""
+
     title: Optional[str] = None
     title_pinyin: Optional[str] = None
     disambiguation: Optional[str] = None
@@ -58,6 +62,7 @@ class AlbumUpdate(BaseModel):
 
 class AlbumResponse(AlbumBase):
     """专辑响应模型"""
+
     id: int
     created_at: datetime
     updated_at: datetime
@@ -68,6 +73,7 @@ class AlbumResponse(AlbumBase):
 
 class AlbumListResponse(BaseModel):
     """专辑列表响应模型"""
+
     id: int
     musicbrainz_id: Optional[str]
     artist_id: Optional[int]

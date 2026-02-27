@@ -2,6 +2,7 @@
 Library Schema
 音乐库相关的数据模型
 """
+
 from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
@@ -9,6 +10,7 @@ from pydantic import BaseModel, Field
 
 class LibraryBase(BaseModel):
     """Library 基础模型"""
+
     name: str = Field(..., description="音乐库名称")
     path: str = Field(..., description="音乐库路径")
     scan_interval: Optional[int] = Field(86400, description="扫描间隔（秒），默认每天")
@@ -18,11 +20,13 @@ class LibraryBase(BaseModel):
 
 class LibraryCreate(LibraryBase):
     """创建音乐库请求模型"""
+
     pass
 
 
 class LibraryUpdate(BaseModel):
     """更新音乐库请求模型"""
+
     name: Optional[str] = None
     path: Optional[str] = None
     scan_interval: Optional[int] = None
@@ -32,6 +36,7 @@ class LibraryUpdate(BaseModel):
 
 class LibraryResponse(LibraryBase):
     """音乐库响应模型"""
+
     id: int
     last_scan_time: Optional[str] = None
     track_count: Optional[int] = None
@@ -47,6 +52,7 @@ class LibraryResponse(LibraryBase):
 
 class LibraryListResponse(BaseModel):
     """音乐库列表响应模型"""
+
     id: int
     name: str
     path: str
@@ -63,4 +69,5 @@ class LibraryListResponse(BaseModel):
 
 class ScanLibraryRequest(BaseModel):
     """扫描音乐库请求模型"""
+
     recursive: Optional[bool] = Field(None, description="是否递归扫描，None 表示使用配置值")

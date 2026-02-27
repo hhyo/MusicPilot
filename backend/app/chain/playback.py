@@ -2,6 +2,7 @@
 播放控制链
 处理播放控制、状态同步
 """
+
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
@@ -32,10 +33,7 @@ class PlaybackChain(ChainBase):
     # ========== 会话管理 ==========
 
     async def create_session(
-        self,
-        track_id: int,
-        user_id: Optional[str] = None,
-        playlist_id: Optional[int] = None
+        self, track_id: int, user_id: Optional[str] = None, playlist_id: Optional[int] = None
     ) -> PlaybackSession:
         """
         创建播放会话
@@ -48,7 +46,9 @@ class PlaybackChain(ChainBase):
         Returns:
             播放会话对象
         """
-        self.logger.info(f"创建播放会话: track_id={track_id}, user_id={user_id}, playlist_id={playlist_id}")
+        self.logger.info(
+            f"创建播放会话: track_id={track_id}, user_id={user_id}, playlist_id={playlist_id}"
+        )
 
         # 查询曲目信息
         track = await self.track_oper.get_by_id(track_id)
@@ -69,6 +69,7 @@ class PlaybackChain(ChainBase):
 
         # 创建播放会话
         import time
+
         session_id = f"{user_id or 'anonymous'}:{track_id}:{time.time()}"
 
         session = PlaybackSession(
@@ -90,12 +91,15 @@ class PlaybackChain(ChainBase):
         await self.track_oper.update_play_count(track_id)
 
         # 发送播放开始事件
-        self.send_event("playback.started", {
-            "session_id": session_id,
-            "track_id": track_id,
-            "user_id": user_id,
-            "playlist_id": playlist_id,
-        })
+        self.send_event(
+            "playback.started",
+            {
+                "session_id": session_id,
+                "track_id": track_id,
+                "user_id": user_id,
+                "playlist_id": playlist_id,
+            },
+        )
 
         # 同步到媒体服务器
         await self.sync_playback_to_media_server(session)
@@ -175,10 +179,13 @@ class PlaybackChain(ChainBase):
         session.is_playing = False
 
         # 发送播放暂停事件
-        self.send_event("playback.paused", {
-            "session_id": session.session_id,
-            "position": session.position,
-        })
+        self.send_event(
+            "playback.paused",
+            {
+                "session_id": session.session_id,
+                "position": session.position,
+            },
+        )
 
         # 同步暂停状态到媒体服务器
         await self.sync_stop_to_media_server(session)
@@ -202,10 +209,13 @@ class PlaybackChain(ChainBase):
         await self.destroy_session(session.session_id)
 
         # 发送播放停止事件
-        self.send_event("playback.stopped", {
-            "session_id": session.session_id,
-            "position": session.position,
-        })
+        self.send_event(
+            "playback.stopped",
+            {
+                "session_id": session.session_id,
+                "position": session.position,
+            },
+        )
 
     async def next(self, session_id: Optional[str] = None):
         """
@@ -280,20 +290,20 @@ class PlaybackChain(ChainBase):
         await self.sync_playback_to_media_server(session)
 
         # 发送进度更新事件
-        self.send_event("playback.seek", {
-            "session_id": session.session_id,
-            "position": position,
-        })
+        self.send_event(
+            "playback.seek",
+            {
+                "session_id": session.session_id,
+                "position": position,
+            },
+        )
 
         self.logger.info(f"跳转到位置: {position}s")
 
     # ========== 进度控制 ==========
 
     async def update_progress(
-        self,
-        session_id: str,
-        position: float,
-        duration: Optional[float] = None
+        self, session_id: str, position: float, duration: Optional[float] = None
     ):
         """
         更新播放进度
@@ -315,11 +325,14 @@ class PlaybackChain(ChainBase):
         await self.sync_playback_to_media_server(session)
 
         # 发送进度事件
-        self.send_event("playback.progress", {
-            "session_id": session_id,
-            "position": position,
-            "duration": session.duration,
-        })
+        self.send_event(
+            "playback.progress",
+            {
+                "session_id": session_id,
+                "position": position,
+                "duration": session.duration,
+            },
+        )
 
     # ========== 播放队列管理 ==========
 
@@ -334,8 +347,10 @@ class PlaybackChain(ChainBase):
 
         # 获取播放列表的曲目
         from app.db.models.playlist import PlaylistTrack
+
         async with self.db_manager.get_session() as db:
             from sqlalchemy import select
+
             result = await db.execute(
                 select(PlaylistTrack.track_id)
                 .where(PlaylistTrack.playlist_id == playlist_id)
@@ -380,6 +395,7 @@ class PlaybackChain(ChainBase):
         current_session = self.get_current_session()
         if current_session and current_session.shuffle:
             import random
+
             index = random.randint(0, len(self._play_queue) - 1)
             return self._play_queue[index]
         else:
@@ -397,6 +413,7 @@ class PlaybackChain(ChainBase):
         current_session = self.get_current_session()
         if current_session and current_session.shuffle:
             import random
+
             index = random.randint(0, len(self._play_queue) - 1)
             return self._play_queue[index]
         else:
@@ -405,11 +422,7 @@ class PlaybackChain(ChainBase):
 
     # ========== 播放历史 ==========
 
-    async def add_to_history(
-        self,
-        track_id: int,
-        user_id: Optional[str] = None
-    ):
+    async def add_to_history(self, track_id: int, user_id: Optional[str] = None):
         """
         添加到播放历史
 
@@ -439,9 +452,7 @@ class PlaybackChain(ChainBase):
         self.logger.debug(f"添加到历史: {track.title}")
 
     async def get_history(
-        self,
-        user_id: Optional[str] = None,
-        limit: int = 50
+        self, user_id: Optional[str] = None, limit: int = 50
     ) -> List[Dict[str, Any]]:
         """
         获取播放历史
@@ -468,11 +479,7 @@ class PlaybackChain(ChainBase):
 
     # ========== 播放模式 ==========
 
-    async def set_repeat_mode(
-        self,
-        repeat_mode: str,
-        session_id: Optional[str] = None
-    ):
+    async def set_repeat_mode(self, repeat_mode: str, session_id: Optional[str] = None):
         """
         设置播放模式
 
@@ -493,15 +500,15 @@ class PlaybackChain(ChainBase):
         self.logger.info(f"设置播放模式: {repeat_mode}")
 
         # 发送模式变更事件
-        self.send_event("playback.repeat_mode_changed", {
-            "session_id": session.session_id,
-            "repeat_mode": repeat_mode,
-        })
+        self.send_event(
+            "playback.repeat_mode_changed",
+            {
+                "session_id": session.session_id,
+                "repeat_mode": repeat_mode,
+            },
+        )
 
-    async def toggle_shuffle(
-        self,
-        session_id: Optional[str] = None
-    ):
+    async def toggle_shuffle(self, session_id: Optional[str] = None):
         """
         切换随机播放
 
@@ -521,18 +528,17 @@ class PlaybackChain(ChainBase):
         self.logger.info(f"随机播放: {session.shuffle}")
 
         # 发送模式变更事件
-        self.send_event("playback.shuffle_toggled", {
-            "session_id": session.session_id,
-            "shuffle": session.shuffle,
-        })
+        self.send_event(
+            "playback.shuffle_toggled",
+            {
+                "session_id": session.session_id,
+                "shuffle": session.shuffle,
+            },
+        )
 
     # ========== 音量控制 ==========
 
-    async def set_volume(
-        self,
-        volume: float,
-        session_id: Optional[str] = None
-    ):
+    async def set_volume(self, volume: float, session_id: Optional[str] = None):
         """
         设置音量
 
@@ -554,17 +560,17 @@ class PlaybackChain(ChainBase):
         await self.sync_playback_to_media_server(session)
 
         # 发送音量变更事件
-        self.send_event("playback.volume_changed", {
-            "session_id": session.session_id,
-            "volume": session.volume,
-        })
+        self.send_event(
+            "playback.volume_changed",
+            {
+                "session_id": session.session_id,
+                "volume": session.volume,
+            },
+        )
 
         self.logger.info(f"设置音量: {session.volume}")
 
-    async def toggle_mute(
-        self,
-        session_id: Optional[str] = None
-    ):
+    async def toggle_mute(self, session_id: Optional[str] = None):
         """
         切换静音
 
@@ -584,10 +590,13 @@ class PlaybackChain(ChainBase):
         self.logger.info(f"静音: {session.muted}")
 
         # 发送静音状态事件
-        self.send_event("playback.mute_toggled", {
-            "session_id": session.session_id,
-            "muted": session.muted,
-        })
+        self.send_event(
+            "playback.mute_toggled",
+            {
+                "session_id": session.session_id,
+                "muted": session.muted,
+            },
+        )
 
     # ========== 媒体服务器同步 ==========
 
@@ -600,6 +609,7 @@ class PlaybackChain(ChainBase):
         """
         # 获取启用的媒体服务器
         from app.db.operations.media import MediaServerOper
+
         media_oper = MediaServerOper(self.db_manager)
         servers = await media_oper.get_enabled()
 
@@ -619,6 +629,7 @@ class PlaybackChain(ChainBase):
         """
         # 获取启用的媒体服务器
         from app.db.operations.media import MediaServerOper
+
         media_oper = MediaServerOper(self.db_manager)
         servers = await media_oper.get_enabled()
 
@@ -649,6 +660,7 @@ class PlaybackChain(ChainBase):
         current_track = None
         if current_track_id:
             import asyncio
+
             try:
                 current_track = asyncio.run(self.track_oper.get_by_id(current_track_id))
             except:

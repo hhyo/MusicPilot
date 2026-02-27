@@ -1,6 +1,7 @@
 """
 Site 资源站点数据库模型
 """
+
 from sqlalchemy import String, Text, Integer, Boolean, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base, TimestampMixin
@@ -8,6 +9,7 @@ from app.db import Base, TimestampMixin
 
 class Site(Base, TimestampMixin):
     """资源站点模型"""
+
     __tablename__ = "sites"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

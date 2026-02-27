@@ -1,6 +1,7 @@
 """
 MusicPilot 主入口
 """
+
 import uvicorn
 from app.factory import create_app
 from app.core.config import settings

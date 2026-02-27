@@ -1,6 +1,7 @@
 """
 SubscribeRelease 订阅发布记录数据库模型
 """
+
 from datetime import datetime
 from sqlalchemy import String, Text, Integer, BigInteger, ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
@@ -9,12 +10,15 @@ from app.db import Base, TimestampMixin
 
 class SubscribeRelease(Base, TimestampMixin):
     """订阅发布记录模型"""
+
     __tablename__ = "subscribe_releases"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # 关联订阅
-    subscribe_id: Mapped[int] = mapped_column(Integer, ForeignKey("subscribes.id"), nullable=False, index=True)
+    subscribe_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("subscribes.id"), nullable=False, index=True
+    )
 
     # 发布类型：album, playlist_update
     release_type: Mapped[str] = mapped_column(String(50), nullable=False)
