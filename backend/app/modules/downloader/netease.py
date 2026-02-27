@@ -226,9 +226,8 @@ class NeteaseDownloader(DownloaderBase):
             self.logger.info(f"开始下载: {task.title} ({task.quality})")
 
             # 下载文件
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                async with client.stream("GET", download_url) as response:
-                    response.raise_for_status()
+            async with httpx.AsyncClient(timeout=self.timeout) as client, client.stream("GET", download_url) as response:
+                response.raise_for_status()
 
                     # 获取文件大小
                     total_bytes = int(response.headers.get("content-length", 0))
