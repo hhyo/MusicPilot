@@ -2,17 +2,17 @@
 SystemConfig 操作类
 """
 
-from typing import Optional, List
+
 from sqlalchemy import select
 
-from app.db.models.system import SystemConfig
 from app.db import OperBase
+from app.db.models.system import SystemConfig
 
 
 class SystemConfigOper(OperBase[SystemConfig]):
     """SystemConfig 操作类"""
 
-    async def get_by_key(self, key: str) -> Optional[SystemConfig]:
+    async def get_by_key(self, key: str) -> SystemConfig | None:
         """
         根据键获取配置
 
@@ -26,7 +26,7 @@ class SystemConfigOper(OperBase[SystemConfig]):
             result = await session.execute(select(SystemConfig).where(SystemConfig.key == key))
             return result.scalar_one_or_none()
 
-    async def get_value(self, key: str, default: Optional[str] = None) -> Optional[str]:
+    async def get_value(self, key: str, default: str | None = None) -> str | None:
         """
         获取配置值
 
@@ -86,7 +86,7 @@ class SystemConfigOper(OperBase[SystemConfig]):
             configs = result.scalars().all()
             return {config.key: config.value for config in configs}
 
-    async def batch_set(self, configs: dict[str, str]) -> List[SystemConfig]:
+    async def batch_set(self, configs: dict[str, str]) -> list[SystemConfig]:
         """
         批量设置配置
 

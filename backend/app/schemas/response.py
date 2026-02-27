@@ -3,21 +3,22 @@
 定义统一的 API 响应格式
 """
 
-from typing import Generic, TypeVar, Optional, Any
-from pydantic import BaseModel, Field
+from typing import Any, TypeVar
+
+from pydantic import BaseModel
 
 T = TypeVar("T")
 
 
-class ResponseModel(BaseModel, Generic[T]):
+class ResponseModel[T](BaseModel):
     """通用响应模型"""
 
     success: bool = True
     message: str = "操作成功"
-    data: Optional[T] = None
+    data: T | None = None
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse[T](BaseModel):
     """分页响应模型"""
 
     success: bool = True
@@ -34,8 +35,8 @@ class ErrorResponse(BaseModel):
 
     success: bool = False
     message: str = "操作失败"
-    error_code: Optional[str] = None
-    detail: Optional[str] = None
+    error_code: str | None = None
+    detail: str | None = None
 
 
 class ValidationErrorDetail(BaseModel):

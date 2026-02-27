@@ -2,10 +2,10 @@
 MediaServer 数据库模型
 """
 
-from sqlalchemy import String, Integer, Boolean, DateTime
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db import Base, TimestampMixin
-from app.core.context import MediaServerType
 
 
 class MediaServer(Base, TimestampMixin):

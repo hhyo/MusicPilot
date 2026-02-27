@@ -2,18 +2,17 @@
 Album 操作类
 """
 
-from typing import Optional, List
-from sqlalchemy import select, or_
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.album import Album
+from sqlalchemy import or_, select
+
 from app.db import OperBase
+from app.db.models.album import Album
 
 
 class AlbumOper(OperBase[Album]):
     """Album 操作类"""
 
-    async def get_by_musicbrainz_id(self, musicbrainz_id: str) -> Optional[Album]:
+    async def get_by_musicbrainz_id(self, musicbrainz_id: str) -> Album | None:
         """
         根据 MusicBrainz ID 获取专辑
 
@@ -31,7 +30,7 @@ class AlbumOper(OperBase[Album]):
 
     async def get_by_artist_id(
         self, artist_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Album]:
+    ) -> list[Album]:
         """
         获取艺术家的专辑列表
 
@@ -48,7 +47,7 @@ class AlbumOper(OperBase[Album]):
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def search_by_title(self, keyword: str, limit: int = 50) -> List[Album]:
+    async def search_by_title(self, keyword: str, limit: int = 50) -> list[Album]:
         """
         搜索专辑（按标题）
 
@@ -73,7 +72,7 @@ class AlbumOper(OperBase[Album]):
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def get_by_genre(self, genre: str, limit: int = 50) -> List[Album]:
+    async def get_by_genre(self, genre: str, limit: int = 50) -> list[Album]:
         """
         根据流派获取专辑
 
@@ -89,7 +88,7 @@ class AlbumOper(OperBase[Album]):
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def get_recent(self, limit: int = 50) -> List[Album]:
+    async def get_recent(self, limit: int = 50) -> list[Album]:
         """
         获取最近的专辑
 
@@ -104,7 +103,7 @@ class AlbumOper(OperBase[Album]):
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def get_top_rated(self, limit: int = 50) -> List[Album]:
+    async def get_top_rated(self, limit: int = 50) -> list[Album]:
         """
         获取评分最高的专辑
 

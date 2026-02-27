@@ -3,21 +3,22 @@ FastAPI 应用工厂
 创建和配置 FastAPI 应用
 """
 
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from contextlib import asynccontextmanager
-from pathlib import Path
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from app.core.cache import AsyncFileCache
 from app.core.config import settings
-from app.core.log import logger
 from app.core.event import EventManager
+from app.core.log import logger
 from app.core.module import ModuleManager
 from app.core.plugin import PluginManager
-from app.core.cache import AsyncFileCache
-from app.db import db_manager, Base
+from app.db import db_manager
 from app.tasks.download_monitor import DownloadMonitorTask
 
 

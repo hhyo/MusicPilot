@@ -3,11 +3,9 @@
 处理播放列表管理
 """
 
-from typing import List, Optional
 
 from app.chain import ChainBase
 from app.core.context import PlaylistType, SmartQuery
-from app.core.log import logger
 
 
 class PlaylistChain(ChainBase):
@@ -20,8 +18,8 @@ class PlaylistChain(ChainBase):
         self,
         name: str,
         playlist_type: PlaylistType = PlaylistType.NORMAL,
-        description: Optional[str] = None,
-        smart_query: Optional[SmartQuery] = None,
+        description: str | None = None,
+        smart_query: SmartQuery | None = None,
     ) -> int:
         """
         创建播放列表
@@ -52,7 +50,7 @@ class PlaylistChain(ChainBase):
 
         return playlist.id
 
-    async def add_tracks(self, playlist_id: int, track_ids: List[int]) -> int:
+    async def add_tracks(self, playlist_id: int, track_ids: list[int]) -> int:
         """
         添加曲目到播放列表
 
@@ -70,8 +68,9 @@ class PlaylistChain(ChainBase):
         playlist_oper = PlaylistOper(self.db_manager)
 
         # 获取当前最大位置
+        from sqlalchemy import func, select
+
         from app.db.models.playlist import PlaylistTrack
-        from sqlalchemy import select, func
 
         async with self.db_manager.get_session() as session:
             result = await session.execute(
@@ -91,7 +90,7 @@ class PlaylistChain(ChainBase):
 
         return added
 
-    async def remove_tracks(self, playlist_id: int, track_ids: List[int]) -> int:
+    async def remove_tracks(self, playlist_id: int, track_ids: list[int]) -> int:
         """
         从播放列表移除曲目
 
@@ -117,7 +116,7 @@ class PlaylistChain(ChainBase):
 
         return removed
 
-    async def reorder_tracks(self, playlist_id: int, track_ids: List[int]):
+    async def reorder_tracks(self, playlist_id: int, track_ids: list[int]):
         """
         重新排序播放列表曲目
 
@@ -135,7 +134,7 @@ class PlaylistChain(ChainBase):
 
         self.logger.info("排序完成")
 
-    async def generate_smart(self, query: SmartQuery) -> List[int]:
+    async def generate_smart(self, query: SmartQuery) -> list[int]:
         """
         生成智能播放列表
 
@@ -154,7 +153,7 @@ class PlaylistChain(ChainBase):
 
         return track_ids
 
-    async def _execute_smart_query(self, query: SmartQuery) -> List[int]:
+    async def _execute_smart_query(self, query: SmartQuery) -> list[int]:
         """
         执行智能查询
 

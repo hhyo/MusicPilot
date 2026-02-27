@@ -3,19 +3,16 @@
 定期检查下载器状态并更新数据库
 """
 
-from typing import Optional
-from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chain.downloader import DownloaderChain
-from app.db.operations.subscribe_release import SubscribeReleaseOper
-from app.db.operations.download import DownloadHistoryOper
 from app.core.log import logger
-from app.db.models.subscribe_release import SubscribeRelease
-from app.db.models.download import DownloadHistory
 from app.db import db_manager
+from app.db.models.download import DownloadHistory
+from app.db.models.subscribe_release import SubscribeRelease
+from app.db.operations.download import DownloadHistoryOper
+from app.db.operations.subscribe_release import SubscribeReleaseOper
 
 
 class DownloadMonitorTask:

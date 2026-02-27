@@ -161,14 +161,10 @@ class TransmissionModule(DownloaderModule):
 
             # 映射状态（Transmission 使用不同的状态码）
             status_code = torrent.get("status", 0)
-            if status_code == 0:  # stopped
-                status = DownloadStatus.PAUSED
-            elif status_code in [1, 2, 3, 4, 5]:  # download/check/wait
-                status = DownloadStatus.DOWNLOADING
-            elif status_code == 6:  # seed
-                download_status = DownloadStatus.SEEDING
+            if status_code == 0 or status_code in [1, 2, 3, 4, 5] or status_code == 6:  # stopped
+                pass
             else:
-                download_status = DownloadStatus.ERROR
+                pass
 
             return DownloadProgress(
                 task_id=task_id,

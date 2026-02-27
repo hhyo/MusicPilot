@@ -3,20 +3,19 @@
 处理艺术家、专辑、歌单、榜单订阅
 """
 
-from typing import Optional, Dict, Any, List
-from datetime import datetime
+from typing import Any
 
-from app.core.log import logger
-from app.core.context import MusicInfo
-from app.core.event import event_bus, EventType
-from app.chain.torrents import TorrentsChain
 from app.chain.downloader import DownloaderChain
-from app.modules.downloader.netease import NeteaseDownloader
-from app.db.operations.subscribe import SubscribeOper
-from app.db.operations.subscribe_release import SubscribeReleaseOper
+from app.chain.torrents import TorrentsChain
+from app.core.context import MusicInfo
+from app.core.event import EventType, event_bus
+from app.core.log import logger
+from app.db import db_manager
 from app.db.models.subscribe import Subscribe
 from app.db.models.subscribe_release import SubscribeRelease
-from app.db import db_manager
+from app.db.operations.subscribe import SubscribeOper
+from app.db.operations.subscribe_release import SubscribeReleaseOper
+from app.modules.downloader.netease import NeteaseDownloader
 
 
 class SubscribeChain:
@@ -34,7 +33,7 @@ class SubscribeChain:
         self.downloader_chain = DownloaderChain()
         self.netease_downloader = NeteaseDownloader()
 
-    async def check_artist(self, subscribe_id: int, musicbrainz_id: str) -> List[Dict[str, Any]]:
+    async def check_artist(self, subscribe_id: int, musicbrainz_id: str) -> list[dict[str, Any]]:
         """
         检查艺术家订阅
 
@@ -68,7 +67,7 @@ class SubscribeChain:
 
         return releases
 
-    async def check_album(self, subscribe_id: int, musicbrainz_id: str) -> Optional[Dict[str, Any]]:
+    async def check_album(self, subscribe_id: int, musicbrainz_id: str) -> dict[str, Any] | None:
         """
         检查专辑订阅
 
@@ -88,7 +87,7 @@ class SubscribeChain:
 
     async def check_playlist(
         self, subscribe_id: int, playlist_id: str, source_type: str = "netease"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         检查歌单/榜单订阅
 
@@ -172,8 +171,8 @@ class SubscribeChain:
         artist: str,
         album: str,
         musicbrainz_id: str,
-        rules: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Dict[str, Any]]:
+        rules: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
         """
         处理专辑搜索和下载
 
@@ -190,7 +189,7 @@ class SubscribeChain:
 
         # 匹配订阅规则
         if rules and not self.match_rules(rules):
-            self.logger.info(f"专辑不符合订阅规则，跳过下载")
+            self.logger.info("专辑不符合订阅规则，跳过下载")
             return None
 
         # 搜索种子资源
@@ -220,7 +219,7 @@ class SubscribeChain:
         download_url: str,
         title: str,
         downloader: str = "qbittorrent",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         推送下载
 
@@ -253,7 +252,7 @@ class SubscribeChain:
                 "error": str(e),
             }
 
-    def match_rules(self, rules: Dict[str, Any], torrent_info: Any = None) -> bool:
+    def match_rules(self, rules: dict[str, Any], torrent_info: Any = None) -> bool:
         """
         匹配订阅规则
 
@@ -265,33 +264,29 @@ class SubscribeChain:
             是否匹配
         """
         # 格式检查
-        if "format" in rules and torrent_info:
-            if torrent_info.format != rules["format"]:
-                return False
+        if "format" in rules and torrent_info and torrent_info.format != rules["format"]:
+            return False
 
         # 大小检查
-        if "min_size" in rules and torrent_info:
-            if torrent_info.size < rules["min_size"]:
-                return False
+        if "min_size" in rules and torrent_info and torrent_info.size < rules["min_size"]:
+            return False
 
-        if "max_size" in rules and torrent_info:
-            if torrent_info.size > rules["max_size"]:
-                return False
+        if "max_size" in rules and torrent_info and torrent_info.size > rules["max_size"]:
+            return False
 
         # 比特率检查
-        if "min_bitrate" in rules and torrent_info:
+        if "min_bitrate" in rules and torrent_info and torrent_info.bitrate:
             # 比特率解析（例如 "320kbps" -> 320）
-            if torrent_info.bitrate:
-                try:
-                    bitrate = int("".join(filter(str.isdigit, torrent_info.bitrate)))
-                    if bitrate < rules["min_bitrate"]:
-                        return False
-                except ValueError:
-                    pass
+            try:
+                bitrate = int("".join(filter(str.isdigit, torrent_info.bitrate)))
+                if bitrate < rules["min_bitrate"]:
+                    return False
+            except ValueError:
+                pass
 
         return True
 
-    async def check_all(self) -> Dict[str, Any]:
+    async def check_all(self) -> dict[str, Any]:
         """
         检查所有订阅
 
@@ -358,7 +353,7 @@ class SubscribeChain:
         self,
         subscribe_id: int,
         limit: int = 100,
-    ) -> List[SubscribeRelease]:
+    ) -> list[SubscribeRelease]:
         """
         获取订阅的发布记录
 

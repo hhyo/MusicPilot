@@ -3,7 +3,6 @@
 定期检查所有订阅，发现新内容并自动下载
 """
 
-from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 

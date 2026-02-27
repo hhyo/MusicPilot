@@ -3,8 +3,8 @@ Media Schema
 媒体服务器相关的数据模型
 """
 
-from typing import Optional
 from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from app.schemas.types import MediaServerType
@@ -16,10 +16,10 @@ class MediaServerBase(BaseModel):
     type: MediaServerType = Field(..., description="媒体服务器类型")
     name: str = Field(..., description="服务器名称")
     host: str = Field(..., description="服务器地址")
-    port: Optional[int] = Field(None, description="服务器端口")
-    token: Optional[str] = Field(None, description="访问令牌")
-    library_id: Optional[str] = Field(None, description="媒体库 ID")
-    library_name: Optional[str] = Field(None, description="媒体库名称")
+    port: int | None = Field(None, description="服务器端口")
+    token: str | None = Field(None, description="访问令牌")
+    library_id: str | None = Field(None, description="媒体库 ID")
+    library_name: str | None = Field(None, description="媒体库名称")
 
 
 class MediaServerCreate(MediaServerBase):
@@ -31,13 +31,13 @@ class MediaServerCreate(MediaServerBase):
 class MediaServerUpdate(BaseModel):
     """更新媒体服务器请求模型"""
 
-    name: Optional[str] = None
-    host: Optional[str] = None
-    port: Optional[int] = None
-    token: Optional[str] = None
-    library_id: Optional[str] = None
-    library_name: Optional[str] = None
-    enabled: Optional[bool] = None
+    name: str | None = None
+    host: str | None = None
+    port: int | None = None
+    token: str | None = None
+    library_id: str | None = None
+    library_name: str | None = None
+    enabled: bool | None = None
 
 
 class MediaServerResponse(MediaServerBase):
@@ -59,7 +59,7 @@ class MediaServerListResponse(BaseModel):
     type: str
     name: str
     host: str
-    port: Optional[int]
+    port: int | None
     enabled: bool
     created_at: datetime
 
@@ -72,8 +72,8 @@ class MediaServerStatus(BaseModel):
 
     connected: bool = Field(..., description="是否已连接")
     library_synced: bool = Field(..., description="媒体库是否已同步")
-    track_count: Optional[int] = Field(None, description="曲目数量")
-    last_sync: Optional[str] = Field(None, description="最后同步时间")
+    track_count: int | None = Field(None, description="曲目数量")
+    last_sync: str | None = Field(None, description="最后同步时间")
 
 
 class ScanMediaServerRequest(BaseModel):

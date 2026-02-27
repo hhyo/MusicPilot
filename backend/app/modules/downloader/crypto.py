@@ -3,10 +3,10 @@
 处理网易云音乐 API 的加密和签名
 """
 
+import base64
 import hashlib
 import random
-import base64
-from typing import Dict, Any
+from typing import Any
 
 
 def encrypted_id(id_str: str) -> str:
@@ -48,7 +48,7 @@ def encrypted_id(id_str: str) -> str:
     return output
 
 
-def create_params(params: Dict[str, Any]) -> str:
+def create_params(params: dict[str, Any]) -> str:
     """
     创建加密参数
 
@@ -59,7 +59,6 @@ def create_params(params: Dict[str, Any]) -> str:
         加密后的参数字符串
     """
     import json
-    import random
 
     # 转换为 JSON 字符串
     text = json.dumps(params, separators=(",", ":"), ensure_ascii=False)
@@ -112,7 +111,7 @@ def create_signature(params: str, timestamp: int) -> str:
     return signature
 
 
-def get_common_params() -> Dict[str, Any]:
+def get_common_params() -> dict[str, Any]:
     """
     获取通用参数
 

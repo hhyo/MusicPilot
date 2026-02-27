@@ -3,8 +3,10 @@ SubscribeRelease 订阅发布记录数据库模型
 """
 
 from datetime import datetime
-from sqlalchemy import String, Text, Integer, BigInteger, ForeignKey, DateTime
+
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db import Base, TimestampMixin
 
 

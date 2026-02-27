@@ -3,13 +3,13 @@
 管理插件的启动、停止、重载、事件处理
 """
 
-from typing import Dict, List, Optional, Any, Type
-from pathlib import Path
 import importlib.util
 import sys
+from pathlib import Path
+from typing import Any
 
-from app.core.log import logger
 from app.core.event import EventManager
+from app.core.log import logger
 
 
 class PluginBase:
@@ -43,15 +43,15 @@ class PluginBase:
     enable_event_handler: bool = True
 
     # 监听的事件类型列表
-    event_types: List[str] = []
+    event_types: list[str] = []
 
     def __init__(self):
         self._enabled = False
         self._initialized = False
-        self._config: Dict[str, Any] = {}
+        self._config: dict[str, Any] = {}
         self.logger = logger
 
-    def init_plugin(self, config: Optional[Dict[str, Any]] = None):
+    def init_plugin(self, config: dict[str, Any] | None = None):
         """
         初始化插件
 
@@ -78,7 +78,7 @@ class PluginBase:
         self._enabled = False
         self.logger.info(f"禁用插件: {self.plugin_name}")
 
-    def reload(self, config: Optional[Dict[str, Any]] = None):
+    def reload(self, config: dict[str, Any] | None = None):
         """
         重载插件
 
@@ -112,7 +112,7 @@ class PluginBase:
         """
         return self._config.get(key, default)
 
-    def handle_event(self, event_type: str, data: Optional[Dict[str, Any]] = None):
+    def handle_event(self, event_type: str, data: dict[str, Any] | None = None):
         """
         事件处理函数（子类可覆盖）
 
@@ -130,7 +130,7 @@ class PluginManager:
     """
 
     def __init__(self, event_manager: EventManager):
-        self._plugins: Dict[str, PluginBase] = {}
+        self._plugins: dict[str, PluginBase] = {}
         self.event_manager = event_manager
         self.logger = logger
 
@@ -170,7 +170,7 @@ class PluginManager:
         del self._plugins[plugin_id]
         self.logger.info(f"取消注册插件: {plugin_id}")
 
-    def get_plugin(self, plugin_id: str) -> Optional[PluginBase]:
+    def get_plugin(self, plugin_id: str) -> PluginBase | None:
         """
         获取插件
 
@@ -182,7 +182,7 @@ class PluginManager:
         """
         return self._plugins.get(plugin_id)
 
-    def get_running_plugins(self) -> List[PluginBase]:
+    def get_running_plugins(self) -> list[PluginBase]:
         """
         获取所有运行的插件
 
@@ -191,7 +191,7 @@ class PluginManager:
         """
         return [plugin for plugin in self._plugins.values() if plugin.is_enabled()]
 
-    def get_running_plugins_by_type(self, plugin_type: str) -> List[PluginBase]:
+    def get_running_plugins_by_type(self, plugin_type: str) -> list[PluginBase]:
         """
         获取指定类型的运行插件，按优先级排序
 
@@ -234,7 +234,7 @@ class PluginManager:
             plugin.disable()
             self.logger.info(f"插件已停止: {plugin_id}")
 
-    def reload(self, plugin_id: str, config: Optional[Dict[str, Any]] = None):
+    def reload(self, plugin_id: str, config: dict[str, Any] | None = None):
         """
         重载插件
 

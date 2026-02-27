@@ -2,21 +2,18 @@
 网易云音乐下载器
 """
 
-import asyncio
-import httpx
-import time
-from typing import Optional, Tuple, Dict, Any
-from urllib.parse import quote
 from pathlib import Path
+from typing import Any
+
+import httpx
 
 from .base import (
-    DownloadStatus,
+    DownloaderBase,
     DownloadQuality,
     DownloadSource,
+    DownloadStatus,
     DownloadTask,
-    DownloaderBase,
 )
-from .crypto import encrypted_id, create_params, create_signature, get_common_params
 
 
 class NeteaseDownloader(DownloaderBase):
@@ -39,7 +36,7 @@ class NeteaseDownloader(DownloaderBase):
         self.weapi_url = "https://music.163.com/weapi"
         self.timeout = 30
 
-    def init_setting(self) -> Optional[Tuple[str, bool]]:
+    def init_setting(self) -> tuple[str, bool] | None:
         """
         初始化下载器设置
 
@@ -85,7 +82,7 @@ class NeteaseDownloader(DownloaderBase):
         return level_map.get(quality, "standard")
 
     async def search(
-        self, keyword: str, limit: int = 20, quality: Optional[DownloadQuality] = None
+        self, keyword: str, limit: int = 20, quality: DownloadQuality | None = None
     ) -> list[DownloadTask]:
         """
         搜索音乐
@@ -205,7 +202,7 @@ class NeteaseDownloader(DownloaderBase):
             raise
 
     async def download(
-        self, task: DownloadTask, progress_callback: Optional[callable] = None
+        self, task: DownloadTask, progress_callback: callable | None = None
     ) -> DownloadTask:
         """
         下载音乐
@@ -280,7 +277,7 @@ class NeteaseDownloader(DownloaderBase):
 
         return task
 
-    async def get_song_detail(self, song_id: str) -> Optional[Dict[str, Any]]:
+    async def get_song_detail(self, song_id: str) -> dict[str, Any] | None:
         """
         获取歌曲详细信息
 
@@ -589,7 +586,7 @@ class NeteaseDownloader(DownloaderBase):
 
         return tasks
 
-    async def test(self) -> Tuple[bool, str]:
+    async def test(self) -> tuple[bool, str]:
         """
         测试下载器连接
 

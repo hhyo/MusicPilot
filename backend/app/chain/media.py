@@ -3,10 +3,9 @@
 处理媒体服务器同步
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 from app.chain import ChainBase
-from app.core.log import logger
 
 
 class MediaChain(ChainBase):
@@ -15,7 +14,7 @@ class MediaChain(ChainBase):
     负责媒体服务器的扫描、元数据同步、播放状态同步
     """
 
-    async def scan_library(self, server_id: int) -> Dict[str, Any]:
+    async def scan_library(self, server_id: int) -> dict[str, Any]:
         """
         扫描音乐库到媒体服务器
 
@@ -64,7 +63,7 @@ class MediaChain(ChainBase):
 
         return result
 
-    async def sync_metadata(self, server_id: int) -> Dict[str, Any]:
+    async def sync_metadata(self, server_id: int) -> dict[str, Any]:
         """
         同步元数据到媒体服务器
 
@@ -101,7 +100,7 @@ class MediaChain(ChainBase):
 
         return result
 
-    async def sync_playback(self, session_data: Dict[str, Any]):
+    async def sync_playback(self, session_data: dict[str, Any]):
         """
         同步播放状态到媒体服务器
 
@@ -123,7 +122,7 @@ class MediaChain(ChainBase):
             elif server.type == "jellyfin":
                 await self.run_module("jellyfin", "sync_playback", server, session_data)
 
-    async def sync_stop(self, session_data: Dict[str, Any]):
+    async def sync_stop(self, session_data: dict[str, Any]):
         """
         同步停止状态到媒体服务器
 
@@ -145,7 +144,7 @@ class MediaChain(ChainBase):
             elif server.type == "jellyfin":
                 await self.run_module("jellyfin", "sync_stop", server, session_data)
 
-    async def get_status(self, server_id: int) -> Dict[str, Any]:
+    async def get_status(self, server_id: int) -> dict[str, Any]:
         """
         获取媒体服务器状态
 

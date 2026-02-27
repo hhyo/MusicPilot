@@ -4,15 +4,17 @@ MusicBrainz 模块
 """
 
 import time
-from typing import Optional, List, Dict, Any
-from musicbrainzngs import set_useragent, get_artist_by_id, search_artists
-from musicbrainzngs import get_release_group_by_id, search_release_groups
-from musicbrainzngs import get_recording_by_id, search_recordings
-from musicbrainzngs import get_release_cover_url
 
-from app.core.module import ModuleBase
-from app.core.log import logger
-from app.core.config import settings
+from musicbrainzngs import (
+    get_artist_by_id,
+    get_recording_by_id,
+    get_release_cover_url,
+    get_release_group_by_id,
+    search_artists,
+    search_recordings,
+    search_release_groups,
+    set_useragent,
+)
 
 
 class MusicBrainzModule(ModuleBase):
@@ -41,7 +43,7 @@ class MusicBrainzModule(ModuleBase):
             time.sleep(self._rate_limit - elapsed)
         self._last_request_time = time.time()
 
-    async def search_artist(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
+    async def search_artist(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
         """
         搜索艺术家
 
@@ -73,7 +75,7 @@ class MusicBrainzModule(ModuleBase):
         self.logger.info(f"找到 {len(artists)} 个艺术家")
         return artists
 
-    async def get_artist_info(self, artist_id: str) -> Optional[Dict[str, Any]]:
+    async def get_artist_info(self, artist_id: str) -> dict[str, Any] | None:
         """
         获取艺术家详情
 
@@ -128,7 +130,7 @@ class MusicBrainzModule(ModuleBase):
         self.logger.info(f"获取艺术家详情成功: {artist_info['name']}")
         return artist_info
 
-    async def search_album(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
+    async def search_album(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
         """
         搜索专辑
 
@@ -159,7 +161,7 @@ class MusicBrainzModule(ModuleBase):
         self.logger.info(f"找到 {len(albums)} 个专辑")
         return albums
 
-    async def get_album_info(self, album_id: str) -> Optional[Dict[str, Any]]:
+    async def get_album_info(self, album_id: str) -> dict[str, Any] | None:
         """
         获取专辑详情
 
@@ -198,7 +200,7 @@ class MusicBrainzModule(ModuleBase):
         self.logger.info(f"获取专辑详情成功: {album_info['title']}")
         return album_info
 
-    async def search_track(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
+    async def search_track(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
         """
         搜索曲目
 
@@ -226,7 +228,7 @@ class MusicBrainzModule(ModuleBase):
         self.logger.info(f"找到 {len(tracks)} 个曲目")
         return tracks
 
-    async def get_track_info(self, track_id: str) -> Optional[Dict[str, Any]]:
+    async def get_track_info(self, track_id: str) -> dict[str, Any] | None:
         """
         获取曲目详情
 
@@ -260,7 +262,7 @@ class MusicBrainzModule(ModuleBase):
         self.logger.info(f"获取曲目详情成功: {track_info['title']}")
         return track_info
 
-    async def download_cover(self, musicbrainz_id: str, cover_type: str = "front") -> Optional[str]:
+    async def download_cover(self, musicbrainz_id: str, cover_type: str = "front") -> str | None:
         """
         下载封面图片
 
@@ -282,7 +284,7 @@ class MusicBrainzModule(ModuleBase):
             self.logger.error(f"下载封面失败: {e}")
             return None
 
-    def _parse_artist_credit(self, artist_credit: Any) -> Optional[Dict[str, Any]]:
+    def _parse_artist_credit(self, artist_credit: Any) -> dict[str, Any] | None:
         """
         解析艺术家署名
 
@@ -311,7 +313,7 @@ class MusicBrainzModule(ModuleBase):
             }
         return None
 
-    def _get_artist_image(self, artist: Dict) -> Optional[str]:
+    def _get_artist_image(self, artist: dict) -> str | None:
         """
         获取艺术家图片 URL
 
@@ -324,7 +326,7 @@ class MusicBrainzModule(ModuleBase):
         # TODO: 实现从其他服务获取艺术家图片（如 Spotify）
         return None
 
-    def _get_album_cover(self, release_group: Dict) -> Optional[str]:
+    def _get_album_cover(self, release_group: dict) -> str | None:
         """
         获取专辑封面 URL
 

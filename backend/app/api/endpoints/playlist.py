@@ -8,18 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.db.operations.playlist import PlaylistOper
-from app.db.operations.track import TrackOper
 from app.schemas.playlist import (
-    PlaylistCreate,
-    PlaylistUpdate,
-    PlaylistResponse,
-    PlaylistWithTracksResponse,
-    PlaylistListResponse,
     AddTrackRequest,
     BatchAddTracksRequest,
+    PlaylistCreate,
+    PlaylistListResponse,
+    PlaylistResponse,
+    PlaylistUpdate,
+    PlaylistWithTracksResponse,
     ReorderTracksRequest,
 )
-from app.schemas.response import ResponseModel, PaginatedResponse
+from app.schemas.response import PaginatedResponse, ResponseModel
 
 router = APIRouter()
 

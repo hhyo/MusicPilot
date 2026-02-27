@@ -5,17 +5,17 @@
 
 import asyncio
 import hashlib
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from typing import Any
 
-from app.core.log import logger
-from app.core.context import MusicInfo
-from app.core.event import event_bus, EventType
-from app.core.module import ModuleManager
 from app.core.cache import AsyncFileCache
-from app.db.operations.site import SiteOper
-from app.db.models.site import Site
+from app.core.context import MusicInfo
+from app.core.event import EventType, event_bus
+from app.core.log import logger
+from app.core.module import ModuleManager
 from app.db import db_manager
+from app.db.models.site import Site
+from app.db.operations.site import SiteOper
 
 
 class TorrentInfo:
@@ -28,7 +28,7 @@ class TorrentInfo:
         title: str,
         size: int,
         download_url: str,
-        upload_time: Optional[datetime] = None,
+        upload_time: datetime | None = None,
         seeders: int = 0,
         leechers: int = 0,
         is_free: bool = False,
@@ -47,7 +47,7 @@ class TorrentInfo:
         self.format = format
         self.bitrate = bitrate
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "torrent_id": self.torrent_id,
@@ -87,7 +87,7 @@ class TorrentsChain:
         self,
         music_info: MusicInfo,
         format: str,
-        sites: Optional[List[str]] = None,
+        sites: list[str] | None = None,
     ) -> str:
         """
         生成缓存键
@@ -116,12 +116,12 @@ class TorrentsChain:
     async def search(
         self,
         music_info: MusicInfo,
-        sites: Optional[List[str]] = None,
+        sites: list[str] | None = None,
         format: str = "FLAC",
-        min_size: Optional[int] = None,
-        max_size: Optional[int] = None,
+        min_size: int | None = None,
+        max_size: int | None = None,
         use_cache: bool = True,
-    ) -> List[TorrentInfo]:
+    ) -> list[TorrentInfo]:
         """
         搜索资源
 
@@ -183,7 +183,7 @@ class TorrentsChain:
 
         # 处理结果
         results = []
-        for site, site_results in zip(enabled_sites, site_results_list):
+        for site, site_results in zip(enabled_sites, site_results_list, strict=False):
             if isinstance(site_results, Exception):
                 self.logger.error(f"站点 {site.name} 搜索失败: {site_results}")
             else:
@@ -217,7 +217,7 @@ class TorrentsChain:
 
     async def _search_site(
         self, site: Site, music_info: MusicInfo, format: str
-    ) -> List[TorrentInfo]:
+    ) -> list[TorrentInfo]:
         """
         搜索单个站点
 
@@ -279,7 +279,7 @@ class TorrentsChain:
         self.logger.warning(f"未找到站点 {site.name} 的模块")
         return []
 
-    def _sort_results(self, results: List[TorrentInfo]) -> List[TorrentInfo]:
+    def _sort_results(self, results: list[TorrentInfo]) -> list[TorrentInfo]:
         """
         排序结果
 
@@ -314,11 +314,11 @@ class TorrentsChain:
 
     def _filter_results(
         self,
-        results: List[TorrentInfo],
+        results: list[TorrentInfo],
         format: str,
-        min_size: Optional[int],
-        max_size: Optional[int],
-    ) -> List[TorrentInfo]:
+        min_size: int | None,
+        max_size: int | None,
+    ) -> list[TorrentInfo]:
         """
         过滤结果
 
@@ -351,9 +351,9 @@ class TorrentsChain:
     async def search_artist(
         self,
         artist: str,
-        sites: Optional[List[str]] = None,
+        sites: list[str] | None = None,
         format: str = "FLAC",
-    ) -> List[TorrentInfo]:
+    ) -> list[TorrentInfo]:
         """
         搜索艺术家资源
 
@@ -372,11 +372,11 @@ class TorrentsChain:
         self,
         artist: str,
         album: str,
-        sites: Optional[List[str]] = None,
+        sites: list[str] | None = None,
         format: str = "FLAC",
-        min_size: Optional[int] = None,
-        max_size: Optional[int] = None,
-    ) -> List[TorrentInfo]:
+        min_size: int | None = None,
+        max_size: int | None = None,
+    ) -> list[TorrentInfo]:
         """
         搜索专辑资源
 
@@ -399,9 +399,9 @@ class TorrentsChain:
     async def search_title(
         self,
         title: str,
-        sites: Optional[List[str]] = None,
+        sites: list[str] | None = None,
         format: str = "FLAC",
-    ) -> List[TorrentInfo]:
+    ) -> list[TorrentInfo]:
         """
         搜索标题资源
 

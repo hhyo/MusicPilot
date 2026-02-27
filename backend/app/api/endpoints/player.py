@@ -120,7 +120,7 @@ async def play_track(
             },
         )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from None
 
 
 @router.post("/pause", response_model=ResponseModel[dict])

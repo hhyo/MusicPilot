@@ -3,19 +3,21 @@
 处理音乐下载和整理
 """
 
-from typing import List, Optional, Callable
+from collections.abc import Callable
 from pathlib import Path
 
 from app.chain import ChainBase
-from app.core.context import DownloadStatus
+from app.core.event import EventType
 from app.core.log import logger
+from app.db.operations.download import DownloadHistoryOper
 from app.modules.downloader import (
-    DownloadTask,
-    DownloadSource,
     DownloadQuality,
+    DownloadSource,
+    DownloadTask,
+)
+from app.modules.downloader import (
     DownloadStatus as DownloaderTaskStatus,
 )
-from app.db.operations.download import DownloadHistoryOper
 
 
 class DownloadChain(ChainBase):
@@ -36,8 +38,8 @@ class DownloadChain(ChainBase):
         keyword: str,
         source: DownloadSource = DownloadSource.NETEASE,
         limit: int = 20,
-        quality: Optional[DownloadQuality] = None,
-    ) -> List[DownloadTask]:
+        quality: DownloadQuality | None = None,
+    ) -> list[DownloadTask]:
         """
         搜索音乐
 
@@ -68,7 +70,7 @@ class DownloadChain(ChainBase):
         self,
         task: DownloadTask,
         source: DownloadSource = DownloadSource.NETEASE,
-        progress_callback: Optional[Callable] = None,
+        progress_callback: Callable | None = None,
         retry_count: int = 0,
     ) -> DownloadTask:
         """
@@ -242,7 +244,7 @@ class DownloadChain(ChainBase):
         source: DownloadSource = DownloadSource.NETEASE,
         quality: DownloadQuality = DownloadQuality.STANDARD,
         limit: int = 1,
-    ) -> List[DownloadTask]:
+    ) -> list[DownloadTask]:
         """
         搜索并下载音乐
 
@@ -275,8 +277,8 @@ class DownloadChain(ChainBase):
         url: str,
         source: DownloadSource = DownloadSource.NETEASE,
         quality: DownloadQuality = DownloadQuality.STANDARD,
-        metadata: Optional[dict] = None,
-    ) -> Optional[DownloadTask]:
+        metadata: dict | None = None,
+    ) -> DownloadTask | None:
         """
         通过 URL 下载
 
@@ -303,7 +305,7 @@ class DownloadChain(ChainBase):
         # 下载
         return await self.download(task, source)
 
-    async def download_batch(self, tasks: List[dict]) -> List[DownloadTask]:
+    async def download_batch(self, tasks: list[dict]) -> list[DownloadTask]:
         """
         批量下载
 
@@ -346,7 +348,7 @@ class DownloadChain(ChainBase):
 
         return results
 
-    async def get_download_status(self, task_id: str) -> Optional[dict]:
+    async def get_download_status(self, task_id: str) -> dict | None:
         """
         获取下载状态
 
@@ -381,7 +383,7 @@ class DownloadChain(ChainBase):
 
         return None
 
-    async def get_active_downloads(self) -> List[dict]:
+    async def get_active_downloads(self) -> list[dict]:
         """
         获取活跃的下载任务
 

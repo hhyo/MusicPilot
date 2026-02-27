@@ -3,14 +3,13 @@
 处理下载后文件整理
 """
 
-from typing import Optional
-from pathlib import Path
 from hashlib import md5
+from pathlib import Path
 
 from app.chain import ChainBase
 from app.core.context import DownloadTask, MusicInfo
-from app.core.log import logger
 from app.core.event import EventType
+from app.core.log import logger
 from app.db.operations.track import TrackOper
 
 
@@ -30,7 +29,7 @@ class TransferChain(ChainBase):
 
     async def organize(
         self, task: DownloadTask, check_duplicate: bool = True
-    ) -> Optional[MusicInfo]:
+    ) -> MusicInfo | None:
         """
         整理下载的文件
 
@@ -129,7 +128,7 @@ class TransferChain(ChainBase):
 
         return target_path
 
-    async def _check_duplicate(self, file_path: Path, task: DownloadTask) -> Optional[dict]:
+    async def _check_duplicate(self, file_path: Path, task: DownloadTask) -> dict | None:
         """
         检查文件是否重复
 
@@ -246,7 +245,7 @@ class TransferChain(ChainBase):
             self.logger.warning(f"媒体服务器同步失败（可忽略）: {e}")
 
     async def _send_transfer_event(
-        self, task: DownloadTask, success: bool, error: Optional[str] = None
+        self, task: DownloadTask, success: bool, error: str | None = None
     ):
         """
         发送转移事件

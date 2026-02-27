@@ -3,15 +3,15 @@
 处理播放控制、状态同步
 """
 
-from typing import Optional, Dict, Any, List
+import contextlib
 from datetime import datetime
+from typing import Any
 
 from app.chain import ChainBase
 from app.core.context import PlaybackSession
 from app.core.log import logger
-from app.db.operations.track import TrackOper
 from app.db.operations.playlist import PlaylistOper
-from app.core.config import settings
+from app.db.operations.track import TrackOper
 
 
 class PlaybackChain(ChainBase):
@@ -22,9 +22,9 @@ class PlaybackChain(ChainBase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._sessions: Dict[str, PlaybackSession] = {}
-        self._play_queue: List[int] = []  # 播放队列（曲目 ID 列表）
-        self._history: List[Dict[str, Any]] = []  # 播放历史
+        self._sessions: dict[str, PlaybackSession] = {}
+        self._play_queue: list[int] = []  # 播放队列（曲目 ID 列表）
+        self._history: list[dict[str, Any]] = []  # 播放历史
         self._current_index = -1  # 当前播放队列索引
         self.logger = logger
         self.track_oper = TrackOper(self.db_manager)
@@ -33,7 +33,7 @@ class PlaybackChain(ChainBase):
     # ========== 会话管理 ==========
 
     async def create_session(
-        self, track_id: int, user_id: Optional[str] = None, playlist_id: Optional[int] = None
+        self, track_id: int, user_id: str | None = None, playlist_id: int | None = None
     ) -> PlaybackSession:
         """
         创建播放会话
@@ -106,7 +106,7 @@ class PlaybackChain(ChainBase):
 
         return session
 
-    def get_session(self, session_id: str) -> Optional[PlaybackSession]:
+    def get_session(self, session_id: str) -> PlaybackSession | None:
         """
         获取播放会话
 
@@ -118,7 +118,7 @@ class PlaybackChain(ChainBase):
         """
         return self._sessions.get(session_id)
 
-    def get_current_session(self) -> Optional[PlaybackSession]:
+    def get_current_session(self) -> PlaybackSession | None:
         """获取当前播放会话"""
         if self._sessions:
             return list(self._sessions.values())[0]
@@ -150,7 +150,7 @@ class PlaybackChain(ChainBase):
 
     # ========== 播放控制 ==========
 
-    async def play(self, track_id: int, user_id: Optional[str] = None):
+    async def play(self, track_id: int, user_id: str | None = None):
         """
         播放曲目
 
@@ -161,17 +161,14 @@ class PlaybackChain(ChainBase):
         self.logger.info(f"播放曲目: {track_id}")
         await self.create_session(track_id, user_id)
 
-    async def pause(self, session_id: Optional[str] = None):
+    async def pause(self, session_id: str | None = None):
         """
         暂停播放
 
         Args:
             session_id: 会话 ID，None 表示当前会话
         """
-        if session_id:
-            session = self._sessions.get(session_id)
-        else:
-            session = self.get_current_session()
+        session = self._sessions.get(session_id) if session_id else self.get_current_session()
 
         if not session:
             return
@@ -190,17 +187,14 @@ class PlaybackChain(ChainBase):
         # 同步暂停状态到媒体服务器
         await self.sync_stop_to_media_server(session)
 
-    async def stop(self, session_id: Optional[str] = None):
+    async def stop(self, session_id: str | None = None):
         """
         停止播放
 
         Args:
             session_id: 会话 ID，None 表示当前会话
         """
-        if session_id:
-            session = self._sessions.get(session_id)
-        else:
-            session = self.get_current_session()
+        session = self._sessions.get(session_id) if session_id else self.get_current_session()
 
         if not session:
             return
@@ -217,17 +211,14 @@ class PlaybackChain(ChainBase):
             },
         )
 
-    async def next(self, session_id: Optional[str] = None):
+    async def next(self, session_id: str | None = None):
         """
         下一首
 
         Args:
             session_id: 会话 ID，None 表示当前会话
         """
-        if session_id:
-            session = self._sessions.get(session_id)
-        else:
-            session = self.get_current_session()
+        session = self._sessions.get(session_id) if session_id else self.get_current_session()
 
         if not session:
             self.logger.warning("没有正在播放的曲目")
@@ -243,17 +234,14 @@ class PlaybackChain(ChainBase):
             self.logger.info("没有更多曲目，停止播放")
             await self.stop()
 
-    async def previous(self, session_id: Optional[str] = None):
+    async def previous(self, session_id: str | None = None):
         """
         上一首
 
         Args:
             session_id: 会话 ID，None 表示当前会话
         """
-        if session_id:
-            session = self._sessions.get(session_id)
-        else:
-            session = self.get_current_session()
+        session = self._sessions.get(session_id) if session_id else self.get_current_session()
 
         if not session:
             self.logger.warning("没有正在播放的曲目")
@@ -268,7 +256,7 @@ class PlaybackChain(ChainBase):
         else:
             self.logger.info("没有上一首曲目")
 
-    async def seek(self, position: float, session_id: Optional[str] = None):
+    async def seek(self, position: float, session_id: str | None = None):
         """
         跳转到指定位置
 
@@ -276,10 +264,7 @@ class PlaybackChain(ChainBase):
             position: 位置（秒）
             session_id: 会话 ID，None 表示当前会话
         """
-        if session_id:
-            session = self._sessions.get(session_id)
-        else:
-            session = self.get_current_session()
+        session = self._sessions.get(session_id) if session_id else self.get_current_session()
 
         if not session:
             return
@@ -303,7 +288,7 @@ class PlaybackChain(ChainBase):
     # ========== 进度控制 ==========
 
     async def update_progress(
-        self, session_id: str, position: float, duration: Optional[float] = None
+        self, session_id: str, position: float, duration: float | None = None
     ):
         """
         更新播放进度
@@ -362,7 +347,7 @@ class PlaybackChain(ChainBase):
 
         self.logger.info(f"播放队列更新: {len(self._play_queue)} 首曲目")
 
-    async def enqueue(self, track_ids: List[int]):
+    async def enqueue(self, track_ids: list[int]):
         """
         将曲目加入队列
 
@@ -378,11 +363,11 @@ class PlaybackChain(ChainBase):
         self._current_index = -1
         self.logger.info("播放队列已清空")
 
-    async def get_queue(self) -> List[int]:
+    async def get_queue(self) -> list[int]:
         """获取当前播放队列"""
         return self._play_queue.copy()
 
-    def _get_next_track(self) -> Optional[int]:
+    def _get_next_track(self) -> int | None:
         """获取下一首曲目"""
         if not self._play_queue:
             return None
@@ -402,7 +387,7 @@ class PlaybackChain(ChainBase):
             self._current_index = (self._current_index + 1) % len(self._play_queue)
             return self._play_queue[self._current_index]
 
-    def _get_previous_track(self) -> Optional[int]:
+    def _get_previous_track(self) -> int | None:
         """获取上一首曲目"""
         if not self._play_queue:
             return None
@@ -422,7 +407,7 @@ class PlaybackChain(ChainBase):
 
     # ========== 播放历史 ==========
 
-    async def add_to_history(self, track_id: int, user_id: Optional[str] = None):
+    async def add_to_history(self, track_id: int, user_id: str | None = None):
         """
         添加到播放历史
 
@@ -452,8 +437,8 @@ class PlaybackChain(ChainBase):
         self.logger.debug(f"添加到历史: {track.title}")
 
     async def get_history(
-        self, user_id: Optional[str] = None, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+        self, user_id: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """
         获取播放历史
 
@@ -479,7 +464,7 @@ class PlaybackChain(ChainBase):
 
     # ========== 播放模式 ==========
 
-    async def set_repeat_mode(self, repeat_mode: str, session_id: Optional[str] = None):
+    async def set_repeat_mode(self, repeat_mode: str, session_id: str | None = None):
         """
         设置播放模式
 
@@ -487,10 +472,7 @@ class PlaybackChain(ChainBase):
             repeat_mode: 播放模式（off/one/all）
             session_id: 会话 ID
         """
-        if session_id:
-            session = self._sessions.get(session_id)
-        else:
-            session = self.get_current_session()
+        session = self._sessions.get(session_id) if session_id else self.get_current_session()
 
         if not session:
             return
@@ -508,17 +490,14 @@ class PlaybackChain(ChainBase):
             },
         )
 
-    async def toggle_shuffle(self, session_id: Optional[str] = None):
+    async def toggle_shuffle(self, session_id: str | None = None):
         """
         切换随机播放
 
         Args:
             session_id: 会话 ID
         """
-        if session_id:
-            session = self._sessions.get(session_id)
-        else:
-            session = self.get_current_session()
+        session = self._sessions.get(session_id) if session_id else self.get_current_session()
 
         if not session:
             return
@@ -538,7 +517,7 @@ class PlaybackChain(ChainBase):
 
     # ========== 音量控制 ==========
 
-    async def set_volume(self, volume: float, session_id: Optional[str] = None):
+    async def set_volume(self, volume: float, session_id: str | None = None):
         """
         设置音量
 
@@ -546,10 +525,7 @@ class PlaybackChain(ChainBase):
             volume: 音量（0.0-1.0）
             session_id: 会话 ID
         """
-        if session_id:
-            session = self._sessions.get(session_id)
-        else:
-            session = self.get_current_session()
+        session = self._sessions.get(session_id) if session_id else self.get_current_session()
 
         if not session:
             return
@@ -570,17 +546,14 @@ class PlaybackChain(ChainBase):
 
         self.logger.info(f"设置音量: {session.volume}")
 
-    async def toggle_mute(self, session_id: Optional[str] = None):
+    async def toggle_mute(self, session_id: str | None = None):
         """
         切换静音
 
         Args:
             session_id: 会话 ID
         """
-        if session_id:
-            session = self._sessions.get(session_id)
-        else:
-            session = self.get_current_session()
+        session = self._sessions.get(session_id) if session_id else self.get_current_session()
 
         if not session:
             return
@@ -642,11 +615,11 @@ class PlaybackChain(ChainBase):
 
     # ========== 状态获取 ==========
 
-    def get_all_sessions(self) -> List[PlaybackSession]:
+    def get_all_sessions(self) -> list[PlaybackSession]:
         """获取所有播放会话"""
         return list(self._sessions.values())
 
-    def get_queue_info(self) -> Dict[str, Any]:
+    def get_queue_info(self) -> dict[str, Any]:
         """
         获取队列信息
 
@@ -661,19 +634,15 @@ class PlaybackChain(ChainBase):
         if current_track_id:
             import asyncio
 
-            try:
+            with contextlib.suppress(BaseException):
                 current_track = asyncio.run(self.track_oper.get_by_id(current_track_id))
-            except:
-                pass
 
         # 获取下一首曲目信息
         next_track_id = self._get_next_track()
         next_track = None
         if next_track_id:
-            try:
+            with contextlib.suppress(BaseException):
                 next_track = asyncio.run(self.track_oper.get_by_id(next_track_id))
-            except:
-                pass
 
         return {
             "queue": self._play_queue,

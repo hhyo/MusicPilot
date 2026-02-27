@@ -99,9 +99,8 @@ class QbittorrentModule(DownloaderModule):
         self.logger.info(f"添加种子: {torrent_url}, 路径: {save_path}")
 
         # 确保已登录
-        if not self._sid:
-            if not await self._login():
-                raise ValueError("qBittorrent 登录失败")
+        if not self._sid and not await self._login():
+            raise ValueError("qBittorrent 登录失败")
 
         try:
             # 调用添加种子 API
@@ -148,7 +147,7 @@ class QbittorrentModule(DownloaderModule):
             torrent = torrents[0]
 
             # 映射状态
-            status = DownloadStatus(
+            DownloadStatus(
                 torrent.get("state", "downloading").replace("stalledDL", "downloading")
             )
 

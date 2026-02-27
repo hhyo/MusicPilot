@@ -3,8 +3,8 @@
 基于 Pydantic Settings 的配置管理
 """
 
-from typing import Optional, List
 from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_db: int = 0
-    redis_password: Optional[str] = None
+    redis_password: str | None = None
 
     # 日志配置
     log_level: str = "INFO"

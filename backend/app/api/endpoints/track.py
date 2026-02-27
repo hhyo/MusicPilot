@@ -3,21 +3,19 @@ Track API 端点
 曲目相关 API
 """
 
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.db.operations.track import TrackOper
+from app.schemas.response import PaginatedResponse, ResponseModel
 from app.schemas.track import (
-    TrackCreate,
-    TrackUpdate,
-    TrackResponse,
     TrackListResponse,
-    TrackStreamInfo,
+    TrackResponse,
+    TrackUpdate,
 )
-from app.schemas.response import ResponseModel, PaginatedResponse
-from app.core.config import settings
 
 router = APIRouter()
 
@@ -78,7 +76,7 @@ async def get_tracks(
     )
 
 
-@router.get("/recent", response_model=List[TrackListResponse])
+@router.get("/recent", response_model=list[TrackListResponse])
 async def get_recent_tracks(
     limit: int = Query(50, ge=1, le=100),
     track_oper: TrackOper = Depends(get_track_oper),
