@@ -226,41 +226,42 @@ class NeteaseDownloader(DownloaderBase):
             self.logger.info(f"开始下载: {task.title} ({task.quality})")
 
             # 下载文件
-            async with httpx.AsyncClient(timeout=self.timeout) as client, client.stream("GET", download_url) as response:
+            async with (
+                httpx.AsyncClient(timeout=self.timeout) as client,
+                client.stream("GET", download_url) as response,
+            ):
                 response.raise_for_status()
 
-                    # 获取文件大小
-                    total_bytes = int(response.headers.get("content-length", 0))
-                    task.total_bytes = total_bytes
+                # 获取文件大小
+                total_bytes = int(response.headers.get("content-length", 0))
+                task.total_bytes = total_bytes
 
-                    # 确定目标路径
-                    if task.target_path:
-                        target_dir = Path(task.target_path)
-                    else:
-                        target_dir = Path("/tmp/downloads/netease")
-                    target_dir.mkdir(parents=True, exist_ok=True)
+                # 确定目标路径
+                if task.target_path:
+                    target_dir = Path(task.target_path)
+                else:
+                    target_dir = Path("/tmp/downloads/netease")
+                target_dir.mkdir(parents=True, exist_ok=True)
 
-                    # 确定文件扩展名
-                    ext = ".flac" if task.quality == DownloadQuality.LOSSLESS else ".mp3"
-                    # 清理文件名
-                    safe_title = "".join(
-                        c if c.isalnum() or c in " -_()" else "_" for c in task.title or "unknown"
-                    )
-                    file_path = target_dir / f"{safe_title}{ext}"
+                # 确定文件扩展名
+                ext = ".flac" if task.quality == DownloadQuality.LOSSLESS else ".mp3"
+                # 清理文件名
+                safe_title = "".join(
+                    c if c.isalnum() or c in " -_()" else "_" for c in task.title or "unknown"
+                )
+                file_path = target_dir / f"{safe_title}{ext}"
 
-                    # 下载文件
-                    downloaded_bytes = 0
-                    with open(file_path, "wb") as f:
-                        async for chunk in response.aiter_bytes(8192):
-                            f.write(chunk)
-                            downloaded_bytes += len(chunk)
-                            task.downloaded_bytes = downloaded_bytes
-                            task.progress = (
-                                (downloaded_bytes / total_bytes) if total_bytes > 0 else 0
-                            )
+                # 下载文件
+                downloaded_bytes = 0
+                with open(file_path, "wb") as f:
+                    async for chunk in response.aiter_bytes(8192):
+                        f.write(chunk)
+                        downloaded_bytes += len(chunk)
+                        task.downloaded_bytes = downloaded_bytes
+                        task.progress = (downloaded_bytes / total_bytes) if total_bytes > 0 else 0
 
-                            if progress_callback:
-                                progress_callback(task)
+                        if progress_callback:
+                            progress_callback(task)
 
             # 下载完成
             task.status = DownloadStatus.COMPLETED
