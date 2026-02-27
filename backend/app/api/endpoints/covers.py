@@ -3,18 +3,15 @@
 封面下载、缓存和管理
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+import aiofiles
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import get_db
-from app.db.operations.album import AlbumOper
 from app.core.config import settings
 from app.core.log import logger
+from app.db import get_db
+from app.db.operations.album import AlbumOper
 from app.schemas.response import ResponseModel
-from pathlib import Path
-import aiofiles
 
 router = APIRouter()
 
@@ -38,8 +35,9 @@ async def get_cover(cover_id: str):
 
     # 从 MusicBrainz 下载
     try:
-        from app.core.config import settings
         import musicbrainzngs
+
+        from app.core.config import settings
 
         musicbrainzngs.set_useragent(
             f"{settings.musicbrainz_app_name}/{settings.musicbrainz_app_version}",
@@ -51,12 +49,11 @@ async def get_cover(cover_id: str):
             raise HTTPException(status_code=404, detail="封面不存在")
 
         # 下载封面
-        async with aiofiles.ClientSession() as session:
-            async with session.get(cover_url) as response:
-                if response.status != 200:
-                    raise HTTPException(status_code=404, detail="封面下载失败")
+        async with aiofiles.ClientSession() as session, session.get(cover_url) as response:
+            if response.status != 200:
+                raise HTTPException(status_code=404, detail="封面下载失败")
 
-                content = await response.read()
+            content = await response.read()
 
         # 保存到缓存
         await aiofiles.write(cover_path, content)
@@ -65,7 +62,7 @@ async def get_cover(cover_id: str):
 
     except Exception as e:
         logger.error(f"获取封面失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取封面失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取封面失败: {e}") from e
 
 
 @router.post("/albums/{album_id}/cover", response_model=ResponseModel[dict])
@@ -96,6 +93,7 @@ async def download_album_cover(
     # 否则先查询 MusicBrainz
     try:
         import musicbrainzngs
+
         from app.core.config import settings
 
         musicbrainzngs.set_useragent(
@@ -131,12 +129,12 @@ async def download_album_cover(
 
     except Exception as e:
         logger.error(f"查询专辑封面失败: {e}")
-        raise HTTPException(status_code=500, detail=f"查询专辑封面失败: {e}")
+        raise HTTPException(status_code=500, detail=f"查询专辑封面失败: {e}") from e
 
 
 @router.post("/batch", response_model=ResponseModel[dict])
 async def batch_download_covers(
-    album_ids: List[int],
+    album_ids: list[int],
     album_oper: AlbumOper = Depends(get_db),
 ):
     """
@@ -214,7 +212,7 @@ async def upload_custom_cover(
     """
     album = await album_oper.get_by_id(album_id)
     if not album:
-        raise HTTP_status_code(404, detail="专辑不存在")
+        raise HTTPException(status_code=404, detail="专辑不存在")
 
     # 验证文件类型
     if not file.content_type.startswith("image/"):
