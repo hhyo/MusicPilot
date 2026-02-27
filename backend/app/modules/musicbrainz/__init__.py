@@ -6,6 +6,7 @@ MusicBrainz 模块
 import time
 from typing import Any
 
+from app.modules.module_base import ModuleBase
 from musicbrainzngs import (
     get_artist_by_id,
     get_recording_by_id,
@@ -18,7 +19,6 @@ from musicbrainzngs import (
 )
 
 from app.core.config import settings
-from app.modules.module_base import ModuleBase
 
 
 class MusicBrainzModule(ModuleBase):
