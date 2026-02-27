@@ -3,14 +3,16 @@ Player API 端点
 播放器状态管理
 """
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import get_db
 from app.chain.playback import PlaybackChain
 from app.core.config import settings
 from app.core.log import logger
 from app.schemas.response import ResponseModel
+
+from app.db import get_db
 
 
 router = APIRouter()
