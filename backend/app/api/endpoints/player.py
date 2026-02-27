@@ -3,17 +3,12 @@ Player API 端点
 播放器状态管理
 """
 
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chain.playback import PlaybackChain
 from app.core.config import settings
-from app.core.log import logger
 from app.schemas.response import ResponseModel
-
-from app.db import get_db
 
 router = APIRouter()
 
@@ -21,10 +16,10 @@ router = APIRouter()
 async def get_playback_chain() -> PlaybackChain:
     """获取 PlaybackChain 实例"""
     # 创建核心组件
+    from app.core.cache import AsyncFileCache
     from app.core.event import EventManager
     from app.core.module import ModuleManager
     from app.core.plugin import PluginManager
-    from app.core.cache import AsyncFileCache
 
     event_manager = EventManager()
     module_manager = ModuleManager()
@@ -85,7 +80,7 @@ async def get_current_state(
 @router.get("/history", response_model=ResponseModel[list])
 async def get_play_history(
     limit: int = 50,
-    user_id: Optional[str] = None,
+    user_id: str | None = None,
     playback_chain: PlaybackChain = Depends(get_playback_chain),
 ):
     """
@@ -102,8 +97,8 @@ async def get_play_history(
 @router.post("/play", response_model=ResponseModel[dict])
 async def play_track(
     track_id: int,
-    user_id: Optional[str] = None,
-    playlist_id: Optional[int] = None,
+    user_id: str | None = None,
+    playlist_id: int | None = None,
     playback_chain: PlaybackChain = Depends(get_playback_chain),
 ):
     """
@@ -154,7 +149,7 @@ async def pause(
 
 @router.post("/stop", response_model=ResponseModel[dict])
 async def stop(
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     playback_chain: PlaybackChain = Depends(get_playback_chain),
 ):
     """
@@ -169,7 +164,7 @@ async def stop(
 
 @router.post("/next", response_model=ResponseModel[dict])
 async def next_track(
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     playback_chain: PlaybackChain = Depends(get_playback_chain),
 ):
     """
@@ -197,7 +192,7 @@ async def next_track(
 
 @router.post("/previous", response_model=ResponseModel[dict])
 async def previous_track(
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     playback_chain: PlaybackChain = Depends(get_playback_chain),
 ):
     """
@@ -222,7 +217,7 @@ async def previous_track(
 @router.post("/seek", response_model=ResponseModel[dict])
 async def seek_to_position(
     position: float,
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     playback_chain: PlaybackChain = Depends(get_playback_chain),
 ):
     """
@@ -244,7 +239,7 @@ async def seek_to_position(
 @router.post("/volume", response_model=ResponseModel[dict])
 async def set_volume(
     volume: float,
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     playback_chain: PlaybackChain = Depends(get_playback_chain),
 ):
     """
@@ -254,8 +249,6 @@ async def set_volume(
     - **session_id**: 会话 ID，None 表示当前会话
     """
     await playback_chain.set_volume(volume, session_id)
-
-    current_session = playback_chain.get_current_session()
 
     return ResponseModel(
         message=f"音量设置为 {int(volume * 100)}%",
@@ -267,7 +260,7 @@ async def set_volume(
 
 @router.post("/mute", response_model=ResponseModel[dict])
 async def toggle_mute(
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     playback_chain: PlaybackChain = Depends(get_playback_chain),
 ):
     """
@@ -290,7 +283,7 @@ async def toggle_mute(
 @router.post("/repeat", response_model=ResponseModel[dict])
 async def set_repeat_mode(
     mode: str,
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     playback_chain: PlaybackChain = Depends(get_playback_chain),
 ):
     """
@@ -313,7 +306,7 @@ async def set_repeat_mode(
 
 @router.post("/shuffle", response_model=ResponseModel[dict])
 async def toggle_shuffle(
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     playback_chain: PlaybackChain = Depends(get_playback_chain),
 ):
     """

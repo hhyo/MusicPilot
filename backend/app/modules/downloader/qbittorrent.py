@@ -3,17 +3,13 @@ qBittorrent 下载器模块
 支持 qBittorrent 4.1+ API
 """
 
-from typing import Optional, List
-import hashlib
 
 from app.modules.downloader_module import (
     DownloaderModule,
-    DownloadTaskInfo,
     DownloadProgress,
     DownloadStatus,
+    DownloadTaskInfo,
 )
-from app.core.log import logger
-from app.core.context import DownloadContext
 
 
 class QbittorrentModule(DownloaderModule):
@@ -62,7 +58,7 @@ class QbittorrentModule(DownloaderModule):
             return False
 
     async def _api_request(
-        self, method: str, endpoint: str, data: Optional[dict] = None, params: Optional[dict] = None
+        self, method: str, endpoint: str, data: dict | None = None, params: dict | None = None
     ) -> dict:
         """
         发送 API 请求
@@ -109,7 +105,7 @@ class QbittorrentModule(DownloaderModule):
 
         try:
             # 调用添加种子 API
-            response_data = await self._api_request(
+            await self._api_request(
                 "POST",
                 "/torrents/add",
                 data={
@@ -130,7 +126,7 @@ class QbittorrentModule(DownloaderModule):
             self.logger.error(f"添加种子失败: {e}")
             raise
 
-    async def get_task_progress(self, task_id: str) -> Optional[DownloadProgress]:
+    async def get_task_progress(self, task_id: str) -> DownloadProgress | None:
         """
         获取任务进度
 
@@ -152,13 +148,9 @@ class QbittorrentModule(DownloaderModule):
             torrent = torrents[0]
 
             # 映射状态
-            status_map = {
-                "downloading": DownloadStatus.DOWNLOADING,
-                "seeding": DownloadStatus.SEEDING,
-                "completed": DownloadStatus.COMPLETED,
-                "paused": DownloadStatus.PAUSED,
-                "error": DownloadStatus.ERROR,
-            }
+            status = DownloadStatus(
+                torrent.get("state", "downloading").replace("stalledDL", "downloading")
+            )
 
             return DownloadProgress(
                 task_id=task_id,
@@ -238,7 +230,7 @@ class QbittorrentModule(DownloaderModule):
             self.logger.error(f"删除任务失败: {e}")
             return False
 
-    async def get_all_tasks(self) -> List[DownloadTaskInfo]:
+    async def get_all_tasks(self) -> list[DownloadTaskInfo]:
         """
         获取所有任务
 
@@ -290,7 +282,7 @@ class QbittorrentModule(DownloaderModule):
         Returns:
             下载器是否可用
         """
-        self.logger.info(f"检查 qBittorrent 状态")
+        self.logger.info("检查 qBittorrent 状态")
 
         try:
             # 尝试登录
