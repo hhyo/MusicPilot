@@ -341,12 +341,11 @@ async def get_scan_status(library_id: int):
     """
     # 查找该音乐库的最新任务
     latest_task = None
-    for task_id, task_data in scan_tasks.items():
-        if task_data.get("library_id") == library_id:
-            if latest_task is None or task_data.get("started_at", 0) > latest_task.get(
-                "started_at", 0
-            ):
-                latest_task = task_data
+    for _task_id, task_data in scan_tasks.items():
+        if task_data.get("library_id") == library_id and (
+            latest_task is None or task_data.get("started_at", 0) > latest_task.get("started_at", 0)
+        ):
+            latest_task = task_data
 
     if not latest_task:
         return ResponseModel(
