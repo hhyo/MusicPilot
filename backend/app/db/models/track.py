@@ -2,8 +2,9 @@
 Track 数据库模型
 """
 
-from sqlalchemy import String, Text, Integer, Float, JSON, ForeignKey, BigInteger
+from sqlalchemy import JSON, BigInteger, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db import Base, TimestampMixin
 
 

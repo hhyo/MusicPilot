@@ -3,16 +3,15 @@
 音频文件流式传输
 """
 
-from typing import Optional
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, Request, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.log import logger
 from app.db import get_db
 from app.db.operations.track import TrackOper
-from app.core.config import settings
-from app.core.log import logger
 from app.schemas.response import ResponseModel
 
 router = APIRouter()
@@ -98,7 +97,7 @@ def get_mime_type(file_format: str) -> str:
 async def stream_track(
     track_id: int,
     request: Request,
-    format: Optional[str] = Query(None, description="目标格式（如需要转换）"),
+    format: str | None = Query(None, description="目标格式（如需要转换）"),
     track_oper: TrackOper = Depends(get_track_oper),
 ):
     """

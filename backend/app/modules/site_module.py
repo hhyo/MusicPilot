@@ -3,9 +3,10 @@
 所有站点模块都继承此类
 """
 
+import contextlib
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 import feedparser
 import httpx
@@ -20,15 +21,15 @@ class SiteInfo:
     name: str
     url: str
     domain: str
-    cookie: Optional[str] = None
-    passkey: Optional[str] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
-    proxy: Optional[str] = None
-    ua: Optional[str] = None
+    cookie: str | None = None
+    passkey: str | None = None
+    username: str | None = None
+    password: str | None = None
+    proxy: str | None = None
+    ua: str | None = None
     timeout: int = 30
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "name": self.name,
@@ -52,14 +53,14 @@ class TorrentResult:
     title: str
     size: int
     download_url: str
-    upload_time: Optional[datetime] = None
+    upload_time: datetime | None = None
     seeders: int = 0
     leechers: int = 0
     is_free: bool = False
     format: str = "FLAC"
     bitrate: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "torrent_id": self.torrent_id,
@@ -85,10 +86,10 @@ class SiteModule(ModuleBase):
 
     def __init__(self):
         super().__init__()
-        self.site_info: Optional[SiteInfo] = None
-        self.client: Optional[httpx.AsyncClient] = None
+        self.site_info: SiteInfo | None = None
+        self.client: httpx.AsyncClient | None = None
 
-    def init_module(self, config: Optional[Dict[str, Any]] = None):
+    def init_module(self, config: dict[str, Any] | None = None):
         """
         初始化模块
 
@@ -137,10 +138,8 @@ class SiteModule(ModuleBase):
         if self.client:
             import asyncio
 
-            try:
+            with contextlib.suppress(Exception):
                 asyncio.create_task(self.client.aclose())
-            except Exception:
-                pass
 
     async def login(self) -> bool:
         """
@@ -153,10 +152,7 @@ class SiteModule(ModuleBase):
 
         # 默认实现：使用 Cookie 直接返回成功
         # 子类可以重写此方法实现实际的登录逻辑
-        if self.site_info and self.site_info.cookie:
-            return True
-
-        return False
+        return bool(self.site_info and self.site_info.cookie)
 
     async def search_torrent(
         self,
@@ -180,7 +176,7 @@ class SiteModule(ModuleBase):
         # 子类必须实现此方法
         raise NotImplementedError("子类必须实现 search_torrent 方法")
 
-    async def get_torrent_details(self, torrent_id: str) -> Optional[Dict[str, Any]]:
+    async def get_torrent_details(self, torrent_id: str) -> dict[str, Any] | None:
         """
         获取种子详情
 

@@ -3,15 +3,14 @@
 处理种子下载器的推送、监控和控制
 """
 
-from datetime import datetime
 
+from app.core.event import EventType, event_bus
 from app.core.log import logger
-from app.core.event import event_bus, EventType
 from app.core.module import ModuleManager
-from app.modules.downloader_module import DownloadTaskInfo, DownloadProgress
-from app.db.operations.site import SiteOper
-from app.db.models.site import Site
 from app.db import db_manager
+from app.db.models.site import Site
+from app.db.operations.site import SiteOper
+from app.modules.downloader_module import DownloadProgress, DownloadTaskInfo
 
 
 class DownloaderChain:
@@ -81,7 +80,7 @@ class DownloaderChain:
 
     async def get_progress(
         self, task_id: str, downloader: str = "qbittorrent"
-    ) -> Optional[DownloadProgress]:
+    ) -> DownloadProgress | None:
         """
         获取下载进度
 

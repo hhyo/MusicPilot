@@ -2,10 +2,11 @@
 DownloadHistory 数据库模型
 """
 
-from sqlalchemy import String, Text, Integer, BigInteger, DateTime
+from sqlalchemy import BigInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
+from app.core.context import DownloadStatus
 from app.db import Base, TimestampMixin
-from app.core.context import DownloadStatus, DownloaderType
 
 
 class DownloadHistory(Base, TimestampMixin):

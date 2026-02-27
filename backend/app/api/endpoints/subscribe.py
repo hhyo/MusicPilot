@@ -2,21 +2,18 @@
 订阅 API 端点
 """
 
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, Query
 
-from app.db.operations.subscribe import SubscribeOper
-from app.db.models.subscribe import Subscribe
 from app.chain.subscribe import SubscribeChain
+from app.db import db_manager
+from app.db.models.subscribe import Subscribe
+from app.db.operations.subscribe import SubscribeOper
 from app.schemas.subscribe import (
-    SubscribeBase,
     SubscribeCreate,
-    SubscribeUpdate,
-    SubscribeResponse,
     SubscribeListResponse,
+    SubscribeResponse,
+    SubscribeUpdate,
 )
-from app.db import get_db, db_manager
 
 router = APIRouter()
 
@@ -26,8 +23,8 @@ subscribe_chain = SubscribeChain()
 
 @router.get("", response_model=SubscribeListResponse)
 async def list_subscribes(
-    type: Optional[str] = Query(None, description="订阅类型"),
-    state: Optional[str] = Query(None, description="状态"),
+    type: str | None = Query(None, description="订阅类型"),
+    state: str | None = Query(None, description="状态"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
 ):
@@ -151,7 +148,7 @@ async def check_subscribe(subscribe_id: int):
             "new_releases": len(releases),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"检查失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"检查失败: {str(e)}") from e
 
 
 @router.post("/check-all")
@@ -166,13 +163,13 @@ async def check_all_subscribes():
             "stats": stats,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"检查失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"检查失败: {str(e)}") from e
 
 
 @router.get("/{subscribe_id}/releases")
 async def get_subscribe_releases(
     subscribe_id: int,
-    download_status: Optional[str] = Query(None, description="下载状态"),
+    download_status: str | None = Query(None, description="下载状态"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
 ):

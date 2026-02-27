@@ -2,18 +2,17 @@
 Artist 操作类
 """
 
-from typing import Optional, List
-from sqlalchemy import select, or_
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.artist import Artist
+from sqlalchemy import or_, select
+
 from app.db import OperBase
+from app.db.models.artist import Artist
 
 
 class ArtistOper(OperBase[Artist]):
     """Artist 操作类"""
 
-    async def get_by_musicbrainz_id(self, musicbrainz_id: str) -> Optional[Artist]:
+    async def get_by_musicbrainz_id(self, musicbrainz_id: str) -> Artist | None:
         """
         根据 MusicBrainz ID 获取艺术家
 
@@ -29,7 +28,7 @@ class ArtistOper(OperBase[Artist]):
             )
             return result.scalar_one_or_none()
 
-    async def search_by_name(self, keyword: str, limit: int = 50) -> List[Artist]:
+    async def search_by_name(self, keyword: str, limit: int = 50) -> list[Artist]:
         """
         搜索艺术家（按名称）
 
@@ -54,7 +53,7 @@ class ArtistOper(OperBase[Artist]):
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def get_top_rated(self, limit: int = 50) -> List[Artist]:
+    async def get_top_rated(self, limit: int = 50) -> list[Artist]:
         """
         获取评分最高的艺术家
 
@@ -74,7 +73,7 @@ class ArtistOper(OperBase[Artist]):
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def get_by_genre(self, genre: str, limit: int = 50) -> List[Artist]:
+    async def get_by_genre(self, genre: str, limit: int = 50) -> list[Artist]:
         """
         根据流派获取艺术家
 
@@ -90,7 +89,7 @@ class ArtistOper(OperBase[Artist]):
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def update_rating(self, id: int, rating: float, rating_count: int) -> Optional[Artist]:
+    async def update_rating(self, id: int, rating: float, rating_count: int) -> Artist | None:
         """
         更新评分
 

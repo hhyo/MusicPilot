@@ -4,7 +4,6 @@
 
 from app.core.log import logger
 from app.db import db_manager
-from app.db.models import Base
 
 
 async def init_database():

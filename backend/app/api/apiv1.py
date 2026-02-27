@@ -2,6 +2,8 @@
 API v1 路由聚合
 """
 
+from fastapi import APIRouter
+
 from app.api.endpoints import (
     album,
     artist,
@@ -16,8 +18,6 @@ from app.api.endpoints import (
     subscribe_release,
     track,
 )
-
-from fastapi import APIRouter
 
 # 创建 API 路由器
 api_router = APIRouter()

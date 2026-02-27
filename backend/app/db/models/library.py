@@ -2,8 +2,9 @@
 Library 数据库模型
 """
 
-from sqlalchemy import String, Integer, BigInteger, Boolean, DateTime
+from sqlalchemy import BigInteger, Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db import Base, TimestampMixin
 
 

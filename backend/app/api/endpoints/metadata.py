@@ -3,22 +3,20 @@
 批量编辑和回写功能
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.db import get_db
-from app.db.operations.artist import ArtistOper
-from app.db.operations.album import AlbumOper
-from app.db.operations.track import TrackOper
 from app.chain.metadata import MetadataChain
+from app.core.cache import AsyncFileCache
 from app.core.config import settings
-from app.core.log import logger
-from app.schemas.response import ResponseModel
 from app.core.event import EventManager
+from app.core.log import logger
 from app.core.module import ModuleManager
 from app.core.plugin import PluginManager
-from app.core.cache import AsyncFileCache
+from app.db import get_db
+from app.db.operations.album import AlbumOper
+from app.db.operations.artist import ArtistOper
+from app.db.operations.track import TrackOper
+from app.schemas.response import ResponseModel
 
 router = APIRouter()
 
@@ -40,7 +38,7 @@ async def get_metadata_chain():
 
 @router.patch("/artists/batch", response_model=ResponseModel[dict])
 async def batch_update_artists(
-    artist_ids: List[int],
+    artist_ids: list[int],
     updates: dict,
     artist_oper: ArtistOper = Depends(get_db),
 ):
@@ -84,7 +82,7 @@ async def batch_update_artists(
 
 @router.patch("/albums/batch", response_model=ResponseModel[dict])
 async def batch_update_albums(
-    album_ids: List[int],
+    album_ids: list[int],
     updates: dict,
     album_oper: AlbumOper = Depends(get_db),
 ):
@@ -128,7 +126,7 @@ async def batch_update_albums(
 
 @router.patch("/tracks/batch", response_model=ResponseModel[dict])
 async def batch_update_tracks(
-    track_ids: List[int],
+    track_ids: list[int],
     updates: dict,
     track_oper: TrackOper = Depends(get_db),
 ):
@@ -190,12 +188,12 @@ async def rewrite_track_metadata(
 
     except Exception as e:
         logger.error(f"回写元数据失败: {e}")
-        raise HTTPException(status_code=500, detail=f"回写元数据失败: {e}")
+        raise HTTPException(status_code=500, detail=f"回写元数据失败: {e}") from e
 
 
 @router.post("/tracks/batch/rewrite", response_model=ResponseModel[dict])
 async def batch_rewrite_tracks(
-    track_ids: List[int],
+    track_ids: list[int],
     metadata_chain: MetadataChain = Depends(get_metadata_chain),
 ):
     """

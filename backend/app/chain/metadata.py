@@ -3,17 +3,16 @@
 处理音乐元数据的识别、补全
 """
 
-from typing import Optional, Dict, Any, List
 from pathlib import Path
+from typing import Any
 
 from app.chain import ChainBase
 from app.core.context import MusicInfo
-from app.core.meta import MetadataParser, FilenameParser
-from app.core.log import logger
-from app.db.operations.artist import ArtistOper
-from app.db.operations.album import AlbumOper
-from app.db.operations.track import TrackOper
+from app.core.meta import FilenameParser, MetadataParser
 from app.db import db_manager
+from app.db.operations.album import AlbumOper
+from app.db.operations.artist import ArtistOper
+from app.db.operations.track import TrackOper
 
 
 class MetadataChain(ChainBase):
@@ -27,7 +26,7 @@ class MetadataChain(ChainBase):
         self.metadata_parser = MetadataParser()
         self.filename_parser = FilenameParser()
 
-    async def recognize(self, file_path: str) -> Optional[MusicInfo]:
+    async def recognize(self, file_path: str) -> MusicInfo | None:
         """
         识别音乐文件的元数据
 
@@ -82,8 +81,8 @@ class MetadataChain(ChainBase):
         return self.filename_parser.parse(file_path)
 
     async def query_musicbrainz(
-        self, artist: str, title: str, album: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, artist: str, title: str, album: str | None = None
+    ) -> dict[str, Any] | None:
         """
         查询 MusicBrainz
 
@@ -126,7 +125,7 @@ class MetadataChain(ChainBase):
         return track_info
 
     def merge_metadata(
-        self, local: MusicInfo, filename: MusicInfo, online: Optional[Dict[str, Any]]
+        self, local: MusicInfo, filename: MusicInfo, online: dict[str, Any] | None
     ) -> MusicInfo:
         """
         合并元数据（优先级：在线 > 本地 > 文件名）
@@ -185,7 +184,7 @@ class MetadataChain(ChainBase):
         self.logger.info(f"补全元数据: {metadata.title}")
         return metadata
 
-    async def save_to_database(self, metadata: MusicInfo) -> Dict[str, Any]:
+    async def save_to_database(self, metadata: MusicInfo) -> dict[str, Any]:
         """保存到数据库"""
         artist_oper = ArtistOper(db_manager)
         album_oper = AlbumOper(db_manager)
@@ -260,7 +259,7 @@ class MetadataChain(ChainBase):
 
         return result
 
-    async def batch_recognize(self, file_paths: List[str]) -> List[Dict[str, Any]]:
+    async def batch_recognize(self, file_paths: list[str]) -> list[dict[str, Any]]:
         """批量识别元数据"""
         self.logger.info(f"批量识别 {len(file_paths)} 个文件")
         results = []

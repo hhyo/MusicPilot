@@ -3,18 +3,17 @@
 提供音乐元数据的查询、解析、处理功能
 """
 
-from typing import Optional, List, Dict, Any
 from pathlib import Path
+
 import mutagen
-from mutagen.id3 import ID3
 from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.ogg import OggVorbis
 from mutagen.wave import WAVE
 
-from app.core.log import logger
 from app.core.context import MusicInfo
+from app.core.log import logger
 
 
 class MetadataParser:
@@ -42,7 +41,7 @@ class MetadataParser:
         """
         return file_path.suffix.lower() in MetadataParser.SUPPORTED_FORMATS
 
-    def parse_file(self, file_path: Path) -> Optional[MusicInfo]:
+    def parse_file(self, file_path: Path) -> MusicInfo | None:
         """
         解析音频文件元数据
 
@@ -290,7 +289,7 @@ class MetadataParser:
         return music_info
 
     @staticmethod
-    def _get_tag_value(tags, tag_name: str) -> Optional[str]:
+    def _get_tag_value(tags, tag_name: str) -> str | None:
         """
         获取标签值
 

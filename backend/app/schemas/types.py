@@ -3,10 +3,10 @@
 定义所有枚举类型
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     """事件类型枚举"""
 
     # 元数据事件
@@ -48,7 +48,7 @@ class EventType(str, Enum):
     SYSTEM_ERROR = "system.error"
 
 
-class DownloadStatus(str, Enum):
+class DownloadStatus(StrEnum):
     """下载状态枚举"""
 
     PENDING = "pending"
@@ -58,7 +58,7 @@ class DownloadStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class MediaType(str, Enum):
+class MediaType(StrEnum):
     """媒体类型枚举"""
 
     AUDIO = "audio"
@@ -66,14 +66,14 @@ class MediaType(str, Enum):
     IMAGE = "image"
 
 
-class PlaylistType(str, Enum):
+class PlaylistType(StrEnum):
     """播放列表类型枚举"""
 
     NORMAL = "normal"
     SMART = "smart"
 
 
-class DownloaderType(str, Enum):
+class DownloaderType(StrEnum):
     """下载器类型枚举"""
 
     NETEASE = "netease"
@@ -83,7 +83,7 @@ class DownloaderType(str, Enum):
     GENERIC = "generic"
 
 
-class MediaServerType(str, Enum):
+class MediaServerType(StrEnum):
     """媒体服务器类型枚举"""
 
     PLEX = "plex"
@@ -91,7 +91,7 @@ class MediaServerType(str, Enum):
     EMBY = "emby"
 
 
-class MessageChannel(str, Enum):
+class MessageChannel(StrEnum):
     """消息渠道枚举"""
 
     WEB = "web"
@@ -100,7 +100,7 @@ class MessageChannel(str, Enum):
     DISCORD = "discord"
 
 
-class NotificationType(str, Enum):
+class NotificationType(StrEnum):
     """通知类型枚举"""
 
     INFO = "info"

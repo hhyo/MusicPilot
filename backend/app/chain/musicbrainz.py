@@ -3,10 +3,9 @@ MusicBrainz 链
 MusicBrainz 专用链
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 from app.chain import ChainBase
-from app.core.log import logger
 
 
 class MusicBrainzChain(ChainBase):
@@ -15,7 +14,7 @@ class MusicBrainzChain(ChainBase):
     专门处理 MusicBrainz 相关操作
     """
 
-    async def search_artist(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
+    async def search_artist(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
         """
         搜索艺术家
 
@@ -42,7 +41,7 @@ class MusicBrainzChain(ChainBase):
 
         return results
 
-    async def get_artist_discography(self, musicbrainz_id: str) -> Dict[str, Any]:
+    async def get_artist_discography(self, musicbrainz_id: str) -> dict[str, Any]:
         """
         获取艺术家作品集
 
@@ -68,7 +67,7 @@ class MusicBrainzChain(ChainBase):
 
         return result
 
-    async def search_album(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
+    async def search_album(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
         """
         搜索专辑
 
@@ -95,7 +94,7 @@ class MusicBrainzChain(ChainBase):
 
         return results
 
-    async def get_album_info(self, musicbrainz_id: str) -> Optional[Dict[str, Any]]:
+    async def get_album_info(self, musicbrainz_id: str) -> dict[str, Any] | None:
         """
         获取专辑详情
 
@@ -121,7 +120,7 @@ class MusicBrainzChain(ChainBase):
 
         return result
 
-    async def search_track(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
+    async def search_track(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
         """
         搜索曲目
 
@@ -148,7 +147,7 @@ class MusicBrainzChain(ChainBase):
 
         return results
 
-    async def get_track_info(self, musicbrainz_id: str) -> Optional[Dict[str, Any]]:
+    async def get_track_info(self, musicbrainz_id: str) -> dict[str, Any] | None:
         """
         获取曲目详情
 
@@ -174,7 +173,7 @@ class MusicBrainzChain(ChainBase):
 
         return result
 
-    async def download_cover(self, musicbrainz_id: str, cover_type: str = "front") -> Optional[str]:
+    async def download_cover(self, musicbrainz_id: str, cover_type: str = "front") -> str | None:
         """
         下载封面图片
 

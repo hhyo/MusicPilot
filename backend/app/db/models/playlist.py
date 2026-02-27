@@ -2,10 +2,11 @@
 Playlist 数据库模型
 """
 
-from sqlalchemy import String, Text, Integer, JSON, ForeignKey, Boolean
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db import Base, TimestampMixin
+
 from app.core.context import PlaylistType
+from app.db import Base, TimestampMixin
 
 
 class Playlist(Base, TimestampMixin):

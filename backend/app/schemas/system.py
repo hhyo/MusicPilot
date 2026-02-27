@@ -12,7 +12,7 @@ class SystemConfigBase(BaseModel):
     """SystemConfig 基础模型"""
 
     key: str = Field(..., description="配置键")
-    value: Optional[str] = Field(None, description="配置值")
+    value: str | None = Field(None, description="配置值")
 
 
 class SystemConfigCreate(SystemConfigBase):
@@ -24,7 +24,7 @@ class SystemConfigCreate(SystemConfigBase):
 class SystemConfigUpdate(BaseModel):
     """更新系统配置请求模型"""
 
-    value: Optional[str] = None
+    value: str | None = None
 
 
 class SystemConfigResponse(SystemConfigBase):

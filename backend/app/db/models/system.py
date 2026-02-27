@@ -2,8 +2,9 @@
 SystemConfig 数据库模型
 """
 
-from sqlalchemy import String, Text, DateTime
+from sqlalchemy import String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db import Base, TimestampMixin
 
 

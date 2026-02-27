@@ -4,11 +4,11 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 
-class MediaType(str, Enum):
+class MediaType(StrEnum):
     """媒体类型"""
 
     AUDIO = "audio"
@@ -16,7 +16,7 @@ class MediaType(str, Enum):
     IMAGE = "image"
 
 
-class DownloadStatus(str, Enum):
+class DownloadStatus(StrEnum):
     """下载状态"""
 
     PENDING = "pending"
@@ -26,7 +26,7 @@ class DownloadStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class DownloaderType(str, Enum):
+class DownloaderType(StrEnum):
     """下载器类型"""
 
     NETEASE = "netease"
@@ -36,7 +36,7 @@ class DownloaderType(str, Enum):
     GENERIC = "generic"
 
 
-class MediaServerType(str, Enum):
+class MediaServerType(StrEnum):
     """媒体服务器类型"""
 
     PLEX = "plex"
@@ -44,7 +44,7 @@ class MediaServerType(str, Enum):
     EMBY = "emby"
 
 
-class MessageChannel(str, Enum):
+class MessageChannel(StrEnum):
     """消息渠道"""
 
     WEB = "web"
@@ -53,14 +53,14 @@ class MessageChannel(str, Enum):
     DISCORD = "discord"
 
 
-class PlaylistType(str, Enum):
+class PlaylistType(StrEnum):
     """播放列表类型"""
 
     NORMAL = "normal"  # 普通播放列表
     SMART = "smart"  # 智能播放列表
 
 
-class NotificationType(str, Enum):
+class NotificationType(StrEnum):
     """通知类型"""
 
     INFO = "info"
@@ -76,40 +76,40 @@ class MusicInfo:
     """
 
     # 艺术家信息
-    artist: Optional[str] = None
-    artist_id: Optional[str] = None
+    artist: str | None = None
+    artist_id: str | None = None
 
     # 专辑信息
-    album: Optional[str] = None
-    album_id: Optional[str] = None
+    album: str | None = None
+    album_id: str | None = None
 
     # 曲目信息
-    title: Optional[str] = None
-    track_id: Optional[str] = None
+    title: str | None = None
+    track_id: str | None = None
 
     # 音频信息
-    duration: Optional[int] = None
-    track_number: Optional[int] = None
-    disc_number: Optional[int] = None
+    duration: int | None = None
+    track_number: int | None = None
+    disc_number: int | None = None
 
     # 文件信息
-    path: Optional[str] = None
-    file_format: Optional[str] = None
-    file_size: Optional[int] = None
-    bitrate: Optional[int] = None
+    path: str | None = None
+    file_format: str | None = None
+    file_size: int | None = None
+    bitrate: int | None = None
 
     # 元数据
-    genres: List[str] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
-    year: Optional[int] = None
-    cover_url: Optional[str] = None
+    genres: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
+    year: int | None = None
+    cover_url: str | None = None
 
     # MusicBrainz 信息
-    musicbrainz_artist_id: Optional[str] = None
-    musicbrainz_album_id: Optional[str] = None
-    musicbrainz_track_id: Optional[str] = None
+    musicbrainz_artist_id: str | None = None
+    musicbrainz_album_id: str | None = None
+    musicbrainz_track_id: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "artist": self.artist,
@@ -145,21 +145,21 @@ class DownloadSource:
     type: DownloaderType = DownloaderType.NETEASE
 
     # 音乐信息
-    artist: Optional[str] = None
-    album: Optional[str] = None
-    title: Optional[str] = None
+    artist: str | None = None
+    album: str | None = None
+    title: str | None = None
 
     # 来源 ID
-    source_id: Optional[str] = None
+    source_id: str | None = None
 
     # URL
-    url: Optional[str] = None
+    url: str | None = None
 
     # 音质
-    quality: Optional[str] = None
+    quality: str | None = None
 
     # 扩展信息
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -181,19 +181,19 @@ class DownloadTask:
     progress: float = 0.0  # 0.0 - 1.0
 
     # 下载速度（字节/秒）
-    speed: Optional[float] = None
+    speed: float | None = None
 
     # 已下载大小
     downloaded_size: int = 0
 
     # 总大小
-    total_size: Optional[int] = None
+    total_size: int | None = None
 
     # 保存路径
-    save_path: Optional[str] = None
+    save_path: str | None = None
 
     # 错误信息
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     # 重试次数
     retry_count: int = 0
@@ -212,13 +212,13 @@ class PlaybackSession:
     track_id: str
 
     # 用户 ID
-    user_id: Optional[str] = None
+    user_id: str | None = None
 
     # 播放位置（秒）
     position: float = 0.0
 
     # 总时长（秒）
-    duration: Optional[float] = None
+    duration: float | None = None
 
     # 音量
     volume: float = 1.0
@@ -233,7 +233,7 @@ class PlaybackSession:
     shuffle: bool = False
 
     # 开始时间
-    started_at: Optional[str] = None
+    started_at: str | None = None
 
 
 @dataclass
@@ -244,24 +244,24 @@ class SmartQuery:
     """
 
     # 条件列表
-    conditions: List[Dict[str, Any]] = field(default_factory=list)
+    conditions: list[dict[str, Any]] = field(default_factory=list)
 
     # 逻辑运算符（AND/OR）
     operator: str = "AND"
 
     # 排序字段
-    sort_by: Optional[str] = None
+    sort_by: str | None = None
 
     # 排序方向（ASC/DESC）
     sort_order: str = "ASC"
 
     # 限制数量
-    limit: Optional[int] = None
+    limit: int | None = None
 
     # 查询描述
-    description: Optional[str] = None
+    description: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "conditions": self.conditions,
@@ -281,22 +281,22 @@ class Context:
     """
 
     # 当前用户
-    user_id: Optional[str] = None
+    user_id: str | None = None
 
     # 请求 ID
-    request_id: Optional[str] = None
+    request_id: str | None = None
 
     # 客户端信息
-    client_ip: Optional[str] = None
-    user_agent: Optional[str] = None
+    client_ip: str | None = None
+    user_agent: str | None = None
 
     # 时间戳
-    timestamp: Optional[str] = None
+    timestamp: str | None = None
 
     # 额外数据
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "user_id": self.user_id,

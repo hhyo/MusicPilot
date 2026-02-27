@@ -2,19 +2,17 @@
 Playlist 操作类
 """
 
-from typing import Optional, List
-from sqlalchemy import select, and_, delete
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.playlist import Playlist, PlaylistTrack
-from app.db.models.track import Track
+from sqlalchemy import and_, delete, select
+
 from app.db import OperBase
+from app.db.models.playlist import Playlist, PlaylistTrack
 
 
 class PlaylistOper(OperBase[Playlist]):
     """Playlist 操作类"""
 
-    async def get_with_tracks(self, playlist_id: int) -> Optional[Playlist]:
+    async def get_with_tracks(self, playlist_id: int) -> Playlist | None:
         """
         获取播放列表及其曲目
 
@@ -32,7 +30,7 @@ class PlaylistOper(OperBase[Playlist]):
                 await session.refresh(playlist, ["tracks"])
             return playlist
 
-    async def get_public_playlists(self, skip: int = 0, limit: int = 100) -> List[Playlist]:
+    async def get_public_playlists(self, skip: int = 0, limit: int = 100) -> list[Playlist]:
         """
         获取公开播放列表
 
@@ -45,7 +43,7 @@ class PlaylistOper(OperBase[Playlist]):
         """
         return await self.get_all(skip=skip, limit=limit, is_public=True)
 
-    async def get_smart_playlists(self, skip: int = 0, limit: int = 100) -> List[Playlist]:
+    async def get_smart_playlists(self, skip: int = 0, limit: int = 100) -> list[Playlist]:
         """
         获取智能播放列表
 
@@ -61,8 +59,8 @@ class PlaylistOper(OperBase[Playlist]):
         return await self.get_all(skip=skip, limit=limit, type=PlaylistType.SMART.value)
 
     async def add_track(
-        self, playlist_id: int, track_id: int, position: Optional[int] = None
-    ) -> Optional[PlaylistTrack]:
+        self, playlist_id: int, track_id: int, position: int | None = None
+    ) -> PlaylistTrack | None:
         """
         添加曲目到播放列表
 
@@ -134,7 +132,7 @@ class PlaylistOper(OperBase[Playlist]):
             await session.commit()
             return result.rowcount > 0
 
-    async def reorder_tracks(self, playlist_id: int, track_ids: List[int]) -> bool:
+    async def reorder_tracks(self, playlist_id: int, track_ids: list[int]) -> bool:
         """
         重新排序播放列表曲目
 

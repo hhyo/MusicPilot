@@ -4,14 +4,15 @@
 """
 
 import asyncio
-from typing import Dict, Callable, List, Any, Optional
-from enum import Enum
 from collections import defaultdict
+from collections.abc import Callable
+from enum import StrEnum
+from typing import Any
 
 from app.core.log import logger
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     """事件类型枚举"""
 
     # 元数据事件
@@ -70,7 +71,7 @@ class EventManager:
     """
 
     def __init__(self):
-        self._handlers: Dict[str, List[Callable]] = defaultdict(list)
+        self._handlers: dict[str, list[Callable]] = defaultdict(list)
         self.logger = logger
 
     def register(self, event_type: str, handler: Callable):
@@ -99,7 +100,7 @@ class EventManager:
             except ValueError:
                 pass
 
-    def send_event(self, event_type: str, data: Optional[Dict[str, Any]] = None):
+    def send_event(self, event_type: str, data: dict[str, Any] | None = None):
         """
         发送事件
 
@@ -119,7 +120,7 @@ class EventManager:
                 except Exception as e:
                     self.logger.error(f"事件处理器执行失败: {event_type}, 错误: {e}")
 
-    def emit(self, event_type: str, data: Optional[Dict[str, Any]] = None):
+    def emit(self, event_type: str, data: dict[str, Any] | None = None):
         """
         发送事件（别名）
 

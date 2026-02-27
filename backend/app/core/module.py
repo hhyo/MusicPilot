@@ -3,9 +3,8 @@
 管理所有系统模块的加载、启动、停止
 """
 
-from typing import Dict, List, Type, Optional, Any
 from importlib import import_module
-from pathlib import Path
+from typing import Any
 
 from app.core.log import logger
 
@@ -24,7 +23,7 @@ class ModuleBase:
         self._initialized = False
         self.logger = logger
 
-    def init_module(self, config: Optional[Dict[str, Any]] = None):
+    def init_module(self, config: dict[str, Any] | None = None):
         """
         初始化模块
 
@@ -59,7 +58,7 @@ class ModuleManager:
     """
 
     def __init__(self):
-        self._modules: Dict[str, ModuleBase] = {}
+        self._modules: dict[str, ModuleBase] = {}
         self.logger = logger
 
     def register_module(self, module_id: str, module: ModuleBase):
@@ -73,7 +72,7 @@ class ModuleManager:
         self._modules[module_id] = module
         self.logger.info(f"注册模块: {module_id} ({module.__class__.__name__})")
 
-    def get_module(self, module_id: str) -> Optional[ModuleBase]:
+    def get_module(self, module_id: str) -> ModuleBase | None:
         """
         获取模块
 
@@ -85,7 +84,7 @@ class ModuleManager:
         """
         return self._modules.get(module_id)
 
-    def get_running_modules(self) -> List[ModuleBase]:
+    def get_running_modules(self) -> list[ModuleBase]:
         """
         获取所有运行的模块
 
@@ -94,7 +93,7 @@ class ModuleManager:
         """
         return [module for module in self._modules.values() if module.is_enabled()]
 
-    def get_running_modules_by_type(self, module_type: str) -> List[ModuleBase]:
+    def get_running_modules_by_type(self, module_type: str) -> list[ModuleBase]:
         """
         获取指定类型的运行模块
 
@@ -110,14 +109,14 @@ class ModuleManager:
             if module.is_enabled() and module.module_type == module_type
         ]
 
-    def get_running_type_modules(self) -> Dict[str, List[ModuleBase]]:
+    def get_running_type_modules(self) -> dict[str, list[ModuleBase]]:
         """
         获取按类型分组的运行模块
 
         Returns:
             按类型分组的模块字典
         """
-        result: Dict[str, List[ModuleBase]] = {}
+        result: dict[str, list[ModuleBase]] = {}
         for module in self.get_running_modules():
             if module.module_type not in result:
                 result[module.module_type] = []
@@ -143,7 +142,7 @@ class ModuleManager:
                 module.stop_module()
                 self.logger.info(f"模块已停止: {module_id}")
 
-    def load_modules(self, module_configs: Dict[str, Dict[str, Any]]):
+    def load_modules(self, module_configs: dict[str, dict[str, Any]]):
         """
         从配置加载模块
 
