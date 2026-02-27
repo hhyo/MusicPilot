@@ -2,7 +2,6 @@
 站点模块基类
 所有站点模块都继承此类
 """
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from datetime import datetime
 import feedparser
@@ -161,7 +160,7 @@ class SiteModule(ModuleBase):
         keyword: str,
         format: str = "FLAC",
         page: int = 1,
-    ) -> List[TorrentResult]:
+    ) -> list[TorrentResult]:
         """
         搜索种子
 
@@ -214,7 +213,7 @@ class SiteModule(ModuleBase):
 
     async def parse_search_results(
         self, html: str
-    ) -> List[TorrentResult]:
+    ) -> list[TorrentResult]:
         """
         解析搜索结果
 
@@ -263,7 +262,7 @@ class SiteModule(ModuleBase):
         artist: str,
         format: str = "FLAC",
         page: int = 1,
-    ) -> List[TorrentResult]:
+    ) -> list[TorrentResult]:
         """
         搜索艺术家
 
@@ -283,7 +282,7 @@ class SiteModule(ModuleBase):
         album: str,
         format: str = "FLAC",
         page: int = 1,
-    ) -> List[TorrentResult]:
+    ) -> list[TorrentResult]:
         """
         搜索专辑
 
@@ -304,7 +303,7 @@ class SiteModule(ModuleBase):
         title: str,
         format: str = "FLAC",
         page: int = 1,
-    ) -> List[TorrentResult]:
+    ) -> list[TorrentResult]:
         """
         搜索标题
 
@@ -318,7 +317,7 @@ class SiteModule(ModuleBase):
         """
         return await self.search_torrent(title, format, page)
 
-    async def parse_rss(self, rss_url: str) -> List[TorrentResult]:
+    async def parse_rss(self, rss_url: str) -> list[TorrentResult]:
         """
         解析 RSS 种子源
 

@@ -2,7 +2,6 @@
 下载器对接链
 处理种子下载器的推送、监控和控制
 """
-from typing import Optional, Dict, Any
 from datetime import datetime
 
 from app.core.log import logger
