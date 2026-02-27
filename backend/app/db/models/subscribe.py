@@ -1,13 +1,16 @@
 """
 Subscribe 数据库模型
 """
-from sqlalchemy import String, Text, Integer, Boolean, DateTime, JSON
+
+from sqlalchemy import JSON, Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db import Base, TimestampMixin
 
 
 class Subscribe(Base, TimestampMixin):
     """订阅模型"""
+
     __tablename__ = "subscribes"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

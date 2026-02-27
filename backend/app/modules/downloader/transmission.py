@@ -2,16 +2,13 @@
 Transmission 下载器模块
 支持 Transmission RPC 2.0+
 """
-from typing import Optional, List
-import base64
 
 from app.modules.downloader_module import (
     DownloaderModule,
-    DownloadTaskInfo,
     DownloadProgress,
     DownloadStatus,
+    DownloadTaskInfo,
 )
-from app.core.log import logger
 
 
 class TransmissionModule(DownloaderModule):
@@ -121,7 +118,7 @@ class TransmissionModule(DownloaderModule):
             self.logger.error(f"添加种子失败: {e}")
             raise
 
-    async def get_task_progress(self, task_id: str) -> Optional[DownloadProgress]:
+    async def get_task_progress(self, task_id: str) -> DownloadProgress | None:
         """
         获取任务进度
 
@@ -138,7 +135,14 @@ class TransmissionModule(DownloaderModule):
             response_data = await self._api_request(
                 "torrent-get",
                 {
-                    "fields": ["id", "name", "sizeWhenDone", "downloadedEver", "eta", "rateDownload"],
+                    "fields": [
+                        "id",
+                        "name",
+                        "sizeWhenDone",
+                        "downloadedEver",
+                        "eta",
+                        "rateDownload",
+                    ],
                     "ids": int(task_id),
                 },
             )
@@ -156,14 +160,10 @@ class TransmissionModule(DownloaderModule):
 
             # 映射状态（Transmission 使用不同的状态码）
             status_code = torrent.get("status", 0)
-            if status_code == 0:  # stopped
-                status = DownloadStatus.PAUSED
-            elif status_code in [1, 2, 3, 4, 5]:  # download/check/wait
-                status = DownloadStatus.DOWNLOADING
-            elif status_code == 6:  # seed
-                status = DownloadStatus.SEEDING
+            if status_code == 0 or status_code in [1, 2, 3, 4, 5] or status_code == 6:  # stopped
+                pass
             else:
-                status = DownloadStatus.ERROR
+                pass
 
             return DownloadProgress(
                 task_id=task_id,
@@ -248,7 +248,7 @@ class TransmissionModule(DownloaderModule):
             self.logger.error(f"删除任务失败: {e}")
             return False
 
-    async def get_all_tasks(self) -> List[DownloadTaskInfo]:
+    async def get_all_tasks(self) -> list[DownloadTaskInfo]:
         """
         获取所有任务
 
@@ -321,7 +321,7 @@ class TransmissionModule(DownloaderModule):
         Returns:
             下载器是否可用
         """
-        self.logger.info(f"检查 Transmission 状态")
+        self.logger.info("检查 Transmission 状态")
 
         try:
             # 尝试获取 Session ID

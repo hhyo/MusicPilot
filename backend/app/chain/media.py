@@ -2,10 +2,10 @@
 媒体链
 处理媒体服务器同步
 """
-from typing import List, Dict, Any, Optional
+
+from typing import Any
 
 from app.chain import ChainBase
-from app.core.log import logger
 
 
 class MediaChain(ChainBase):
@@ -14,7 +14,7 @@ class MediaChain(ChainBase):
     负责媒体服务器的扫描、元数据同步、播放状态同步
     """
 
-    async def scan_library(self, server_id: int) -> Dict[str, Any]:
+    async def scan_library(self, server_id: int) -> dict[str, Any]:
         """
         扫描音乐库到媒体服务器
 
@@ -28,6 +28,7 @@ class MediaChain(ChainBase):
 
         # 获取媒体服务器配置
         from app.db.operations.media import MediaServerOper
+
         media_oper = MediaServerOper(self.db_manager)
         server = await media_oper.get_by_id(server_id)
 
@@ -37,6 +38,7 @@ class MediaChain(ChainBase):
 
         # 获取本地曲目
         from app.db.operations.track import TrackOper
+
         track_oper = TrackOper(self.db_manager)
         tracks = await track_oper.get_all(limit=1000)
 
@@ -50,15 +52,18 @@ class MediaChain(ChainBase):
             return {"success": False, "error": f"不支持的类型: {server.type}"}
 
         # 发送扫描完成事件
-        self.send_event("media.sync_completed", {
-            "server_id": server_id,
-            "server_type": server.type,
-            "track_count": len(tracks),
-        })
+        self.send_event(
+            "media.sync_completed",
+            {
+                "server_id": server_id,
+                "server_type": server.type,
+                "track_count": len(tracks),
+            },
+        )
 
         return result
 
-    async def sync_metadata(self, server_id: int) -> Dict[str, Any]:
+    async def sync_metadata(self, server_id: int) -> dict[str, Any]:
         """
         同步元数据到媒体服务器
 
@@ -72,6 +77,7 @@ class MediaChain(ChainBase):
 
         # 获取媒体服务器配置
         from app.db.operations.media import MediaServerOper
+
         media_oper = MediaServerOper(self.db_manager)
         server = await media_oper.get_by_id(server_id)
 
@@ -80,6 +86,7 @@ class MediaChain(ChainBase):
 
         # 获取需要同步的曲目
         from app.db.operations.track import TrackOper
+
         track_oper = TrackOper(self.db_manager)
         tracks = await track_oper.get_all(limit=1000)
 
@@ -93,7 +100,7 @@ class MediaChain(ChainBase):
 
         return result
 
-    async def sync_playback(self, session_data: Dict[str, Any]):
+    async def sync_playback(self, session_data: dict[str, Any]):
         """
         同步播放状态到媒体服务器
 
@@ -104,6 +111,7 @@ class MediaChain(ChainBase):
 
         # 获取启用的媒体服务器
         from app.db.operations.media import MediaServerOper
+
         media_oper = MediaServerOper(self.db_manager)
         servers = await media_oper.get_enabled()
 
@@ -114,7 +122,7 @@ class MediaChain(ChainBase):
             elif server.type == "jellyfin":
                 await self.run_module("jellyfin", "sync_playback", server, session_data)
 
-    async def sync_stop(self, session_data: Dict[str, Any]):
+    async def sync_stop(self, session_data: dict[str, Any]):
         """
         同步停止状态到媒体服务器
 
@@ -125,6 +133,7 @@ class MediaChain(ChainBase):
 
         # 获取启用的媒体服务器
         from app.db.operations.media import MediaServerOper
+
         media_oper = MediaServerOper(self.db_manager)
         servers = await media_oper.get_enabled()
 
@@ -135,7 +144,7 @@ class MediaChain(ChainBase):
             elif server.type == "jellyfin":
                 await self.run_module("jellyfin", "sync_stop", server, session_data)
 
-    async def get_status(self, server_id: int) -> Dict[str, Any]:
+    async def get_status(self, server_id: int) -> dict[str, Any]:
         """
         获取媒体服务器状态
 
@@ -149,6 +158,7 @@ class MediaChain(ChainBase):
 
         # 获取媒体服务器配置
         from app.db.operations.media import MediaServerOper
+
         media_oper = MediaServerOper(self.db_manager)
         server = await media_oper.get_by_id(server_id)
 

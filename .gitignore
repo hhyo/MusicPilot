@@ -142,3 +142,6 @@ logs/
 
 # Docker
 docker-compose.override.yml
+
+# TypeScript compiled files
+frontend/src/**/*.js

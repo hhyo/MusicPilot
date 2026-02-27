@@ -2,17 +2,17 @@
 元数据处理链
 处理音乐元数据的识别、补全
 """
-from typing import Optional, Dict, Any, List
+
 from pathlib import Path
+from typing import Any
 
 from app.chain import ChainBase
 from app.core.context import MusicInfo
-from app.core.meta import MetadataParser, FilenameParser
-from app.core.log import logger
-from app.db.operations.artist import ArtistOper
-from app.db.operations.album import AlbumOper
-from app.db.operations.track import TrackOper
+from app.core.meta import FilenameParser, MetadataParser
 from app.db import db_manager
+from app.db.operations.album import AlbumOper
+from app.db.operations.artist import ArtistOper
+from app.db.operations.track import TrackOper
 
 
 class MetadataChain(ChainBase):
@@ -26,7 +26,7 @@ class MetadataChain(ChainBase):
         self.metadata_parser = MetadataParser()
         self.filename_parser = FilenameParser()
 
-    async def recognize(self, file_path: str) -> Optional[MusicInfo]:
+    async def recognize(self, file_path: str) -> MusicInfo | None:
         """
         识别音乐文件的元数据
 
@@ -81,11 +81,8 @@ class MetadataChain(ChainBase):
         return self.filename_parser.parse(file_path)
 
     async def query_musicbrainz(
-        self,
-        artist: str,
-        title: str,
-        album: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, artist: str, title: str, album: str | None = None
+    ) -> dict[str, Any] | None:
         """
         查询 MusicBrainz
 
@@ -120,31 +117,32 @@ class MetadataChain(ChainBase):
         # 获取艺术家信息
         artist_credit = track_info.get("artist_credit")
         if artist_credit and artist_credit.get("id"):
-            artist_info = await self.run_module("musicbrainz", "get_artist_info", artist_credit["id"])
+            artist_info = await self.run_module(
+                "musicbrainz", "get_artist_info", artist_credit["id"]
+            )
             track_info["artist_info"] = artist_info
 
         return track_info
 
     def merge_metadata(
-        self,
-        local: MusicInfo,
-        filename: MusicInfo,
-        online: Optional[Dict[str, Any]]
+        self, local: MusicInfo, filename: MusicInfo, online: dict[str, Any] | None
     ) -> MusicInfo:
         """
         合并元数据（优先级：在线 > 本地 > 文件名）
         """
         merged = MusicInfo()
 
-        merged.artist = online.get("artist_credit", {}).get("name") if online else (
-            local.artist or filename.artist
+        merged.artist = (
+            online.get("artist_credit", {}).get("name")
+            if online
+            else (local.artist or filename.artist)
         )
-        merged.album = online.get("artist_credit", {}).get("name") if online else (
-            local.album or filename.album
+        merged.album = (
+            online.get("artist_credit", {}).get("name")
+            if online
+            else (local.album or filename.album)
         )
-        merged.title = online.get("title") if online else (
-            local.title or filename.title
-        )
+        merged.title = online.get("title") if online else (local.title or filename.title)
 
         merged.path = local.path
         merged.file_format = local.file_format
@@ -178,11 +176,7 @@ class MetadataChain(ChainBase):
 
         # 查询 MusicBrainz
         if metadata.artist and metadata.title:
-            online = await self.query_musicbrainz(
-                metadata.artist,
-                metadata.title,
-                metadata.album
-            )
+            online = await self.query_musicbrainz(metadata.artist, metadata.title, metadata.album)
             if online:
                 metadata = self.merge_metadata(metadata, metadata, online)
 
@@ -190,7 +184,7 @@ class MetadataChain(ChainBase):
         self.logger.info(f"补全元数据: {metadata.title}")
         return metadata
 
-    async def save_to_database(self, metadata: MusicInfo) -> Dict[str, Any]:
+    async def save_to_database(self, metadata: MusicInfo) -> dict[str, Any]:
         """保存到数据库"""
         artist_oper = ArtistOper(db_manager)
         album_oper = AlbumOper(db_manager)
@@ -265,7 +259,7 @@ class MetadataChain(ChainBase):
 
         return result
 
-    async def batch_recognize(self, file_paths: List[str]) -> List[Dict[str, Any]]:
+    async def batch_recognize(self, file_paths: list[str]) -> list[dict[str, Any]]:
         """批量识别元数据"""
         self.logger.info(f"批量识别 {len(file_paths)} 个文件")
         results = []
@@ -279,19 +273,23 @@ class MetadataChain(ChainBase):
                 completed_metadata = await self.complete(metadata)
                 save_result = await self.save_to_database(completed_metadata)
 
-                results.append({
-                    "path": str(path),
-                    "success": True,
-                    "metadata": completed_metadata.to_dict(),
-                    "save_result": save_result,
-                })
+                results.append(
+                    {
+                        "path": str(path),
+                        "success": True,
+                        "metadata": completed_metadata.to_dict(),
+                        "save_result": save_result,
+                    }
+                )
             except Exception as e:
                 self.logger.error(f"识别文件失败: {file_path}, 错误: {e}")
-                results.append({
-                    "path": file_path,
-                    "success": False,
-                    "error": str(e),
-                })
+                results.append(
+                    {
+                        "path": file_path,
+                        "success": False,
+                        "error": str(e),
+                    }
+                )
 
         self.logger.info(f"批量识别完成，成功 {len([r for r in results if r['success']])} 个")
         return results
@@ -309,6 +307,7 @@ class MetadataChain(ChainBase):
 
         try:
             import mutagen
+
             audio_file = mutagen.File(track.path)
             audio_file.delete()
 

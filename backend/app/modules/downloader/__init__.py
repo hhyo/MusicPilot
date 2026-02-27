@@ -1,14 +1,14 @@
 """
 下载器模块
 """
+
 from .base import (
-    DownloadStatus,
+    DownloaderBase,
     DownloadQuality,
     DownloadSource,
+    DownloadStatus,
     DownloadTask,
-    DownloaderBase,
 )
-
 from .netease import NeteaseDownloader
 
 __all__ = [

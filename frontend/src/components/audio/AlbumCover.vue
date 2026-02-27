@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { NIcon } from 'naive-ui'
-import { MusicalNoteOutline as MusicalNoteIcon, AlbumOutline as AlbumIcon } from '@vicons/ionicons5'
+import { MusicalNoteOutline as MusicalNoteIcon, DiscOutline as AlbumIcon } from '@vicons/ionicons5'
 
 defineProps<{
   coverUrl?: string

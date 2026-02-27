@@ -2,18 +2,20 @@
 下载器模块基类
 所有下载器模块都继承此类
 """
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass
-from datetime import datetime
-from enum import Enum
 
-from app.core.module import ModuleBase
-from app.core.log import logger
+import contextlib
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any
+
 import httpx
 
+from app.core.module import ModuleBase
 
-class DownloadStatus(str, Enum):
+
+class DownloadStatus(StrEnum):
     """下载状态"""
+
     DOWNLOADING = "downloading"
     SEEDING = "seeding"
     COMPLETED = "completed"
@@ -37,7 +39,7 @@ class DownloadTaskInfo:
     status: DownloadStatus
     save_path: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "task_id": self.task_id,
@@ -63,9 +65,9 @@ class DownloadProgress:
     downloaded: int
     total: int
     download_speed: int
-    eta: Optional[int] = None
+    eta: int | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "task_id": self.task_id,
@@ -89,11 +91,11 @@ class DownloaderModule(ModuleBase):
         super().__init__()
         self.downloader_type: str = ""
         self.base_url: str = ""
-        self.username: Optional[str] = None
-        self.password: Optional[str] = None
-        self.client: Optional[httpx.AsyncClient] = None
+        self.username: str | None = None
+        self.password: str | None = None
+        self.client: httpx.AsyncClient | None = None
 
-    def init_module(self, config: Optional[Dict[str, Any]] = None):
+    def init_module(self, config: dict[str, Any] | None = None):
         """
         初始化模块
 
@@ -123,10 +125,9 @@ class DownloaderModule(ModuleBase):
         # 关闭 HTTP 客户端
         if self.client:
             import asyncio
-            try:
+
+            with contextlib.suppress(Exception):
                 asyncio.create_task(self.client.aclose())
-            except Exception:
-                pass
 
     async def add_torrent(self, torrent_url: str, save_path: str, paused: bool = False) -> str:
         """
@@ -145,7 +146,7 @@ class DownloaderModule(ModuleBase):
         # 子类必须实现此方法
         raise NotImplementedError("子类必须实现 add_torrent 方法")
 
-    async def get_task_progress(self, task_id: str) -> Optional[DownloadProgress]:
+    async def get_task_progress(self, task_id: str) -> DownloadProgress | None:
         """
         获取任务进度
 
@@ -206,7 +207,7 @@ class DownloaderModule(ModuleBase):
         # 子类必须实现此方法
         raise NotImplementedError("子类必须实现 remove_torrent 方法")
 
-    async def get_all_tasks(self) -> List[DownloadTaskInfo]:
+    async def get_all_tasks(self) -> list[DownloadTaskInfo]:
         """
         获取所有任务
 

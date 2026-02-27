@@ -2,19 +2,22 @@
 下载链
 处理音乐下载和整理
 """
-from typing import List, Optional, Callable
+
+from collections.abc import Callable
 from pathlib import Path
 
 from app.chain import ChainBase
-from app.core.context import DownloadStatus
+from app.core.event import EventType
 from app.core.log import logger
+from app.db.operations.download import DownloadHistoryOper
 from app.modules.downloader import (
-    DownloadTask,
-    DownloadSource,
     DownloadQuality,
+    DownloadSource,
+    DownloadTask,
+)
+from app.modules.downloader import (
     DownloadStatus as DownloaderTaskStatus,
 )
-from app.db.operations.download import DownloadHistoryOper
 
 
 class DownloadChain(ChainBase):
@@ -35,8 +38,8 @@ class DownloadChain(ChainBase):
         keyword: str,
         source: DownloadSource = DownloadSource.NETEASE,
         limit: int = 20,
-        quality: Optional[DownloadQuality] = None
-    ) -> List[DownloadTask]:
+        quality: DownloadQuality | None = None,
+    ) -> list[DownloadTask]:
         """
         搜索音乐
 
@@ -67,8 +70,8 @@ class DownloadChain(ChainBase):
         self,
         task: DownloadTask,
         source: DownloadSource = DownloadSource.NETEASE,
-        progress_callback: Optional[Callable] = None,
-        retry_count: int = 0
+        progress_callback: Callable | None = None,
+        retry_count: int = 0,
     ) -> DownloadTask:
         """
         下载音乐
@@ -82,7 +85,9 @@ class DownloadChain(ChainBase):
         Returns:
             完成的下载任务
         """
-        self.logger.info(f"开始下载: {task.title or task.task_id} (重试 {retry_count}/{self._max_retries})")
+        self.logger.info(
+            f"开始下载: {task.title or task.task_id} (重试 {retry_count}/{self._max_retries})"
+        )
 
         # 获取下载器
         downloader = self._get_downloader(source)
@@ -110,7 +115,7 @@ class DownloadChain(ChainBase):
                 "artist": task.artist,
                 "album": task.album,
                 "quality": task.quality.value,
-            }
+            },
         )
 
         try:
@@ -118,8 +123,10 @@ class DownloadChain(ChainBase):
             downloaded_task = await downloader.download(task, progress_callback)
 
             # 检查是否需要重试
-            if (downloaded_task.status == DownloaderTaskStatus.FAILED
-                and retry_count < self._max_retries):
+            if (
+                downloaded_task.status == DownloaderTaskStatus.FAILED
+                and retry_count < self._max_retries
+            ):
                 self.logger.warning(
                     f"下载失败，准备重试 ({retry_count + 1}/{self._max_retries}): "
                     f"{downloaded_task.title} - {downloaded_task.error_message}"
@@ -127,7 +134,8 @@ class DownloadChain(ChainBase):
 
                 # 延迟后重试
                 import asyncio
-                await asyncio.sleep(2 ** retry_count)  # 指数退避
+
+                await asyncio.sleep(2**retry_count)  # 指数退避
 
                 # 重试
                 return await self.download(
@@ -160,7 +168,7 @@ class DownloadChain(ChainBase):
                 {
                     "task_id": task.task_id,
                     "error": task.error_message,
-                }
+                },
             )
 
             return task
@@ -203,16 +211,14 @@ class DownloadChain(ChainBase):
                     "file_path": task.file_path,
                     "file_size": task.total_bytes,
                     "quality": task.quality.value,
-                }
+                },
             )
 
             # TODO: 调用 TransferChain 整理文件
             # await self.run_module("transfer", task=task)
 
         else:
-            self.logger.error(
-                f"下载失败: {task.title} - {task.error_message}"
-            )
+            self.logger.error(f"下载失败: {task.title} - {task.error_message}")
 
             # 更新数据库
             await self.download_oper.update(
@@ -227,7 +233,7 @@ class DownloadChain(ChainBase):
                 {
                     "task_id": task.task_id,
                     "error": task.error_message,
-                }
+                },
             )
 
         return task
@@ -237,8 +243,8 @@ class DownloadChain(ChainBase):
         keyword: str,
         source: DownloadSource = DownloadSource.NETEASE,
         quality: DownloadQuality = DownloadQuality.STANDARD,
-        limit: int = 1
-    ) -> List[DownloadTask]:
+        limit: int = 1,
+    ) -> list[DownloadTask]:
         """
         搜索并下载音乐
 
@@ -271,8 +277,8 @@ class DownloadChain(ChainBase):
         url: str,
         source: DownloadSource = DownloadSource.NETEASE,
         quality: DownloadQuality = DownloadQuality.STANDARD,
-        metadata: Optional[dict] = None
-    ) -> Optional[DownloadTask]:
+        metadata: dict | None = None,
+    ) -> DownloadTask | None:
         """
         通过 URL 下载
 
@@ -287,6 +293,7 @@ class DownloadChain(ChainBase):
         """
         # 创建任务
         import time
+
         task = DownloadTask(
             task_id=f"{source.value}_{int(time.time())}",
             url=url,
@@ -298,10 +305,7 @@ class DownloadChain(ChainBase):
         # 下载
         return await self.download(task, source)
 
-    async def download_batch(
-        self,
-        tasks: List[dict]
-    ) -> List[DownloadTask]:
+    async def download_batch(self, tasks: list[dict]) -> list[DownloadTask]:
         """
         批量下载
 
@@ -344,7 +348,7 @@ class DownloadChain(ChainBase):
 
         return results
 
-    async def get_download_status(self, task_id: str) -> Optional[dict]:
+    async def get_download_status(self, task_id: str) -> dict | None:
         """
         获取下载状态
 
@@ -379,7 +383,7 @@ class DownloadChain(ChainBase):
 
         return None
 
-    async def get_active_downloads(self) -> List[dict]:
+    async def get_active_downloads(self) -> list[dict]:
         """
         获取活跃的下载任务
 
@@ -435,11 +439,7 @@ class DownloadChain(ChainBase):
 
         return downloader_class()
 
-    async def _save_to_history(
-        self,
-        task: DownloadTask,
-        source: DownloadSource
-    ):
+    async def _save_to_history(self, task: DownloadTask, source: DownloadSource):
         """
         保存到下载历史
 

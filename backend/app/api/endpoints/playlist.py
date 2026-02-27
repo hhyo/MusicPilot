@@ -2,24 +2,23 @@
 Playlist API 端点
 播放列表相关 API
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.db.operations.playlist import PlaylistOper
-from app.db.operations.track import TrackOper
 from app.schemas.playlist import (
-    PlaylistCreate,
-    PlaylistUpdate,
-    PlaylistResponse,
-    PlaylistWithTracksResponse,
-    PlaylistListResponse,
     AddTrackRequest,
     BatchAddTracksRequest,
+    PlaylistCreate,
+    PlaylistListResponse,
+    PlaylistResponse,
+    PlaylistUpdate,
+    PlaylistWithTracksResponse,
     ReorderTracksRequest,
 )
-from app.schemas.response import ResponseModel, PaginatedResponse
-
+from app.schemas.response import PaginatedResponse, ResponseModel
 
 router = APIRouter()
 
@@ -27,6 +26,7 @@ router = APIRouter()
 def get_playlist_oper(db: AsyncSession = Depends(get_db)) -> PlaylistOper:
     """获取 Playlist 操作实例"""
     from app.db import db_manager
+
     return PlaylistOper(db_manager)
 
 
@@ -194,13 +194,15 @@ async def add_track_to_playlist(
     if not playlist:
         raise HTTPException(status_code=404, detail="播放列表不存在")
 
-    playlist_track = await playlist_oper.add_track(
-        playlist_id, request.track_id, request.position
-    )
+    playlist_track = await playlist_oper.add_track(playlist_id, request.track_id, request.position)
 
     return ResponseModel(
         message="曲目添加成功",
-        data={"playlist_id": playlist_id, "track_id": request.track_id, "position": playlist_track.position},
+        data={
+            "playlist_id": playlist_id,
+            "track_id": request.track_id,
+            "position": playlist_track.position,
+        },
     )
 
 

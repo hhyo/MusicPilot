@@ -1,24 +1,23 @@
 """
 站点管理 API 端点
 """
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import DatabaseManager, db_manager
-from app.db.operations.site import SiteOper
+from app.core.log import logger
+from app.db import db_manager
 from app.db.models.site import Site
+from app.db.operations.site import SiteOper
+from app.schemas.response import ResponseModel
 from app.schemas.site import (
-    SiteBase,
     SiteCreate,
-    SiteUpdate,
-    SiteResponse,
     SiteListResponse,
+    SiteResponse,
+    SiteUpdate,
     TestSiteRequest,
     TestSiteResponse,
 )
-from app.schemas.response import ResponseModel
-from app.core.log import logger
 
 router = APIRouter(prefix="/sites", tags=["站点管理"])
 
@@ -35,7 +34,7 @@ async def get_sites(
     limit: int = 100,
     enabled: bool = None,
     downloader: str = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     获取站点列表
@@ -51,7 +50,7 @@ async def get_sites(
         sites = await oper.get_all(skip=skip, limit=limit, enabled=enabled)
     elif downloader is not None:
         sites = await oper.get_by_downloader(downloader)
-        sites = sites[skip:skip + limit]
+        sites = sites[skip : skip + limit]
     else:
         sites = await oper.get_all(skip=skip, limit=limit)
 
@@ -60,7 +59,7 @@ async def get_sites(
     return SiteListResponse(total=total, items=sites)
 
 
-@router.get("/enabled", response_model=List[SiteResponse], summary="获取启用的站点")
+@router.get("/enabled", response_model=list[SiteResponse], summary="获取启用的站点")
 async def get_enabled_sites(db: AsyncSession = Depends(get_db)):
     """
     获取所有启用的站点，按优先级排序

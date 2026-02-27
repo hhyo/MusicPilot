@@ -2,7 +2,7 @@
 Album API 端点
 专辑相关 API
 """
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,13 +12,12 @@ from app.db.operations.album import AlbumOper
 from app.db.operations.track import TrackOper
 from app.schemas.album import (
     AlbumCreate,
-    AlbumUpdate,
-    AlbumResponse,
     AlbumListResponse,
+    AlbumResponse,
+    AlbumUpdate,
 )
+from app.schemas.response import PaginatedResponse, ResponseModel
 from app.schemas.track import TrackListResponse
-from app.schemas.response import ResponseModel, PaginatedResponse
-
 
 router = APIRouter()
 
@@ -26,12 +25,14 @@ router = APIRouter()
 def get_album_oper(db: AsyncSession = Depends(get_db)) -> AlbumOper:
     """获取 Album 操作实例"""
     from app.db import db_manager
+
     return AlbumOper(db_manager)
 
 
 def get_track_oper(db: AsyncSession = Depends(get_db)) -> TrackOper:
     """获取 Track 操作实例"""
     from app.db import db_manager
+
     return TrackOper(db_manager)
 
 
@@ -84,7 +85,7 @@ async def get_albums(
     )
 
 
-@router.get("/recent", response_model=List[AlbumListResponse])
+@router.get("/recent", response_model=list[AlbumListResponse])
 async def get_recent_albums(
     limit: int = Query(50, ge=1, le=100),
     album_oper: AlbumOper = Depends(get_album_oper),
@@ -110,7 +111,7 @@ async def get_recent_albums(
     ]
 
 
-@router.get("/top", response_model=List[AlbumListResponse])
+@router.get("/top", response_model=list[AlbumListResponse])
 async def get_top_albums(
     limit: int = Query(50, ge=1, le=100),
     album_oper: AlbumOper = Depends(get_album_oper),
@@ -149,7 +150,7 @@ async def get_album(
     return ResponseModel(data=AlbumResponse.model_validate(album))
 
 
-@router.get("/{album_id}/tracks", response_model=ResponseModel[List[TrackListResponse]])
+@router.get("/{album_id}/tracks", response_model=ResponseModel[list[TrackListResponse]])
 async def get_album_tracks(
     album_id: int,
     skip: int = Query(0, ge=0),
@@ -194,6 +195,7 @@ async def get_album_cover(
         raise HTTPException(status_code=404, detail="专辑封面不存在")
 
     from pathlib import Path
+
     file_path = Path(album.cover_url)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="封面文件不存在")

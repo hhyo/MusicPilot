@@ -1,18 +1,17 @@
 """
 Site 操作类
 """
-from typing import Optional, List
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.site import Site
+from sqlalchemy import select
+
 from app.db import OperBase
+from app.db.models.site import Site
 
 
 class SiteOper(OperBase[Site]):
     """Site 操作类"""
 
-    async def get_enabled(self) -> List[Site]:
+    async def get_enabled(self) -> list[Site]:
         """
         获取所有启用的站点
 
@@ -20,11 +19,11 @@ class SiteOper(OperBase[Site]):
             站点列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Site).where(Site.enabled == True).order_by(Site.priority.desc())
+            query = select(Site).where(Site.enabled).order_by(Site.priority.desc())
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def get_by_downloader(self, downloader: str) -> List[Site]:
+    async def get_by_downloader(self, downloader: str) -> list[Site]:
         """
         根据下载器获取站点
 
@@ -35,14 +34,15 @@ class SiteOper(OperBase[Site]):
             站点列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Site).where(
-                Site.downloader == downloader,
-                Site.enabled == True
-            ).order_by(Site.priority.desc())
+            query = (
+                select(Site)
+                .where(Site.downloader == downloader, Site.enabled)
+                .order_by(Site.priority.desc())
+            )
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def get_by_priority(self, min_priority: int = None) -> List[Site]:
+    async def get_by_priority(self, min_priority: int = None) -> list[Site]:
         """
         根据优先级获取站点
 
@@ -53,7 +53,7 @@ class SiteOper(OperBase[Site]):
             站点列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Site).where(Site.enabled == True)
+            query = select(Site).where(Site.enabled)
 
             if min_priority is not None:
                 query = query.where(Site.priority >= min_priority)
@@ -62,7 +62,7 @@ class SiteOper(OperBase[Site]):
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def toggle_enabled(self, id: int) -> Optional[Site]:
+    async def toggle_enabled(self, id: int) -> Site | None:
         """
         切换站点启用状态
 
@@ -73,9 +73,7 @@ class SiteOper(OperBase[Site]):
             更新后的站点对象
         """
         async with self.db_manager.get_session() as session:
-            result = await session.execute(
-                select(Site).where(Site.id == id)
-            )
+            result = await session.execute(select(Site).where(Site.id == id))
             site = result.scalar_one_or_none()
             if not site:
                 return None

@@ -1,13 +1,16 @@
 """
 SystemConfig 数据库模型
 """
-from sqlalchemy import String, Text, DateTime
+
+from sqlalchemy import String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db import Base, TimestampMixin
 
 
 class SystemConfig(Base, TimestampMixin):
     """系统配置模型"""
+
     __tablename__ = "system_config"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

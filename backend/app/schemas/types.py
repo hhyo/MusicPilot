@@ -2,11 +2,13 @@
 类型枚举
 定义所有枚举类型
 """
-from enum import Enum
+
+from enum import StrEnum
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     """事件类型枚举"""
+
     # 元数据事件
     METADATA_RECOGNIZED = "metadata.recognized"
     METADATA_COMPLETED = "metadata.completed"
@@ -46,8 +48,9 @@ class EventType(str, Enum):
     SYSTEM_ERROR = "system.error"
 
 
-class DownloadStatus(str, Enum):
+class DownloadStatus(StrEnum):
     """下载状态枚举"""
+
     PENDING = "pending"
     DOWNLOADING = "downloading"
     COMPLETED = "completed"
@@ -55,21 +58,24 @@ class DownloadStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class MediaType(str, Enum):
+class MediaType(StrEnum):
     """媒体类型枚举"""
+
     AUDIO = "audio"
     VIDEO = "video"
     IMAGE = "image"
 
 
-class PlaylistType(str, Enum):
+class PlaylistType(StrEnum):
     """播放列表类型枚举"""
+
     NORMAL = "normal"
     SMART = "smart"
 
 
-class DownloaderType(str, Enum):
+class DownloaderType(StrEnum):
     """下载器类型枚举"""
+
     NETEASE = "netease"
     QQ = "qq"
     KUGOU = "kugou"
@@ -77,23 +83,26 @@ class DownloaderType(str, Enum):
     GENERIC = "generic"
 
 
-class MediaServerType(str, Enum):
+class MediaServerType(StrEnum):
     """媒体服务器类型枚举"""
+
     PLEX = "plex"
     JELLYFIN = "jellyfin"
     EMBY = "emby"
 
 
-class MessageChannel(str, Enum):
+class MessageChannel(StrEnum):
     """消息渠道枚举"""
+
     WEB = "web"
     TELEGRAM = "telegram"
     SLACK = "slack"
     DISCORD = "discord"
 
 
-class NotificationType(str, Enum):
+class NotificationType(StrEnum):
     """通知类型枚举"""
+
     INFO = "info"
     SUCCESS = "success"
     WARNING = "warning"

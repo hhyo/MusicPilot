@@ -2,15 +2,14 @@
 数据库基础模块
 提供数据库连接、会话管理和通用操作
 """
-from typing import AsyncGenerator, Optional, Type, TypeVar, Generic, List, Dict, Any
+
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    create_async_engine,
-    async_sessionmaker
-)
-from sqlalchemy import select, delete, update, func
+from typing import Any, TypeVar
+
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import DateTime
 
@@ -21,13 +20,17 @@ from app.core.log import logger
 # Base 类用于所有数据库模型
 class Base(DeclarativeBase):
     """所有数据库模型的基类"""
+
     pass
 
 
 class TimestampMixin:
     """时间戳混入类"""
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
 
 
 class DatabaseManager:
@@ -36,7 +39,7 @@ class DatabaseManager:
     管理数据库连接和会话
     """
 
-    def __init__(self, database_url: Optional[str] = None):
+    def __init__(self, database_url: str | None = None):
         """
         初始化数据库管理器
 
@@ -123,13 +126,13 @@ class DatabaseManager:
 ModelType = TypeVar("ModelType", bound=Base)
 
 
-class OperBase(Generic[ModelType]):
+class OperBase[ModelType: Base]:
     """
     数据库操作基类
     提供通用的 CRUD 操作
     """
 
-    def __init__(self, model: Type[ModelType], db_manager: DatabaseManager):
+    def __init__(self, model: type[ModelType], db_manager: DatabaseManager):
         """
         初始化操作基类
 
@@ -141,7 +144,7 @@ class OperBase(Generic[ModelType]):
         self.db_manager = db_manager
         self.logger = logger
 
-    async def get_by_id(self, id: int) -> Optional[ModelType]:
+    async def get_by_id(self, id: int) -> ModelType | None:
         """
         根据 ID 获取记录
 
@@ -152,17 +155,10 @@ class OperBase(Generic[ModelType]):
             记录对象
         """
         async with self.db_manager.get_session() as session:
-            result = await session.execute(
-                select(self.model).where(self.model.id == id)
-            )
+            result = await session.execute(select(self.model).where(self.model.id == id))
             return result.scalar_one_or_none()
 
-    async def get_all(
-        self,
-        skip: int = 0,
-        limit: int = 100,
-        **filters
-    ) -> List[ModelType]:
+    async def get_all(self, skip: int = 0, limit: int = 100, **filters) -> list[ModelType]:
         """
         获取所有记录
 
@@ -206,7 +202,7 @@ class OperBase(Generic[ModelType]):
             self.logger.debug(f"创建记录: {self.model.__name__} ID={obj.id}")
             return obj
 
-    async def update(self, id: int, **kwargs) -> Optional[ModelType]:
+    async def update(self, id: int, **kwargs) -> ModelType | None:
         """
         更新记录
 
@@ -241,9 +237,7 @@ class OperBase(Generic[ModelType]):
             是否删除成功
         """
         async with self.db_manager.get_session() as session:
-            result = await session.execute(
-                delete(self.model).where(self.model.id == id)
-            )
+            result = await session.execute(delete(self.model).where(self.model.id == id))
             await session.commit()
             success = result.rowcount > 0
             if success:
@@ -287,7 +281,7 @@ class OperBase(Generic[ModelType]):
             )
             return (result.scalar() or 0) > 0
 
-    async def bulk_create(self, items: List[Dict[str, Any]]) -> List[ModelType]:
+    async def bulk_create(self, items: list[dict[str, Any]]) -> list[ModelType]:
         """
         批量创建记录
 

@@ -1,14 +1,15 @@
 """
 Site Schema
 """
+
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
 
 class SiteBase(BaseModel):
     """站点基础模型"""
+
     name: str = Field(..., description="站点名称")
     domain: str | None = Field(None, description="站点域名")
     url: str = Field(..., description="站点URL")
@@ -29,11 +30,13 @@ class SiteBase(BaseModel):
 
 class SiteCreate(SiteBase):
     """创建站点"""
+
     pass
 
 
 class SiteUpdate(BaseModel):
     """更新站点"""
+
     name: str | None = None
     domain: str | None = None
     url: str | None = None
@@ -54,6 +57,7 @@ class SiteUpdate(BaseModel):
 
 class SiteResponse(SiteBase):
     """站点响应模型"""
+
     id: int
     created_at: datetime
     updated_at: datetime
@@ -64,16 +68,19 @@ class SiteResponse(SiteBase):
 
 class SiteListResponse(BaseModel):
     """站点列表响应"""
+
     total: int
     items: list[SiteResponse]
 
 
 class TestSiteRequest(BaseModel):
     """测试站点连接请求"""
+
     id: int = Field(..., description="站点ID")
 
 
 class TestSiteResponse(BaseModel):
     """测试站点连接响应"""
+
     success: bool
     message: str

@@ -2,18 +2,18 @@
 元数据管理模块
 提供音乐元数据的查询、解析、处理功能
 """
-from typing import Optional, List, Dict, Any
+
 from pathlib import Path
+
 import mutagen
-from mutagen.id3 import ID3
 from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.ogg import OggVorbis
 from mutagen.wave import WAVE
 
-from app.core.log import logger
 from app.core.context import MusicInfo
+from app.core.log import logger
 
 
 class MetadataParser:
@@ -41,7 +41,7 @@ class MetadataParser:
         """
         return file_path.suffix.lower() in MetadataParser.SUPPORTED_FORMATS
 
-    def parse_file(self, file_path: Path) -> Optional[MusicInfo]:
+    def parse_file(self, file_path: Path) -> MusicInfo | None:
         """
         解析音频文件元数据
 
@@ -108,7 +108,9 @@ class MetadataParser:
                     music_info.track_number = int(track_number) if track_number.isdigit() else None
 
             # 年份
-            year = self._get_tag_value(audio.tags, "TDRC") or self._get_tag_value(audio.tags, "TYER")
+            year = self._get_tag_value(audio.tags, "TDRC") or self._get_tag_value(
+                audio.tags, "TYER"
+            )
             if year:
                 music_info.year = int(year[:4]) if year[:4].isdigit() else None
 
@@ -118,9 +120,15 @@ class MetadataParser:
                 music_info.genres = [genre]
 
             # MusicBrainz ID
-            music_info.musicbrainz_track_id = self._get_tag_value(audio.tags, "UFID:http://musicbrainz.org")
-            music_info.musicbrainz_artist_id = self._get_tag_value(audio.tags, "TXXX:MusicBrainz Artist Id")
-            music_info.musicbrainz_album_id = self._get_tag_value(audio.tags, "TXXX:MusicBrainz Album Id")
+            music_info.musicbrainz_track_id = self._get_tag_value(
+                audio.tags, "UFID:http://musicbrainz.org"
+            )
+            music_info.musicbrainz_artist_id = self._get_tag_value(
+                audio.tags, "TXXX:MusicBrainz Artist Id"
+            )
+            music_info.musicbrainz_album_id = self._get_tag_value(
+                audio.tags, "TXXX:MusicBrainz Album Id"
+            )
 
             # 封面（暂不提取）
 
@@ -204,9 +212,15 @@ class MetadataParser:
             music_info.genres = [genre]
 
         # MusicBrainz ID（需要自定义标签）
-        music_info.musicbrainz_track_id = audio.get("----:com.apple.iTunes:MusicBrainz Track Id", [None])[0]
-        music_info.musicbrainz_artist_id = audio.get("----:com.apple.iTunes:MusicBrainz Artist Id", [None])[0]
-        music_info.musicbrainz_album_id = audio.get("----:com.apple.iTunes:MusicBrainz Album Id", [None])[0]
+        music_info.musicbrainz_track_id = audio.get(
+            "----:com.apple.iTunes:MusicBrainz Track Id", [None]
+        )[0]
+        music_info.musicbrainz_artist_id = audio.get(
+            "----:com.apple.iTunes:MusicBrainz Artist Id", [None]
+        )[0]
+        music_info.musicbrainz_album_id = audio.get(
+            "----:com.apple.iTunes:MusicBrainz Album Id", [None]
+        )[0]
 
         return music_info
 
@@ -275,7 +289,7 @@ class MetadataParser:
         return music_info
 
     @staticmethod
-    def _get_tag_value(tags, tag_name: str) -> Optional[str]:
+    def _get_tag_value(tags, tag_name: str) -> str | None:
         """
         获取标签值
 
@@ -331,6 +345,7 @@ class FilenameParser:
 
         # 尝试匹配模式
         import re
+
         for pattern in self.PATTERNS:
             match = re.match(pattern, filename, re.IGNORECASE)
             if match:

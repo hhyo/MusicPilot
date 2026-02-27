@@ -1,9 +1,11 @@
 """
 MusicPilot 主入口
 """
+
 import uvicorn
-from app.factory import create_app
+
 from app.core.config import settings
+from app.factory import create_app
 
 # 创建 FastAPI 应用
 app = create_app()

@@ -1,18 +1,17 @@
 """
 Subscribe 操作类
 """
-from typing import Optional, List
-from sqlalchemy import select, and_, or_
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.subscribe import Subscribe
+from sqlalchemy import select
+
 from app.db import OperBase
+from app.db.models.subscribe import Subscribe
 
 
 class SubscribeOper(OperBase[Subscribe]):
     """Subscribe 操作类"""
 
-    async def get_by_musicbrainz_id(self, musicbrainz_id: str) -> Optional[Subscribe]:
+    async def get_by_musicbrainz_id(self, musicbrainz_id: str) -> Subscribe | None:
         """
         根据 MusicBrainz ID 获取订阅
 
@@ -28,7 +27,7 @@ class SubscribeOper(OperBase[Subscribe]):
             )
             return result.scalar_one_or_none()
 
-    async def get_by_playlist_id(self, playlist_id: str) -> Optional[Subscribe]:
+    async def get_by_playlist_id(self, playlist_id: str) -> Subscribe | None:
         """
         根据歌单/榜单 ID 获取订阅
 
@@ -44,7 +43,7 @@ class SubscribeOper(OperBase[Subscribe]):
             )
             return result.scalar_one_or_none()
 
-    async def get_by_type(self, sub_type: str, skip: int = 0, limit: int = 100) -> List[Subscribe]:
+    async def get_by_type(self, sub_type: str, skip: int = 0, limit: int = 100) -> list[Subscribe]:
         """
         根据类型获取订阅
 
@@ -58,7 +57,9 @@ class SubscribeOper(OperBase[Subscribe]):
         """
         return await self.get_all(skip=skip, limit=limit, type=sub_type)
 
-    async def get_by_source_type(self, source_type: str, skip: int = 0, limit: int = 100) -> List[Subscribe]:
+    async def get_by_source_type(
+        self, source_type: str, skip: int = 0, limit: int = 100
+    ) -> list[Subscribe]:
         """
         根据来源类型获取订阅
 
@@ -72,7 +73,7 @@ class SubscribeOper(OperBase[Subscribe]):
         """
         return await self.get_all(skip=skip, limit=limit, source_type=source_type)
 
-    async def get_active(self, skip: int = 0, limit: int = 100) -> List[Subscribe]:
+    async def get_active(self, skip: int = 0, limit: int = 100) -> list[Subscribe]:
         """
         获取活跃的订阅
 
@@ -85,7 +86,7 @@ class SubscribeOper(OperBase[Subscribe]):
         """
         return await self.get_all(skip=skip, limit=limit, state="active")
 
-    async def search_by_name(self, keyword: str, limit: int = 50) -> List[Subscribe]:
+    async def search_by_name(self, keyword: str, limit: int = 50) -> list[Subscribe]:
         """
         搜索订阅（按名称）
 
@@ -97,13 +98,11 @@ class SubscribeOper(OperBase[Subscribe]):
             订阅列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Subscribe).where(
-                Subscribe.name.ilike(f"%{keyword}%")
-            ).limit(limit)
+            query = select(Subscribe).where(Subscribe.name.ilike(f"%{keyword}%")).limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def update_check_time(self, id: int) -> Optional[Subscribe]:
+    async def update_check_time(self, id: int) -> Subscribe | None:
         """
         更新检查时间
 
@@ -114,13 +113,10 @@ class SubscribeOper(OperBase[Subscribe]):
             更新后的订阅对象
         """
         from datetime import datetime
+
         return await self.update(id, last_check=datetime.utcnow().isoformat())
 
-    async def update_release(
-        self,
-        id: int,
-        release_count: Optional[int] = None
-    ) -> Optional[Subscribe]:
+    async def update_release(self, id: int, release_count: int | None = None) -> Subscribe | None:
         """
         更新发布信息
 
@@ -139,9 +135,7 @@ class SubscribeOper(OperBase[Subscribe]):
         else:
             # 增加发布数量
             async with self.db_manager.get_session() as session:
-                result = await session.execute(
-                    select(Subscribe).where(Subscribe.id == id)
-                )
+                result = await session.execute(select(Subscribe).where(Subscribe.id == id))
                 subscribe = result.scalar_one_or_none()
                 if subscribe:
                     update_data["release_count"] = (subscribe.release_count or 0) + 1

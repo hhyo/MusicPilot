@@ -1,13 +1,16 @@
 """
 Track 数据库模型
 """
-from sqlalchemy import String, Text, Integer, Float, JSON, ForeignKey, BigInteger
+
+from sqlalchemy import JSON, BigInteger, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db import Base, TimestampMixin
 
 
 class Track(Base, TimestampMixin):
     """曲目模型"""
+
     __tablename__ = "tracks"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -16,8 +19,12 @@ class Track(Base, TimestampMixin):
     musicbrainz_id: Mapped[str] = mapped_column(String(100), nullable=True, index=True)
 
     # 关联
-    album_id: Mapped[int] = mapped_column(Integer, ForeignKey("albums.id"), nullable=True, index=True)
-    artist_id: Mapped[int] = mapped_column(Integer, ForeignKey("artists.id"), nullable=True, index=True)
+    album_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("albums.id"), nullable=True, index=True
+    )
+    artist_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("artists.id"), nullable=True, index=True
+    )
     featured_artist_ids: Mapped[list] = mapped_column(JSON, nullable=True)  # 特邀艺术家 ID 列表
 
     # 碟片和曲目号

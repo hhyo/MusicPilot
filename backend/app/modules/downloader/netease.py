@@ -1,21 +1,19 @@
 """
 网易云音乐下载器
 """
-import asyncio
-import httpx
-import time
-from typing import Optional, Tuple, Dict, Any
-from urllib.parse import quote
+
 from pathlib import Path
+from typing import Any
+
+import httpx
 
 from .base import (
-    DownloadStatus,
+    DownloaderBase,
     DownloadQuality,
     DownloadSource,
+    DownloadStatus,
     DownloadTask,
-    DownloaderBase,
 )
-from .crypto import encrypted_id, create_params, create_signature, get_common_params
 
 
 class NeteaseDownloader(DownloaderBase):
@@ -38,7 +36,7 @@ class NeteaseDownloader(DownloaderBase):
         self.weapi_url = "https://music.163.com/weapi"
         self.timeout = 30
 
-    def init_setting(self) -> Optional[Tuple[str, bool]]:
+    def init_setting(self) -> tuple[str, bool] | None:
         """
         初始化下载器设置
 
@@ -61,7 +59,7 @@ class NeteaseDownloader(DownloaderBase):
         """
         quality_map = {
             DownloadQuality.LOSSLESS: "999000",  # FLAC 无损
-            DownloadQuality.HIGH: "320000",      # 320kbps
+            DownloadQuality.HIGH: "320000",  # 320kbps
             DownloadQuality.STANDARD: "128000",  # 128kbps
         }
         return quality_map.get(quality, "128000")
@@ -84,10 +82,7 @@ class NeteaseDownloader(DownloaderBase):
         return level_map.get(quality, "standard")
 
     async def search(
-        self,
-        keyword: str,
-        limit: int = 20,
-        quality: Optional[DownloadQuality] = None
+        self, keyword: str, limit: int = 20, quality: DownloadQuality | None = None
     ) -> list[DownloadTask]:
         """
         搜索音乐
@@ -128,7 +123,9 @@ class NeteaseDownloader(DownloaderBase):
                             )
 
                         # 获取专辑名称
-                        album_name = song.get("album", {}).get("name") if song.get("album") else None
+                        album_name = (
+                            song.get("album", {}).get("name") if song.get("album") else None
+                        )
 
                         task = DownloadTask(
                             task_id=f"netease_{song['id']}",
@@ -141,9 +138,17 @@ class NeteaseDownloader(DownloaderBase):
                             metadata={
                                 "song_id": song["id"],
                                 "artist_ids": [a.get("id") for a in song.get("artists", [])],
-                                "album_id": song.get("album", {}).get("id") if song.get("album") else None,
-                                "duration": song.get("duration") / 1000 if song.get("duration") else None,
-                                "album_pic": song.get("album", {}).get("picUrl") if song.get("album") else None,
+                                "album_id": (
+                                    song.get("album", {}).get("id") if song.get("album") else None
+                                ),
+                                "duration": (
+                                    song.get("duration") / 1000 if song.get("duration") else None
+                                ),
+                                "album_pic": (
+                                    song.get("album", {}).get("picUrl")
+                                    if song.get("album")
+                                    else None
+                                ),
                             },
                         )
                         tasks.append(task)
@@ -153,11 +158,7 @@ class NeteaseDownloader(DownloaderBase):
 
         return tasks
 
-    async def get_url(
-        self,
-        url: str,
-        quality: DownloadQuality = DownloadQuality.STANDARD
-    ) -> str:
+    async def get_url(self, url: str, quality: DownloadQuality = DownloadQuality.STANDARD) -> str:
         """
         获取实际下载 URL
 
@@ -201,9 +202,7 @@ class NeteaseDownloader(DownloaderBase):
             raise
 
     async def download(
-        self,
-        task: DownloadTask,
-        progress_callback: Optional[callable] = None
+        self, task: DownloadTask, progress_callback: callable | None = None
     ) -> DownloadTask:
         """
         下载音乐
@@ -227,38 +226,42 @@ class NeteaseDownloader(DownloaderBase):
             self.logger.info(f"开始下载: {task.title} ({task.quality})")
 
             # 下载文件
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                async with client.stream("GET", download_url) as response:
-                    response.raise_for_status()
+            async with (
+                httpx.AsyncClient(timeout=self.timeout) as client,
+                client.stream("GET", download_url) as response,
+            ):
+                response.raise_for_status()
 
-                    # 获取文件大小
-                    total_bytes = int(response.headers.get("content-length", 0))
-                    task.total_bytes = total_bytes
+                # 获取文件大小
+                total_bytes = int(response.headers.get("content-length", 0))
+                task.total_bytes = total_bytes
 
-                    # 确定目标路径
-                    if task.target_path:
-                        target_dir = Path(task.target_path)
-                    else:
-                        target_dir = Path("/tmp/downloads/netease")
-                    target_dir.mkdir(parents=True, exist_ok=True)
+                # 确定目标路径
+                if task.target_path:
+                    target_dir = Path(task.target_path)
+                else:
+                    target_dir = Path("/tmp/downloads/netease")
+                target_dir.mkdir(parents=True, exist_ok=True)
 
-                    # 确定文件扩展名
-                    ext = ".flac" if task.quality == DownloadQuality.LOSSLESS else ".mp3"
-                    # 清理文件名
-                    safe_title = "".join(c if c.isalnum() or c in " -_()" else "_" for c in task.title or "unknown")
-                    file_path = target_dir / f"{safe_title}{ext}"
+                # 确定文件扩展名
+                ext = ".flac" if task.quality == DownloadQuality.LOSSLESS else ".mp3"
+                # 清理文件名
+                safe_title = "".join(
+                    c if c.isalnum() or c in " -_()" else "_" for c in task.title or "unknown"
+                )
+                file_path = target_dir / f"{safe_title}{ext}"
 
-                    # 下载文件
-                    downloaded_bytes = 0
-                    with open(file_path, "wb") as f:
-                        async for chunk in response.aiter_bytes(8192):
-                            f.write(chunk)
-                            downloaded_bytes += len(chunk)
-                            task.downloaded_bytes = downloaded_bytes
-                            task.progress = (downloaded_bytes / total_bytes) if total_bytes > 0 else 0
+                # 下载文件
+                downloaded_bytes = 0
+                with open(file_path, "wb") as f:
+                    async for chunk in response.aiter_bytes(8192):
+                        f.write(chunk)
+                        downloaded_bytes += len(chunk)
+                        task.downloaded_bytes = downloaded_bytes
+                        task.progress = (downloaded_bytes / total_bytes) if total_bytes > 0 else 0
 
-                            if progress_callback:
-                                progress_callback(task)
+                        if progress_callback:
+                            progress_callback(task)
 
             # 下载完成
             task.status = DownloadStatus.COMPLETED
@@ -274,7 +277,7 @@ class NeteaseDownloader(DownloaderBase):
 
         return task
 
-    async def get_song_detail(self, song_id: str) -> Optional[Dict[str, Any]]:
+    async def get_song_detail(self, song_id: str) -> dict[str, Any] | None:
         """
         获取歌曲详细信息
 
@@ -331,7 +334,9 @@ class NeteaseDownloader(DownloaderBase):
                     songs = data.get("songs", [])
                     for song in songs:
                         # 获取艺术家名称
-                        artist_name = song.get("ar", [{}])[0].get("name") if song.get("ar") else None
+                        artist_name = (
+                            song.get("ar", [{}])[0].get("name") if song.get("ar") else None
+                        )
 
                         # 获取专辑名称
                         album_name = song.get("al", {}).get("name") if song.get("al") else None
@@ -347,9 +352,13 @@ class NeteaseDownloader(DownloaderBase):
                             metadata={
                                 "song_id": song["id"],
                                 "artist_ids": [a.get("id") for a in song.get("ar", [])],
-                                "album_id": song.get("al", {}).get("id") if song.get("al") else None,
+                                "album_id": (
+                                    song.get("al", {}).get("id") if song.get("al") else None
+                                ),
                                 "duration": song.get("dt") / 1000 if song.get("dt") else None,
-                                "album_pic": song.get("al", {}).get("picUrl") if song.get("al") else None,
+                                "album_pic": (
+                                    song.get("al", {}).get("picUrl") if song.get("al") else None
+                                ),
                             },
                         )
                         tasks.append(task)
@@ -473,9 +482,13 @@ class NeteaseDownloader(DownloaderBase):
                             metadata={
                                 "song_id": track["id"],
                                 "artist_ids": [a.get("id") for a in track.get("ar", [])],
-                                "album_id": track.get("al", {}).get("id") if track.get("al") else None,
+                                "album_id": (
+                                    track.get("al", {}).get("id") if track.get("al") else None
+                                ),
                                 "duration": track.get("dt") / 1000 if track.get("dt") else None,
-                                "album_pic": track.get("al", {}).get("picUrl") if track.get("al") else None,
+                                "album_pic": (
+                                    track.get("al", {}).get("picUrl") if track.get("al") else None
+                                ),
                                 "playlist_id": playlist_id,
                                 "playlist_name": playlist_name,
                             },
@@ -552,9 +565,13 @@ class NeteaseDownloader(DownloaderBase):
                             metadata={
                                 "song_id": track["id"],
                                 "artist_ids": [a.get("id") for a in track.get("ar", [])],
-                                "album_id": track.get("al", {}).get("id") if track.get("al") else None,
+                                "album_id": (
+                                    track.get("al", {}).get("id") if track.get("al") else None
+                                ),
                                 "duration": track.get("dt") / 1000 if track.get("dt") else None,
-                                "album_pic": track.get("al", {}).get("picUrl") if track.get("al") else None,
+                                "album_pic": (
+                                    track.get("al", {}).get("picUrl") if track.get("al") else None
+                                ),
                                 "chart_id": chart_id,
                                 "chart_name": chart_name,
                                 "rank": idx,  # 排名
@@ -569,7 +586,7 @@ class NeteaseDownloader(DownloaderBase):
 
         return tasks
 
-    async def test(self) -> Tuple[bool, str]:
+    async def test(self) -> tuple[bool, str]:
         """
         测试下载器连接
 

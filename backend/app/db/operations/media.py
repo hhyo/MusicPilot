@@ -1,18 +1,20 @@
 """
 MediaServer 操作类
 """
-from typing import Optional, List
+
 from sqlalchemy import select
 
-from app.db.models.media import MediaServer
-from app.db import OperBase
 from app.core.context import MediaServerType
+from app.db import OperBase
+from app.db.models.media import MediaServer
 
 
 class MediaServerOper(OperBase[MediaServer]):
     """MediaServer 操作类"""
 
-    async def get_by_type(self, server_type: MediaServerType, skip: int = 0, limit: int = 100) -> List[MediaServer]:
+    async def get_by_type(
+        self, server_type: MediaServerType, skip: int = 0, limit: int = 100
+    ) -> list[MediaServer]:
         """
         根据类型获取媒体服务器
 
@@ -26,7 +28,7 @@ class MediaServerOper(OperBase[MediaServer]):
         """
         return await self.get_all(skip=skip, limit=limit, type=server_type.value)
 
-    async def get_enabled(self, server_type: Optional[MediaServerType] = None) -> List[MediaServer]:
+    async def get_enabled(self, server_type: MediaServerType | None = None) -> list[MediaServer]:
         """
         获取启用的媒体服务器
 
@@ -40,7 +42,7 @@ class MediaServerOper(OperBase[MediaServer]):
             return await self.get_all(type=server_type.value, enabled=True)
         return await self.get_all(enabled=True)
 
-    async def search_by_name(self, keyword: str, limit: int = 50) -> List[MediaServer]:
+    async def search_by_name(self, keyword: str, limit: int = 50) -> list[MediaServer]:
         """
         搜索媒体服务器（按名称）
 
@@ -52,9 +54,7 @@ class MediaServerOper(OperBase[MediaServer]):
             媒体服务器列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(MediaServer).where(
-                MediaServer.name.ilike(f"%{keyword}%")
-            ).limit(limit)
+            query = select(MediaServer).where(MediaServer.name.ilike(f"%{keyword}%")).limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
 
@@ -91,7 +91,7 @@ class MediaServerOper(OperBase[MediaServer]):
         # TODO: 实现 Jellyfin 连接测试
         return True, "连接成功"
 
-    async def toggle_enabled(self, id: int) -> Optional[MediaServer]:
+    async def toggle_enabled(self, id: int) -> MediaServer | None:
         """
         切换媒体服务器启用状态
 

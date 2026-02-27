@@ -2,7 +2,7 @@
 Artist API 端点
 艺术家相关 API
 """
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,12 +10,11 @@ from app.db import get_db
 from app.db.operations.artist import ArtistOper
 from app.schemas.artist import (
     ArtistCreate,
-    ArtistUpdate,
-    ArtistResponse,
     ArtistListResponse,
+    ArtistResponse,
+    ArtistUpdate,
 )
-from app.schemas.response import ResponseModel, PaginatedResponse
-
+from app.schemas.response import PaginatedResponse, ResponseModel
 
 router = APIRouter()
 
@@ -23,6 +22,7 @@ router = APIRouter()
 def get_artist_oper(db: AsyncSession = Depends(get_db)) -> ArtistOper:
     """获取 Artist 操作实例"""
     from app.db import db_manager
+
     return ArtistOper(db_manager)
 
 
@@ -70,7 +70,7 @@ async def get_artists(
     )
 
 
-@router.get("/top", response_model=List[ArtistListResponse])
+@router.get("/top", response_model=list[ArtistListResponse])
 async def get_top_artists(
     limit: int = Query(50, ge=1, le=100),
     artist_oper: ArtistOper = Depends(get_artist_oper),

@@ -2,21 +2,23 @@
 FastAPI 应用工厂
 创建和配置 FastAPI 应用
 """
+
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from contextlib import asynccontextmanager
-from pathlib import Path
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from app.core.cache import AsyncFileCache
 from app.core.config import settings
-from app.core.log import logger
 from app.core.event import EventManager
+from app.core.log import logger
 from app.core.module import ModuleManager
 from app.core.plugin import PluginManager
-from app.core.cache import AsyncFileCache
-from app.db import db_manager, Base
+from app.db import db_manager
 from app.tasks.download_monitor import DownloadMonitorTask
 
 
@@ -132,7 +134,7 @@ def create_app() -> FastAPI:
                 "success": False,
                 "message": "服务器内部错误",
                 "detail": str(exc) if settings.app_debug else None,
-            }
+            },
         )
 
     # 健康检查端点
@@ -163,4 +165,5 @@ def _register_routes(app: FastAPI):
     """
     # TODO: 注册 API 路由
     from app.api.apiv1 import api_router
+
     app.include_router(api_router, prefix=settings.api_v1_prefix)

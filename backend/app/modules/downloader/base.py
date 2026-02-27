@@ -2,15 +2,17 @@
 下载器基类
 定义下载器接口
 """
+
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, Tuple, List
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 from app.core.module import ModuleBase
 
 
-class DownloadStatus(str, Enum):
+class DownloadStatus(StrEnum):
     """下载状态"""
+
     PENDING = "pending"
     DOWNLOADING = "downloading"
     COMPLETED = "completed"
@@ -19,16 +21,18 @@ class DownloadStatus(str, Enum):
     PAUSED = "paused"
 
 
-class DownloadQuality(str, Enum):
+class DownloadQuality(StrEnum):
     """下载质量"""
+
     LOSSLESS = "lossless"  # 无损 (FLAC)
     HIGH = "high"  # 高品质 (320kbps MP3)
     STANDARD = "standard"  # 标准 (128kbps MP3)
     LOW = "low"  # 低品质 (64kbps MP3)
 
 
-class DownloadSource(str, Enum):
+class DownloadSource(StrEnum):
     """下载来源"""
+
     NETEASE = "netease"
     QQ = "qq"
     KUGOU = "kugou"
@@ -49,11 +53,11 @@ class DownloadTask:
         url: str,
         source: DownloadSource,
         quality: DownloadQuality = DownloadQuality.STANDARD,
-        artist: Optional[str] = None,
-        album: Optional[str] = None,
-        title: Optional[str] = None,
-        target_path: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        artist: str | None = None,
+        album: str | None = None,
+        title: str | None = None,
+        target_path: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         self.task_id = task_id
         self.url = url
@@ -68,10 +72,10 @@ class DownloadTask:
         self.progress = 0.0
         self.downloaded_bytes = 0
         self.total_bytes = 0
-        self.error_message: Optional[str] = None
-        self.file_path: Optional[str] = None
+        self.error_message: str | None = None
+        self.file_path: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "task_id": self.task_id,
@@ -104,14 +108,11 @@ class DownloaderBase(ModuleBase, ABC):
         self.module_type = "downloader"
         self.source: DownloadSource = DownloadSource.CUSTOM
         self.supported_qualities: list[DownloadQuality] = []
-        self.config: Dict[str, Any] = {}
+        self.config: dict[str, Any] = {}
 
     @abstractmethod
     async def search(
-        self,
-        keyword: str,
-        limit: int = 20,
-        quality: Optional[DownloadQuality] = None
+        self, keyword: str, limit: int = 20, quality: DownloadQuality | None = None
     ) -> list[DownloadTask]:
         """
         搜索音乐
@@ -128,9 +129,7 @@ class DownloaderBase(ModuleBase, ABC):
 
     @abstractmethod
     async def download(
-        self,
-        task: DownloadTask,
-        progress_callback: Optional[callable] = None
+        self, task: DownloadTask, progress_callback: callable | None = None
     ) -> DownloadTask:
         """
         下载音乐
@@ -145,11 +144,7 @@ class DownloaderBase(ModuleBase, ABC):
         pass
 
     @abstractmethod
-    async def get_url(
-        self,
-        url: str,
-        quality: DownloadQuality = DownloadQuality.STANDARD
-    ) -> str:
+    async def get_url(self, url: str, quality: DownloadQuality = DownloadQuality.STANDARD) -> str:
         """
         获取实际下载 URL
 
@@ -163,7 +158,7 @@ class DownloaderBase(ModuleBase, ABC):
         pass
 
     @abstractmethod
-    async def test(self) -> Tuple[bool, str]:
+    async def test(self) -> tuple[bool, str]:
         """
         测试下载器连接
 
@@ -181,7 +176,7 @@ class DownloaderBase(ModuleBase, ABC):
         """
         return self.source
 
-    def init_setting(self) -> Optional[Tuple[str, bool]]:
+    def init_setting(self) -> tuple[str, bool] | None:
         """
         初始化下载器设置
 

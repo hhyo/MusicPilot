@@ -1,19 +1,18 @@
 """
 DownloadHistory 操作类
 """
-from typing import Optional, List
-from sqlalchemy import select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.download import DownloadHistory
+from sqlalchemy import select
+
+from app.core.context import DownloaderType, DownloadStatus
 from app.db import OperBase
-from app.core.context import DownloadStatus, DownloaderType
+from app.db.models.download import DownloadHistory
 
 
 class DownloadHistoryOper(OperBase[DownloadHistory]):
     """DownloadHistory 操作类"""
 
-    async def get_by_source_id(self, source_id: str) -> Optional[DownloadHistory]:
+    async def get_by_source_id(self, source_id: str) -> DownloadHistory | None:
         """
         根据来源 ID 获取下载历史
 
@@ -30,11 +29,8 @@ class DownloadHistoryOper(OperBase[DownloadHistory]):
             return result.scalar_one_or_none()
 
     async def get_by_status(
-        self,
-        status: DownloadStatus,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[DownloadHistory]:
+        self, status: DownloadStatus, skip: int = 0, limit: int = 100
+    ) -> list[DownloadHistory]:
         """
         根据状态获取下载历史
 
@@ -49,11 +45,8 @@ class DownloadHistoryOper(OperBase[DownloadHistory]):
         return await self.get_all(skip=skip, limit=limit, status=status.value)
 
     async def get_by_source(
-        self,
-        source: DownloaderType,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[DownloadHistory]:
+        self, source: DownloaderType, skip: int = 0, limit: int = 100
+    ) -> list[DownloadHistory]:
         """
         根据来源获取下载历史
 
@@ -67,7 +60,7 @@ class DownloadHistoryOper(OperBase[DownloadHistory]):
         """
         return await self.get_all(skip=skip, limit=limit, source=source.value)
 
-    async def search_by_title(self, keyword: str, limit: int = 50) -> List[DownloadHistory]:
+    async def search_by_title(self, keyword: str, limit: int = 50) -> list[DownloadHistory]:
         """
         搜索下载历史（按标题）
 
@@ -79,13 +72,15 @@ class DownloadHistoryOper(OperBase[DownloadHistory]):
             下载历史列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(DownloadHistory).where(
-                DownloadHistory.title.ilike(f"%{keyword}%")
-            ).limit(limit)
+            query = (
+                select(DownloadHistory)
+                .where(DownloadHistory.title.ilike(f"%{keyword}%"))
+                .limit(limit)
+            )
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def get_recent(self, limit: int = 50) -> List[DownloadHistory]:
+    async def get_recent(self, limit: int = 50) -> list[DownloadHistory]:
         """
         获取最近的下载记录
 
@@ -96,13 +91,11 @@ class DownloadHistoryOper(OperBase[DownloadHistory]):
             下载历史列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(DownloadHistory).order_by(
-                DownloadHistory.created_at.desc()
-            ).limit(limit)
+            query = select(DownloadHistory).order_by(DownloadHistory.created_at.desc()).limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def get_failed(self, limit: int = 50) -> List[DownloadHistory]:
+    async def get_failed(self, limit: int = 50) -> list[DownloadHistory]:
         """
         获取失败的下载记录
 
@@ -115,11 +108,8 @@ class DownloadHistoryOper(OperBase[DownloadHistory]):
         return await self.get_by_status(DownloadStatus.FAILED, limit=limit)
 
     async def update_status(
-        self,
-        id: int,
-        status: DownloadStatus,
-        error_message: Optional[str] = None
-    ) -> Optional[DownloadHistory]:
+        self, id: int, status: DownloadStatus, error_message: str | None = None
+    ) -> DownloadHistory | None:
         """
         更新下载状态
 

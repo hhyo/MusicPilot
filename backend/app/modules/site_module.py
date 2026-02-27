@@ -2,14 +2,16 @@
 站点模块基类
 所有站点模块都继承此类
 """
-from typing import Optional, Dict, Any, List
+
+import contextlib
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
+
 import feedparser
+import httpx
 
 from app.core.module import ModuleBase
-from app.core.log import logger
-import httpx
 
 
 @dataclass
@@ -19,15 +21,15 @@ class SiteInfo:
     name: str
     url: str
     domain: str
-    cookie: Optional[str] = None
-    passkey: Optional[str] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
-    proxy: Optional[str] = None
-    ua: Optional[str] = None
+    cookie: str | None = None
+    passkey: str | None = None
+    username: str | None = None
+    password: str | None = None
+    proxy: str | None = None
+    ua: str | None = None
     timeout: int = 30
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "name": self.name,
@@ -51,14 +53,14 @@ class TorrentResult:
     title: str
     size: int
     download_url: str
-    upload_time: Optional[datetime] = None
+    upload_time: datetime | None = None
     seeders: int = 0
     leechers: int = 0
     is_free: bool = False
     format: str = "FLAC"
     bitrate: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "torrent_id": self.torrent_id,
@@ -84,10 +86,10 @@ class SiteModule(ModuleBase):
 
     def __init__(self):
         super().__init__()
-        self.site_info: Optional[SiteInfo] = None
-        self.client: Optional[httpx.AsyncClient] = None
+        self.site_info: SiteInfo | None = None
+        self.client: httpx.AsyncClient | None = None
 
-    def init_module(self, config: Optional[Dict[str, Any]] = None):
+    def init_module(self, config: dict[str, Any] | None = None):
         """
         初始化模块
 
@@ -135,10 +137,9 @@ class SiteModule(ModuleBase):
         # 关闭 HTTP 客户端
         if self.client:
             import asyncio
-            try:
+
+            with contextlib.suppress(Exception):
                 asyncio.create_task(self.client.aclose())
-            except Exception:
-                pass
 
     async def login(self) -> bool:
         """
@@ -151,17 +152,14 @@ class SiteModule(ModuleBase):
 
         # 默认实现：使用 Cookie 直接返回成功
         # 子类可以重写此方法实现实际的登录逻辑
-        if self.site_info and self.site_info.cookie:
-            return True
-
-        return False
+        return bool(self.site_info and self.site_info.cookie)
 
     async def search_torrent(
         self,
         keyword: str,
         format: str = "FLAC",
         page: int = 1,
-    ) -> List[TorrentResult]:
+    ) -> list[TorrentResult]:
         """
         搜索种子
 
@@ -178,7 +176,7 @@ class SiteModule(ModuleBase):
         # 子类必须实现此方法
         raise NotImplementedError("子类必须实现 search_torrent 方法")
 
-    async def get_torrent_details(self, torrent_id: str) -> Optional[Dict[str, Any]]:
+    async def get_torrent_details(self, torrent_id: str) -> dict[str, Any] | None:
         """
         获取种子详情
 
@@ -212,9 +210,7 @@ class SiteModule(ModuleBase):
             self.logger.error(f"检查站点状态失败: {e}")
             return False
 
-    async def parse_search_results(
-        self, html: str
-    ) -> List[TorrentResult]:
+    async def parse_search_results(self, html: str) -> list[TorrentResult]:
         """
         解析搜索结果
 
@@ -263,7 +259,7 @@ class SiteModule(ModuleBase):
         artist: str,
         format: str = "FLAC",
         page: int = 1,
-    ) -> List[TorrentResult]:
+    ) -> list[TorrentResult]:
         """
         搜索艺术家
 
@@ -283,7 +279,7 @@ class SiteModule(ModuleBase):
         album: str,
         format: str = "FLAC",
         page: int = 1,
-    ) -> List[TorrentResult]:
+    ) -> list[TorrentResult]:
         """
         搜索专辑
 
@@ -304,7 +300,7 @@ class SiteModule(ModuleBase):
         title: str,
         format: str = "FLAC",
         page: int = 1,
-    ) -> List[TorrentResult]:
+    ) -> list[TorrentResult]:
         """
         搜索标题
 
@@ -318,7 +314,7 @@ class SiteModule(ModuleBase):
         """
         return await self.search_torrent(title, format, page)
 
-    async def parse_rss(self, rss_url: str) -> List[TorrentResult]:
+    async def parse_rss(self, rss_url: str) -> list[TorrentResult]:
         """
         解析 RSS 种子源
 
@@ -347,30 +343,33 @@ class SiteModule(ModuleBase):
                 try:
                     # 解析上传时间
                     upload_time = None
-                    if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                    if hasattr(entry, "published_parsed") and entry.published_parsed:
                         upload_time = datetime(*entry.published_parsed[:6])
 
                     # 解析种子大小（从标题或描述中提取）
                     size = 0
-                    if hasattr(entry, 'size'):
+                    if hasattr(entry, "size"):
                         size = entry.size
-                    elif hasattr(entry, 'description'):
+                    elif hasattr(entry, "description"):
                         # 尝试从描述中提取大小
                         import re
-                        size_match = re.search(r'(\d+(?:\.\d+)?)\s*(GB|MB|KB)', entry.description, re.IGNORECASE)
+
+                        size_match = re.search(
+                            r"(\d+(?:\.\d+)?)\s*(GB|MB|KB)", entry.description, re.IGNORECASE
+                        )
                         if size_match:
                             value = float(size_match.group(1))
                             unit = size_match.group(2).upper()
-                            if unit == 'GB':
+                            if unit == "GB":
                                 size = int(value * 1024 * 1024 * 1024)
-                            elif unit == 'MB':
+                            elif unit == "MB":
                                 size = int(value * 1024 * 1024)
-                            elif unit == 'KB':
+                            elif unit == "KB":
                                 size = int(value * 1024)
 
                     # 检查是否免费
                     is_free = False
-                    title_lower = entry.title.lower() if hasattr(entry, 'title') else ""
+                    title_lower = entry.title.lower() if hasattr(entry, "title") else ""
                     if "free" in title_lower or "免费" in title_lower:
                         is_free = True
 
@@ -382,20 +381,20 @@ class SiteModule(ModuleBase):
                         format = "APE"
 
                     # 创建 TorrentResult
-                    torrent_id = getattr(entry, 'id', str(hash(entry.get('link', ''))))
-                    download_url = entry.get('link', '')
-                    title = entry.get('title', '')
+                    torrent_id = getattr(entry, "id", str(hash(entry.get("link", ""))))
+                    download_url = entry.get("link", "")
+                    title = entry.get("title", "")
 
                     # 获取种子数和下载数（如果有）
-                    seeders = getattr(entry, 'seeders', 0)
-                    leechers = getattr(entry, 'leechers', 0)
+                    seeders = getattr(entry, "seeders", 0)
+                    leechers = getattr(entry, "leechers", 0)
 
                     # 如果是 NexusPHP 类型的站点，可能会在 torrent 属性中
-                    if hasattr(entry, 'torrent'):
-                        seeders = getattr(entry.torrent, 'seeders', seeders)
-                        leechers = getattr(entry.torrent, 'leechers', leechers)
-                        size = getattr(entry.torrent, 'contentLength', size)
-                        download_url = getattr(entry.torrent, 'downloadUrl', download_url)
+                    if hasattr(entry, "torrent"):
+                        seeders = getattr(entry.torrent, "seeders", seeders)
+                        leechers = getattr(entry.torrent, "leechers", leechers)
+                        size = getattr(entry.torrent, "contentLength", size)
+                        download_url = getattr(entry.torrent, "downloadUrl", download_url)
 
                     result = TorrentResult(
                         torrent_id=torrent_id,

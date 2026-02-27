@@ -1,14 +1,17 @@
 """
 DownloadHistory 数据库模型
 """
-from sqlalchemy import String, Text, Integer, BigInteger, DateTime
+
+from sqlalchemy import BigInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
+from app.core.context import DownloadStatus
 from app.db import Base, TimestampMixin
-from app.core.context import DownloadStatus, DownloaderType
 
 
 class DownloadHistory(Base, TimestampMixin):
     """下载历史模型"""
+
     __tablename__ = "download_history"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -25,7 +28,9 @@ class DownloadHistory(Base, TimestampMixin):
     # 下载信息
     url: Mapped[str] = mapped_column(String(1000), nullable=True)
     quality: Mapped[str] = mapped_column(String(50), nullable=True)  # 128k, 320k, lossless, etc.
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default=DownloadStatus.PENDING.value)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=DownloadStatus.PENDING.value
+    )
     error_message: Mapped[str] = mapped_column(Text, nullable=True)
 
     # 文件信息

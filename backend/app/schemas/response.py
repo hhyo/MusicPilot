@@ -2,22 +2,25 @@
 通用响应模型
 定义统一的 API 响应格式
 """
-from typing import Generic, TypeVar, Optional, Any
-from pydantic import BaseModel, Field
 
+from typing import Any, TypeVar
+
+from pydantic import BaseModel
 
 T = TypeVar("T")
 
 
-class ResponseModel(BaseModel, Generic[T]):
+class ResponseModel[T](BaseModel):
     """通用响应模型"""
+
     success: bool = True
     message: str = "操作成功"
-    data: Optional[T] = None
+    data: T | None = None
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse[T](BaseModel):
     """分页响应模型"""
+
     success: bool = True
     message: str = "查询成功"
     data: list[T] = []
@@ -29,20 +32,23 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
 class ErrorResponse(BaseModel):
     """错误响应模型"""
+
     success: bool = False
     message: str = "操作失败"
-    error_code: Optional[str] = None
-    detail: Optional[str] = None
+    error_code: str | None = None
+    detail: str | None = None
 
 
 class ValidationErrorDetail(BaseModel):
     """验证错误详情"""
+
     field: str
     message: str
 
 
 class ValidationErrorResponse(BaseModel):
     """验证错误响应"""
+
     success: bool = False
     message: str = "数据验证失败"
     errors: list[ValidationErrorDetail] = []

@@ -2,19 +2,20 @@
 资源搜索链
 处理资源搜索、结果排序和过滤
 """
+
 import asyncio
 import hashlib
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from typing import Any
 
-from app.core.log import logger
-from app.core.context import MusicInfo
-from app.core.event import event_bus, EventType
-from app.core.module import ModuleManager
 from app.core.cache import AsyncFileCache
-from app.db.operations.site import SiteOper
-from app.db.models.site import Site
+from app.core.context import MusicInfo
+from app.core.event import EventType, event_bus
+from app.core.log import logger
+from app.core.module import ModuleManager
 from app.db import db_manager
+from app.db.models.site import Site
+from app.db.operations.site import SiteOper
 
 
 class TorrentInfo:
@@ -27,7 +28,7 @@ class TorrentInfo:
         title: str,
         size: int,
         download_url: str,
-        upload_time: Optional[datetime] = None,
+        upload_time: datetime | None = None,
         seeders: int = 0,
         leechers: int = 0,
         is_free: bool = False,
@@ -46,7 +47,7 @@ class TorrentInfo:
         self.format = format
         self.bitrate = bitrate
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "torrent_id": self.torrent_id,
@@ -86,7 +87,7 @@ class TorrentsChain:
         self,
         music_info: MusicInfo,
         format: str,
-        sites: Optional[List[str]] = None,
+        sites: list[str] | None = None,
     ) -> str:
         """
         生成缓存键
@@ -115,12 +116,12 @@ class TorrentsChain:
     async def search(
         self,
         music_info: MusicInfo,
-        sites: Optional[List[str]] = None,
+        sites: list[str] | None = None,
         format: str = "FLAC",
-        min_size: Optional[int] = None,
-        max_size: Optional[int] = None,
+        min_size: int | None = None,
+        max_size: int | None = None,
         use_cache: bool = True,
-    ) -> List[TorrentInfo]:
+    ) -> list[TorrentInfo]:
         """
         搜索资源
 
@@ -151,7 +152,11 @@ class TorrentsChain:
                         title=r["title"],
                         size=r["size"],
                         download_url=r["download_url"],
-                        upload_time=datetime.fromisoformat(r["upload_time"]) if r.get("upload_time") else None,
+                        upload_time=(
+                            datetime.fromisoformat(r["upload_time"])
+                            if r.get("upload_time")
+                            else None
+                        ),
                         seeders=r.get("seeders", 0),
                         leechers=r.get("leechers", 0),
                         is_free=r.get("is_free", False),
@@ -171,17 +176,14 @@ class TorrentsChain:
             return []
 
         # 3. 并发搜索所有站点
-        tasks = [
-            self._search_site(site, music_info, format)
-            for site in enabled_sites
-        ]
+        tasks = [self._search_site(site, music_info, format) for site in enabled_sites]
 
         # 使用 asyncio.gather 并发执行搜索
         site_results_list = await asyncio.gather(*tasks, return_exceptions=True)
 
         # 处理结果
         results = []
-        for site, site_results in zip(enabled_sites, site_results_list):
+        for site, site_results in zip(enabled_sites, site_results_list, strict=False):
             if isinstance(site_results, Exception):
                 self.logger.error(f"站点 {site.name} 搜索失败: {site_results}")
             else:
@@ -192,18 +194,14 @@ class TorrentsChain:
         sorted_results = self._sort_results(results)
 
         # 5. 过滤结果
-        filtered_results = self._filter_results(
-            sorted_results, format, min_size, max_size
-        )
+        filtered_results = self._filter_results(sorted_results, format, min_size, max_size)
 
         self.logger.info(f"搜索完成，找到 {len(filtered_results)} 个结果")
 
         # 6. 缓存结果（转换为字典格式）
         if use_cache and filtered_results:
             await self.cache.async_set(
-                cache_key,
-                [r.to_dict() for r in filtered_results],
-                ttl=self.cache.default_ttl
+                cache_key, [r.to_dict() for r in filtered_results], ttl=self.cache.default_ttl
             )
 
         # 7. 发送搜索事件
@@ -219,7 +217,7 @@ class TorrentsChain:
 
     async def _search_site(
         self, site: Site, music_info: MusicInfo, format: str
-    ) -> List[TorrentInfo]:
+    ) -> list[TorrentInfo]:
         """
         搜索单个站点
 
@@ -253,9 +251,7 @@ class TorrentsChain:
                     else:
                         # 使用完整关键词搜索
                         keyword = music_info.to_dict()
-                        keyword_str = " ".join(
-                            str(v) for v in keyword.values() if v
-                        )
+                        keyword_str = " ".join(str(v) for v in keyword.values() if v)
                         results = await module.search_torrent(keyword_str, format)
 
                     # 将 TorrentResult 转换为 TorrentInfo
@@ -283,7 +279,7 @@ class TorrentsChain:
         self.logger.warning(f"未找到站点 {site.name} 的模块")
         return []
 
-    def _sort_results(self, results: List[TorrentInfo]) -> List[TorrentInfo]:
+    def _sort_results(self, results: list[TorrentInfo]) -> list[TorrentInfo]:
         """
         排序结果
 
@@ -299,17 +295,14 @@ class TorrentsChain:
         Returns:
             排序后的种子信息列表
         """
+
         def sort_key(torrent: TorrentInfo) -> tuple:
             # 免费种子优先级最高
             free_priority = 1 if torrent.is_free else 0
             # 种子活跃度
             activity = torrent.seeders - torrent.leechers
             # 上传时间（越新越好，使用时间戳的负数）
-            upload_time = (
-                -torrent.upload_time.timestamp()
-                if torrent.upload_time
-                else 0
-            )
+            upload_time = -torrent.upload_time.timestamp() if torrent.upload_time else 0
             # 文件大小（适中优先，使用绝对偏差的负数）
             # 假设理想大小为 500MB (500 * 1024 * 1024)
             ideal_size = 500 * 1024 * 1024
@@ -321,11 +314,11 @@ class TorrentsChain:
 
     def _filter_results(
         self,
-        results: List[TorrentInfo],
+        results: list[TorrentInfo],
         format: str,
-        min_size: Optional[int],
-        max_size: Optional[int],
-    ) -> List[TorrentInfo]:
+        min_size: int | None,
+        max_size: int | None,
+    ) -> list[TorrentInfo]:
         """
         过滤结果
 
@@ -358,9 +351,9 @@ class TorrentsChain:
     async def search_artist(
         self,
         artist: str,
-        sites: Optional[List[str]] = None,
+        sites: list[str] | None = None,
         format: str = "FLAC",
-    ) -> List[TorrentInfo]:
+    ) -> list[TorrentInfo]:
         """
         搜索艺术家资源
 
@@ -379,11 +372,11 @@ class TorrentsChain:
         self,
         artist: str,
         album: str,
-        sites: Optional[List[str]] = None,
+        sites: list[str] | None = None,
         format: str = "FLAC",
-        min_size: Optional[int] = None,
-        max_size: Optional[int] = None,
-    ) -> List[TorrentInfo]:
+        min_size: int | None = None,
+        max_size: int | None = None,
+    ) -> list[TorrentInfo]:
         """
         搜索专辑资源
 
@@ -406,9 +399,9 @@ class TorrentsChain:
     async def search_title(
         self,
         title: str,
-        sites: Optional[List[str]] = None,
+        sites: list[str] | None = None,
         format: str = "FLAC",
-    ) -> List[TorrentInfo]:
+    ) -> list[TorrentInfo]:
         """
         搜索标题资源
 

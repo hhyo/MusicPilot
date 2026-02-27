@@ -2,19 +2,16 @@
 下载进度监控定时任务
 定期检查下载器状态并更新数据库
 """
-from typing import Optional
-from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chain.downloader import DownloaderChain
-from app.db.operations.subscribe_release import SubscribeReleaseOper
-from app.db.operations.download import DownloadHistoryOper
 from app.core.log import logger
-from app.db.models.subscribe_release import SubscribeRelease
-from app.db.models.download import DownloadHistory
 from app.db import db_manager
+from app.db.models.download import DownloadHistory
+from app.db.models.subscribe_release import SubscribeRelease
+from app.db.operations.download import DownloadHistoryOper
+from app.db.operations.subscribe_release import SubscribeReleaseOper
 
 
 class DownloadMonitorTask:
@@ -51,8 +48,7 @@ class DownloadMonitorTask:
                 try:
                     # 获取下载进度
                     progress = await self.downloader_chain.get_progress(
-                        release.downloader_task_id,
-                        release.downloader or "qbittorrent"
+                        release.downloader_task_id, release.downloader or "qbittorrent"
                     )
 
                     if progress:
@@ -63,8 +59,7 @@ class DownloadMonitorTask:
 
                         # 更新订阅发布记录
                         await self.subscribe_release_oper.update_download_status(
-                            release.id,
-                            "downloading"
+                            release.id, "downloading"
                         )
 
                         # 检查是否完成
@@ -75,9 +70,7 @@ class DownloadMonitorTask:
                             # 更新进度（如果有 DownloadHistory 记录）
                             await self._update_download_progress(release, progress)
 
-                    logger.debug(
-                        f"更新下载进度: {release.id}, 进度: {progress_percent:.2f}%"
-                    )
+                    logger.debug(f"更新下载进度: {release.id}, 进度: {progress_percent:.2f}%")
                 except Exception as e:
                     logger.error(f"检查下载进度失败: {release.id}, 错误: {e}")
                     # 标记为失败
@@ -100,9 +93,7 @@ class DownloadMonitorTask:
 
         try:
             # 更新订阅发布记录状态
-            await self.subscribe_release_oper.update_download_status(
-                release.id, "completed"
-            )
+            await self.subscribe_release_oper.update_download_status(release.id, "completed")
 
             # TODO: 触发 TransferChain 进行文件转移
             # from app.chain.transfer import TransferChain
@@ -113,9 +104,7 @@ class DownloadMonitorTask:
         except Exception as e:
             logger.error(f"处理下载完成失败: {release.id}, 错误: {e}")
 
-    async def _update_download_progress(
-        self, release: SubscribeRelease, progress
-    ):
+    async def _update_download_progress(self, release: SubscribeRelease, progress):
         """
         更新下载进度
 
@@ -125,9 +114,7 @@ class DownloadMonitorTask:
         """
         # 如果有 DownloadHistory 记录，更新进度
         # 这里可以扩展为更新 DownloadHistory 的进度字段
-        logger.debug(
-            f"更新进度: 任务 {release.id}, 已下载 {progress.downloaded}/{progress.total}"
-        )
+        logger.debug(f"更新进度: 任务 {release.id}, 已下载 {progress.downloaded}/{progress.total}")
 
     async def check_failed_downloads(self):
         """
@@ -166,21 +153,21 @@ class DownloadMonitorTask:
         # 添加定时任务
         self.scheduler.add_job(
             self.check_download_progress,
-            'interval',
+            "interval",
             seconds=interval,
-            id='check_download_progress',
-            name='检查下载进度',
-            replace_existing=True
+            id="check_download_progress",
+            name="检查下载进度",
+            replace_existing=True,
         )
 
         # 添加失败任务检查（每 5 分钟）
         self.scheduler.add_job(
             self.check_failed_downloads,
-            'interval',
+            "interval",
             seconds=300,
-            id='check_failed_downloads',
-            name='检查失败任务',
-            replace_existing=True
+            id="check_failed_downloads",
+            name="检查失败任务",
+            replace_existing=True,
         )
 
     def stop(self):
@@ -188,8 +175,8 @@ class DownloadMonitorTask:
         logger.info("停止下载进度监控任务")
 
         # 移除定时任务
-        self.scheduler.remove_job('check_download_progress')
-        self.scheduler.remove_job('check_failed_downloads')
+        self.scheduler.remove_job("check_download_progress")
+        self.scheduler.remove_job("check_failed_downloads")
 
     def get_status(self) -> dict:
         """
@@ -199,6 +186,7 @@ class DownloadMonitorTask:
             监控状态
         """
         return {
-            "check_download_progress": self.scheduler.get_job('check_download_progress') is not None,
-            "check_failed_downloads": self.scheduler.get_job('check_failed_downloads') is not None,
+            "check_download_progress": self.scheduler.get_job("check_download_progress")
+            is not None,
+            "check_failed_downloads": self.scheduler.get_job("check_failed_downloads") is not None,
         }
