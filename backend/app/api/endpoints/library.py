@@ -3,30 +3,29 @@ Library API 端点
 音乐库相关 API
 """
 
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
 from pathlib import Path
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.chain.metadata import MetadataChain
+from app.core.cache import AsyncFileCache
+from app.core.config import settings
+from app.core.event import EventManager
+from app.core.log import logger
+from app.core.module import ModuleManager
+from app.core.plugin import PluginManager
 from app.db import get_db
 from app.db.operations.library import LibraryOper
 from app.db.operations.track import TrackOper
 from app.schemas.library import (
     LibraryCreate,
-    LibraryUpdate,
-    LibraryResponse,
     LibraryListResponse,
+    LibraryResponse,
+    LibraryUpdate,
     ScanLibraryRequest,
 )
-from app.schemas.response import ResponseModel, PaginatedResponse
-from app.chain.metadata import MetadataChain
-from app.core.event import EventManager
-from app.core.module import ModuleManager
-from app.core.plugin import PluginManager
-from app.core.cache import AsyncFileCache
-from app.core.config import settings
-from app.core.log import logger
-import asyncio
+from app.schemas.response import PaginatedResponse, ResponseModel
 
 router = APIRouter()
 
@@ -65,7 +64,7 @@ async def get_metadata_chain():
     )
 
 
-async def recursive_scan(directory: Path, recursive: bool = True) -> List[str]:
+async def recursive_scan(directory: Path, recursive: bool = True) -> list[str]:
     """
     递归扫描目录，查找音乐文件
 
@@ -101,7 +100,7 @@ async def recursive_scan(directory: Path, recursive: bool = True) -> List[str]:
     return music_files
 
 
-async def process_file_batch(file_paths: List[str], metadata_chain: MetadataChain, task_id: str):
+async def process_file_batch(file_paths: list[str], metadata_chain: MetadataChain, task_id: str):
     """
     批量处理文件（后台任务）
 
@@ -307,8 +306,8 @@ async def scan_library(
         await library_oper.update_stats(
             library_id,
             track_count=len(tracks),
-            album_count=len(set(t.album_id for t in tracks if t.album_id)),
-            artist_count=len(set(t.artist_id for t in tracks if t.artist_id)),
+            album_count=len({t.album_id for t in tracks if t.album_id}),
+            artist_count=len({t.artist_id for t in tracks if t.artist_id}),
             total_size=sum(t.file_size for t in tracks if t.file_size or 0),
         )
 
