@@ -90,10 +90,10 @@ jobs:
         run: |
           cd frontend
           npm install
-      - name: Run type check
+      - name: Run build
         run: |
           cd frontend
-          npm run build:check
+          npm run build
 
   frontend-test:
     name: Frontend Test
