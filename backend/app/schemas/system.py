@@ -2,8 +2,8 @@
 System Schema
 系统配置相关的数据模型
 """
-from typing import Optional, Any
 from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
