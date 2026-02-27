@@ -5,11 +5,12 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict, Optional
+
 import feedparser
+import httpx
 
 from app.core.module import ModuleBase
-from app.core.log import logger
-import httpx
 
 
 @dataclass
