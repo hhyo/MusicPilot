@@ -4,12 +4,12 @@
 """
 
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+import httpx
 
 from app.core.module import ModuleBase
-from app.core.log import logger
-import httpx
 
 
 class DownloadStatus(str, Enum):
