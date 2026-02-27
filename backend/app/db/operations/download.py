@@ -1,6 +1,7 @@
 """
 DownloadHistory 操作类
 """
+
 from typing import Optional, List
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,10 +31,7 @@ class DownloadHistoryOper(OperBase[DownloadHistory]):
             return result.scalar_one_or_none()
 
     async def get_by_status(
-        self,
-        status: DownloadStatus,
-        skip: int = 0,
-        limit: int = 100
+        self, status: DownloadStatus, skip: int = 0, limit: int = 100
     ) -> List[DownloadHistory]:
         """
         根据状态获取下载历史
@@ -49,10 +47,7 @@ class DownloadHistoryOper(OperBase[DownloadHistory]):
         return await self.get_all(skip=skip, limit=limit, status=status.value)
 
     async def get_by_source(
-        self,
-        source: DownloaderType,
-        skip: int = 0,
-        limit: int = 100
+        self, source: DownloaderType, skip: int = 0, limit: int = 100
     ) -> List[DownloadHistory]:
         """
         根据来源获取下载历史
@@ -79,9 +74,11 @@ class DownloadHistoryOper(OperBase[DownloadHistory]):
             下载历史列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(DownloadHistory).where(
-                DownloadHistory.title.ilike(f"%{keyword}%")
-            ).limit(limit)
+            query = (
+                select(DownloadHistory)
+                .where(DownloadHistory.title.ilike(f"%{keyword}%"))
+                .limit(limit)
+            )
             result = await session.execute(query)
             return result.scalars().all()
 
@@ -96,9 +93,7 @@ class DownloadHistoryOper(OperBase[DownloadHistory]):
             下载历史列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(DownloadHistory).order_by(
-                DownloadHistory.created_at.desc()
-            ).limit(limit)
+            query = select(DownloadHistory).order_by(DownloadHistory.created_at.desc()).limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
 
@@ -115,10 +110,7 @@ class DownloadHistoryOper(OperBase[DownloadHistory]):
         return await self.get_by_status(DownloadStatus.FAILED, limit=limit)
 
     async def update_status(
-        self,
-        id: int,
-        status: DownloadStatus,
-        error_message: Optional[str] = None
+        self, id: int, status: DownloadStatus, error_message: Optional[str] = None
     ) -> Optional[DownloadHistory]:
         """
         更新下载状态

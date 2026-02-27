@@ -2,6 +2,7 @@
 封面图片 API
 封面下载、缓存和管理
 """
+
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.responses import FileResponse
@@ -14,7 +15,6 @@ from app.core.log import logger
 from app.schemas.response import ResponseModel
 from pathlib import Path
 import aiofiles
-
 
 router = APIRouter()
 
@@ -40,9 +40,10 @@ async def get_cover(cover_id: str):
     try:
         from app.core.config import settings
         import musicbrainzngs
+
         musicbrainzngs.set_useragent(
             f"{settings.musicbrainz_app_name}/{settings.musicbrainz_app_version}",
-            "https://github.com/hhyo/MusicPilot"
+            "https://github.com/hhyo/MusicPilot",
         )
 
         cover_url = musicbrainzngs.get_release_cover_url(cover_id)
@@ -96,9 +97,10 @@ async def download_album_cover(
     try:
         import musicbrainzngs
         from app.core.config import settings
+
         musicbrainzngs.set_useragent(
             f"{settings.musicbrainz_app_name}/{settings.musicbrainz_app_version}",
-            "https://github.com/hhyo/MusicPilot"
+            "https://github.com/hhyo/MusicPilot",
         )
 
         # 搜索专辑
@@ -152,41 +154,49 @@ async def batch_download_covers(
             # 复用单个下载逻辑
             album = await album_oper.get_by_id(album_id)
             if not album:
-                results.append({
-                    "album_id": album_id,
-                    "status": "not_found",
-                })
+                results.append(
+                    {
+                        "album_id": album_id,
+                        "status": "not_found",
+                    }
+                )
                 continue
 
             cover_url = f"/api/v1/covers/{album.musicbrainz_id}" if album.musicbrainz_id else None
 
             if cover_url:
-                results.append({
-                    "album_id": album_id,
-                    "cover_url": cover_url,
-                    "status": "ready",
-                })
+                results.append(
+                    {
+                        "album_id": album_id,
+                        "cover_url": cover_url,
+                        "status": "ready",
+                    }
+                )
             else:
-                results.append({
-                    "album_id": album_id,
-                    "status": "no_musicbrainz_id",
-                })
+                results.append(
+                    {
+                        "album_id": album_id,
+                        "status": "no_musicbrainz_id",
+                    }
+                )
 
         except Exception as e:
             logger.error(f"处理专辑 {album_id} 失败: {e}")
-            results.append({
-                "album_id": album_id,
-                "status": "error",
-                "error": str(e),
-            })
+            results.append(
+                {
+                    "album_id": album_id,
+                    "status": "error",
+                    "error": str(e),
+                }
+            )
 
     return ResponseModel(
         message=f"批量处理完成: {len([r for r in results if r['status'] == 'ready'])} 个封面就绪",
         data={
             "total": len(album_ids),
-            "ready": len([r for r in results if r['status'] == 'ready']),
+            "ready": len([r for r in results if r["status"] == "ready"]),
             "results": results,
-        }
+        },
     )
 
 
@@ -212,6 +222,7 @@ async def upload_custom_cover(
 
     # 生成封面 ID
     import time
+
     cover_id = f"custom_{album_id}_{int(time.time())}"
 
     # 保存文件
@@ -229,7 +240,7 @@ async def upload_custom_cover(
             "album_id": album_id,
             "cover_id": cover_id,
             "cover_url": f"/api/v1/covers/{cover_id}",
-        }
+        },
     )
 
 
@@ -259,7 +270,4 @@ async def delete_cover(
     # 清空数据库中的封面 ID
     await album_oper.update(album_id, cover_id=None)
 
-    return ResponseModel(
-        message="封面删除成功",
-        data={"album_id": album_id}
-    )
+    return ResponseModel(message="封面删除成功", data={"album_id": album_id})

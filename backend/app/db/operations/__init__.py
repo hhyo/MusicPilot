@@ -1,6 +1,7 @@
 """
 数据库操作类包
 """
+
 from app.db.operations.artist import ArtistOper
 from app.db.operations.album import AlbumOper
 from app.db.operations.track import TrackOper

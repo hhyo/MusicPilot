@@ -1,6 +1,7 @@
 """
 Album 数据库模型
 """
+
 from sqlalchemy import String, Text, Integer, Float, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base, TimestampMixin
@@ -8,6 +9,7 @@ from app.db import Base, TimestampMixin
 
 class Album(Base, TimestampMixin):
     """专辑模型"""
+
     __tablename__ = "albums"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -16,7 +18,9 @@ class Album(Base, TimestampMixin):
     musicbrainz_id: Mapped[str] = mapped_column(String(100), nullable=True, index=True)
 
     # 艺术家关联
-    artist_id: Mapped[int] = mapped_column(Integer, ForeignKey("artists.id"), nullable=True, index=True)
+    artist_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("artists.id"), nullable=True, index=True
+    )
 
     # 基本信息
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)

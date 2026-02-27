@@ -1,6 +1,7 @@
 """
 站点管理 API 端点
 """
+
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,7 +36,7 @@ async def get_sites(
     limit: int = 100,
     enabled: bool = None,
     downloader: str = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     获取站点列表
@@ -51,7 +52,7 @@ async def get_sites(
         sites = await oper.get_all(skip=skip, limit=limit, enabled=enabled)
     elif downloader is not None:
         sites = await oper.get_by_downloader(downloader)
-        sites = sites[skip:skip + limit]
+        sites = sites[skip : skip + limit]
     else:
         sites = await oper.get_all(skip=skip, limit=limit)
 

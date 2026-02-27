@@ -2,6 +2,7 @@
 Transmission 下载器模块
 支持 Transmission RPC 2.0+
 """
+
 from typing import Optional, List
 import base64
 
@@ -138,7 +139,14 @@ class TransmissionModule(DownloaderModule):
             response_data = await self._api_request(
                 "torrent-get",
                 {
-                    "fields": ["id", "name", "sizeWhenDone", "downloadedEver", "eta", "rateDownload"],
+                    "fields": [
+                        "id",
+                        "name",
+                        "sizeWhenDone",
+                        "downloadedEver",
+                        "eta",
+                        "rateDownload",
+                    ],
                     "ids": int(task_id),
                 },
             )

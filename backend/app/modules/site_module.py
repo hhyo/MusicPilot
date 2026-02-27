@@ -2,6 +2,7 @@
 站点模块基类
 所有站点模块都继承此类
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 import feedparser
@@ -134,6 +135,7 @@ class SiteModule(ModuleBase):
         # 关闭 HTTP 客户端
         if self.client:
             import asyncio
+
             try:
                 asyncio.create_task(self.client.aclose())
             except Exception:
@@ -211,9 +213,7 @@ class SiteModule(ModuleBase):
             self.logger.error(f"检查站点状态失败: {e}")
             return False
 
-    async def parse_search_results(
-        self, html: str
-    ) -> list[TorrentResult]:
+    async def parse_search_results(self, html: str) -> list[TorrentResult]:
         """
         解析搜索结果
 
@@ -346,30 +346,33 @@ class SiteModule(ModuleBase):
                 try:
                     # 解析上传时间
                     upload_time = None
-                    if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                    if hasattr(entry, "published_parsed") and entry.published_parsed:
                         upload_time = datetime(*entry.published_parsed[:6])
 
                     # 解析种子大小（从标题或描述中提取）
                     size = 0
-                    if hasattr(entry, 'size'):
+                    if hasattr(entry, "size"):
                         size = entry.size
-                    elif hasattr(entry, 'description'):
+                    elif hasattr(entry, "description"):
                         # 尝试从描述中提取大小
                         import re
-                        size_match = re.search(r'(\d+(?:\.\d+)?)\s*(GB|MB|KB)', entry.description, re.IGNORECASE)
+
+                        size_match = re.search(
+                            r"(\d+(?:\.\d+)?)\s*(GB|MB|KB)", entry.description, re.IGNORECASE
+                        )
                         if size_match:
                             value = float(size_match.group(1))
                             unit = size_match.group(2).upper()
-                            if unit == 'GB':
+                            if unit == "GB":
                                 size = int(value * 1024 * 1024 * 1024)
-                            elif unit == 'MB':
+                            elif unit == "MB":
                                 size = int(value * 1024 * 1024)
-                            elif unit == 'KB':
+                            elif unit == "KB":
                                 size = int(value * 1024)
 
                     # 检查是否免费
                     is_free = False
-                    title_lower = entry.title.lower() if hasattr(entry, 'title') else ""
+                    title_lower = entry.title.lower() if hasattr(entry, "title") else ""
                     if "free" in title_lower or "免费" in title_lower:
                         is_free = True
 
@@ -381,20 +384,20 @@ class SiteModule(ModuleBase):
                         format = "APE"
 
                     # 创建 TorrentResult
-                    torrent_id = getattr(entry, 'id', str(hash(entry.get('link', ''))))
-                    download_url = entry.get('link', '')
-                    title = entry.get('title', '')
+                    torrent_id = getattr(entry, "id", str(hash(entry.get("link", ""))))
+                    download_url = entry.get("link", "")
+                    title = entry.get("title", "")
 
                     # 获取种子数和下载数（如果有）
-                    seeders = getattr(entry, 'seeders', 0)
-                    leechers = getattr(entry, 'leechers', 0)
+                    seeders = getattr(entry, "seeders", 0)
+                    leechers = getattr(entry, "leechers", 0)
 
                     # 如果是 NexusPHP 类型的站点，可能会在 torrent 属性中
-                    if hasattr(entry, 'torrent'):
-                        seeders = getattr(entry.torrent, 'seeders', seeders)
-                        leechers = getattr(entry.torrent, 'leechers', leechers)
-                        size = getattr(entry.torrent, 'contentLength', size)
-                        download_url = getattr(entry.torrent, 'downloadUrl', download_url)
+                    if hasattr(entry, "torrent"):
+                        seeders = getattr(entry.torrent, "seeders", seeders)
+                        leechers = getattr(entry.torrent, "leechers", leechers)
+                        size = getattr(entry.torrent, "contentLength", size)
+                        download_url = getattr(entry.torrent, "downloadUrl", download_url)
 
                     result = TorrentResult(
                         torrent_id=torrent_id,

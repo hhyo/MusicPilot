@@ -2,6 +2,7 @@
 下载器对接链
 处理种子下载器的推送、监控和控制
 """
+
 from datetime import datetime
 
 from app.core.log import logger
@@ -78,7 +79,9 @@ class DownloaderChain:
         # 如果没有找到对应的下载器模块，抛出异常
         raise ValueError(f"未找到下载器 {downloader} 的模块")
 
-    async def get_progress(self, task_id: str, downloader: str = "qbittorrent") -> Optional[DownloadProgress]:
+    async def get_progress(
+        self, task_id: str, downloader: str = "qbittorrent"
+    ) -> Optional[DownloadProgress]:
         """
         获取下载进度
 
@@ -176,7 +179,9 @@ class DownloaderChain:
         # 如果没有找到对应的下载器模块，抛出异常
         raise ValueError(f"未找到下载器 {downloader} 的模块")
 
-    async def remove_torrent(self, task_id: str, downloader: str = "qbittorrent", delete_files: bool = False) -> bool:
+    async def remove_torrent(
+        self, task_id: str, downloader: str = "qbittorrent", delete_files: bool = False
+    ) -> bool:
         """
         删除任务
 

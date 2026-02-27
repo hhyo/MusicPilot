@@ -1,6 +1,7 @@
 """
 数据库初始化脚本
 """
+
 from app.core.log import logger
 from app.db import db_manager
 from app.db.models import Base
@@ -43,4 +44,5 @@ async def close_database():
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(init_database())

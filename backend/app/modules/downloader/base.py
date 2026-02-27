@@ -2,6 +2,7 @@
 下载器基类
 定义下载器接口
 """
+
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, Tuple, List
 from enum import Enum
@@ -11,6 +12,7 @@ from app.core.module import ModuleBase
 
 class DownloadStatus(str, Enum):
     """下载状态"""
+
     PENDING = "pending"
     DOWNLOADING = "downloading"
     COMPLETED = "completed"
@@ -21,6 +23,7 @@ class DownloadStatus(str, Enum):
 
 class DownloadQuality(str, Enum):
     """下载质量"""
+
     LOSSLESS = "lossless"  # 无损 (FLAC)
     HIGH = "high"  # 高品质 (320kbps MP3)
     STANDARD = "standard"  # 标准 (128kbps MP3)
@@ -29,6 +32,7 @@ class DownloadQuality(str, Enum):
 
 class DownloadSource(str, Enum):
     """下载来源"""
+
     NETEASE = "netease"
     QQ = "qq"
     KUGOU = "kugou"
@@ -108,10 +112,7 @@ class DownloaderBase(ModuleBase, ABC):
 
     @abstractmethod
     async def search(
-        self,
-        keyword: str,
-        limit: int = 20,
-        quality: Optional[DownloadQuality] = None
+        self, keyword: str, limit: int = 20, quality: Optional[DownloadQuality] = None
     ) -> list[DownloadTask]:
         """
         搜索音乐
@@ -128,9 +129,7 @@ class DownloaderBase(ModuleBase, ABC):
 
     @abstractmethod
     async def download(
-        self,
-        task: DownloadTask,
-        progress_callback: Optional[callable] = None
+        self, task: DownloadTask, progress_callback: Optional[callable] = None
     ) -> DownloadTask:
         """
         下载音乐
@@ -145,11 +144,7 @@ class DownloaderBase(ModuleBase, ABC):
         pass
 
     @abstractmethod
-    async def get_url(
-        self,
-        url: str,
-        quality: DownloadQuality = DownloadQuality.STANDARD
-    ) -> str:
+    async def get_url(self, url: str, quality: DownloadQuality = DownloadQuality.STANDARD) -> str:
         """
         获取实际下载 URL
 

@@ -2,6 +2,7 @@
 事件管理器
 实现事件的发送、注册、处理，支持消息通知
 """
+
 import asyncio
 from typing import Dict, Callable, List, Any, Optional
 from enum import Enum
@@ -12,6 +13,7 @@ from app.core.log import logger
 
 class EventType(str, Enum):
     """事件类型枚举"""
+
     # 元数据事件
     MetadataRecognized = "metadata.recognized"
     MetadataCompleted = "metadata.completed"
@@ -127,13 +129,7 @@ class EventManager:
         """
         self.send_event(event_type, data)
 
-    def put_message(
-        self,
-        channel: str,
-        title: str,
-        content: str,
-        **kwargs
-    ):
+    def put_message(self, channel: str, title: str, content: str, **kwargs):
         """
         发送消息通知
 
@@ -148,12 +144,7 @@ class EventManager:
         # 发送消息事件
         self.send_event(
             EventType.MessageChannelWeb,
-            {
-                "channel": channel,
-                "title": title,
-                "content": content,
-                **kwargs
-            }
+            {"channel": channel, "title": title, "content": content, **kwargs},
         )
 
 

@@ -2,6 +2,7 @@
 Download Schema
 下载相关的数据模型
 """
+
 from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
@@ -11,6 +12,7 @@ from app.schemas.types import DownloadStatus, DownloaderType
 
 class DownloadBase(BaseModel):
     """Download 基础模型"""
+
     artist: Optional[str] = None
     album: Optional[str] = None
     title: Optional[str] = None
@@ -20,11 +22,13 @@ class DownloadBase(BaseModel):
 
 class DownloadRequest(DownloadBase):
     """下载请求模型"""
+
     pass
 
 
 class DownloadHistoryBase(BaseModel):
     """DownloadHistory 基础模型"""
+
     source: DownloaderType = Field(..., description="下载来源")
     source_id: Optional[str] = None
     artist: Optional[str] = None
@@ -36,6 +40,7 @@ class DownloadHistoryBase(BaseModel):
 
 class DownloadHistoryResponse(DownloadHistoryBase):
     """下载历史响应模型"""
+
     id: int
     status: DownloadStatus
     error_message: Optional[str] = None
@@ -52,6 +57,7 @@ class DownloadHistoryResponse(DownloadHistoryBase):
 
 class DownloadHistoryListResponse(BaseModel):
     """下载历史列表响应模型"""
+
     id: int
     source: str
     artist: Optional[str]
@@ -68,6 +74,7 @@ class DownloadHistoryListResponse(BaseModel):
 
 class DownloadProgress(BaseModel):
     """下载进度响应模型"""
+
     id: int
     status: DownloadStatus
     progress: float = Field(..., description="进度 0.0-1.0")
@@ -79,4 +86,5 @@ class DownloadProgress(BaseModel):
 
 class RetryDownloadRequest(BaseModel):
     """重试下载请求模型"""
+
     pass

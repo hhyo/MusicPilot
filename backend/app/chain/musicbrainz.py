@@ -2,6 +2,7 @@
 MusicBrainz 链
 MusicBrainz 专用链
 """
+
 from typing import List, Dict, Any, Optional
 
 from app.chain import ChainBase

@@ -1,6 +1,7 @@
 """
 Album 操作类
 """
+
 from typing import Optional, List
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,10 +30,7 @@ class AlbumOper(OperBase[Album]):
             return result.scalar_one_or_none()
 
     async def get_by_artist_id(
-        self,
-        artist_id: int,
-        skip: int = 0,
-        limit: int = 100
+        self, artist_id: int, skip: int = 0, limit: int = 100
     ) -> List[Album]:
         """
         获取艺术家的专辑列表
@@ -46,9 +44,7 @@ class AlbumOper(OperBase[Album]):
             专辑列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Album).where(
-                Album.artist_id == artist_id
-            ).offset(skip).limit(limit)
+            query = select(Album).where(Album.artist_id == artist_id).offset(skip).limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
 
@@ -64,12 +60,16 @@ class AlbumOper(OperBase[Album]):
             专辑列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Album).where(
-                or_(
-                    Album.title.ilike(f"%{keyword}%"),
-                    Album.title_pinyin.ilike(f"%{keyword}%"),
+            query = (
+                select(Album)
+                .where(
+                    or_(
+                        Album.title.ilike(f"%{keyword}%"),
+                        Album.title_pinyin.ilike(f"%{keyword}%"),
+                    )
                 )
-            ).limit(limit)
+                .limit(limit)
+            )
             result = await session.execute(query)
             return result.scalars().all()
 
@@ -85,9 +85,7 @@ class AlbumOper(OperBase[Album]):
             专辑列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Album).where(
-                Album.genres.contains(genre)
-            ).limit(limit)
+            query = select(Album).where(Album.genres.contains(genre)).limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
 
@@ -102,9 +100,7 @@ class AlbumOper(OperBase[Album]):
             专辑列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Album).order_by(
-                Album.release_date.desc()
-            ).limit(limit)
+            query = select(Album).order_by(Album.release_date.desc()).limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
 
@@ -119,8 +115,11 @@ class AlbumOper(OperBase[Album]):
             专辑列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Album).where(
-                Album.rating.isnot(None)
-            ).order_by(Album.rating.desc()).limit(limit)
+            query = (
+                select(Album)
+                .where(Album.rating.isnot(None))
+                .order_by(Album.rating.desc())
+                .limit(limit)
+            )
             result = await session.execute(query)
             return result.scalars().all()

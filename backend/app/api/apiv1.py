@@ -1,13 +1,27 @@
 """
 API v1 路由聚合
 """
+
 from fastapi import APIRouter
 
 # 创建 API 路由器
 api_router = APIRouter()
 
 # 注册各模块路由
-from app.api.endpoints import artist, album, track, playlist, library, metadata, covers, stream, player, site, subscribe_release, subscribe
+from app.api.endpoints import (
+    artist,
+    album,
+    track,
+    playlist,
+    library,
+    metadata,
+    covers,
+    stream,
+    player,
+    site,
+    subscribe_release,
+    subscribe,
+)
 
 api_router.include_router(artist.router, prefix="/artists", tags=["artists"])
 api_router.include_router(album.router, prefix="/albums", tags=["albums"])
@@ -29,6 +43,7 @@ api_router.include_router(subscribe.router, prefix="/subscribes", tags=["subscri
 # api_router.include_router(media.router, prefix="/media", tags=["media"])
 # api_router.include_router(system.router, prefix="/system", tags=["system"])
 
+
 # 临时占位路由
 @api_router.get("/")
 async def api_v1_root():
@@ -44,5 +59,5 @@ async def api_v1_root():
             "libraries": "/api/v1/libraries",
             "sites": "/api/v1/sites",
             "subscribe-releases": "/api/v1/subscribes/{subscribe_id}/releases",
-        }
+        },
     }

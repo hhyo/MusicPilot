@@ -1,6 +1,7 @@
 """
 Artist 操作类
 """
+
 from typing import Optional, List
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,12 +41,16 @@ class ArtistOper(OperBase[Artist]):
             艺术家列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Artist).where(
-                or_(
-                    Artist.name.ilike(f"%{keyword}%"),
-                    Artist.name_pinyin.ilike(f"%{keyword}%"),
+            query = (
+                select(Artist)
+                .where(
+                    or_(
+                        Artist.name.ilike(f"%{keyword}%"),
+                        Artist.name_pinyin.ilike(f"%{keyword}%"),
+                    )
                 )
-            ).limit(limit)
+                .limit(limit)
+            )
             result = await session.execute(query)
             return result.scalars().all()
 
@@ -60,9 +65,12 @@ class ArtistOper(OperBase[Artist]):
             艺术家列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Artist).where(
-                Artist.rating.isnot(None)
-            ).order_by(Artist.rating.desc()).limit(limit)
+            query = (
+                select(Artist)
+                .where(Artist.rating.isnot(None))
+                .order_by(Artist.rating.desc())
+                .limit(limit)
+            )
             result = await session.execute(query)
             return result.scalars().all()
 
@@ -78,9 +86,7 @@ class ArtistOper(OperBase[Artist]):
             艺术家列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Artist).where(
-                Artist.genres.contains(genre)
-            ).limit(limit)
+            query = select(Artist).where(Artist.genres.contains(genre)).limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
 

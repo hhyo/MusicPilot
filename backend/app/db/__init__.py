@@ -2,14 +2,11 @@
 数据库基础模块
 提供数据库连接、会话管理和通用操作
 """
+
 from typing import AsyncGenerator, Optional, Type, TypeVar, Generic, List, Dict, Any
 from contextlib import asynccontextmanager
 from datetime import datetime
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    create_async_engine,
-    async_sessionmaker
-)
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy import select, delete, update, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import DateTime
@@ -21,13 +18,17 @@ from app.core.log import logger
 # Base 类用于所有数据库模型
 class Base(DeclarativeBase):
     """所有数据库模型的基类"""
+
     pass
 
 
 class TimestampMixin:
     """时间戳混入类"""
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
 
 
 class DatabaseManager:
@@ -152,17 +153,10 @@ class OperBase(Generic[ModelType]):
             记录对象
         """
         async with self.db_manager.get_session() as session:
-            result = await session.execute(
-                select(self.model).where(self.model.id == id)
-            )
+            result = await session.execute(select(self.model).where(self.model.id == id))
             return result.scalar_one_or_none()
 
-    async def get_all(
-        self,
-        skip: int = 0,
-        limit: int = 100,
-        **filters
-    ) -> List[ModelType]:
+    async def get_all(self, skip: int = 0, limit: int = 100, **filters) -> List[ModelType]:
         """
         获取所有记录
 
@@ -241,9 +235,7 @@ class OperBase(Generic[ModelType]):
             是否删除成功
         """
         async with self.db_manager.get_session() as session:
-            result = await session.execute(
-                delete(self.model).where(self.model.id == id)
-            )
+            result = await session.execute(delete(self.model).where(self.model.id == id))
             await session.commit()
             success = result.rowcount > 0
             if success:

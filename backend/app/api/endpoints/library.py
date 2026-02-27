@@ -2,6 +2,7 @@
 Library API 端点
 音乐库相关 API
 """
+
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +28,6 @@ from app.core.config import settings
 from app.core.log import logger
 import asyncio
 
-
 router = APIRouter()
 
 # 扫描任务状态
@@ -37,12 +37,14 @@ scan_tasks: dict[str, dict] = {}
 def get_library_oper(db: AsyncSession = Depends(get_db)) -> LibraryOper:
     """获取 Library 操作实例"""
     from app.db import db_manager
+
     return LibraryOper(db_manager)
 
 
 def get_track_oper(db: AsyncSession = Depends(get_db)) -> TrackOper:
     """获取 Track 操作实例"""
     from app.db import db_manager
+
     return TrackOper(db_manager)
 
 
@@ -99,11 +101,7 @@ async def recursive_scan(directory: Path, recursive: bool = True) -> List[str]:
     return music_files
 
 
-async def process_file_batch(
-    file_paths: List[str],
-    metadata_chain: MetadataChain,
-    task_id: str
-):
+async def process_file_batch(file_paths: List[str], metadata_chain: MetadataChain, task_id: str):
     """
     批量处理文件（后台任务）
 
@@ -266,6 +264,7 @@ async def scan_library(
 
     # 创建任务 ID
     import time
+
     task_id = f"scan_{library_id}_{int(time.time())}"
 
     # 初始化任务状态
@@ -326,7 +325,7 @@ async def scan_library(
             "task_id": task_id,
             "library_id": library_id,
             "status": "pending",
-        }
+        },
     )
 
 
@@ -345,7 +344,9 @@ async def get_scan_status(library_id: int):
     latest_task = None
     for task_id, task_data in scan_tasks.items():
         if task_data.get("library_id") == library_id:
-            if latest_task is None or task_data.get("started_at", 0) > latest_task.get("started_at", 0):
+            if latest_task is None or task_data.get("started_at", 0) > latest_task.get(
+                "started_at", 0
+            ):
                 latest_task = task_data
 
     if not latest_task:

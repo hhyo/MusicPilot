@@ -1,6 +1,7 @@
 """
 Site 操作类
 """
+
 from typing import Optional, List
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,10 +36,11 @@ class SiteOper(OperBase[Site]):
             站点列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(Site).where(
-                Site.downloader == downloader,
-                Site.enabled == True
-            ).order_by(Site.priority.desc())
+            query = (
+                select(Site)
+                .where(Site.downloader == downloader, Site.enabled == True)
+                .order_by(Site.priority.desc())
+            )
             result = await session.execute(query)
             return result.scalars().all()
 
@@ -73,9 +75,7 @@ class SiteOper(OperBase[Site]):
             更新后的站点对象
         """
         async with self.db_manager.get_session() as session:
-            result = await session.execute(
-                select(Site).where(Site.id == id)
-            )
+            result = await session.execute(select(Site).where(Site.id == id))
             site = result.scalar_one_or_none()
             if not site:
                 return None

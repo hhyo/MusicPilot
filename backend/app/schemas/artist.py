@@ -2,6 +2,7 @@
 Artist Schema
 艺术家相关的数据模型
 """
+
 from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field
@@ -9,6 +10,7 @@ from pydantic import BaseModel, Field
 
 class ArtistBase(BaseModel):
     """Artist 基础模型"""
+
     musicbrainz_id: Optional[str] = None
     name: str = Field(..., description="艺术家名称")
     name_pinyin: Optional[str] = None
@@ -28,11 +30,13 @@ class ArtistBase(BaseModel):
 
 class ArtistCreate(ArtistBase):
     """创建艺术家请求模型"""
+
     pass
 
 
 class ArtistUpdate(BaseModel):
     """更新艺术家请求模型"""
+
     name: Optional[str] = None
     name_pinyin: Optional[str] = None
     sort_name: Optional[str] = None
@@ -51,6 +55,7 @@ class ArtistUpdate(BaseModel):
 
 class ArtistResponse(ArtistBase):
     """艺术家响应模型"""
+
     id: int
     created_at: datetime
     updated_at: datetime
@@ -61,6 +66,7 @@ class ArtistResponse(ArtistBase):
 
 class ArtistListResponse(BaseModel):
     """艺术家列表响应模型"""
+
     id: int
     musicbrainz_id: Optional[str]
     name: str

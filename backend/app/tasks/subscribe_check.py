@@ -2,6 +2,7 @@
 订阅检查定时任务
 定期检查所有订阅，发现新内容并自动下载
 """
+
 from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -51,10 +52,10 @@ class SubscribeCheckTask:
         """
         self.scheduler.add_job(
             self.check_subscriptions,
-            'interval',
+            "interval",
             minutes=interval_minutes,
-            id='subscribe_check',
-            name='订阅检查任务',
+            id="subscribe_check",
+            name="订阅检查任务",
             replace_existing=True,
         )
 

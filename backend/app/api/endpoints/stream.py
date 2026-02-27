@@ -2,6 +2,7 @@
 音频流 API 端点
 音频文件流式传输
 """
+
 from typing import Optional
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
@@ -14,13 +15,13 @@ from app.core.config import settings
 from app.core.log import logger
 from app.schemas.response import ResponseModel
 
-
 router = APIRouter()
 
 
 def get_track_oper(db: AsyncSession = Depends(get_db)) -> TrackOper:
     """获取 Track 操作实例"""
     from app.db import db_manager
+
     return TrackOper(db_manager)
 
 
@@ -127,10 +128,7 @@ async def stream_track(
     # 检查是否需要格式转换（暂时不支持转换，直接返回原格式）
     # TODO: 使用 ffmpeg 实现音频格式转换
     if format and format.lower() != file_format.lower():
-        raise HTTPException(
-            status_code=400,
-            detail=f"格式转换暂未实现，当前格式: {file_format}"
-        )
+        raise HTTPException(status_code=400, detail=f"格式转换暂未实现，当前格式: {file_format}")
 
     # 解析 Range 请求头
     range_header = request.headers.get("Range")
@@ -146,10 +144,12 @@ async def stream_track(
     # 如果是 Range 请求，返回部分内容
     if range_header:
         content_length = end - start + 1
-        headers.update({
-            "Content-Range": f"bytes {start}-{end}/{file_size}",
-            "Content-Length": str(content_length),
-        })
+        headers.update(
+            {
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Content-Length": str(content_length),
+            }
+        )
         status_code = 206  # Partial Content
     else:
         content_length = file_size

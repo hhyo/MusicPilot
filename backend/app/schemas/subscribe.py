@@ -2,6 +2,7 @@
 Subscribe Schema
 订阅相关的数据模型
 """
+
 from typing import Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
@@ -9,8 +10,11 @@ from pydantic import BaseModel, Field
 
 class SubscribeBase(BaseModel):
     """Subscribe 基础模型"""
+
     type: str = Field(..., description="订阅类型：artist, album, playlist, chart")
-    source_type: str = Field(default="musicbrainz", description="来源类型：musicbrainz, netease, qq")
+    source_type: str = Field(
+        default="musicbrainz", description="来源类型：musicbrainz, netease, qq"
+    )
     musicbrainz_id: Optional[str] = None
     playlist_id: Optional[str] = None
     name: str = Field(..., description="订阅名称")
@@ -22,11 +26,13 @@ class SubscribeBase(BaseModel):
 
 class SubscribeCreate(SubscribeBase):
     """创建订阅请求模型"""
+
     pass
 
 
 class SubscribeUpdate(BaseModel):
     """更新订阅请求模型"""
+
     name: Optional[str] = None
     description: Optional[str] = None
     auto_download: Optional[bool] = None
@@ -37,6 +43,7 @@ class SubscribeUpdate(BaseModel):
 
 class SubscribeResponse(SubscribeBase):
     """订阅响应模型"""
+
     id: int
     last_check: Optional[str] = None
     last_release: Optional[str] = None
@@ -51,6 +58,7 @@ class SubscribeResponse(SubscribeBase):
 
 class SubscribeListResponse(BaseModel):
     """订阅列表响应模型"""
+
     id: int
     type: str
     source_type: str
@@ -67,6 +75,7 @@ class SubscribeListResponse(BaseModel):
 
 class CheckSubscribeResponse(BaseModel):
     """检查订阅响应模型"""
+
     has_new_releases: bool = Field(..., description="是否有新发布")
     new_releases_count: int = Field(default=0, description="新发布数量")
     last_check: str

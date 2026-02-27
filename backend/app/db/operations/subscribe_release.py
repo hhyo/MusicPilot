@@ -1,6 +1,7 @@
 """
 SubscribeRelease 操作类
 """
+
 from typing import Optional, List
 from datetime import datetime
 from sqlalchemy import select, and_, func
@@ -13,7 +14,9 @@ from app.db import OperBase
 class SubscribeReleaseOper(OperBase[SubscribeRelease]):
     """SubscribeRelease 操作类"""
 
-    async def get_by_subscribe_id(self, subscribe_id: int, limit: int = 100) -> List[SubscribeRelease]:
+    async def get_by_subscribe_id(
+        self, subscribe_id: int, limit: int = 100
+    ) -> List[SubscribeRelease]:
         """
         根据订阅 ID 获取发布记录
 
@@ -25,17 +28,17 @@ class SubscribeReleaseOper(OperBase[SubscribeRelease]):
             发布记录列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(SubscribeRelease).where(
-                SubscribeRelease.subscribe_id == subscribe_id
-            ).order_by(SubscribeRelease.created_at.desc()).limit(limit)
+            query = (
+                select(SubscribeRelease)
+                .where(SubscribeRelease.subscribe_id == subscribe_id)
+                .order_by(SubscribeRelease.created_at.desc())
+                .limit(limit)
+            )
             result = await session.execute(query)
             return result.scalars().all()
 
     async def get_by_status(
-        self,
-        download_status: str,
-        subscribe_id: Optional[int] = None,
-        limit: int = 100
+        self, download_status: str, subscribe_id: Optional[int] = None, limit: int = 100
     ) -> List[SubscribeRelease]:
         """
         根据下载状态获取发布记录
@@ -98,10 +101,7 @@ class SubscribeReleaseOper(OperBase[SubscribeRelease]):
             return result.scalar_one_or_none()
 
     async def update_download_status(
-        self,
-        id: int,
-        download_status: str,
-        error_message: Optional[str] = None
+        self, id: int, download_status: str, error_message: Optional[str] = None
     ) -> Optional[SubscribeRelease]:
         """
         更新下载状态
@@ -155,7 +155,7 @@ class SubscribeReleaseOper(OperBase[SubscribeRelease]):
                 select(func.count(SubscribeRelease.id)).where(
                     and_(
                         SubscribeRelease.subscribe_id == subscribe_id,
-                        SubscribeRelease.download_status == "pending"
+                        SubscribeRelease.download_status == "pending",
                     )
                 )
             )
@@ -164,7 +164,7 @@ class SubscribeReleaseOper(OperBase[SubscribeRelease]):
                 select(func.count(SubscribeRelease.id)).where(
                     and_(
                         SubscribeRelease.subscribe_id == subscribe_id,
-                        SubscribeRelease.download_status == "downloading"
+                        SubscribeRelease.download_status == "downloading",
                     )
                 )
             )
@@ -173,7 +173,7 @@ class SubscribeReleaseOper(OperBase[SubscribeRelease]):
                 select(func.count(SubscribeRelease.id)).where(
                     and_(
                         SubscribeRelease.subscribe_id == subscribe_id,
-                        SubscribeRelease.download_status == "completed"
+                        SubscribeRelease.download_status == "completed",
                     )
                 )
             )
@@ -182,7 +182,7 @@ class SubscribeReleaseOper(OperBase[SubscribeRelease]):
                 select(func.count(SubscribeRelease.id)).where(
                     and_(
                         SubscribeRelease.subscribe_id == subscribe_id,
-                        SubscribeRelease.download_status == "failed"
+                        SubscribeRelease.download_status == "failed",
                     )
                 )
             )

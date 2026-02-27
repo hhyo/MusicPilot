@@ -1,6 +1,7 @@
 """
 Playlist 数据库模型
 """
+
 from sqlalchemy import String, Text, Integer, JSON, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base, TimestampMixin
@@ -9,6 +10,7 @@ from app.core.context import PlaylistType
 
 class Playlist(Base, TimestampMixin):
     """播放列表模型"""
+
     __tablename__ = "playlists"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -31,7 +33,9 @@ class Playlist(Base, TimestampMixin):
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # 关联曲目（反向关系）
-    tracks: Mapped[list] = relationship("PlaylistTrack", back_populates="playlist", cascade="all, delete-orphan")
+    tracks: Mapped[list] = relationship(
+        "PlaylistTrack", back_populates="playlist", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Playlist(id={self.id}, name='{self.name}', type='{self.type}')>"
@@ -39,13 +43,18 @@ class Playlist(Base, TimestampMixin):
 
 class PlaylistTrack(Base, TimestampMixin):
     """播放列表曲目关联模型"""
+
     __tablename__ = "playlist_tracks"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # 关联
-    playlist_id: Mapped[int] = mapped_column(Integer, ForeignKey("playlists.id"), nullable=False, index=True)
-    track_id: Mapped[int] = mapped_column(Integer, ForeignKey("tracks.id"), nullable=False, index=True)
+    playlist_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("playlists.id"), nullable=False, index=True
+    )
+    track_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tracks.id"), nullable=False, index=True
+    )
 
     # 排序
     position: Mapped[int] = mapped_column(Integer, nullable=False)

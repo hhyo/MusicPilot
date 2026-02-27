@@ -2,6 +2,7 @@
 配置模块
 基于 Pydantic Settings 的配置管理
 """
+
 from typing import Optional, List
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -12,11 +13,9 @@ class Settings(BaseSettings):
     应用配置模型
     使用 Pydantic Settings 管理所有配置项
     """
+
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="allow"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="allow"
     )
 
     # 应用配置

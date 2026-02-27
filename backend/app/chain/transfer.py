@@ -2,6 +2,7 @@
 转移链
 处理下载后文件整理
 """
+
 from typing import Optional
 from pathlib import Path
 from hashlib import md5
@@ -22,14 +23,13 @@ class TransferChain(ChainBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from app.core.config import settings
+
         self.media_dir = Path(settings.media_path)
         self.logger = logger
         self.track_oper = TrackOper(self.db_manager)
 
     async def organize(
-        self,
-        task: DownloadTask,
-        check_duplicate: bool = True
+        self, task: DownloadTask, check_duplicate: bool = True
     ) -> Optional[MusicInfo]:
         """
         整理下载的文件
@@ -122,16 +122,14 @@ class TransferChain(ChainBase):
         # 如果文件已存在，添加序号
         counter = 1
         while target_path.exists():
-            target_path = self.media_dir / safe_artist / safe_album / f"{safe_title}_{counter}{source_ext}"
+            target_path = (
+                self.media_dir / safe_artist / safe_album / f"{safe_title}_{counter}{source_ext}"
+            )
             counter += 1
 
         return target_path
 
-    async def _check_duplicate(
-        self,
-        file_path: Path,
-        task: DownloadTask
-    ) -> Optional[dict]:
+    async def _check_duplicate(self, file_path: Path, task: DownloadTask) -> Optional[dict]:
         """
         检查文件是否重复
 
@@ -157,9 +155,7 @@ class TransferChain(ChainBase):
         file_size = file_path.stat().st_size
         duration = task.metadata.get("duration")
 
-        existing_tracks = await self.track_oper.get_by_size_and_duration(
-            file_size, duration
-        )
+        existing_tracks = await self.track_oper.get_by_size_and_duration(file_size, duration)
         if existing_tracks:
             return {
                 "type": "size_duration",
@@ -207,11 +203,7 @@ class TransferChain(ChainBase):
 
         return hash_md5.hexdigest()
 
-    async def _complete_metadata(
-        self,
-        music_info: MusicInfo,
-        task: DownloadTask
-    ):
+    async def _complete_metadata(self, music_info: MusicInfo, task: DownloadTask):
         """
         调用 MetadataChain 补全元数据
 
@@ -254,10 +246,7 @@ class TransferChain(ChainBase):
             self.logger.warning(f"媒体服务器同步失败（可忽略）: {e}")
 
     async def _send_transfer_event(
-        self,
-        task: DownloadTask,
-        success: bool,
-        error: Optional[str] = None
+        self, task: DownloadTask, success: bool, error: Optional[str] = None
     ):
         """
         发送转移事件
@@ -279,7 +268,7 @@ class TransferChain(ChainBase):
                 "file_path": task.file_path,
                 "success": success,
                 "error": error,
-            }
+            },
         )
 
     def _sanitize_filename(self, filename: str) -> str:
@@ -293,8 +282,9 @@ class TransferChain(ChainBase):
             清理后的文件名
         """
         import re
+
         # 移除不安全字符
-        safe = re.sub(r'[<>:"/\\|?*]', '', filename)
+        safe = re.sub(r'[<>:"/\\|?*]', "", filename)
         # 替换多个空格为单个空格
-        safe = re.sub(r'\s+', ' ', safe).strip()
+        safe = re.sub(r"\s+", " ", safe).strip()
         return safe or "Unknown"

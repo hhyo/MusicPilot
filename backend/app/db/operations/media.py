@@ -1,6 +1,7 @@
 """
 MediaServer 操作类
 """
+
 from typing import Optional, List
 from sqlalchemy import select
 
@@ -12,7 +13,9 @@ from app.core.context import MediaServerType
 class MediaServerOper(OperBase[MediaServer]):
     """MediaServer 操作类"""
 
-    async def get_by_type(self, server_type: MediaServerType, skip: int = 0, limit: int = 100) -> List[MediaServer]:
+    async def get_by_type(
+        self, server_type: MediaServerType, skip: int = 0, limit: int = 100
+    ) -> List[MediaServer]:
         """
         根据类型获取媒体服务器
 
@@ -52,9 +55,7 @@ class MediaServerOper(OperBase[MediaServer]):
             媒体服务器列表
         """
         async with self.db_manager.get_session() as session:
-            query = select(MediaServer).where(
-                MediaServer.name.ilike(f"%{keyword}%")
-            ).limit(limit)
+            query = select(MediaServer).where(MediaServer.name.ilike(f"%{keyword}%")).limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
 

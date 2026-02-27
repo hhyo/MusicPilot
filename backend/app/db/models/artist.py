@@ -1,6 +1,7 @@
 """
 Artist 数据库模型
 """
+
 from sqlalchemy import String, Text, Integer, Float, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base, TimestampMixin
@@ -8,6 +9,7 @@ from app.db import Base, TimestampMixin
 
 class Artist(Base, TimestampMixin):
     """艺术家模型"""
+
     __tablename__ = "artists"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

@@ -2,6 +2,7 @@
 Track Schema
 曲目相关的数据模型
 """
+
 from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field
@@ -9,6 +10,7 @@ from pydantic import BaseModel, Field
 
 class TrackBase(BaseModel):
     """Track 基础模型"""
+
     musicbrainz_id: Optional[str] = None
     album_id: Optional[int] = None
     artist_id: Optional[int] = None
@@ -33,11 +35,13 @@ class TrackBase(BaseModel):
 
 class TrackCreate(TrackBase):
     """创建曲目请求模型"""
+
     pass
 
 
 class TrackUpdate(BaseModel):
     """更新曲目请求模型"""
+
     album_id: Optional[int] = None
     artist_id: Optional[int] = None
     featured_artist_ids: Optional[List[int]] = None
@@ -61,6 +65,7 @@ class TrackUpdate(BaseModel):
 
 class TrackResponse(TrackBase):
     """曲目响应模型"""
+
     id: int
     play_count: Optional[int] = None
     last_played: Optional[str] = None
@@ -73,6 +78,7 @@ class TrackResponse(TrackBase):
 
 class TrackListResponse(BaseModel):
     """曲目列表响应模型"""
+
     id: int
     musicbrainz_id: Optional[str]
     album_id: Optional[int]
@@ -91,6 +97,7 @@ class TrackListResponse(BaseModel):
 
 class TrackStreamInfo(BaseModel):
     """曲目流媒体信息"""
+
     id: int
     title: str
     duration: int

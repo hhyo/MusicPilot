@@ -2,6 +2,7 @@
 插件管理器
 管理插件的启动、停止、重载、事件处理
 """
+
 from typing import Dict, List, Optional, Any, Type
 from pathlib import Path
 import importlib.util
@@ -188,10 +189,7 @@ class PluginManager:
         Returns:
             运行中的插件列表
         """
-        return [
-            plugin for plugin in self._plugins.values()
-            if plugin.is_enabled()
-        ]
+        return [plugin for plugin in self._plugins.values() if plugin.is_enabled()]
 
     def get_running_plugins_by_type(self, plugin_type: str) -> List[PluginBase]:
         """
@@ -204,7 +202,8 @@ class PluginManager:
             运行中的插件列表（按优先级降序）
         """
         plugins = [
-            plugin for plugin in self._plugins.values()
+            plugin
+            for plugin in self._plugins.values()
             if plugin.is_enabled() and plugin.plugin_type == plugin_type
         ]
         # 按优先级降序排序
@@ -273,8 +272,7 @@ class PluginManager:
             try:
                 # 动态导入插件模块
                 spec = importlib.util.spec_from_file_location(
-                    f"plugin_{plugin_path.name}",
-                    plugin_file
+                    f"plugin_{plugin_path.name}", plugin_file
                 )
                 if spec and spec.loader:
                     module = importlib.util.module_from_spec(spec)

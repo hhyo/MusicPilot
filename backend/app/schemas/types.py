@@ -2,11 +2,13 @@
 类型枚举
 定义所有枚举类型
 """
+
 from enum import Enum
 
 
 class EventType(str, Enum):
     """事件类型枚举"""
+
     # 元数据事件
     METADATA_RECOGNIZED = "metadata.recognized"
     METADATA_COMPLETED = "metadata.completed"
@@ -48,6 +50,7 @@ class EventType(str, Enum):
 
 class DownloadStatus(str, Enum):
     """下载状态枚举"""
+
     PENDING = "pending"
     DOWNLOADING = "downloading"
     COMPLETED = "completed"
@@ -57,6 +60,7 @@ class DownloadStatus(str, Enum):
 
 class MediaType(str, Enum):
     """媒体类型枚举"""
+
     AUDIO = "audio"
     VIDEO = "video"
     IMAGE = "image"
@@ -64,12 +68,14 @@ class MediaType(str, Enum):
 
 class PlaylistType(str, Enum):
     """播放列表类型枚举"""
+
     NORMAL = "normal"
     SMART = "smart"
 
 
 class DownloaderType(str, Enum):
     """下载器类型枚举"""
+
     NETEASE = "netease"
     QQ = "qq"
     KUGOU = "kugou"
@@ -79,6 +85,7 @@ class DownloaderType(str, Enum):
 
 class MediaServerType(str, Enum):
     """媒体服务器类型枚举"""
+
     PLEX = "plex"
     JELLYFIN = "jellyfin"
     EMBY = "emby"
@@ -86,6 +93,7 @@ class MediaServerType(str, Enum):
 
 class MessageChannel(str, Enum):
     """消息渠道枚举"""
+
     WEB = "web"
     TELEGRAM = "telegram"
     SLACK = "slack"
@@ -94,6 +102,7 @@ class MessageChannel(str, Enum):
 
 class NotificationType(str, Enum):
     """通知类型枚举"""
+
     INFO = "info"
     SUCCESS = "success"
     WARNING = "warning"
