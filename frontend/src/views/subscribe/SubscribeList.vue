@@ -62,7 +62,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { NList, NListItem, NListItemHeader, NListItemMeta, NSpace, NButton, NTag, NIcon, NText, NSpin, NEmpty, useMessage } from 'naive-ui'
+import { NList, NListItem, NSpace, NButton, NTag, NIcon, NText, NSpin, NEmpty, useMessage } from 'naive-ui'
 import { RefreshOutline as RefreshIcon, PersonOutline as ArtistIcon, DiscOutline as AlbumIcon, MusicalNotesOutline as PlaylistIcon, RibbonOutline as ChartIcon } from '@vicons/ionicons5'
 import * as subscribeApi from '@/api/subscribe'
 
