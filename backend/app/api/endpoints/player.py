@@ -122,7 +122,7 @@ async def play_track(
 
 @router.post("/pause", response_model=ResponseModel[dict])
 async def pause(
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     playback_chain: PlaybackChain = Depends(get_playback_chain),
 ):
     """
