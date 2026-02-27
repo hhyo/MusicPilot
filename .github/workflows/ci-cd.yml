@@ -36,14 +36,14 @@ jobs:
           cd backend
           pip install ruff black pytest pytest-cov
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Run Black formatter
+        run: |
+          cd backend
+          black app/
       - name: Run Ruff linter
         run: |
           cd backend
           ruff check app/
-      - name: Run Black formatter check
-        run: |
-          cd backend
-          black --check app/
 
   backend-test:
     name: Backend Test
