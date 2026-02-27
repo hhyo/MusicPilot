@@ -4,6 +4,7 @@ MusicBrainz 模块
 """
 
 import time
+from typing import Any
 
 from musicbrainzngs import (
     get_artist_by_id,
@@ -15,6 +16,9 @@ from musicbrainzngs import (
     search_release_groups,
     set_useragent,
 )
+
+from app.core.config import settings
+from app.modules.module_base import ModuleBase
 
 
 class MusicBrainzModule(ModuleBase):
