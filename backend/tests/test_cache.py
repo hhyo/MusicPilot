@@ -3,13 +3,14 @@ FileCache 单元测试
 测试文件缓存功能
 """
 
+import asyncio
 import tempfile
 from pathlib import Path
-from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 
-from app.core.cache import FileCache, AsyncFileCache
+from app.core.cache import AsyncFileCache, FileCache
 
 
 class TestFileCache:
@@ -26,171 +27,183 @@ class TestFileCache:
         """创建 FileCache 实例"""
         return FileCache(cache_dir, default_ttl=3600)
 
-    # ==================== 基本操作测试 ====================
+    # ==================== __init__ 测试 ====================
+
+    def test_init_creates_directory(self, cache_dir):
+        """测试初始化创建目录"""
+        new_dir = Path(cache_dir) / "new_cache"
+        assert not new_dir.exists()
+
+        FileCache(new_dir)
+
+        assert new_dir.exists()
+
+    def test_init_default_ttl(self, cache_dir):
+        """测试默认 TTL 设置"""
+        cache = FileCache(cache_dir, default_ttl=7200)
+
+        assert cache.default_ttl == 7200
+
+    # ==================== set/get 测试 ====================
 
     def test_set_and_get(self, cache):
-        """测试基本的设置和获取"""
-        cache.set("test_key", "test_value")
-        result = cache.get("test_key")
-        assert result == "test_value"
+        """测试设置和获取缓存"""
+        cache.set("test_key", {"data": "value"})
 
-    def test_get_nonexistent(self, cache):
+        result = cache.get("test_key")
+
+        assert result == {"data": "value"}
+
+    def test_get_nonexistent_key(self, cache):
         """测试获取不存在的缓存"""
-        result = cache.get("nonexistent_key")
+        result = cache.get("nonexistent")
+
         assert result is None
 
     def test_set_with_custom_ttl(self, cache):
         """测试设置自定义 TTL"""
-        cache.set("ttl_key", "ttl_value", ttl=60)
-        result = cache.get("ttl_key")
-        assert result == "ttl_value"
+        cache.set("test_key", "value", ttl=60)
 
-    def test_set_with_zero_ttl(self, cache):
-        """测试 TTL=0 时不过期"""
-        cache.set("zero_ttl_key", "value", ttl=0)
-        result = cache.get("zero_ttl_key")
-        # TTL=0 应该不会设置过期时间
+        result = cache.get("test_key")
         assert result == "value"
 
-    # ==================== 删除测试 ====================
+    def test_set_with_zero_ttl(self, cache):
+        """测试 TTL 为 0 时缓存不过期"""
+        cache.set("test_key", "value", ttl=0)
 
-    def test_delete_existing(self, cache):
-        """测试删除存在的缓存"""
-        cache.set("delete_key", "value")
-        assert cache.exists("delete_key")
+        result = cache.get("test_key")
+        # TTL=0 意味着永不过期，应该能获取到
+        assert result == "value"
+
+    def test_get_expired_cache(self, cache):
+        """测试获取过期的缓存"""
+        # 设置一个短 TTL 并等待过期
+        cache.set("test_key", "value", ttl=1)
         
-        cache.delete("delete_key")
-        assert not cache.exists("delete_key")
+        # 立即获取应该有值
+        result_immediate = cache.get("test_key")
+        assert result_immediate == "value"
+        
+        # 等待过期
+        import time
+        time.sleep(1.5)
+        
+        result = cache.get("test_key")
+        assert result is None
 
-    def test_delete_nonexistent(self, cache):
-        """测试删除不存在的缓存"""
-        # 应该不会抛出异常
+    def test_set_overwrite(self, cache):
+        """测试覆盖缓存"""
+        cache.set("test_key", "value1")
+        cache.set("test_key", "value2")
+
+        result = cache.get("test_key")
+
+        assert result == "value2"
+
+    # ==================== delete 测试 ====================
+
+    def test_delete_existing_cache(self, cache):
+        """测试删除存在的缓存"""
+        cache.set("test_key", "value")
+        cache.delete("test_key")
+
+        result = cache.get("test_key")
+        assert result is None
+
+    def test_delete_nonexistent_cache(self, cache):
+        """测试删除不存在的缓存（不应报错）"""
+        # 不应抛出异常
         cache.delete("nonexistent_key")
 
     # ==================== exists 测试 ====================
 
     def test_exists_true(self, cache):
-        """测试存在检查返回 True"""
-        cache.set("exists_key", "value")
-        assert cache.exists("exists_key")
+        """测试缓存存在"""
+        cache.set("test_key", "value")
+
+        assert cache.exists("test_key") is True
 
     def test_exists_false(self, cache):
-        """测试存在检查返回 False"""
-        assert not cache.exists("nonexistent_key")
+        """测试缓存不存在"""
+        assert cache.exists("nonexistent") is False
 
-    # ==================== 清空测试 ====================
+    # ==================== clear 测试 ====================
 
     def test_clear(self, cache):
-        """测试清空所有缓存"""
+        """测试清空缓存"""
         cache.set("key1", "value1")
         cache.set("key2", "value2")
-        cache.set("key3", "value3")
-        
-        cache.clear()
-        
-        assert not cache.exists("key1")
-        assert not cache.exists("key2")
-        assert not cache.exists("key3")
 
-    # ==================== 大小测试 ====================
+        cache.clear()
+
+        assert cache.get("key1") is None
+        assert cache.get("key2") is None
+
+    # ==================== get_size 测试 ====================
 
     def test_get_size_empty(self, cache):
-        """测试空缓存的大小"""
-        assert cache.get_size() == 0
+        """测试空缓存大小"""
+        size = cache.get_size()
+
+        assert size == 0
 
     def test_get_size_with_data(self, cache):
         """测试有数据时的缓存大小"""
-        cache.set("key1", "value1")
-        cache.set("key2", "value2")
-        
+        cache.set("key1", "a" * 100)
+        cache.set("key2", "b" * 200)
+
         size = cache.get_size()
+
+        # 大小应该大于 0
         assert size > 0
 
-    # ==================== 过期测试 ====================
+    # ==================== cleanup_expired 测试 ====================
 
-    def test_expired_cache(self, cache_dir):
-        """测试过期缓存"""
-        # 创建短 TTL 的缓存
-        cache = FileCache(cache_dir, default_ttl=1)
-        cache.set("expire_key", "expire_value", ttl=1)
-        
-        # 立即获取应该成功
-        assert cache.get("expire_key") == "expire_value"
-        
-        # 等待过期
-        import time
-        time.sleep(2)
-        
-        # 过期后应该返回 None
-        assert cache.get("expire_key") is None
-
-    def test_cleanup_expired(self, cache_dir):
+    def test_cleanup_expired(self, cache):
         """测试清理过期缓存"""
         import time
         
-        cache = FileCache(cache_dir, default_ttl=1)
-        cache.set("key1", "value1", ttl=1)
-        cache.set("key2", "value2", ttl=3600)  # 不会过期
+        cache.set("keep", "value1", ttl=3600)  # 不过期
+        cache.set("expire", "value2", ttl=1)   # 1秒后过期
         
         # 等待过期
-        time.sleep(2)
-        
+        time.sleep(1.5)
+
         cache.cleanup_expired()
-        
-        # key1 应该被清理
-        assert cache.get("key1") is None
-        # key2 应该还在
-        assert cache.get("key2") == "value2"
 
-    # ==================== 复杂数据类型测试 ====================
+        assert cache.exists("keep") is True
+        assert cache.exists("expire") is False
 
-    def test_dict_value(self, cache):
-        """测试存储字典"""
-        data = {"name": "test", "value": 123}
-        cache.set("dict_key", data)
-        result = cache.get("dict_key")
-        assert result == data
-
-    def test_list_value(self, cache):
-        """测试存储列表"""
-        data = [1, 2, 3, "four"]
-        cache.set("list_key", data)
-        result = cache.get("list_key")
-        assert result == data
-
-    def test_object_value(self, cache):
-        """测试存储自定义对象（pickle 需要 top-level class）"""
-        # 跳过：本地类无法被 pickle 序列化
-        pytest.skip("Local classes cannot be pickled")
-        """测试存储自定义对象"""
-        class TestObject:
-            def __init__(self, value):
-                self.value = value
-        
-        obj = TestObject(42)
-        cache.set("obj_key", obj)
-        result = cache.get("obj_key")
-        assert result.value == 42
-
-    # ==================== 键名处理测试 ====================
+    # ==================== 特殊字符键测试 ====================
 
     def test_special_characters_in_key(self, cache):
-        """测试键名包含特殊字符"""
-        cache.set("key/with/slashes", "value1")
-        cache.set("key:with:colons", "value2")
-        cache.set("key with spaces", "value3")
-        
-        assert cache.get("key/with/slashes") == "value1"
-        assert cache.get("key:with:colons") == "value2"
-        assert cache.get("key with spaces") == "value3"
+        """测试键包含特殊字符"""
+        special_key = "key/with: special?chars*and spaces"
+        cache.set(special_key, "value")
 
-    def test_unicode_key(self, cache):
-        """测试 Unicode 键名"""
-        cache.set("中文键", "中文值")
-        cache.set("emoji_key_🎉", "value")
-        
-        assert cache.get("中文键") == "中文值"
-        assert cache.get("emoji_key_🎉") == "value"
+        result = cache.get(special_key)
+
+        assert result == "value"
+
+    # ==================== 复杂类型测试 ====================
+
+    def test_cache_dict(self, cache):
+        """测试缓存字典"""
+        data = {"name": "test", "values": [1, 2, 3]}
+        cache.set("dict_key", data)
+
+        result = cache.get("dict_key")
+
+        assert result == data
+
+    def test_cache_list(self, cache):
+        """测试缓存列表"""
+        data = [1, 2, 3, 4, 5]
+        cache.set("list_key", data)
+
+        result = cache.get("list_key")
+
+        assert result == data
 
 
 class TestAsyncFileCache:
@@ -203,33 +216,60 @@ class TestAsyncFileCache:
             yield tmpdir
 
     @pytest.fixture
-    def async_cache(self, cache_dir):
+    def cache(self, cache_dir):
         """创建 AsyncFileCache 实例"""
-        return AsyncFileCache(cache_dir, default_ttl=3600)
+        return AsyncFileCache(cache_dir)
+
+    # ==================== async_get/set 测试 ====================
 
     @pytest.mark.asyncio
-    async def test_async_set_and_get(self, async_cache):
+    async def test_async_set_and_get(self, cache):
         """测试异步设置和获取"""
-        await async_cache.async_set("async_key", "async_value")
-        result = await async_cache.async_get("async_key")
+        await cache.async_set("async_key", "async_value")
+
+        result = await cache.async_get("async_key")
+
         assert result == "async_value"
 
     @pytest.mark.asyncio
-    async def test_async_delete(self, async_cache):
-        """测试异步删除"""
-        await async_cache.async_set("delete_key", "value")
-        assert await async_cache.async_get("delete_key") == "value"
-        
-        await async_cache.async_delete("delete_key")
-        assert await async_cache.async_get("delete_key") is None
+    async def test_async_get_nonexistent(self, cache):
+        """测试异步获取不存在的缓存"""
+        result = await cache.async_get("nonexistent")
+
+        assert result is None
 
     @pytest.mark.asyncio
-    async def test_async_clear(self, async_cache):
+    async def test_async_delete(self, cache):
+        """测试异步删除"""
+        await cache.async_set("delete_key", "value")
+        await cache.async_delete("delete_key")
+
+        result = await cache.async_get("delete_key")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_async_clear(self, cache):
         """测试异步清空"""
-        await async_cache.async_set("key1", "value1")
-        await async_cache.async_set("key2", "value2")
+        await cache.async_set("key1", "value1")
+        await cache.async_set("key2", "value2")
+
+        await cache.async_clear()
+
+        assert await cache.async_get("key1") is None
+        assert await cache.async_get("key2") is None
+
+    @pytest.mark.asyncio
+    async def test_async_cleanup_expired(self, cache):
+        """测试异步清理过期"""
+        import time
         
-        await async_cache.async_clear()
+        await cache.async_set("keep", "value", ttl=3600)
+        await cache.async_set("expire", "value", ttl=1)
         
-        assert await async_cache.async_get("key1") is None
-        assert await async_cache.async_get("key2") is None
+        # 等待过期
+        await asyncio.sleep(1.5)
+
+        await cache.async_cleanup_expired()
+
+        assert await cache.async_get("keep") == "value"
+        assert await cache.async_get("expire") is None
