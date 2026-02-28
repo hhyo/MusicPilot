@@ -81,9 +81,7 @@ class TestPlaylistChain:
             mock_oper.create = AsyncMock(return_value=mock_playlist)
             mock_oper_class.return_value = mock_oper
 
-            result = await chain.create(
-                "New Playlist", description="Test description"
-            )
+            result = await chain.create("New Playlist", description="Test description")
 
         assert result == 3
 
@@ -93,17 +91,17 @@ class TestPlaylistChain:
     async def test_add_tracks(self, chain):
         """测试添加曲目到播放列表"""
         track_ids = [1, 2, 3]
-        
+
         # Mock get_session as async context manager
         mock_session = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none = MagicMock(return_value=0)
         mock_session.execute = AsyncMock(return_value=mock_result)
-        
+
         @asynccontextmanager
         async def mock_get_session():
             yield mock_session
-        
+
         chain.db_manager.get_session = mock_get_session
 
         with patch("app.db.operations.playlist.PlaylistOper") as mock_oper_class:
@@ -122,11 +120,11 @@ class TestPlaylistChain:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none = MagicMock(return_value=0)
         mock_session.execute = AsyncMock(return_value=mock_result)
-        
+
         @asynccontextmanager
         async def mock_get_session():
             yield mock_session
-        
+
         chain.db_manager.get_session = mock_get_session
 
         with patch("app.db.operations.playlist.PlaylistOper") as mock_oper_class:

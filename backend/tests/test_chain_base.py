@@ -39,9 +39,7 @@ class TestChainBase:
             pass
 
         chain = TestChain(
-            db_manager=mock_db,
-            module_manager=mock_module,
-            plugin_manager=mock_plugin
+            db_manager=mock_db, module_manager=mock_module, plugin_manager=mock_plugin
         )
         assert chain.db_manager == mock_db
         assert chain.module_manager == mock_module
@@ -63,9 +61,7 @@ class TestChainBase:
         chain = TestChain(module_manager=mock_manager)
         result = await chain.run_module("test_module", "test_method", arg1="value1")
 
-        mock_manager.run_module.assert_called_once_with(
-            "test_module", "test_method", arg1="value1"
-        )
+        mock_manager.run_module.assert_called_once_with("test_module", "test_method", arg1="value1")
         assert result == "test_result"
 
     @pytest.mark.asyncio

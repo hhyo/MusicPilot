@@ -79,15 +79,16 @@ class TestFileCache:
         """测试获取过期的缓存"""
         # 设置一个短 TTL 并等待过期
         cache.set("test_key", "value", ttl=1)
-        
+
         # 立即获取应该有值
         result_immediate = cache.get("test_key")
         assert result_immediate == "value"
-        
+
         # 等待过期
         import time
+
         time.sleep(1.5)
-        
+
         result = cache.get("test_key")
         assert result is None
 
@@ -162,10 +163,10 @@ class TestFileCache:
     def test_cleanup_expired(self, cache):
         """测试清理过期缓存"""
         import time
-        
+
         cache.set("keep", "value1", ttl=3600)  # 不过期
-        cache.set("expire", "value2", ttl=1)   # 1秒后过期
-        
+        cache.set("expire", "value2", ttl=1)  # 1秒后过期
+
         # 等待过期
         time.sleep(1.5)
 
@@ -262,10 +263,10 @@ class TestAsyncFileCache:
     async def test_async_cleanup_expired(self, cache):
         """测试异步清理过期"""
         import time
-        
+
         await cache.async_set("keep", "value", ttl=3600)
         await cache.async_set("expire", "value", ttl=1)
-        
+
         # 等待过期
         await asyncio.sleep(1.5)
 

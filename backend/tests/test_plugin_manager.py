@@ -130,7 +130,7 @@ class TestPluginManager:
         """测试获取运行中的插件"""
         mock_event_manager = MagicMock()
         manager = PluginManager(event_manager=mock_event_manager)
-        
+
         plugin1 = TestPlugin()
         plugin1.plugin_id = "plugin1"
         plugin1.enable_event_handler = False
@@ -152,7 +152,7 @@ class TestPluginManager:
         """测试按类型获取运行中的插件"""
         mock_event_manager = MagicMock()
         manager = PluginManager(event_manager=mock_event_manager)
-        
+
         plugin1 = TestPlugin()
         plugin1.plugin_id = "plugin1"
         plugin1.plugin_type = "type1"

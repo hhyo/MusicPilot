@@ -63,9 +63,7 @@ class TestMetadataChain:
             path=str(sample_file),
         )
 
-        with patch.object(
-            chain.metadata_parser, "parse_file", return_value=local_metadata
-        ):
+        with patch.object(chain.metadata_parser, "parse_file", return_value=local_metadata):
             with patch.object(
                 chain.filename_parser,
                 "parse",
@@ -89,9 +87,7 @@ class TestMetadataChain:
         )
 
         with patch.object(chain.metadata_parser, "parse_file", return_value=None):
-            with patch.object(
-                chain.filename_parser, "parse", return_value=filename_metadata
-            ):
+            with patch.object(chain.filename_parser, "parse", return_value=filename_metadata):
                 result = await chain.recognize(str(sample_file))
 
         assert result is not None
@@ -106,9 +102,7 @@ class TestMetadataChain:
         """测试成功提取本地元数据"""
         expected = MusicInfo(artist="Artist", title="Title", path=str(sample_file))
 
-        with patch.object(
-            chain.metadata_parser, "parse_file", return_value=expected
-        ):
+        with patch.object(chain.metadata_parser, "parse_file", return_value=expected):
             result = await chain.extract_local_metadata(sample_file)
 
         assert result is not None
@@ -122,9 +116,7 @@ class TestMetadataChain:
             f.write(b"not audio")
             file_path = Path(f.name)
 
-        with patch.object(
-            chain.metadata_parser, "parse_file", return_value=None
-        ):
+        with patch.object(chain.metadata_parser, "parse_file", return_value=None):
             result = await chain.extract_local_metadata(file_path)
 
         assert result is None
@@ -183,9 +175,7 @@ class TestMetadataChain:
             "type": "Person",
         }
 
-        with patch.object(
-            chain, "run_module", new_callable=AsyncMock
-        ) as mock_run_module:
+        with patch.object(chain, "run_module", new_callable=AsyncMock) as mock_run_module:
             mock_run_module.side_effect = [
                 mock_tracks,
                 mock_track_info,
@@ -202,9 +192,7 @@ class TestMetadataChain:
     @pytest.mark.asyncio
     async def test_query_musicbrainz_not_found(self, chain):
         """测试 MusicBrainz 查询未找到"""
-        with patch.object(
-            chain, "run_module", new_callable=AsyncMock, return_value=[]
-        ):
+        with patch.object(chain, "run_module", new_callable=AsyncMock, return_value=[]):
             result = await chain.query_musicbrainz("Unknown Artist", "Unknown Title")
 
         assert result is None
@@ -214,17 +202,13 @@ class TestMetadataChain:
         """测试带专辑名的 MusicBrainz 查询"""
         mock_tracks = [{"id": "track-1", "title": "Test Track"}]
 
-        with patch.object(
-            chain, "run_module", new_callable=AsyncMock
-        ) as mock_run_module:
+        with patch.object(chain, "run_module", new_callable=AsyncMock) as mock_run_module:
             mock_run_module.side_effect = [
                 mock_tracks,
                 None,
             ]
 
-            result = await chain.query_musicbrainz(
-                "Test Artist", "Test Title", "Test Album"
-            )
+            result = await chain.query_musicbrainz("Test Artist", "Test Title", "Test Album")
 
         assert mock_run_module.call_count >= 1
         first_call = mock_run_module.call_args_list[0]
@@ -302,9 +286,7 @@ class TestMetadataChain:
         """测试无艺术家和标题时跳过在线查询"""
         music_info = MusicInfo(path="/path/to/file.mp3")
 
-        with patch.object(
-            chain, "query_musicbrainz", new_callable=AsyncMock
-        ) as mock_query:
+        with patch.object(chain, "query_musicbrainz", new_callable=AsyncMock) as mock_query:
             try:
                 result = await chain.complete(music_info, fetch_cover=False)
             except AttributeError as e:
@@ -382,9 +364,7 @@ class TestMetadataChain:
             with patch.object(
                 chain, "parse_filename", new_callable=AsyncMock, return_value=mock_metadata
             ):
-                with patch.object(
-                    chain, "merge_metadata", return_value=mock_metadata
-                ):
+                with patch.object(chain, "merge_metadata", return_value=mock_metadata):
                     with patch.object(
                         chain, "complete", new_callable=AsyncMock, return_value=mock_metadata
                     ):
@@ -434,9 +414,9 @@ class TestMetadataChain:
         """测试合并时处理 position 字段"""
         local = sample_music_info
         local.position = 1
-        
+
         filename = MusicInfo(artist="File Artist")
-        
+
         result = chain.merge_metadata(local, filename, None)
-        
+
         assert result.position == 1

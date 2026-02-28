@@ -173,7 +173,7 @@ class TestMediaChain:
         mock_plex.type = "plex"
         mock_jellyfin = MagicMock()
         mock_jellyfin.type = "jellyfin"
-        
+
         session_data = {"track_id": 1}
 
         with patch("app.db.operations.media.MediaServerOper") as mock_media_oper_class:

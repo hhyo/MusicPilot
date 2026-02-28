@@ -83,6 +83,7 @@ class ModuleManager:
             模块实例
         """
         return self._modules.get(module_id)
+
     async def run_module(self, module_id: str, method: str, *args, **kwargs) -> Any:
         """
         运行模块的方法
@@ -110,11 +111,11 @@ class ModuleManager:
         result = method_func(*args, **kwargs)
         # 支持异步方法
         import asyncio
+
         if asyncio.iscoroutine(result):
             return await result
         return result
 
-
     async def run_module(self, module_id: str, method: str, *args, **kwargs) -> Any:
         """
         运行模块的方法
@@ -142,6 +143,7 @@ class ModuleManager:
         result = method_func(*args, **kwargs)
         # 支持异步方法
         import asyncio
+
         if asyncio.iscoroutine(result):
             return await result
         return result

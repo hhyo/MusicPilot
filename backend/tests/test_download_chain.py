@@ -57,13 +57,9 @@ class TestDownloadChain:
         mock_downloader = AsyncMock()
         mock_downloader.search = AsyncMock(return_value=[sample_task])
 
-        with patch.object(
-            chain, "_get_downloader", return_value=mock_downloader
-        ):
+        with patch.object(chain, "_get_downloader", return_value=mock_downloader):
             results = await chain.search(
-                keyword="test song",
-                source=DownloadSource.NETEASE,
-                limit=10
+                keyword="test song", source=DownloadSource.NETEASE, limit=10
             )
 
         assert len(results) == 1
@@ -83,14 +79,12 @@ class TestDownloadChain:
         mock_downloader = AsyncMock()
         mock_downloader.search = AsyncMock(return_value=[sample_task])
 
-        with patch.object(
-            chain, "_get_downloader", return_value=mock_downloader
-        ):
+        with patch.object(chain, "_get_downloader", return_value=mock_downloader):
             results = await chain.search(
                 keyword="test song",
                 source=DownloadSource.NETEASE,
                 limit=10,
-                quality=DownloadQuality.HIGH
+                quality=DownloadQuality.HIGH,
             )
 
         assert len(results) == 1
