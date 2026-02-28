@@ -83,6 +83,68 @@ class ModuleManager:
             模块实例
         """
         return self._modules.get(module_id)
+    async def run_module(self, module_id: str, method: str, *args, **kwargs) -> Any:
+        """
+        运行模块的方法
+
+        Args:
+            module_id: 模块 ID
+            method: 方法名称
+            *args: 位置参数
+            **kwargs: 关键字参数
+
+        Returns:
+            方法返回值
+
+        Raises:
+            ValueError: 模块不存在或方法不存在
+        """
+        module = self.get_module(module_id)
+        if not module:
+            raise ValueError(f"模块不存在: {module_id}")
+
+        method_func = getattr(module, method, None)
+        if not method_func:
+            raise ValueError(f"模块 {module_id} 没有方法 {method}")
+
+        result = method_func(*args, **kwargs)
+        # 支持异步方法
+        import asyncio
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
+
+
+    async def run_module(self, module_id: str, method: str, *args, **kwargs) -> Any:
+        """
+        运行模块的方法
+
+        Args:
+            module_id: 模块 ID
+            method: 方法名称
+            *args: 位置参数
+            **kwargs: 关键字参数
+
+        Returns:
+            方法返回值
+
+        Raises:
+            ValueError: 模块不存在或方法不存在
+        """
+        module = self.get_module(module_id)
+        if not module:
+            raise ValueError(f"模块不存在: {module_id}")
+
+        method_func = getattr(module, method, None)
+        if not method_func:
+            raise ValueError(f"模块 {module_id} 没有方法 {method}")
+
+        result = method_func(*args, **kwargs)
+        # 支持异步方法
+        import asyncio
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
 
     def get_running_modules(self) -> list[ModuleBase]:
         """

@@ -97,12 +97,16 @@ class MusicInfo:
     file_format: str | None = None
     file_size: int | None = None
     bitrate: int | None = None
+    sample_rate: int | None = None
+    channels: int | None = None
+    position: int | None = None
 
     # 元数据
     genres: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     year: int | None = None
     cover_url: str | None = None
+    lyrics: str | None = None
 
     # MusicBrainz 信息
     musicbrainz_artist_id: str | None = None
@@ -110,7 +114,6 @@ class MusicInfo:
     musicbrainz_track_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        """转换为字典"""
         return {
             "artist": self.artist,
             "artist_id": self.artist_id,

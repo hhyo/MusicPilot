@@ -129,7 +129,7 @@ class PluginManager:
     管理所有插件的加载、启动、停止、事件处理
     """
 
-    def __init__(self, event_manager: EventManager):
+    def __init__(self, event_manager: EventManager | None = None):
         self._plugins: dict[str, PluginBase] = {}
         self.event_manager = event_manager
         self.logger = logger

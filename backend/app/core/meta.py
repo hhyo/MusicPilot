@@ -9,7 +9,7 @@ import mutagen
 from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
-from mutagen.ogg import OggVorbis
+from mutagen.oggvorbis import OggVorbis
 from mutagen.wave import WAVE
 
 from app.core.context import MusicInfo

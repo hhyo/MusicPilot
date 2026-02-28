@@ -3,6 +3,10 @@ Chain 层
 业务逻辑链的导出
 """
 
+# 先导出基类，避免循环导入
+from app.core.chain import ChainBase
+
+# 再导出各个 Chain 实现
 from app.chain.download import DownloadChain
 from app.chain.media import MediaChain
 from app.chain.metadata import MetadataChain
@@ -14,14 +18,17 @@ from app.chain.torrents import TorrentInfo, TorrentsChain
 from app.chain.transfer import TransferChain
 
 __all__ = [
-    "MetadataChain",
+    # 基类
+    "ChainBase",
+    # Chain 实现
     "DownloadChain",
-    "TransferChain",
-    "SubscribeChain",
+    "MediaChain",
+    "MetadataChain",
+    "MusicBrainzChain",
     "PlaybackChain",
     "PlaylistChain",
-    "MusicBrainzChain",
-    "MediaChain",
+    "SubscribeChain",
     "TorrentsChain",
     "TorrentInfo",
+    "TransferChain",
 ]
