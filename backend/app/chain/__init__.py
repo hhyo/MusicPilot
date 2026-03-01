@@ -4,7 +4,7 @@ Chain 层
 """
 
 # 先导出基类，避免循环导入
-from app.core.chain import ChainBase
+from app.core.chain import ChainBase  # noqa: I001
 
 # 再导出各个 Chain 实现
 from app.chain.download import DownloadChain

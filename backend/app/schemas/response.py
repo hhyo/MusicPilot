@@ -3,14 +3,14 @@
 定义统一的 API 响应格式
 """
 
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
 T = TypeVar("T")
 
 
-class ResponseModel(BaseModel, Generic[T]):
+class ResponseModel[T](BaseModel):
     """通用响应模型"""
 
     success: bool = True
@@ -18,7 +18,7 @@ class ResponseModel(BaseModel, Generic[T]):
     data: T | None = None
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse[T](BaseModel):
     """分页响应模型"""
 
     success: bool = True

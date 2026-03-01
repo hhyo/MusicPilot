@@ -6,7 +6,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -126,7 +126,7 @@ class DatabaseManager:
 ModelType = TypeVar("ModelType", bound=Base)
 
 
-class OperBase(Generic[ModelType]):
+class OperBase[ModelType: Base]:
     """
     数据库操作基类
     提供通用的 CRUD 操作
