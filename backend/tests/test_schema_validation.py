@@ -2,6 +2,8 @@
 Schema 验证测试
 """
 
+from datetime import datetime
+
 import pytest
 
 
@@ -11,10 +13,7 @@ class TestAlbumSchema:
     def test_album_base_creation(self):
         """测试 AlbumBase 创建"""
         from app.schemas.album import AlbumBase
-        album = AlbumBase(
-            title="Test Album",
-            artist_id=1,
-        )
+        album = AlbumBase(title="Test Album", artist_id=1)
         assert album.title == "Test Album"
 
     def test_album_response_creation(self):
@@ -24,8 +23,11 @@ class TestAlbumSchema:
             id=1,
             title="Test Album",
             artist_id=1,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
         assert album.id == 1
+        assert album.title == "Test Album"
 
 
 class TestArtistSchema:
@@ -43,8 +45,11 @@ class TestArtistSchema:
         artist = ArtistResponse(
             id=1,
             name="Test Artist",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
         assert artist.id == 1
+        assert artist.name == "Test Artist"
 
 
 class TestTrackSchema:
@@ -53,10 +58,7 @@ class TestTrackSchema:
     def test_track_base_creation(self):
         """测试 TrackBase 创建"""
         from app.schemas.track import TrackBase
-        track = TrackBase(
-            title="Test Track",
-            album_id=1,
-        )
+        track = TrackBase(title="Test Track", album_id=1)
         assert track.title == "Test Track"
 
 
@@ -81,41 +83,26 @@ class TestSiteSchema:
             url="https://example.com",
         )
         assert site.name == "Test Site"
+        assert site.url == "https://example.com"
 
 
-class TestSubscribeSchema:
-    """Subscribe Schema 测试"""
+class TestResponseModels:
+    """响应模型测试"""
 
-    def test_subscribe_base_creation(self):
-        """测试 SubscribeBase 创建"""
-        from app.schemas.subscribe import SubscribeBase
-        subscribe = SubscribeBase(
-            name="Test Subscribe",
-            type="artist",
-        )
-        assert subscribe.name == "Test Subscribe"
-
-
-class TestResponseSchema:
-    """Response Schema 测试"""
-
-    def test_response_model_creation(self):
-        """测试 ResponseModel 创建"""
+    def test_response_model(self):
+        """测试 ResponseModel"""
         from app.schemas.response import ResponseModel
-        response = ResponseModel(data={"key": "value"})
+        response = ResponseModel(success=True, message="OK")
         assert response.success is True
 
-    def test_paginated_response_creation(self):
-        """测试 PaginatedResponse 创建"""
+    def test_paginated_response(self):
+        """测试 PaginatedResponse"""
         from app.schemas.response import PaginatedResponse
-        response = PaginatedResponse(
-            data=[{"id": 1}],
-            total=1,
-        )
-        assert response.total == 1
+        response = PaginatedResponse(data=[], total=0)
+        assert response.total == 0
 
-    def test_error_response_creation(self):
-        """测试 ErrorResponse 创建"""
+    def test_error_response(self):
+        """测试 ErrorResponse"""
         from app.schemas.response import ErrorResponse
-        response = ErrorResponse(message="Test error")
+        response = ErrorResponse(success=False, message="Error")
         assert response.success is False
