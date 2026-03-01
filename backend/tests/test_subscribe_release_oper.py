@@ -25,6 +25,24 @@ class TestSubscribeReleaseOper:
         assert SubscribeReleaseOper is not None
 
     @pytest.mark.asyncio
+    async def test_subscribe_release_oper_get_by_id(self, mock_db):
+        """测试通过 ID 获取订阅发布"""
+        from app.db.operations.subscribe_release import SubscribeReleaseOper
+        from app.db.models.subscribe_release import SubscribeRelease
+        
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_release = MagicMock(spec=SubscribeRelease)
+        mock_release.id = 1
+        mock_result.scalar_one_or_none.return_value = mock_release
+        mock_session.execute.return_value = mock_result
+        mock_db.get_session.return_value.__aenter__.return_value = mock_session
+        
+        oper = SubscribeReleaseOper(SubscribeRelease, mock_db)
+        result = await oper.get_by_id(1)
+        assert result is not None
+
+    @pytest.mark.asyncio
     async def test_subscribe_release_oper_get_all(self, mock_db):
         """测试获取所有订阅发布"""
         from app.db.operations.subscribe_release import SubscribeReleaseOper
@@ -43,7 +61,7 @@ class TestSubscribeReleaseOper:
 
     @pytest.mark.asyncio
     async def test_subscribe_release_oper_get_by_subscribe_id(self, mock_db):
-        """测试按订阅 ID 获取发布"""
+        """测试通过订阅 ID 获取发布"""
         from app.db.operations.subscribe_release import SubscribeReleaseOper
         from app.db.models.subscribe_release import SubscribeRelease
         
