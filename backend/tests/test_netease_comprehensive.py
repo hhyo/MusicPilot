@@ -40,9 +40,12 @@ class TestNeteaseDownloadMethods:
     def test_download_status_values(self):
         """测试下载状态值"""
         from app.modules.downloader_module import DownloadStatus
+        # 检查实际存在的枚举值
         assert hasattr(DownloadStatus, 'DOWNLOADING')
         assert hasattr(DownloadStatus, 'COMPLETED')
         assert hasattr(DownloadStatus, 'ERROR')
+        assert hasattr(DownloadStatus, 'PAUSED')
+        assert hasattr(DownloadStatus, 'SEEDING')
 
 
 class TestNeteaseApiResponse:
