@@ -339,7 +339,7 @@ class SubscribeChain:
 
         # 发送订阅检查事件
         await event_bus.emit(
-            EventType.SUBSCRIBE_CHECK,
+            EventType.SubscribeChecked,
             {
                 "stats": stats,
             },

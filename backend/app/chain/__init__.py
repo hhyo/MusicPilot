@@ -4,6 +4,8 @@ Chain 层
 """
 
 # 先导出基类，避免循环导入
+from app.core.chain import ChainBase
+
 # 再导出各个 Chain 实现
 from app.chain.download import DownloadChain
 from app.chain.media import MediaChain
@@ -14,7 +16,6 @@ from app.chain.playlist import PlaylistChain
 from app.chain.subscribe import SubscribeChain
 from app.chain.torrents import TorrentInfo, TorrentsChain
 from app.chain.transfer import TransferChain
-from app.core.chain import ChainBase
 
 __all__ = [
     # 基类
