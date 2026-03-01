@@ -10,7 +10,7 @@ from pydantic import BaseModel
 T = TypeVar("T")
 
 
-class ResponseModel(Generic[T], BaseModel):
+class ResponseModel(BaseModel, Generic[T]):
     """通用响应模型"""
 
     success: bool = True
@@ -18,7 +18,7 @@ class ResponseModel(Generic[T], BaseModel):
     data: T | None = None
 
 
-class PaginatedResponse(Generic[T], BaseModel):
+class PaginatedResponse(BaseModel, Generic[T]):
     """分页响应模型"""
 
     success: bool = True
@@ -55,12 +55,6 @@ class ValidationErrorResponse(BaseModel):
 
 
 # 常用响应别名
-ArtistResponse = ResponseModel[Any]
-AlbumResponse = ResponseModel[Any]
-TrackResponse = ResponseModel[Any]
-PlaylistResponse = ResponseModel[Any]
-LibraryResponse = ResponseModel[Any]
-DownloadResponse = ResponseModel[Any]
-SubscribeResponse = ResponseModel[Any]
-MediaServerResponse = ResponseModel[Any]
-SystemConfigResponse = ResponseModel[Any]
+ArtistResponse = ResponseModel[dict[str, Any]]
+AlbumResponse = ResponseModel[dict[str, Any]]
+TrackResponse = ResponseModel[dict[str, Any]]

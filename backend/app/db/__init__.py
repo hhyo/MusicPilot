@@ -301,3 +301,10 @@ class OperBase(Generic[ModelType]):
 
 # 全局数据库管理器实例
 db_manager = DatabaseManager()
+
+
+# FastAPI 依赖函数
+async def get_db():
+    """获取数据库会话（FastAPI 依赖）"""
+    async with db_manager.get_session() as session:
+        yield session
