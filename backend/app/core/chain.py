@@ -3,17 +3,17 @@ Chain 基类
 提供链式业务逻辑处理的基础功能
 """
 
-from abc import ABC
 from typing import Any
 
 from app.core.event import EventType, event_bus
 from app.core.log import logger
 from app.core.module import ModuleManager
 from app.core.plugin import PluginManager
-from app.db import DatabaseManager, db_manager
+from app.db import DatabaseManager
+from app.db import db_manager as global_db_manager
 
 
-class ChainBase(ABC):
+class ChainBase:
     """
     Chain 基类
 
@@ -39,7 +39,7 @@ class ChainBase(ABC):
             plugin_manager: 插件管理器，默认创建新实例
         """
         self.logger = logger
-        self.db_manager = db_manager or db_manager
+        self.db_manager = db_manager or global_db_manager
         self.module_manager = module_manager or ModuleManager()
         self.plugin_manager = plugin_manager or PluginManager()
 
