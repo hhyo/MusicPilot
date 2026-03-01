@@ -23,8 +23,10 @@ class TestMusicInfo:
     def test_music_info_optional_fields(self):
         """测试 MusicInfo 可选字段"""
         from app.core.context import MusicInfo
-        info = MusicInfo(title="Test")
-        assert info.title == "Test"
+        info = MusicInfo(title="Test Song")
+        assert info.title == "Test Song"
+        assert info.artist is None
+        assert info.album is None
 
 
 class TestDownloadTask:
@@ -36,10 +38,24 @@ class TestDownloadTask:
         task = DownloadTask(
             task_id="test-1",
             save_path="/downloads",
-            source="netease",
+            source="test",
         )
         assert task.task_id == "test-1"
-        assert task.source == "netease"
+        assert task.save_path == "/downloads"
+        assert task.source == "test"
+
+    def test_download_task_progress(self):
+        """测试 DownloadTask 进度"""
+        from app.core.context import DownloadTask
+        task = DownloadTask(
+            task_id="test-1",
+            save_path="/downloads",
+            source="test",
+            downloaded_size=512000,
+            total_size=1024000,
+        )
+        assert task.downloaded_size == 512000
+        assert task.total_size == 1024000
 
 
 class TestPlaybackSession:
@@ -48,12 +64,22 @@ class TestPlaybackSession:
     def test_playback_session_creation(self):
         """测试 PlaybackSession 创建"""
         from app.core.context import PlaybackSession
+        from datetime import datetime, timezone
         session = PlaybackSession(
             session_id="session-1",
             track_id=1,
+            user_id="user-1",
+            position=0.0,
+            duration=180.0,
+            volume=1.0,
+            muted=False,
+            repeat_mode="off",
+            shuffle=False,
+            started_at=datetime.now(timezone.utc).isoformat(),
         )
         assert session.session_id == "session-1"
         assert session.track_id == 1
+        assert session.volume == 1.0
 
     def test_playback_session_defaults(self):
         """测试 PlaybackSession 默认值"""
@@ -62,22 +88,8 @@ class TestPlaybackSession:
             session_id="session-1",
             track_id=1,
         )
+        assert session.position == 0.0
         assert session.volume == 1.0
         assert session.muted is False
         assert session.repeat_mode == "off"
-
-
-class TestContextModule:
-    """Context 模块测试"""
-
-    def test_context_import(self):
-        """测试 context 模块导入"""
-        from app.core import context
-        assert context is not None
-
-    def test_context_classes(self):
-        """测试 context 类"""
-        from app.core.context import MusicInfo, DownloadTask, PlaybackSession
-        assert MusicInfo is not None
-        assert DownloadTask is not None
-        assert PlaybackSession is not None
+        assert session.shuffle is False
