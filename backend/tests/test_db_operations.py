@@ -50,7 +50,12 @@ class TestOperBase:
     @pytest.mark.asyncio
     async def test_create_success(self, oper, mock_db_manager):
         """测试创建记录成功"""
-        mock_session = self._create_mock_session()
+        mock_session = AsyncMock()
+        # Mock result with rowcount
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
 
         @asynccontextmanager
         async def mock_get_session():
@@ -66,7 +71,12 @@ class TestOperBase:
     @pytest.mark.asyncio
     async def test_create_with_kwargs(self, oper, mock_db_manager):
         """测试带参数创建记录"""
-        mock_session = self._create_mock_session()
+        mock_session = AsyncMock()
+        # Mock result with rowcount
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
 
         @asynccontextmanager
         async def mock_get_session():
@@ -89,7 +99,12 @@ class TestOperBase:
         mock_artist.id = 1
         mock_artist.name = "Test Artist"
 
-        mock_session = self._create_mock_session()
+        mock_session = AsyncMock()
+        # Mock result with rowcount
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none = MagicMock(return_value=mock_artist)
         mock_session.execute = AsyncMock(return_value=mock_result)
@@ -108,7 +123,12 @@ class TestOperBase:
     @pytest.mark.asyncio
     async def test_get_by_id_not_found(self, oper, mock_db_manager):
         """测试按 ID 查找记录不存在"""
-        mock_session = self._create_mock_session()
+        mock_session = AsyncMock()
+        # Mock result with rowcount
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none = MagicMock(return_value=None)
         mock_session.execute = AsyncMock(return_value=mock_result)
@@ -130,7 +150,12 @@ class TestOperBase:
         """测试获取所有记录"""
         mock_artists = [MagicMock(spec=Artist), MagicMock(spec=Artist)]
 
-        mock_session = self._create_mock_session()
+        mock_session = AsyncMock()
+        # Mock result with rowcount
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
         mock_result = MagicMock()
         mock_scalars = MagicMock()
         mock_scalars.all = MagicMock(return_value=mock_artists)
@@ -156,7 +181,12 @@ class TestOperBase:
         mock_artist.id = 1
         mock_artist.name = "Original"
 
-        mock_session = self._create_mock_session()
+        mock_session = AsyncMock()
+        # Mock result with rowcount
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none = MagicMock(return_value=mock_artist)
         mock_session.execute = AsyncMock(return_value=mock_result)
@@ -176,7 +206,12 @@ class TestOperBase:
     @pytest.mark.asyncio
     async def test_delete_success(self, oper, mock_db_manager):
         """测试删除记录成功"""
-        mock_session = self._create_mock_session()
+        mock_session = AsyncMock()
+        # Mock result with rowcount
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
 
         @asynccontextmanager
         async def mock_get_session():
@@ -195,7 +230,12 @@ class TestOperBase:
     @pytest.mark.asyncio
     async def test_count(self, oper, mock_db_manager):
         """测试计数"""
-        mock_session = self._create_mock_session()
+        mock_session = AsyncMock()
+        # Mock result with rowcount
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalar = MagicMock(return_value=10)
         mock_session.execute = AsyncMock(return_value=mock_result)
