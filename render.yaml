@@ -1,0 +1,90 @@
+# MusicPilot - Render Blueprint
+# 部署配置文件
+
+services:
+  # ==================== 后端服务 ====================
+  - type: web
+    name: musicpilot-backend
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: pip install -e .
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_HOST
+        value: 0.0.0.0
+      - key: APP_PORT
+        value: $PORT
+      - key: APP_DEBUG
+        value: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: musicpilot-db
+          property: connectionString
+      - key: DATABASE_ECHO
+        value: false
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LOG_DIR
+        value: logs
+      - key: API_V1_PREFIX
+        value: /api/v1
+      - key: API_DOCS_ENABLED
+        value: false
+      - key: CACHE_DIR
+        value: cache
+      - key: CACHE_TTL
+        value: "3600"
+      - key: MUSICBRAINZ_ENABLED
+        value: true
+      - key: MUSICBRAINZ_APP_NAME
+        value: MusicPilot
+      - key: MUSICBRAINZ_APP_VERSION
+        value: "1.0.0"
+      - key: SUBSCRIBE_ENABLED
+        value: true
+      - key: SUBSCRIBE_CHECK_INTERVAL
+        value: "86400"
+      - key: PLEX_ENABLED
+        value: false
+      - key: JELLYFIN_ENABLED
+        value: false
+      - key: REDIS_HOST
+        value: ""
+      - key: MEDIA_DIR
+        value: media
+      - key: TEMP_DIR
+        value: /tmp/musicpilot
+
+  # ==================== 前端服务 ====================
+  - type: static
+    name: musicpilot-frontend
+    plan: free
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+# ==================== 数据库 ====================
+databases:
+  - name: musicpilot-db
+    databaseName: musicpilot
+    plan: free
+    region: oregon
+    user: musicpilot
