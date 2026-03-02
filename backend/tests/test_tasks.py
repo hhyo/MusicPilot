@@ -10,16 +10,15 @@ class TestTasks:
 
     def test_tasks_imports(self):
         """测试 tasks 模块可导入"""
-        from app.tasks import download_monitor, subscribe_check
-        assert download_monitor is not None
-        assert subscribe_check is not None
+        from app import tasks
+        assert tasks is not None
 
-    def test_download_monitor_module(self):
-        """测试 download_monitor 模块"""
+    def test_download_monitor_module_imports(self):
+        """测试 download_monitor 模块可导入"""
         from app.tasks import download_monitor
-        assert hasattr(download_monitor, 'DownloadMonitor') or True
+        assert download_monitor is not None
 
-    def test_subscribe_check_module(self):
-        """测试 subscribe_check 模块"""
+    def test_subscribe_check_module_imports(self):
+        """测试 subscribe_check 模块可导入"""
         from app.tasks import subscribe_check
         assert subscribe_check is not None
