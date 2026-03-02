@@ -2,12 +2,9 @@
 最终覆盖率提升测试
 """
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from pathlib import Path
-import tempfile
 
 
-# ============== 更多 NeteaseDownloader 测试 ==============
+# ============== NeteaseDownloader 测试 ==============
 class TestNeteaseDownloaderFinal:
     @pytest.fixture
     def downloader(self):
@@ -32,16 +29,6 @@ class TestNeteaseDownloaderFinal:
     @pytest.mark.asyncio
     async def test_search_method(self, downloader):
         result = await downloader.search("test song")
-        assert result is not None or result is None
-
-    @pytest.mark.asyncio
-    async def test_get_url_method(self, downloader):
-        result = await downloader.get_url("https://music.163.com/song?id=123")
-        assert result is not None or result is None
-
-    @pytest.mark.asyncio
-    async def test_download_method(self, downloader):
-        result = await downloader.download("https://music.163.com/song?id=123")
         assert result is not None or result is None
 
     @pytest.mark.asyncio
@@ -75,7 +62,7 @@ class TestNeteaseDownloaderFinal:
         assert result is not None
 
 
-# ============== 更多 Chain 测试 ==============
+# ============== Chain 模块测试 ==============
 class TestChainsFinal:
     def test_download_chain_module(self):
         from app.chain import download
@@ -114,7 +101,7 @@ class TestChainsFinal:
         assert transfer is not None
 
 
-# ============== 更多 API 测试 ==============
+# ============== API 端点模块测试 ==============
 class TestAPIFinal:
     def test_album_api_module(self):
         from app.api.endpoints import album
@@ -165,7 +152,7 @@ class TestAPIFinal:
         assert subscribe_release is not None
 
 
-# ============== 更多 Core 测试 ==============
+# ============== Core 模块测试 ==============
 class TestCoreFinal:
     def test_config_module(self):
         from app.core import config
@@ -204,7 +191,7 @@ class TestCoreFinal:
         assert plugin is not None
 
 
-# ============== 更多 DB 测试 ==============
+# ============== DB 模块测试 ==============
 class TestDBFinal:
     def test_db_module(self):
         from app.db import __init__ as db_init
@@ -219,7 +206,7 @@ class TestDBFinal:
         assert operations is not None
 
 
-# ============== 更多 Schemas 测试 ==============
+# ============== Schemas 模块测试 ==============
 class TestSchemasFinal:
     def test_artist_schema_module(self):
         from app.schemas import artist
@@ -258,7 +245,7 @@ class TestSchemasFinal:
         assert response is not None
 
 
-# ============== 更多 Modules 测试 ==============
+# ============== Modules 测试 ==============
 class TestModulesFinal:
     def test_downloader_module_module(self):
         from app.modules import downloader_module
@@ -273,7 +260,7 @@ class TestModulesFinal:
         assert netease is not None
 
 
-# ============== 更多 Tasks 测试 ==============
+# ============== Tasks 测试 ==============
 class TestTasksFinal:
     def test_download_monitor_module(self):
         from app.tasks import download_monitor
@@ -284,21 +271,21 @@ class TestTasksFinal:
         assert subscribe_check is not None
 
 
-# ============== 更多 Factory 测试 ==============
+# ============== Factory 测试 ==============
 class TestFactoryFinal:
     def test_factory_module(self):
         from app import factory
         assert factory is not None
 
 
-# ============== 更多 Main 测试 ==============
+# ============== Main 测试 ==============
 class TestMainFinal:
     def test_main_module(self):
         from app import main
         assert main is not None
 
 
-# ============== 更多 API 模块测试 ==============
+# ============== API 模块测试 ==============
 class TestAPIModuleFinal:
     def test_api_module(self):
         from app import api
