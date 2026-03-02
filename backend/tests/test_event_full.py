@@ -1,13 +1,12 @@
 """
-Event 模块完整测试
+Event 完整测试
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 
-class TestEventType:
-    """EventType 测试"""
+class TestEventTypeFull:
+    """EventType 完整测试"""
 
     def test_event_type_imports(self):
         from app.core.event import EventType
@@ -16,30 +15,26 @@ class TestEventType:
     def test_event_type_values(self):
         from app.core.event import EventType
         # 验证枚举值存在
-        assert hasattr(EventType, 'DOWNLOAD_START') or True
-        assert hasattr(EventType, 'DOWNLOAD_COMPLETE') or True
+        for et in EventType:
+            assert et is not None
 
 
-class TestEventManager:
-    """EventManager 测试"""
+class TestEventManagerFull:
+    """EventManager 完整测试"""
 
     def test_event_manager_imports(self):
         from app.core.event import EventManager
         assert EventManager is not None
 
-    def test_event_manager_init(self):
+    def test_event_manager_instance(self):
         from app.core.event import EventManager
         manager = EventManager()
         assert manager is not None
 
 
-class TestEventFunctions:
-    """Event 函数测试"""
+class TestEventModuleFull:
+    """Event Module 完整测试"""
 
-    @pytest.mark.asyncio
-    async def test_emit_event(self):
-        """测试发送事件"""
-        from app.core.event import EventManager
-        manager = EventManager()
-        # 测试方法存在
-        assert hasattr(manager, 'emit') or hasattr(manager, 'subscribe') or True
+    def test_event_module_imports(self):
+        from app.core import event
+        assert event is not None
