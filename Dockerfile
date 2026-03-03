@@ -11,14 +11,12 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制依赖文件
+# 复制依赖文件和应用代码
 COPY backend/pyproject.toml ./
+COPY backend/app/ ./app/
 
 # 安装 Python 依赖
 RUN pip install --no-cache-dir -e .
-
-# 复制应用代码 (放在最后以避免缓存问题)
-COPY backend/app/ ./app/
 
 # 创建必要目录
 RUN mkdir -p logs cache media
