@@ -51,6 +51,17 @@ class DatabaseManager:
         self._async_session_maker = None
         self.logger = logger
 
+    def _get_model_from_generic(self) -> type[ModelType]:
+        """从泛型类型参数中获取模型类"""
+        import typing
+        # 获取子类的原始泛型参数
+        orig_bases = getattr(self.__class__, "__orig_bases__", [])
+        for base in orig_bases:
+            args = typing.get_args(base)
+            if args:
+                return args[0]
+        raise ValueError(f"无法确定模型类型，请在 {self.__class__.__name__} 中显式传入 model 参数")
+
     def init_db(self):
         """初始化数据库"""
         self.logger.info(f"初始化数据库: {self.database_url}")
@@ -132,7 +143,7 @@ class OperBase[ModelType: Base]:
     提供通用的 CRUD 操作
     """
 
-    def __init__(self, model: type[ModelType], db_manager: DatabaseManager):
+    def __init__(self, db_manager: DatabaseManager, model: type[ModelType] | None = None):
         """
         初始化操作基类
 
@@ -140,9 +151,20 @@ class OperBase[ModelType: Base]:
             model: 数据库模型类
             db_manager: 数据库管理器
         """
-        self.model = model
+        self.model = model or self._get_model_from_generic()
         self.db_manager = db_manager
         self.logger = logger
+
+    def _get_model_from_generic(self) -> type[ModelType]:
+        """从泛型类型参数中获取模型类"""
+        import typing
+        # 获取子类的原始泛型参数
+        orig_bases = getattr(self.__class__, "__orig_bases__", [])
+        for base in orig_bases:
+            args = typing.get_args(base)
+            if args:
+                return args[0]
+        raise ValueError(f"无法确定模型类型，请在 {self.__class__.__name__} 中显式传入 model 参数")
 
     async def get_by_id(self, id: int) -> ModelType | None:
         """
