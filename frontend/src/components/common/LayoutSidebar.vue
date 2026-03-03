@@ -11,6 +11,7 @@
 </template>
 
 <script setup lang="ts">
+import { h } from 'vue'
 import { useRouter } from 'vue-router'
 import { NLayoutSider, NMenu, type MenuOption } from 'naive-ui'
 import {
@@ -78,9 +79,4 @@ const menuOptions: MenuOption[] = [
 function handleMenuSelect(key: string) {
   router.push({ name: key.charAt(0).toUpperCase() + key.slice(1) })
 }
-</script>
-
-<script lang="ts">
-import { h } from 'vue'
-export default {}
 </script>
