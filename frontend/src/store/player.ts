@@ -404,7 +404,5 @@ export const usePlayerStore = defineStore('player', {
   },
 })
 
-// 自动加载历史记录
-export const playerStore = usePlayerStore()
-playerStore.loadHistory()
-playerStore.loadState()
+// 注意：不要在模块级别调用 usePlayerStore()
+// 应该在 App.vue 的 onMounted 中调用
