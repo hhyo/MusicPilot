@@ -51,7 +51,7 @@ class DatabaseManager:
         self._async_session_maker = None
         self.logger = logger
 
-    def _get_model_from_generic(self) -> type[ModelType]:
+    def _get_model_from_generic(self) -> type:
         """从泛型类型参数中获取模型类"""
         import typing
 
@@ -156,7 +156,7 @@ class OperBase[ModelType: Base]:
         self.db_manager = db_manager
         self.logger = logger
 
-    def _get_model_from_generic(self) -> type[ModelType]:
+    def _get_model_from_generic(self) -> type:
         """从泛型类型参数中获取模型类"""
         import typing
 
