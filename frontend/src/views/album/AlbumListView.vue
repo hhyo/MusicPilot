@@ -44,7 +44,7 @@ const loadAlbums = async () => {
   loading.value = true
   try {
     const response = await albumApi.getList()
-    albums.value = response.data?.data || []
+    albums.value = response.data || []
   } catch (error) {
     console.error('Failed to load albums:', error)
   } finally {

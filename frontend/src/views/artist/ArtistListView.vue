@@ -42,7 +42,8 @@ const loadArtists = async () => {
   loading.value = true
   try {
     const response = await artistApi.getList()
-    artists.value = response.data?.data || []
+    // response 已经是 {success, data, total}，所以直接取 response.data
+    artists.value = response.data || []
   } catch (error) {
     console.error('Failed to load artists:', error)
   } finally {

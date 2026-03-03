@@ -42,7 +42,7 @@ const loadPlaylists = async () => {
   loading.value = true
   try {
     const response = await playlistApi.getList()
-    playlists.value = response.data?.data || []
+    playlists.value = response.data || []
   } catch (error) {
     console.error('Failed to load playlists:', error)
   } finally {
