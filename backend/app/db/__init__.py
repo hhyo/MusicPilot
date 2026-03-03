@@ -54,6 +54,7 @@ class DatabaseManager:
     def _get_model_from_generic(self) -> type[ModelType]:
         """从泛型类型参数中获取模型类"""
         import typing
+
         # 获取子类的原始泛型参数
         orig_bases = getattr(self.__class__, "__orig_bases__", [])
         for base in orig_bases:
@@ -158,6 +159,7 @@ class OperBase[ModelType: Base]:
     def _get_model_from_generic(self) -> type[ModelType]:
         """从泛型类型参数中获取模型类"""
         import typing
+
         # 获取子类的原始泛型参数
         orig_bases = getattr(self.__class__, "__orig_bases__", [])
         for base in orig_bases:
