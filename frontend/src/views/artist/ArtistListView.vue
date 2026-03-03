@@ -27,7 +27,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { NH1, NEmpty, NButton, NCard, NGrid, NGi, NAvatar, NText, NSpace, NSpin } from 'naive-ui'
-import { getArtists } from '@/api/artist'
+import { artistApi } from '@/api/artist'
 
 interface Artist {
   id: number
@@ -41,8 +41,8 @@ const loading = ref(false)
 const loadArtists = async () => {
   loading.value = true
   try {
-    const response = await getArtists()
-    artists.value = response.data || []
+    const response = await artistApi.getList()
+    artists.value = response.data?.data || []
   } catch (error) {
     console.error('Failed to load artists:', error)
   } finally {
