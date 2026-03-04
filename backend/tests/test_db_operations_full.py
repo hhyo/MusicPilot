@@ -13,9 +13,9 @@ class TestAllDbOperations:
     @pytest.mark.asyncio
     async def test_track_oper_methods(self):
         """测试 TrackOper 方法"""
-        from app.db.operations.track import TrackOper
         from app.db.models.track import Track
-        
+        from app.db.operations.track import TrackOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -25,18 +25,18 @@ class TestAllDbOperations:
         mock_result.scalars.return_value.all.return_value = [mock_track]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = TrackOper(Track, mock_db)
-        
+
         result = await oper.get_by_id(1)
         assert result is not None
 
     @pytest.mark.asyncio
     async def test_album_oper_methods(self):
         """测试 AlbumOper 方法"""
-        from app.db.operations.album import AlbumOper
         from app.db.models.album import Album
-        
+        from app.db.operations.album import AlbumOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -45,18 +45,18 @@ class TestAllDbOperations:
         mock_result.scalar_one_or_none.return_value = mock_album
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = AlbumOper(Album, mock_db)
-        
+
         result = await oper.get_by_id(1)
         assert result is not None
 
     @pytest.mark.asyncio
     async def test_artist_oper_methods(self):
         """测试 ArtistOper 方法"""
-        from app.db.operations.artist import ArtistOper
         from app.db.models.artist import Artist
-        
+        from app.db.operations.artist import ArtistOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -65,18 +65,18 @@ class TestAllDbOperations:
         mock_result.scalar_one_or_none.return_value = mock_artist
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = ArtistOper(Artist, mock_db)
-        
+
         result = await oper.get_by_id(1)
         assert result is not None
 
     @pytest.mark.asyncio
     async def test_playlist_oper_methods(self):
         """测试 PlaylistOper 方法"""
-        from app.db.operations.playlist import PlaylistOper
         from app.db.models.playlist import Playlist
-        
+        from app.db.operations.playlist import PlaylistOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -85,18 +85,18 @@ class TestAllDbOperations:
         mock_result.scalar_one_or_none.return_value = mock_playlist
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = PlaylistOper(Playlist, mock_db)
-        
+
         result = await oper.get_by_id(1)
         assert result is not None
 
     @pytest.mark.asyncio
     async def test_subscribe_oper_methods(self):
         """测试 SubscribeOper 方法"""
-        from app.db.operations.subscribe import SubscribeOper
         from app.db.models.subscribe import Subscribe
-        
+        from app.db.operations.subscribe import SubscribeOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -105,18 +105,18 @@ class TestAllDbOperations:
         mock_result.scalar_one_or_none.return_value = mock_subscribe
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = SubscribeOper(Subscribe, mock_db)
-        
+
         result = await oper.get_by_id(1)
         assert result is not None
 
     @pytest.mark.asyncio
     async def test_site_oper_methods(self):
         """测试 SiteOper 方法"""
-        from app.db.operations.site import SiteOper
         from app.db.models.site import Site
-        
+        from app.db.operations.site import SiteOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -125,18 +125,18 @@ class TestAllDbOperations:
         mock_result.scalar_one_or_none.return_value = mock_site
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = SiteOper(Site, mock_db)
-        
+
         result = await oper.get_by_id(1)
         assert result is not None
 
     @pytest.mark.asyncio
     async def test_library_oper_methods(self):
         """测试 LibraryOper 方法"""
-        from app.db.operations.library import LibraryOper
         from app.db.models.library import Library
-        
+        from app.db.operations.library import LibraryOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -145,18 +145,18 @@ class TestAllDbOperations:
         mock_result.scalar_one_or_none.return_value = mock_library
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = LibraryOper(Library, mock_db)
-        
+
         result = await oper.get_by_id(1)
         assert result is not None
 
     @pytest.mark.asyncio
     async def test_media_oper_methods(self):
         """测试 MediaServerOper 方法"""
-        from app.db.operations.media import MediaServerOper
         from app.db.models.media import MediaServer
-        
+        from app.db.operations.media import MediaServerOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -165,18 +165,18 @@ class TestAllDbOperations:
         mock_result.scalar_one_or_none.return_value = mock_media
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = MediaServerOper(MediaServer, mock_db)
-        
+
         result = await oper.get_by_id(1)
         assert result is not None
 
     @pytest.mark.asyncio
     async def test_download_oper_methods(self):
         """测试 DownloadHistoryOper 方法"""
-        from app.db.operations.download import DownloadHistoryOper
         from app.db.models.download import DownloadHistory
-        
+        from app.db.operations.download import DownloadHistoryOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -185,8 +185,8 @@ class TestAllDbOperations:
         mock_result.scalar_one_or_none.return_value = mock_download
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = DownloadHistoryOper(DownloadHistory, mock_db)
-        
+
         result = await oper.get_by_id(1)
         assert result is not None

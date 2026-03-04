@@ -95,9 +95,7 @@ class TestSubscribeChain:
         """测试推送下载成功"""
         chain.downloader_chain.push_torrent = AsyncMock(return_value="task-123")
 
-        result = await chain.push_download(
-            "http://example.com/torrent.torrent", "Test Album"
-        )
+        result = await chain.push_download("http://example.com/torrent.torrent", "Test Album")
 
         assert result["task_id"] == "task-123"
         assert result["status"] == "downloading"
@@ -105,13 +103,9 @@ class TestSubscribeChain:
     @pytest.mark.asyncio
     async def test_push_download_failure(self, chain):
         """测试推送下载失败"""
-        chain.downloader_chain.push_torrent = AsyncMock(
-            side_effect=Exception("Connection error")
-        )
+        chain.downloader_chain.push_torrent = AsyncMock(side_effect=Exception("Connection error"))
 
-        result = await chain.push_download(
-            "http://example.com/torrent.torrent", "Test Album"
-        )
+        result = await chain.push_download("http://example.com/torrent.torrent", "Test Album")
 
         assert result["status"] == "failed"
         assert "Connection error" in result["error"]
@@ -253,9 +247,7 @@ class TestSubscribeChain:
     async def test_get_releases(self, chain):
         """测试获取订阅发布记录"""
         mock_releases = [MagicMock(id=1), MagicMock(id=2)]
-        chain.subscribe_release_oper.get_by_subscribe_id = AsyncMock(
-            return_value=mock_releases
-        )
+        chain.subscribe_release_oper.get_by_subscribe_id = AsyncMock(return_value=mock_releases)
 
         result = await chain.get_releases(1)
 
@@ -278,9 +270,7 @@ class TestSubscribeChain:
         """测试专辑不匹配订阅规则"""
         chain.match_rules = MagicMock(return_value=False)
 
-        result = await chain.process_album(
-            "Artist", "Album", "mb-123", rules={"format": "FLAC"}
-        )
+        result = await chain.process_album("Artist", "Album", "mb-123", rules={"format": "FLAC"})
 
         assert result is None
 

@@ -2,8 +2,9 @@
 ChainBase 单元测试
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class TestChainBase:
@@ -105,7 +106,7 @@ class TestChainBase:
     async def test_get_module(self):
         """测试 get_module 方法"""
         from app.core.chain import ChainBase
-        from app.core.module import ModuleManager, ModuleBase
+        from app.core.module import ModuleBase, ModuleManager
 
         # Mock ModuleManager
         mock_module = MagicMock(spec=ModuleBase)
@@ -125,7 +126,7 @@ class TestChainBase:
     async def test_get_plugin(self):
         """测试 get_plugin 方法"""
         from app.core.chain import ChainBase
-        from app.core.plugin import PluginManager, PluginBase
+        from app.core.plugin import PluginBase, PluginManager
 
         # Mock PluginManager
         mock_plugin = MagicMock(spec=PluginBase)

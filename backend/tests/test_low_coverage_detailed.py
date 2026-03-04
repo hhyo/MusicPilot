@@ -1,11 +1,8 @@
 """
 低覆盖率模块详细测试
 """
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from pathlib import Path
-import tempfile
-import os
 
 
 # ============== NeteaseDownloader 详细测试 ==============
@@ -13,14 +10,17 @@ class TestNeteaseDownloaderDetailed:
     @pytest.fixture
     def downloader(self):
         from app.modules.downloader.netease import NeteaseDownloader
+
         return NeteaseDownloader()
 
     def test_module_import(self):
         from app.modules.downloader import netease
+
         assert netease is not None
 
     def test_class_import(self):
         from app.modules.downloader.netease import NeteaseDownloader
+
         assert NeteaseDownloader is not None
 
     def test_init(self, downloader):
@@ -91,18 +91,22 @@ class TestNeteaseDownloaderDetailed:
 class TestTorrentsChainDetailed:
     def test_module_import(self):
         from app.chain import torrents
+
         assert torrents is not None
 
     def test_class_import(self):
         from app.chain.torrents import TorrentsChain
+
         assert TorrentsChain is not None
 
     def test_torrent_info_import(self):
         from app.chain.torrents import TorrentInfo
+
         assert TorrentInfo is not None
 
     def test_torrent_info_creation(self):
         from app.chain.torrents import TorrentInfo
+
         info = TorrentInfo(
             torrent_id="test123",
             site_name="TestSite",
@@ -110,7 +114,7 @@ class TestTorrentsChainDetailed:
             size=1024000,
             seeders=10,
             leechers=5,
-            download_url="http://example.com/torrent"
+            download_url="http://example.com/torrent",
         )
         assert info.torrent_id == "test123"
         assert info.site_name == "TestSite"
@@ -121,6 +125,7 @@ class TestTorrentsChainDetailed:
 
     def test_torrents_chain_init(self):
         from app.chain.torrents import TorrentsChain
+
         chain = TorrentsChain()
         assert chain is not None
 
@@ -129,10 +134,12 @@ class TestTorrentsChainDetailed:
 class TestPlaybackChainDetailed:
     def test_module_import(self):
         from app.chain import playback
+
         assert playback is not None
 
     def test_class_import(self):
         from app.chain.playback import PlaybackChain
+
         assert PlaybackChain is not None
 
 
@@ -140,10 +147,12 @@ class TestPlaybackChainDetailed:
 class TestTransferChainDetailed:
     def test_module_import(self):
         from app.chain import transfer
+
         assert transfer is not None
 
     def test_class_import(self):
         from app.chain.transfer import TransferChain
+
         assert TransferChain is not None
 
 
@@ -151,15 +160,18 @@ class TestTransferChainDetailed:
 class TestStreamAPIDetailed:
     def test_module_import(self):
         from app.api.endpoints import stream
+
         assert stream is not None
 
     def test_router_import(self):
         from app.api.endpoints.stream import router
+
         assert router is not None
 
     def test_router_routes(self):
         from app.api.endpoints.stream import router
-        routes = [r for r in router.routes if hasattr(r, 'path')]
+
+        routes = [r for r in router.routes if hasattr(r, "path")]
         assert len(routes) > 0
 
 
@@ -167,15 +179,18 @@ class TestStreamAPIDetailed:
 class TestCoversAPIDetailed:
     def test_module_import(self):
         from app.api.endpoints import covers
+
         assert covers is not None
 
     def test_router_import(self):
         from app.api.endpoints.covers import router
+
         assert router is not None
 
     def test_router_routes(self):
         from app.api.endpoints.covers import router
-        routes = [r for r in router.routes if hasattr(r, 'path')]
+
+        routes = [r for r in router.routes if hasattr(r, "path")]
         assert len(routes) > 0
 
 
@@ -183,15 +198,18 @@ class TestCoversAPIDetailed:
 class TestMetadataAPIDetailed:
     def test_module_import(self):
         from app.api.endpoints import metadata
+
         assert metadata is not None
 
     def test_router_import(self):
         from app.api.endpoints.metadata import router
+
         assert router is not None
 
     def test_router_routes(self):
         from app.api.endpoints.metadata import router
-        routes = [r for r in router.routes if hasattr(r, 'path')]
+
+        routes = [r for r in router.routes if hasattr(r, "path")]
         assert len(routes) > 0
 
 
@@ -199,15 +217,18 @@ class TestMetadataAPIDetailed:
 class TestLibraryAPIDetailed:
     def test_module_import(self):
         from app.api.endpoints import library
+
         assert library is not None
 
     def test_router_import(self):
         from app.api.endpoints.library import router
+
         assert router is not None
 
     def test_router_routes(self):
         from app.api.endpoints.library import router
-        routes = [r for r in router.routes if hasattr(r, 'path')]
+
+        routes = [r for r in router.routes if hasattr(r, "path")]
         assert len(routes) > 0
 
 
@@ -215,14 +236,17 @@ class TestLibraryAPIDetailed:
 class TestCoreMetaDetailed:
     def test_module_import(self):
         from app.core import meta
+
         assert meta is not None
 
     def test_metadata_parser_import(self):
         from app.core.meta import MetadataParser
+
         assert MetadataParser is not None
 
     def test_filename_parser_import(self):
         from app.core.meta import FilenameParser
+
         assert FilenameParser is not None
 
 
@@ -230,14 +254,17 @@ class TestCoreMetaDetailed:
 class TestCoreModuleDetailed:
     def test_module_import(self):
         from app.core import module
+
         assert module is not None
 
     def test_module_manager_import(self):
         from app.core.module import ModuleManager
+
         assert ModuleManager is not None
 
     def test_module_base_import(self):
         from app.core.module import ModuleBase
+
         assert ModuleBase is not None
 
 
@@ -245,14 +272,17 @@ class TestCoreModuleDetailed:
 class TestCorePluginDetailed:
     def test_module_import(self):
         from app.core import plugin
+
         assert plugin is not None
 
     def test_plugin_manager_import(self):
         from app.core.plugin import PluginManager
+
         assert PluginManager is not None
 
     def test_plugin_base_import(self):
         from app.core.plugin import PluginBase
+
         assert PluginBase is not None
 
 
@@ -260,10 +290,12 @@ class TestCorePluginDetailed:
 class TestDownloaderModuleDetailed:
     def test_module_import(self):
         from app.modules import downloader_module
+
         assert downloader_module is not None
 
     def test_class_import(self):
         from app.modules.downloader_module import DownloaderModule
+
         assert DownloaderModule is not None
 
 
@@ -271,10 +303,12 @@ class TestDownloaderModuleDetailed:
 class TestFactoryDetailed:
     def test_module_import(self):
         from app import factory
+
         assert factory is not None
 
     def test_create_app_import(self):
         from app.factory import create_app
+
         assert create_app is not None
 
 
@@ -282,16 +316,20 @@ class TestFactoryDetailed:
 class TestTasksDetailed:
     def test_download_monitor_import(self):
         from app.tasks.download_monitor import DownloadMonitorTask
+
         assert DownloadMonitorTask is not None
 
     def test_subscribe_check_import(self):
         from app.tasks.subscribe_check import SubscribeCheckTask
+
         assert SubscribeCheckTask is not None
 
     def test_download_monitor_module(self):
         from app.tasks import download_monitor
+
         assert download_monitor is not None
 
     def test_subscribe_check_module(self):
         from app.tasks import subscribe_check
+
         assert subscribe_check is not None

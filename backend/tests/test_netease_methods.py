@@ -2,8 +2,6 @@
 NeteaseDownloader 方法测试
 """
 
-import pytest
-
 
 class TestNeteaseDownloaderMethods:
     """NeteaseDownloader 方法测试"""
@@ -11,12 +9,14 @@ class TestNeteaseDownloaderMethods:
     def test_import_netease(self):
         """测试导入网易云下载器"""
         from app.modules.downloader.netease import NeteaseDownloader
+
         assert NeteaseDownloader is not None
 
     def test_netease_has_methods(self):
         """测试网易云下载器方法"""
         from app.modules.downloader.netease import NeteaseDownloader
-        methods = [m for m in dir(NeteaseDownloader) if not m.startswith('_')]
+
+        methods = [m for m in dir(NeteaseDownloader) if not m.startswith("_")]
         assert len(methods) > 0
 
 
@@ -110,7 +110,8 @@ class TestNeteaseDownloadLogic:
     def test_filename_sanitization(self):
         """测试文件名清理"""
         import re
-        filename = "Test<>:\"/\\|?*File"
+
+        filename = 'Test<>:"/\\|?*File'
         safe = re.sub(r'[<>:"/\\|?*]', "", filename)
         assert "<" not in safe
         assert ">" not in safe
@@ -118,6 +119,7 @@ class TestNeteaseDownloadLogic:
     def test_path_join(self):
         """测试路径拼接"""
         from pathlib import Path
+
         base = Path("/downloads")
         filename = "test.mp3"
         full_path = base / filename

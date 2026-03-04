@@ -13,9 +13,9 @@ class TestTrackOperComprehensive:
     @pytest.mark.asyncio
     async def test_get_by_id(self):
         """测试通过 ID 获取"""
-        from app.db.operations.track import TrackOper
         from app.db.models.track import Track
-        
+        from app.db.operations.track import TrackOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -24,7 +24,7 @@ class TestTrackOperComprehensive:
         mock_result.scalar_one_or_none.return_value = mock_track
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = TrackOper(Track, mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
@@ -32,16 +32,16 @@ class TestTrackOperComprehensive:
     @pytest.mark.asyncio
     async def test_get_all(self):
         """测试获取所有"""
-        from app.db.operations.track import TrackOper
         from app.db.models.track import Track
-        
+        from app.db.operations.track import TrackOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = []
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = TrackOper(Track, mock_db)
         result = await oper.get_all()
         assert result == []
@@ -49,16 +49,16 @@ class TestTrackOperComprehensive:
     @pytest.mark.asyncio
     async def test_exists_true(self):
         """测试存在检查"""
-        from app.db.operations.track import TrackOper
         from app.db.models.track import Track
-        
+        from app.db.operations.track import TrackOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalar.return_value = 1
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = TrackOper(Track, mock_db)
         result = await oper.exists(1)
         assert result is True
@@ -66,9 +66,9 @@ class TestTrackOperComprehensive:
     @pytest.mark.asyncio
     async def test_delete(self):
         """测试删除"""
-        from app.db.operations.track import TrackOper
         from app.db.models.track import Track
-        
+        from app.db.operations.track import TrackOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -76,7 +76,7 @@ class TestTrackOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_session.commit = AsyncMock()
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = TrackOper(Track, mock_db)
         result = await oper.delete(1)
         assert result is True
@@ -88,9 +88,9 @@ class TestAlbumOperComprehensive:
     @pytest.mark.asyncio
     async def test_get_by_id(self):
         """测试通过 ID 获取"""
-        from app.db.operations.album import AlbumOper
         from app.db.models.album import Album
-        
+        from app.db.operations.album import AlbumOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -99,7 +99,7 @@ class TestAlbumOperComprehensive:
         mock_result.scalar_one_or_none.return_value = mock_album
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = AlbumOper(Album, mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
@@ -107,9 +107,9 @@ class TestAlbumOperComprehensive:
     @pytest.mark.asyncio
     async def test_search_by_title(self):
         """测试通过标题搜索"""
-        from app.db.operations.album import AlbumOper
         from app.db.models.album import Album
-        
+        from app.db.operations.album import AlbumOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -117,7 +117,7 @@ class TestAlbumOperComprehensive:
         mock_result.scalars.return_value.all.return_value = [mock_album]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = AlbumOper(Album, mock_db)
         result = await oper.search_by_title("Test")
         assert len(result) == 1
@@ -129,9 +129,9 @@ class TestArtistOperComprehensive:
     @pytest.mark.asyncio
     async def test_get_by_id(self):
         """测试通过 ID 获取"""
-        from app.db.operations.artist import ArtistOper
         from app.db.models.artist import Artist
-        
+        from app.db.operations.artist import ArtistOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -140,7 +140,7 @@ class TestArtistOperComprehensive:
         mock_result.scalar_one_or_none.return_value = mock_artist
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = ArtistOper(Artist, mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
@@ -148,9 +148,9 @@ class TestArtistOperComprehensive:
     @pytest.mark.asyncio
     async def test_search_by_name(self):
         """测试通过名称搜索"""
-        from app.db.operations.artist import ArtistOper
         from app.db.models.artist import Artist
-        
+        from app.db.operations.artist import ArtistOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -158,7 +158,7 @@ class TestArtistOperComprehensive:
         mock_result.scalars.return_value.all.return_value = [mock_artist]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = ArtistOper(Artist, mock_db)
         result = await oper.search_by_name("Test")
         assert len(result) == 1
@@ -170,9 +170,9 @@ class TestPlaylistOperComprehensive:
     @pytest.mark.asyncio
     async def test_get_by_id(self):
         """测试通过 ID 获取"""
-        from app.db.operations.playlist import PlaylistOper
         from app.db.models.playlist import Playlist
-        
+        from app.db.operations.playlist import PlaylistOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -181,7 +181,7 @@ class TestPlaylistOperComprehensive:
         mock_result.scalar_one_or_none.return_value = mock_playlist
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = PlaylistOper(Playlist, mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
@@ -189,9 +189,9 @@ class TestPlaylistOperComprehensive:
     @pytest.mark.asyncio
     async def test_get_public_playlists(self):
         """测试获取公开播放列表"""
-        from app.db.operations.playlist import PlaylistOper
         from app.db.models.playlist import Playlist
-        
+        from app.db.operations.playlist import PlaylistOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -199,7 +199,7 @@ class TestPlaylistOperComprehensive:
         mock_result.scalars.return_value.all.return_value = [mock_playlist]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = PlaylistOper(Playlist, mock_db)
         result = await oper.get_public_playlists()
         assert len(result) == 1
@@ -211,9 +211,9 @@ class TestSiteOperComprehensive:
     @pytest.mark.asyncio
     async def test_get_enabled(self):
         """测试获取启用的站点"""
-        from app.db.operations.site import SiteOper
         from app.db.models.site import Site
-        
+        from app.db.operations.site import SiteOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -222,7 +222,7 @@ class TestSiteOperComprehensive:
         mock_result.scalars.return_value.all.return_value = [mock_site]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = SiteOper(Site, mock_db)
         result = await oper.get_enabled()
         assert len(result) == 1
@@ -234,9 +234,9 @@ class TestLibraryOperComprehensive:
     @pytest.mark.asyncio
     async def test_get_by_id(self):
         """测试通过 ID 获取"""
-        from app.db.operations.library import LibraryOper
         from app.db.models.library import Library
-        
+        from app.db.operations.library import LibraryOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -245,7 +245,7 @@ class TestLibraryOperComprehensive:
         mock_result.scalar_one_or_none.return_value = mock_library
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = LibraryOper(Library, mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
@@ -253,9 +253,9 @@ class TestLibraryOperComprehensive:
     @pytest.mark.asyncio
     async def test_get_auto_scan_libraries(self):
         """测试获取自动扫描媒体库"""
-        from app.db.operations.library import LibraryOper
         from app.db.models.library import Library
-        
+        from app.db.operations.library import LibraryOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -263,7 +263,7 @@ class TestLibraryOperComprehensive:
         mock_result.scalars.return_value.all.return_value = [mock_library]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = LibraryOper(Library, mock_db)
         result = await oper.get_auto_scan_libraries()
         assert len(result) == 1

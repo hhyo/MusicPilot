@@ -3,7 +3,7 @@ EventManager 单元测试
 测试事件管理器的功能
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

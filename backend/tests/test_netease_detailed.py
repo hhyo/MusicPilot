@@ -1,6 +1,7 @@
 """
 NeteaseDownloader 详细测试
 """
+
 import pytest
 
 
@@ -10,14 +11,17 @@ class TestNeteaseDownloaderDetailed:
     @pytest.fixture
     def downloader(self):
         from app.modules.downloader.netease import NeteaseDownloader
+
         return NeteaseDownloader()
 
     def test_module_imports(self):
         from app.modules.downloader import netease
+
         assert netease is not None
 
     def test_class_exists(self):
         from app.modules.downloader.netease import NeteaseDownloader
+
         assert NeteaseDownloader is not None
 
     def test_init(self, downloader):
@@ -29,11 +33,13 @@ class TestNeteaseDownloaderDetailed:
 
     def test_map_quality(self, downloader):
         from app.core.context import DownloadQuality
+
         result = downloader._map_quality(DownloadQuality.STANDARD)
         assert result is not None
 
     def test_map_level(self, downloader):
         from app.core.context import DownloadQuality
+
         result = downloader._map_level(DownloadQuality.STANDARD)
         assert result is not None
 

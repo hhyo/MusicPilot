@@ -2,8 +2,6 @@
 NeteaseDownloader 综合测试
 """
 
-import pytest
-
 
 class TestNeteaseDownloaderComprehensive:
     """NeteaseDownloader 综合测试"""
@@ -11,13 +9,15 @@ class TestNeteaseDownloaderComprehensive:
     def test_netease_module_structure(self):
         """测试网易云模块结构"""
         from app.modules.downloader.netease import NeteaseDownloader
-        methods = [m for m in dir(NeteaseDownloader) if not m.startswith('_')]
+
+        methods = [m for m in dir(NeteaseDownloader) if not m.startswith("_")]
         assert len(methods) > 0
 
     def test_netease_base_class(self):
         """测试网易云基类"""
-        from app.modules.downloader.netease import NeteaseDownloader
         from app.modules.downloader.base import DownloaderBase
+        from app.modules.downloader.netease import NeteaseDownloader
+
         assert issubclass(NeteaseDownloader, DownloaderBase)
 
 
@@ -40,12 +40,13 @@ class TestNeteaseDownloadMethods:
     def test_download_status_values(self):
         """测试下载状态值"""
         from app.modules.downloader_module import DownloadStatus
+
         # 检查实际存在的枚举值
-        assert hasattr(DownloadStatus, 'DOWNLOADING')
-        assert hasattr(DownloadStatus, 'COMPLETED')
-        assert hasattr(DownloadStatus, 'ERROR')
-        assert hasattr(DownloadStatus, 'PAUSED')
-        assert hasattr(DownloadStatus, 'SEEDING')
+        assert hasattr(DownloadStatus, "DOWNLOADING")
+        assert hasattr(DownloadStatus, "COMPLETED")
+        assert hasattr(DownloadStatus, "ERROR")
+        assert hasattr(DownloadStatus, "PAUSED")
+        assert hasattr(DownloadStatus, "SEEDING")
 
 
 class TestNeteaseApiResponse:
@@ -99,7 +100,8 @@ class TestNeteaseDownloadTask:
 
     def test_task_info_structure(self):
         """测试任务信息结构"""
-        from app.modules.downloader_module import DownloadTaskInfo, DownloadStatus
+        from app.modules.downloader_module import DownloadStatus, DownloadTaskInfo
+
         task = DownloadTaskInfo(
             task_id="netease-123",
             name="Test Song.mp3",
@@ -119,6 +121,7 @@ class TestNeteaseDownloadTask:
     def test_progress_structure(self):
         """测试进度结构"""
         from app.modules.downloader_module import DownloadProgress
+
         progress = DownloadProgress(
             task_id="test-1",
             progress=75.0,

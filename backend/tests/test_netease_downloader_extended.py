@@ -2,8 +2,6 @@
 NeteaseDownloader 扩展测试
 """
 
-import pytest
-
 
 class TestNeteaseDownloaderImport:
     """NeteaseDownloader 导入测试"""
@@ -11,11 +9,13 @@ class TestNeteaseDownloaderImport:
     def test_import_module(self):
         """测试导入模块"""
         from app.modules.downloader.netease import NeteaseDownloader
+
         assert NeteaseDownloader is not None
 
     def test_downloader_base(self):
         """测试下载器基类"""
         from app.modules.downloader.base import DownloaderBase
+
         assert DownloaderBase is not None
 
 
@@ -25,12 +25,14 @@ class TestNeteaseDownloaderMethods:
     def test_class_methods_exist(self):
         """测试类方法存在"""
         from app.modules.downloader.netease import NeteaseDownloader
-        methods = [m for m in dir(NeteaseDownloader) if not m.startswith('_')]
+
+        methods = [m for m in dir(NeteaseDownloader) if not m.startswith("_")]
         assert len(methods) > 0
 
     def test_downloader_init(self):
         """测试下载器初始化"""
         from app.modules.downloader.netease import NeteaseDownloader
+
         # 检查类可以实例化
         assert NeteaseDownloader is not None
 

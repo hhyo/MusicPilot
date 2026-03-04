@@ -6,7 +6,6 @@ FileCache 单元测试
 import asyncio
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -262,7 +261,6 @@ class TestAsyncFileCache:
     @pytest.mark.asyncio
     async def test_async_cleanup_expired(self, cache):
         """测试异步清理过期"""
-        import time
 
         await cache.async_set("keep", "value", ttl=3600)
         await cache.async_set("expire", "value", ttl=1)

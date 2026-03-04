@@ -2,8 +2,6 @@
 DownloaderBase 测试
 """
 
-import pytest
-
 
 class TestDownloaderBase:
     """DownloaderBase 测试"""
@@ -11,12 +9,14 @@ class TestDownloaderBase:
     def test_import_base(self):
         """测试导入基类"""
         from app.modules.downloader.base import DownloaderBase
+
         assert DownloaderBase is not None
 
     def test_base_methods(self):
         """测试基类方法"""
         from app.modules.downloader.base import DownloaderBase
-        methods = [m for m in dir(DownloaderBase) if not m.startswith('_')]
+
+        methods = [m for m in dir(DownloaderBase) if not m.startswith("_")]
         assert len(methods) > 0
 
 
@@ -26,16 +26,19 @@ class TestDownloaderModule:
     def test_import_module(self):
         """测试导入模块"""
         from app.modules.downloader_module import DownloaderModule
+
         assert DownloaderModule is not None
 
     def test_download_status(self):
         """测试下载状态"""
         from app.modules.downloader_module import DownloadStatus
+
         assert DownloadStatus is not None
 
     def test_download_progress(self):
         """测试下载进度"""
         from app.modules.downloader_module import DownloadProgress
+
         progress = DownloadProgress(
             task_id="test-1",
             progress=50.0,
@@ -47,7 +50,8 @@ class TestDownloaderModule:
 
     def test_download_task_info(self):
         """测试下载任务信息"""
-        from app.modules.downloader_module import DownloadTaskInfo, DownloadStatus
+        from app.modules.downloader_module import DownloadStatus, DownloadTaskInfo
+
         task = DownloadTaskInfo(
             task_id="test-1",
             name="Test File",

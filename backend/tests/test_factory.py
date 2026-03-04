@@ -4,8 +4,6 @@ Factory 模块测试
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestCreateApp:
     """create_app 测试类"""
@@ -18,12 +16,12 @@ class TestCreateApp:
             mock_settings.api_v1_prefix = "/api/v1"
             mock_settings.media_path = MagicMock()
             mock_settings.media_path.exists.return_value = False
-            
+
             with patch("app.factory.lifespan"):
                 from app.factory import create_app
-                
+
                 app = create_app()
-                
+
                 assert app.title == "MusicPilot"
                 assert app.version == "0.1.0"
 
@@ -35,11 +33,11 @@ class TestCreateApp:
             mock_settings.api_v1_prefix = "/api/v1"
             mock_settings.media_path = MagicMock()
             mock_settings.media_path.exists.return_value = False
-            
+
             with patch("app.factory.lifespan"):
                 from app.factory import create_app
-                
+
                 app = create_app()
-                
+
                 assert app.docs_url is None
                 assert app.redoc_url is None

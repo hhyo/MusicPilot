@@ -2,8 +2,6 @@
 ModuleManager 测试
 """
 
-import pytest
-
 
 class TestModuleManager:
     """ModuleManager 测试"""
@@ -11,12 +9,14 @@ class TestModuleManager:
     def test_import_module_manager(self):
         """测试导入模块管理器"""
         from app.core.module import ModuleManager
+
         assert ModuleManager is not None
 
     def test_module_manager_methods(self):
         """测试模块管理器方法"""
         from app.core.module import ModuleManager
-        methods = [m for m in dir(ModuleManager) if not m.startswith('_')]
+
+        methods = [m for m in dir(ModuleManager) if not m.startswith("_")]
         assert len(methods) > 0
 
 
@@ -26,12 +26,14 @@ class TestModuleBase:
     def test_import_module_base(self):
         """测试导入模块基类"""
         from app.core.module import ModuleBase
+
         assert ModuleBase is not None
 
     def test_module_base_methods(self):
         """测试模块基类方法"""
         from app.core.module import ModuleBase
-        methods = [m for m in dir(ModuleBase) if not m.startswith('_')]
+
+        methods = [m for m in dir(ModuleBase) if not m.startswith("_")]
         assert len(methods) > 0
 
 

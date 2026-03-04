@@ -358,23 +358,23 @@ class TestMetadataChain:
             path="/path/to/file.mp3",
         )
 
-        with patch.object(
-            chain, "extract_local_metadata", new_callable=AsyncMock, return_value=mock_metadata
-        ):
-            with patch.object(
+        with (
+            patch.object(
+                chain, "extract_local_metadata", new_callable=AsyncMock, return_value=mock_metadata
+            ),
+            patch.object(
                 chain, "parse_filename", new_callable=AsyncMock, return_value=mock_metadata
-            ):
-                with patch.object(chain, "merge_metadata", return_value=mock_metadata):
-                    with patch.object(
-                        chain, "complete", new_callable=AsyncMock, return_value=mock_metadata
-                    ):
-                        with patch.object(
-                            chain,
-                            "save_to_database",
-                            new_callable=AsyncMock,
-                            return_value={"track_id": 1},
-                        ):
-                            results = await chain.batch_recognize(file_paths)
+            ),
+            patch.object(chain, "merge_metadata", return_value=mock_metadata),
+            patch.object(chain, "complete", new_callable=AsyncMock, return_value=mock_metadata),
+            patch.object(
+                chain,
+                "save_to_database",
+                new_callable=AsyncMock,
+                return_value={"track_id": 1},
+            ),
+        ):
+            results = await chain.batch_recognize(file_paths)
 
         assert len(results) == 2
         assert all(r["success"] for r in results)

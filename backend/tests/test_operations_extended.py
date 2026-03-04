@@ -13,9 +13,9 @@ class TestTrackOperExtended:
     @pytest.mark.asyncio
     async def test_get_by_album_id(self):
         """测试通过专辑ID获取曲目"""
-        from app.db.operations.track import TrackOper
         from app.db.models.track import Track
-        
+        from app.db.operations.track import TrackOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -23,7 +23,7 @@ class TestTrackOperExtended:
         mock_result.scalars.return_value.all.return_value = [mock_track]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = TrackOper(Track, mock_db)
         result = await oper.get_by_album_id(1)
         assert len(result) == 1
@@ -31,9 +31,9 @@ class TestTrackOperExtended:
     @pytest.mark.asyncio
     async def test_get_by_artist_id(self):
         """测试通过艺术家ID获取曲目"""
-        from app.db.operations.track import TrackOper
         from app.db.models.track import Track
-        
+        from app.db.operations.track import TrackOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -41,7 +41,7 @@ class TestTrackOperExtended:
         mock_result.scalars.return_value.all.return_value = [mock_track]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = TrackOper(Track, mock_db)
         result = await oper.get_by_artist_id(1)
         assert len(result) == 1
@@ -49,9 +49,9 @@ class TestTrackOperExtended:
     @pytest.mark.asyncio
     async def test_search_by_title(self):
         """测试通过标题搜索曲目"""
-        from app.db.operations.track import TrackOper
         from app.db.models.track import Track
-        
+        from app.db.operations.track import TrackOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -59,7 +59,7 @@ class TestTrackOperExtended:
         mock_result.scalars.return_value.all.return_value = [mock_track]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = TrackOper(Track, mock_db)
         result = await oper.search_by_title("Test")
         assert len(result) == 1
@@ -71,9 +71,9 @@ class TestAlbumOperExtended:
     @pytest.mark.asyncio
     async def test_get_by_artist_id(self):
         """测试通过艺术家ID获取专辑"""
-        from app.db.operations.album import AlbumOper
         from app.db.models.album import Album
-        
+        from app.db.operations.album import AlbumOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -81,7 +81,7 @@ class TestAlbumOperExtended:
         mock_result.scalars.return_value.all.return_value = [mock_album]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = AlbumOper(Album, mock_db)
         result = await oper.get_by_artist_id(1)
         assert len(result) == 1
@@ -89,9 +89,9 @@ class TestAlbumOperExtended:
     @pytest.mark.asyncio
     async def test_get_recent(self):
         """测试获取最近专辑"""
-        from app.db.operations.album import AlbumOper
         from app.db.models.album import Album
-        
+        from app.db.operations.album import AlbumOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -99,7 +99,7 @@ class TestAlbumOperExtended:
         mock_result.scalars.return_value.all.return_value = [mock_album]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = AlbumOper(Album, mock_db)
         result = await oper.get_recent()
         assert len(result) == 1
@@ -111,9 +111,9 @@ class TestArtistOperExtended:
     @pytest.mark.asyncio
     async def test_get_top_rated(self):
         """测试获取高评分艺术家"""
-        from app.db.operations.artist import ArtistOper
         from app.db.models.artist import Artist
-        
+        from app.db.operations.artist import ArtistOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -121,7 +121,7 @@ class TestArtistOperExtended:
         mock_result.scalars.return_value.all.return_value = [mock_artist]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = ArtistOper(Artist, mock_db)
         result = await oper.get_top_rated()
         assert len(result) == 1
@@ -133,9 +133,9 @@ class TestSubscribeReleaseOperExtended:
     @pytest.mark.asyncio
     async def test_get_by_subscribe_id(self):
         """测试通过订阅ID获取发布"""
-        from app.db.operations.subscribe_release import SubscribeReleaseOper
         from app.db.models.subscribe_release import SubscribeRelease
-        
+        from app.db.operations.subscribe_release import SubscribeReleaseOper
+
         mock_db = MagicMock()
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -143,7 +143,7 @@ class TestSubscribeReleaseOperExtended:
         mock_result.scalars.return_value.all.return_value = [mock_release]
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         oper = SubscribeReleaseOper(SubscribeRelease, mock_db)
         result = await oper.get_by_subscribe_id(1)
         assert len(result) == 1

@@ -30,9 +30,7 @@ class TestDownloaderChain:
         mock_module.downloader_type = "qbittorrent"
         mock_module.add_torrent = AsyncMock(return_value="task-123")
 
-        chain.module_manager.get_running_modules_by_type = MagicMock(
-            return_value=[mock_module]
-        )
+        chain.module_manager.get_running_modules_by_type = MagicMock(return_value=[mock_module])
 
         with patch("app.chain.downloader.event_bus") as mock_event_bus:
             mock_event_bus.emit = AsyncMock()
@@ -52,9 +50,7 @@ class TestDownloaderChain:
         mock_module.downloader_type = "qbittorrent"
         mock_module.add_torrent = AsyncMock(return_value="task-456")
 
-        chain.module_manager.get_running_modules_by_type = MagicMock(
-            return_value=[mock_module]
-        )
+        chain.module_manager.get_running_modules_by_type = MagicMock(return_value=[mock_module])
 
         with patch("app.chain.downloader.event_bus") as mock_event_bus:
             mock_event_bus.emit = AsyncMock()
@@ -88,9 +84,7 @@ class TestDownloaderChain:
         mock_module.downloader_type = "qbittorrent"
         mock_module.add_torrent = AsyncMock(side_effect=Exception("Connection error"))
 
-        chain.module_manager.get_running_modules_by_type = MagicMock(
-            return_value=[mock_module]
-        )
+        chain.module_manager.get_running_modules_by_type = MagicMock(return_value=[mock_module])
 
         with pytest.raises(Exception, match="Connection error"):
             await chain.push_torrent(
@@ -112,9 +106,7 @@ class TestDownloaderChain:
         mock_module.downloader_type = "qbittorrent"
         mock_module.get_task_progress = AsyncMock(return_value=mock_progress)
 
-        chain.module_manager.get_running_modules_by_type = MagicMock(
-            return_value=[mock_module]
-        )
+        chain.module_manager.get_running_modules_by_type = MagicMock(return_value=[mock_module])
 
         with patch("app.chain.downloader.event_bus") as mock_event_bus:
             mock_event_bus.emit = AsyncMock()
@@ -131,9 +123,7 @@ class TestDownloaderChain:
         mock_module.downloader_type = "qbittorrent"
         mock_module.get_task_progress = AsyncMock(return_value=None)
 
-        chain.module_manager.get_running_modules_by_type = MagicMock(
-            return_value=[mock_module]
-        )
+        chain.module_manager.get_running_modules_by_type = MagicMock(return_value=[mock_module])
 
         with patch("app.chain.downloader.event_bus") as mock_event_bus:
             mock_event_bus.emit = AsyncMock()
@@ -151,9 +141,7 @@ class TestDownloaderChain:
         mock_module.downloader_type = "qbittorrent"
         mock_module.pause_torrent = AsyncMock(return_value=True)
 
-        chain.module_manager.get_running_modules_by_type = MagicMock(
-            return_value=[mock_module]
-        )
+        chain.module_manager.get_running_modules_by_type = MagicMock(return_value=[mock_module])
 
         result = await chain.pause_torrent("task-123")
 
@@ -168,9 +156,7 @@ class TestDownloaderChain:
         mock_module.downloader_type = "qbittorrent"
         mock_module.resume_torrent = AsyncMock(return_value=True)
 
-        chain.module_manager.get_running_modules_by_type = MagicMock(
-            return_value=[mock_module]
-        )
+        chain.module_manager.get_running_modules_by_type = MagicMock(return_value=[mock_module])
 
         result = await chain.resume_torrent("task-123")
 
@@ -185,9 +171,7 @@ class TestDownloaderChain:
         mock_module.downloader_type = "qbittorrent"
         mock_module.remove_torrent = AsyncMock(return_value=True)
 
-        chain.module_manager.get_running_modules_by_type = MagicMock(
-            return_value=[mock_module]
-        )
+        chain.module_manager.get_running_modules_by_type = MagicMock(return_value=[mock_module])
 
         result = await chain.remove_torrent("task-123")
 
@@ -200,9 +184,7 @@ class TestDownloaderChain:
         mock_module.downloader_type = "qbittorrent"
         mock_module.remove_torrent = AsyncMock(return_value=True)
 
-        chain.module_manager.get_running_modules_by_type = MagicMock(
-            return_value=[mock_module]
-        )
+        chain.module_manager.get_running_modules_by_type = MagicMock(return_value=[mock_module])
 
         with patch("app.chain.downloader.event_bus") as mock_event_bus:
             mock_event_bus.emit = AsyncMock()
@@ -225,9 +207,7 @@ class TestDownloaderChain:
         mock_module.downloader_type = "qbittorrent"
         mock_module.get_all_tasks = AsyncMock(return_value=mock_tasks)
 
-        chain.module_manager.get_running_modules_by_type = MagicMock(
-            return_value=[mock_module]
-        )
+        chain.module_manager.get_running_modules_by_type = MagicMock(return_value=[mock_module])
 
         result = await chain.get_all_tasks()
 
@@ -242,9 +222,7 @@ class TestDownloaderChain:
         mock_module.downloader_type = "qbittorrent"
         mock_module.check_status = AsyncMock(return_value=True)
 
-        chain.module_manager.get_running_modules_by_type = MagicMock(
-            return_value=[mock_module]
-        )
+        chain.module_manager.get_running_modules_by_type = MagicMock(return_value=[mock_module])
 
         result = await chain.check_downloader_status()
 

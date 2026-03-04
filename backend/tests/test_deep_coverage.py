@@ -1,10 +1,8 @@
 """
 深度覆盖率测试 - 针对核心业务逻辑
 """
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from pathlib import Path
-import tempfile
 
 
 # ============== NeteaseDownloader 深度测试 ==============
@@ -12,26 +10,29 @@ class TestNeteaseDownloaderDeep:
     @pytest.fixture
     def downloader(self):
         from app.modules.downloader.netease import NeteaseDownloader
+
         return NeteaseDownloader()
 
     def test_module_exists(self):
         from app.modules.downloader import netease
+
         assert netease is not None
 
     def test_class_exists(self):
         from app.modules.downloader.netease import NeteaseDownloader
+
         assert NeteaseDownloader is not None
 
     def test_instance_creation(self, downloader):
         assert downloader is not None
-        assert hasattr(downloader, 'search')
-        assert hasattr(downloader, 'get_song_detail')
-        assert hasattr(downloader, 'get_artist_songs')
-        assert hasattr(downloader, 'get_album_songs')
-        assert hasattr(downloader, 'fetch_playlist')
-        assert hasattr(downloader, 'fetch_chart')
-        assert hasattr(downloader, 'test')
-        assert hasattr(downloader, 'init_setting')
+        assert hasattr(downloader, "search")
+        assert hasattr(downloader, "get_song_detail")
+        assert hasattr(downloader, "get_artist_songs")
+        assert hasattr(downloader, "get_album_songs")
+        assert hasattr(downloader, "fetch_playlist")
+        assert hasattr(downloader, "fetch_chart")
+        assert hasattr(downloader, "test")
+        assert hasattr(downloader, "init_setting")
 
     def test_init_setting(self, downloader):
         result = downloader.init_setting()
@@ -78,10 +79,12 @@ class TestNeteaseDownloaderDeep:
 class TestTorrentInfoDeep:
     def test_class_exists(self):
         from app.chain.torrents import TorrentInfo
+
         assert TorrentInfo is not None
 
     def test_creation_with_all_fields(self):
         from app.chain.torrents import TorrentInfo
+
         info = TorrentInfo(
             torrent_id="test_id",
             site_name="TestSite",
@@ -89,7 +92,7 @@ class TestTorrentInfoDeep:
             size=1024000,
             seeders=100,
             leechers=50,
-            download_url="https://example.com/torrent"
+            download_url="https://example.com/torrent",
         )
         assert info.torrent_id == "test_id"
         assert info.site_name == "TestSite"
@@ -104,10 +107,12 @@ class TestTorrentInfoDeep:
 class TestTorrentsChainDeep:
     def test_class_exists(self):
         from app.chain.torrents import TorrentsChain
+
         assert TorrentsChain is not None
 
     def test_module_exists(self):
         from app.chain import torrents
+
         assert torrents is not None
 
 
@@ -115,10 +120,12 @@ class TestTorrentsChainDeep:
 class TestPlaybackChainDeep:
     def test_class_exists(self):
         from app.chain.playback import PlaybackChain
+
         assert PlaybackChain is not None
 
     def test_module_exists(self):
         from app.chain import playback
+
         assert playback is not None
 
 
@@ -126,10 +133,12 @@ class TestPlaybackChainDeep:
 class TestTransferChainDeep:
     def test_class_exists(self):
         from app.chain.transfer import TransferChain
+
         assert TransferChain is not None
 
     def test_module_exists(self):
         from app.chain import transfer
+
         assert transfer is not None
 
 
@@ -137,15 +146,18 @@ class TestTransferChainDeep:
 class TestStreamAPIDeep:
     def test_router_exists(self):
         from app.api.endpoints.stream import router
+
         assert router is not None
 
     def test_module_exists(self):
         from app.api.endpoints import stream
+
         assert stream is not None
 
     def test_router_has_routes(self):
         from app.api.endpoints.stream import router
-        routes = [r for r in router.routes if hasattr(r, 'path')]
+
+        routes = [r for r in router.routes if hasattr(r, "path")]
         assert len(routes) > 0
 
 
@@ -153,15 +165,18 @@ class TestStreamAPIDeep:
 class TestCoversAPIDeep:
     def test_router_exists(self):
         from app.api.endpoints.covers import router
+
         assert router is not None
 
     def test_module_exists(self):
         from app.api.endpoints import covers
+
         assert covers is not None
 
     def test_router_has_routes(self):
         from app.api.endpoints.covers import router
-        routes = [r for r in router.routes if hasattr(r, 'path')]
+
+        routes = [r for r in router.routes if hasattr(r, "path")]
         assert len(routes) > 0
 
 
@@ -169,15 +184,18 @@ class TestCoversAPIDeep:
 class TestMetadataAPIDeep:
     def test_router_exists(self):
         from app.api.endpoints.metadata import router
+
         assert router is not None
 
     def test_module_exists(self):
         from app.api.endpoints import metadata
+
         assert metadata is not None
 
     def test_router_has_routes(self):
         from app.api.endpoints.metadata import router
-        routes = [r for r in router.routes if hasattr(r, 'path')]
+
+        routes = [r for r in router.routes if hasattr(r, "path")]
         assert len(routes) > 0
 
 
@@ -185,15 +203,18 @@ class TestMetadataAPIDeep:
 class TestLibraryAPIDeep:
     def test_router_exists(self):
         from app.api.endpoints.library import router
+
         assert router is not None
 
     def test_module_exists(self):
         from app.api.endpoints import library
+
         assert library is not None
 
     def test_router_has_routes(self):
         from app.api.endpoints.library import router
-        routes = [r for r in router.routes if hasattr(r, 'path')]
+
+        routes = [r for r in router.routes if hasattr(r, "path")]
         assert len(routes) > 0
 
 
@@ -201,14 +222,17 @@ class TestLibraryAPIDeep:
 class TestCoreMetaDeep:
     def test_module_exists(self):
         from app.core import meta
+
         assert meta is not None
 
     def test_metadata_parser_exists(self):
         from app.core.meta import MetadataParser
+
         assert MetadataParser is not None
 
     def test_filename_parser_exists(self):
         from app.core.meta import FilenameParser
+
         assert FilenameParser is not None
 
 
@@ -216,14 +240,17 @@ class TestCoreMetaDeep:
 class TestCoreModuleDeep:
     def test_module_exists(self):
         from app.core import module
+
         assert module is not None
 
     def test_module_manager_exists(self):
         from app.core.module import ModuleManager
+
         assert ModuleManager is not None
 
     def test_module_base_exists(self):
         from app.core.module import ModuleBase
+
         assert ModuleBase is not None
 
 
@@ -231,14 +258,17 @@ class TestCoreModuleDeep:
 class TestCorePluginDeep:
     def test_module_exists(self):
         from app.core import plugin
+
         assert plugin is not None
 
     def test_plugin_manager_exists(self):
         from app.core.plugin import PluginManager
+
         assert PluginManager is not None
 
     def test_plugin_base_exists(self):
         from app.core.plugin import PluginBase
+
         assert PluginBase is not None
 
 
@@ -246,10 +276,12 @@ class TestCorePluginDeep:
 class TestDownloaderModuleDeep:
     def test_module_exists(self):
         from app.modules import downloader_module
+
         assert downloader_module is not None
 
     def test_class_exists(self):
         from app.modules.downloader_module import DownloaderModule
+
         assert DownloaderModule is not None
 
 
@@ -257,10 +289,12 @@ class TestDownloaderModuleDeep:
 class TestFactoryDeep:
     def test_module_exists(self):
         from app import factory
+
         assert factory is not None
 
     def test_create_app_exists(self):
         from app.factory import create_app
+
         assert create_app is not None
 
 
@@ -268,10 +302,12 @@ class TestFactoryDeep:
 class TestTasksDeep:
     def test_download_monitor_exists(self):
         from app.tasks.download_monitor import DownloadMonitorTask
+
         assert DownloadMonitorTask is not None
 
     def test_subscribe_check_exists(self):
         from app.tasks.subscribe_check import SubscribeCheckTask
+
         assert SubscribeCheckTask is not None
 
 
@@ -279,30 +315,37 @@ class TestTasksDeep:
 class TestDBModelsDeep:
     def test_artist_model_exists(self):
         from app.db.models.artist import Artist
+
         assert Artist is not None
 
     def test_album_model_exists(self):
         from app.db.models.album import Album
+
         assert Album is not None
 
     def test_track_model_exists(self):
         from app.db.models.track import Track
+
         assert Track is not None
 
     def test_playlist_model_exists(self):
         from app.db.models.playlist import Playlist
+
         assert Playlist is not None
 
     def test_subscribe_model_exists(self):
         from app.db.models.subscribe import Subscribe
+
         assert Subscribe is not None
 
     def test_site_model_exists(self):
         from app.db.models.site import Site
+
         assert Site is not None
 
     def test_library_model_exists(self):
         from app.db.models.library import Library
+
         assert Library is not None
 
 
@@ -310,53 +353,65 @@ class TestDBModelsDeep:
 class TestDBOperationsDeep:
     def test_artist_oper_exists(self):
         from app.db.operations.artist import ArtistOper
+
         assert ArtistOper is not None
 
     def test_album_oper_exists(self):
         from app.db.operations.album import AlbumOper
+
         assert AlbumOper is not None
 
     def test_track_oper_exists(self):
         from app.db.operations.track import TrackOper
+
         assert TrackOper is not None
 
     def test_playlist_oper_exists(self):
         from app.db.operations.playlist import PlaylistOper
+
         assert PlaylistOper is not None
 
     def test_subscribe_oper_exists(self):
         from app.db.operations.subscribe import SubscribeOper
+
         assert SubscribeOper is not None
 
     def test_site_oper_exists(self):
         from app.db.operations.site import SiteOper
+
         assert SiteOper is not None
 
     def test_library_oper_exists(self):
         from app.db.operations.library import LibraryOper
+
         assert LibraryOper is not None
 
 
 # ============== Schemas 深度测试 ==============
 class TestSchemasDeep:
     def test_artist_schema_exists(self):
-        from app.schemas.artist import ArtistCreate, ArtistResponse
+        from app.schemas.artist import ArtistCreate
+
         assert ArtistCreate is not None
 
     def test_album_schema_exists(self):
-        from app.schemas.album import AlbumCreate, AlbumResponse
+        from app.schemas.album import AlbumCreate
+
         assert AlbumCreate is not None
 
     def test_track_schema_exists(self):
-        from app.schemas.track import TrackCreate, TrackResponse
+        from app.schemas.track import TrackCreate
+
         assert TrackCreate is not None
 
     def test_playlist_schema_exists(self):
-        from app.schemas.playlist import PlaylistCreate, PlaylistResponse
+        from app.schemas.playlist import PlaylistCreate
+
         assert PlaylistCreate is not None
 
     def test_response_schema_exists(self):
-        from app.schemas.response import ResponseModel, PaginatedResponse
+        from app.schemas.response import ResponseModel
+
         assert ResponseModel is not None
 
 
@@ -364,32 +419,40 @@ class TestSchemasDeep:
 class TestCoreDeep:
     def test_settings_exists(self):
         from app.core.config import settings
+
         assert settings is not None
 
     def test_logger_exists(self):
         from app.core.log import logger
+
         assert logger is not None
 
     def test_event_type_exists(self):
         from app.core.event import EventType
+
         assert EventType is not None
 
     def test_music_info_exists(self):
         from app.core.context import MusicInfo
+
         assert MusicInfo is not None
 
     def test_download_task_exists(self):
         from app.core.context import DownloadTask
+
         assert DownloadTask is not None
 
     def test_playback_session_exists(self):
         from app.core.context import PlaybackSession
+
         assert PlaybackSession is not None
 
     def test_file_cache_exists(self):
         from app.core.cache import FileCache
+
         assert FileCache is not None
 
     def test_chain_base_exists(self):
         from app.core.chain import ChainBase
+
         assert ChainBase is not None

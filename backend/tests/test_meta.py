@@ -5,11 +5,10 @@ MetadataParser 和 FilenameParser 单元测试
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.core.meta import FilenameParser, MetadataParser, metadata_parser, filename_parser
+from app.core.meta import FilenameParser, MetadataParser, filename_parser, metadata_parser
 
 
 class TestMetadataParser:

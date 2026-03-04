@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.chain.download import DownloadChain
-from app.modules.downloader import DownloadSource, DownloadStatus, DownloadTask, DownloadQuality
+from app.modules.downloader import DownloadQuality, DownloadSource, DownloadStatus, DownloadTask
 
 
 class TestDownloadChain:

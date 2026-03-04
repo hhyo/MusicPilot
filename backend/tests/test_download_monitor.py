@@ -2,8 +2,6 @@
 下载监控任务测试
 """
 
-import pytest
-
 
 class TestDownloadMonitorTask:
     """下载监控任务测试"""
@@ -11,6 +9,7 @@ class TestDownloadMonitorTask:
     def test_import_download_monitor(self):
         """测试导入下载监控模块"""
         from app.tasks import download_monitor
+
         assert download_monitor is not None
 
 
@@ -51,6 +50,7 @@ class TestSubscribeCheckTask:
     def test_import_subscribe_check(self):
         """测试导入订阅检查模块"""
         from app.tasks import subscribe_check
+
         assert subscribe_check is not None
 
 
@@ -77,6 +77,6 @@ class TestSubscribeCheckLogic:
         """测试新内容检测逻辑"""
         existing_ids = ["1", "2", "3"]
         new_ids = ["2", "3", "4", "5"]
-        
+
         truly_new = [id for id in new_ids if id not in existing_ids]
         assert truly_new == ["4", "5"]

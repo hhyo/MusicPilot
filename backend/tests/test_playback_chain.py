@@ -4,9 +4,6 @@ PlaybackChain 单元测试
 """
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 from app.core.context import PlaybackSession
 
@@ -167,9 +164,10 @@ class TestPlaybackChainLogic:
         user_id = "user123"
         track_id = 456
         import time
+
         timestamp = time.time()
         session_id = f"{user_id}:{track_id}:{timestamp}"
-        
+
         parts = session_id.split(":")
         assert parts[0] == user_id
         assert parts[1] == str(track_id)
@@ -179,9 +177,10 @@ class TestPlaybackChainLogic:
         user_id = None
         track_id = 789
         import time
+
         timestamp = time.time()
         session_id = f"{user_id or 'anonymous'}:{track_id}:{timestamp}"
-        
+
         assert "anonymous" in session_id
 
     def test_duration_calculation(self):

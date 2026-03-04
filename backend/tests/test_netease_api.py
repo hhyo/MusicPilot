@@ -2,8 +2,6 @@
 Netease API 测试
 """
 
-import pytest
-
 
 class TestNeteaseApiStructures:
     """网易云 API 结构测试"""
@@ -56,9 +54,7 @@ class TestNeteaseResponseParsing:
     def test_parse_song_url(self):
         """测试解析歌曲URL"""
         response = {
-            "data": [
-                {"id": 123456, "url": "http://example.com/song.mp3", "br": 320000}
-            ],
+            "data": [{"id": 123456, "url": "http://example.com/song.mp3", "br": 320000}],
             "code": 200,
         }
         url_data = response["data"][0]
@@ -77,6 +73,7 @@ class TestNeteaseDownloadLogic:
     def test_filename_from_metadata(self):
         """测试从元数据生成文件名"""
         import re
+
         metadata = {
             "name": "Test<>Song",
             "artist": "Artist",

@@ -2,7 +2,7 @@
 Context 模型测试
 """
 
-import pytest
+from datetime import UTC
 
 
 class TestMusicInfo:
@@ -11,6 +11,7 @@ class TestMusicInfo:
     def test_music_info_creation(self):
         """测试 MusicInfo 创建"""
         from app.core.context import MusicInfo
+
         info = MusicInfo(
             artist="Test Artist",
             album="Test Album",
@@ -23,6 +24,7 @@ class TestMusicInfo:
     def test_music_info_optional_fields(self):
         """测试 MusicInfo 可选字段"""
         from app.core.context import MusicInfo
+
         info = MusicInfo(title="Test Song")
         assert info.title == "Test Song"
         assert info.artist is None
@@ -35,6 +37,7 @@ class TestDownloadTask:
     def test_download_task_creation(self):
         """测试 DownloadTask 创建"""
         from app.core.context import DownloadTask
+
         task = DownloadTask(
             task_id="test-1",
             save_path="/downloads",
@@ -47,6 +50,7 @@ class TestDownloadTask:
     def test_download_task_progress(self):
         """测试 DownloadTask 进度"""
         from app.core.context import DownloadTask
+
         task = DownloadTask(
             task_id="test-1",
             save_path="/downloads",
@@ -63,8 +67,10 @@ class TestPlaybackSession:
 
     def test_playback_session_creation(self):
         """测试 PlaybackSession 创建"""
+        from datetime import datetime
+
         from app.core.context import PlaybackSession
-        from datetime import datetime, timezone
+
         session = PlaybackSession(
             session_id="session-1",
             track_id=1,
@@ -75,7 +81,7 @@ class TestPlaybackSession:
             muted=False,
             repeat_mode="off",
             shuffle=False,
-            started_at=datetime.now(timezone.utc).isoformat(),
+            started_at=datetime.now(UTC).isoformat(),
         )
         assert session.session_id == "session-1"
         assert session.track_id == 1
@@ -84,6 +90,7 @@ class TestPlaybackSession:
     def test_playback_session_defaults(self):
         """测试 PlaybackSession 默认值"""
         from app.core.context import PlaybackSession
+
         session = PlaybackSession(
             session_id="session-1",
             track_id=1,

@@ -2,7 +2,7 @@
 MusicBrainzChain 测试
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -22,6 +22,7 @@ class TestMusicBrainzChain:
     async def test_musicbrainz_chain_imports(self):
         """测试 MusicBrainzChain 可导入"""
         from app.chain.musicbrainz import MusicBrainzChain
+
         assert MusicBrainzChain is not None
 
 
@@ -31,4 +32,5 @@ class TestMusicBrainzChainMethods:
     def test_musicbrainz_chain_module_imports(self):
         """测试 musicbrainz chain 模块可导入"""
         from app.chain import musicbrainz
+
         assert musicbrainz is not None

@@ -2,8 +2,7 @@
 PluginManager 单元测试
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 
 from app.core.plugin import PluginBase, PluginManager
 

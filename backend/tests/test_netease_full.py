@@ -1,8 +1,10 @@
 """
 NeteaseDownloader 完整测试
 """
+
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestNeteaseDownloaderFull:
@@ -10,10 +12,12 @@ class TestNeteaseDownloaderFull:
 
     def test_netease_downloader_imports(self):
         from app.modules.downloader.netease import NeteaseDownloader
+
         assert NeteaseDownloader is not None
 
     def test_netease_downloader_module(self):
         from app.modules.downloader import netease
+
         assert netease is not None
 
     @pytest.fixture
@@ -26,6 +30,7 @@ class TestNeteaseDownloaderFull:
     @pytest.fixture
     def downloader(self, mock_settings):
         from app.modules.downloader.netease import NeteaseDownloader
+
         return NeteaseDownloader()
 
     def test_downloader_init(self, downloader):

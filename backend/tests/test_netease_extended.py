@@ -2,8 +2,6 @@
 NeteaseDownloader 扩展测试
 """
 
-import pytest
-
 
 class TestNeteaseDownloaderExtended:
     """NeteaseDownloader 扩展测试"""
@@ -11,11 +9,13 @@ class TestNeteaseDownloaderExtended:
     def test_module_import(self):
         """测试模块导入"""
         from app.modules.downloader.netease import NeteaseDownloader
+
         assert NeteaseDownloader is not None
 
     def test_downloader_base(self):
         """测试下载器基类"""
         from app.modules.downloader.base import DownloaderBase
+
         assert DownloaderBase is not None
 
     def test_quality_constants(self):
