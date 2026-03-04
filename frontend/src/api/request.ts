@@ -1,7 +1,21 @@
 import axios from 'axios'
 
+// 根据环境自动选择 API 基础 URL
+const getBaseURL = () => {
+  // 优先使用环境变量
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL
+  }
+  // 生产环境使用 Render 后端
+  if (import.meta.env.PROD) {
+    return 'https://musicpilot-backend.onrender.com'
+  }
+  // 开发环境使用本地后端
+  return 'http://localhost:8000'
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL: getBaseURL(),
   timeout: 30000,
 })
 
