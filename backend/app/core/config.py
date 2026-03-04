@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     app_debug: bool = True
 
     # 数据库配置
-    database_url: str = "postgresql+asyncpg://musicpilot:musicpilot@localhost:5432/musicpilot"
+    database_url: str = "sqlite+aiosqlite:///./musicpilot.db"
     database_echo: bool = False
 
     # Redis 配置
