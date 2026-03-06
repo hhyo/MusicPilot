@@ -2,9 +2,9 @@
 Alembic 环境配置
 用于数据库迁移
 """
+
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
@@ -82,6 +82,7 @@ def run_migrations_online() -> None:
     连接数据库并执行迁移
     """
     import asyncio
+
     asyncio.run(run_async_migrations())
 
 
