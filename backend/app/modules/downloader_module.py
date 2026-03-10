@@ -38,6 +38,8 @@ class DownloadTaskInfo:
     progress: float  # 进度百分比（0-100）
     status: DownloadStatus
     save_path: str
+    tags: list[str] | None = None  # 标签列表
+    category: str | None = None  # 分类
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
@@ -53,6 +55,8 @@ class DownloadTaskInfo:
             "progress": self.progress,
             "status": self.status.value,
             "save_path": self.save_path,
+            "tags": self.tags,
+            "category": self.category,
         }
 
 
@@ -257,3 +261,93 @@ class DownloaderModule(ModuleBase):
         response = await self.client.get(torrent_url)
         response.raise_for_status()
         return response.content
+
+    # ========== 新增接口：标签管理 ==========
+
+    async def set_torrent_tags(self, task_id: str | list[str], tags: list[str]) -> bool:
+        """
+        设置种子标签
+
+        Args:
+            task_id: 任务 ID 或 ID 列表
+            tags: 标签列表
+
+        Returns:
+            是否成功
+        """
+        self.logger.info(f"设置种子标签: {task_id}, 标签: {tags}")
+        raise NotImplementedError("子类必须实现 set_torrent_tags 方法")
+
+    async def remove_torrent_tags(self, task_id: str | list[str], tags: list[str]) -> bool:
+        """
+        移除种子标签
+
+        Args:
+            task_id: 任务 ID 或 ID 列表
+            tags: 标签列表
+
+        Returns:
+            是否成功
+        """
+        self.logger.info(f"移除种子标签: {task_id}, 标签: {tags}")
+        raise NotImplementedError("子类必须实现 remove_torrent_tags 方法")
+
+    # ========== 新增接口：文件选择 ==========
+
+    async def get_torrent_files(self, task_id: str) -> list[dict[str, Any]]:
+        """
+        获取种子文件列表
+
+        Args:
+            task_id: 任务 ID
+
+        Returns:
+            文件列表 [{"id": int, "name": str, "size": int, "progress": float}, ...]
+        """
+        self.logger.debug(f"获取种子文件列表: {task_id}")
+        raise NotImplementedError("子类必须实现 get_torrent_files 方法")
+
+    async def set_file_priority(self, task_id: str, file_ids: list[int], priority: int) -> bool:
+        """
+        设置文件下载优先级
+
+        Args:
+            task_id: 任务 ID
+            file_ids: 文件 ID 列表
+            priority: 优先级（0=不下载, 1=正常, 6=高, 7=最高）
+
+        Returns:
+            是否成功
+        """
+        self.logger.info(f"设置文件优先级: {task_id}, 文件: {file_ids}, 优先级: {priority}")
+        raise NotImplementedError("子类必须实现 set_file_priority 方法")
+
+    # ========== 新增接口：下载器信息 ==========
+
+    async def get_transfer_info(self) -> dict[str, Any]:
+        """
+        获取下载器传输信息
+
+        Returns:
+            {"download_speed": int, "upload_speed": int, "downloaded": int, "uploaded": int}
+        """
+        self.logger.debug("获取下载器传输信息")
+        raise NotImplementedError("子类必须实现 get_transfer_info 方法")
+
+    # ========== 新增接口：已完成种子 ==========
+
+    async def get_completed_tasks(
+        self, tags: list[str] | None = None, exclude_tags: list[str] | None = None
+    ) -> list[DownloadTaskInfo]:
+        """
+        获取已完成的任务（用于整理）
+
+        Args:
+            tags: 只包含这些标签的任务
+            exclude_tags: 排除包含这些标签的任务
+
+        Returns:
+            已完成的任务列表
+        """
+        self.logger.debug(f"获取已完成任务: tags={tags}, exclude_tags={exclude_tags}")
+        raise NotImplementedError("子类必须实现 get_completed_tasks 方法")
