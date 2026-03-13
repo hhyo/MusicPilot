@@ -57,7 +57,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd backend
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -e .
           pip install pytest pytest-cov pytest-asyncio
       - name: Run tests
         run: |
