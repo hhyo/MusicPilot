@@ -1,8 +1,9 @@
 """QQ音乐榜单抓取器"""
 
-import httpx
 from datetime import datetime
-from typing import List
+
+import httpx
+
 from .base import BaseChartFetcher, ChartData, ChartEntry
 
 
@@ -71,6 +72,6 @@ class QQMusicChartFetcher(BaseChartFetcher):
             source="qq_music", chart_type=chart_type, updated_at=datetime.now(), entries=entries
         )
 
-    def get_supported_charts(self) -> List[str]:
+    def get_supported_charts(self) -> list[str]:
         """返回支持的榜单类型"""
         return list(self.CHART_URLS.keys())

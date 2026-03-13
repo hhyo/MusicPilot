@@ -3,7 +3,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List
 
 
 @dataclass
@@ -26,7 +25,7 @@ class ChartData:
     source: str
     chart_type: str
     updated_at: datetime
-    entries: List[ChartEntry]
+    entries: list[ChartEntry]
     total: int = 0
     description: str = ""
 
@@ -40,6 +39,6 @@ class BaseChartFetcher(ABC):
         pass
 
     @abstractmethod
-    def get_supported_charts(self) -> List[str]:
+    def get_supported_charts(self) -> list[str]:
         """Return list of supported chart types"""
         pass

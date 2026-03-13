@@ -6,7 +6,7 @@
 import enum
 
 
-class SubscriptionType(str, enum.Enum):
+class SubscriptionType(enum.StrEnum):
     """订阅类型"""
 
     ARTIST = "artist"
@@ -16,7 +16,7 @@ class SubscriptionType(str, enum.Enum):
     CHART = "chart"  # 🆕 新增榜单订阅类型
 
 
-class ChartSource(str, enum.Enum):
+class ChartSource(enum.StrEnum):
     """榜单数据源 🆕 新增"""
 
     SPOTIFY = "spotify"

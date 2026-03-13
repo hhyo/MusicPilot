@@ -2,11 +2,9 @@
 订阅模块 - 榜单订阅功能
 """
 
-from typing import List
 
 from app.modules.chart.chart_module import ChartModule
 from app.modules.chart.fetchers.base import ChartEntry
-from app.modules.subscribe.models import SubscriptionType
 
 
 class SubscribeModule:
@@ -31,7 +29,7 @@ class SubscribeModule:
             # 原有逻辑 - 暂时返回 None
             return None
 
-    async def process_chart_subscription(self, subscription) -> List[ChartEntry]:
+    async def process_chart_subscription(self, subscription) -> list[ChartEntry]:
         """处理榜单订阅 🆕 新增"""
         # 获取数据源
         source = subscription.source_type or "netease"
@@ -51,7 +49,7 @@ class SubscribeModule:
 
         return new_entries
 
-    def _filter_duplicates(self, entries: List[ChartEntry]) -> List[ChartEntry]:
+    def _filter_duplicates(self, entries: list[ChartEntry]) -> list[ChartEntry]:
         """过滤已下载的歌曲 🆕 新增"""
         new_entries = []
         for entry in entries:

@@ -2,9 +2,8 @@
 Chart Module - 榜单模块
 """
 
-from typing import List
 
-from app.modules.chart.fetchers.base import ChartData, ChartEntry
+from app.modules.chart.fetchers.base import ChartData
 from app.modules.chart.fetchers.netease import NeteaseChartFetcher
 from app.modules.chart.fetchers.qq_music import QQMusicChartFetcher
 
@@ -55,11 +54,11 @@ class ChartModule:
         fetcher = self.get_fetcher(source)
         return await fetcher.fetch(chart_type=chart_type, limit=limit)
 
-    def get_supported_sources(self) -> List[str]:
+    def get_supported_sources(self) -> list[str]:
         """获取支持的数据源"""
         return list(self.FETCHERS.keys())
 
-    def get_supported_charts(self, source: str) -> List[str]:
+    def get_supported_charts(self, source: str) -> list[str]:
         """获取支持的榜单类型"""
         fetcher = self.get_fetcher(source)
         return fetcher.get_supported_charts()
