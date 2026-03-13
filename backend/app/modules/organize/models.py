@@ -1,4 +1,5 @@
 """Organize Module 模型"""
+
 import enum
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Text
@@ -7,6 +8,7 @@ from app.db import Base
 
 class OrganizeStatus(str, enum.Enum):
     """整理状态"""
+
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -15,8 +17,9 @@ class OrganizeStatus(str, enum.Enum):
 
 class OrganizeTask(Base):
     """整理任务模型"""
+
     __tablename__ = "organize_tasks"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     download_task_id = Column(Integer, nullable=False)
     source_path = Column(String(500), nullable=False)
