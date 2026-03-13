@@ -2,11 +2,13 @@
 
 import enum
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Enum, Text
+
+from sqlalchemy import Column, DateTime, Enum, Integer, String, Text
+
 from app.db import Base
 
 
-class OrganizeStatus(str, enum.Enum):
+class OrganizeStatus(enum.StrEnum):
     """整理状态"""
 
     PENDING = "pending"

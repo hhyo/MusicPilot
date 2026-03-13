@@ -1,12 +1,10 @@
 """Organize Module - 文件整理和元数据管理"""
 
 import os
-import shutil
 import re
-from pathlib import Path
-from typing import Dict, Optional
+import shutil
+
 from app.chain import ChainBase
-from .models import OrganizeTask, OrganizeStatus
 
 
 class OrganizeModule(ChainBase):
@@ -24,7 +22,7 @@ class OrganizeModule(ChainBase):
         self.library_path = "/media/music"  # 可配置
         self.template = "{artist}/{album} [{year}]/{track}. {title}.{ext}"
 
-    def _parse_template(self, template: str, metadata: Dict) -> str:
+    def _parse_template(self, template: str, metadata: dict) -> str:
         """解析模板生成目标路径"""
         result = template
         for key, value in metadata.items():
@@ -37,7 +35,7 @@ class OrganizeModule(ChainBase):
         illegal_chars = r'[<>:"\|?*]'
         return re.sub(illegal_chars, "_", filename)
 
-    def _get_target_path(self, source_path: str, metadata: Dict) -> str:
+    def _get_target_path(self, source_path: str, metadata: dict) -> str:
         """根据元数据生成目标路径"""
         # 解析模板
         relative_path = self._parse_template(self.template, metadata)
@@ -50,7 +48,7 @@ class OrganizeModule(ChainBase):
 
         return target_path
 
-    async def organize_file(self, source_path: str, metadata: Dict) -> bool:
+    async def organize_file(self, source_path: str, metadata: dict) -> bool:
         """整理单个文件"""
         try:
             # 生成目标路径
