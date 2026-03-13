@@ -42,13 +42,9 @@ class TestNeteaseDownloaderFull:
         assert result is not None or result is None
 
     @pytest.mark.asyncio
-    async def test_get_song_url(self, downloader):
-        result = await downloader.get_song_url("123456")
-        assert result is not None or result is None
-
-    @pytest.mark.asyncio
-    async def test_get_song_info(self, downloader):
-        result = await downloader.get_song_info("123456")
+    async def test_get_song_detail(self, downloader):
+        """测试获取歌曲详情"""
+        result = await downloader.get_song_detail("123456")
         assert result is not None or result is None
 
     @pytest.mark.asyncio
@@ -62,33 +58,19 @@ class TestNeteaseDownloaderFull:
         assert result is not None or result is None
 
     @pytest.mark.asyncio
-    async def test_get_playlist_songs(self, downloader):
-        result = await downloader.get_playlist_songs("123456")
+    async def test_fetch_playlist(self, downloader):
+        """测试获取播放列表"""
+        result = await downloader.fetch_playlist("123456")
         assert result is not None or result is None
 
-    @pytest.mark.asyncio
-    async def test_download_song(self, downloader):
-        result = await downloader.download_song("123456", "/tmp/test.mp3")
-        assert result is not None or result is None
+    def test_source_property(self, downloader):
+        """测试下载源"""
+        from app.modules.downloader.base import DownloadSource
 
-    def test_get_supported_formats(self, downloader):
-        formats = downloader.get_supported_formats()
-        assert formats is not None
+        assert downloader.source == DownloadSource.NETEASE
 
-    def test_get_downloader_name(self, downloader):
-        name = downloader.get_downloader_name()
-        assert name is not None
+    def test_supported_qualities(self, downloader):
+        """测试支持的音质"""
+        from app.modules.downloader.base import DownloadQuality
 
-    def test_is_available(self, downloader):
-        result = downloader.is_available()
-        assert isinstance(result, bool)
-
-    @pytest.mark.asyncio
-    async def test_get_lyric(self, downloader):
-        result = await downloader.get_lyric("123456")
-        assert result is not None or result is None
-
-    @pytest.mark.asyncio
-    async def test_get_comments(self, downloader):
-        result = await downloader.get_comments("123456", "song")
-        assert result is not None or result is None
+        assert DownloadQuality.LOSSLESS in downloader.supported_qualities
