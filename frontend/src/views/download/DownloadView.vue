@@ -1,220 +1,270 @@
 <template>
-  <div class="download-view">
-    <n-page-header title="下载管理">
-      <template #extra>
-        <n-space>
-          <n-button @click="refresh" :loading="loading">
-            <template #icon>
-              <n-icon><RefreshIcon /></n-icon>
-            </template>
-            刷新
-          </n-button>
-          <n-button type="primary" @click="showSearchModal = true">
-            <template #icon>
-              <n-icon><DownloadIcon /></n-icon>
-            </template>
-            添加下载
-          </n-button>
-        </n-space>
-      </template>
-    </n-page-header>
+  <div class="download-view p-4 md:p-6 lg:p-8">
+    <!-- 页面标题 -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-3xl font-bold mb-1">下载管理</h1>
+        <p class="text-white/50">管理您的下载任务</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button class="btn-secondary flex items-center gap-2" @click="refresh" :disabled="loading">
+          <span :class="{ 'animate-spin': loading }">🔄</span>
+          <span class="hidden sm:inline">刷新</span>
+        </button>
+        <button class="btn-primary flex items-center gap-2" @click="showSearchModal = true">
+          <span>⬇️</span>
+          <span class="hidden sm:inline">添加下载</span>
+        </button>
+      </div>
+    </div>
 
     <!-- 下载统计 -->
-    <n-card class="stats-card" title="下载统计">
-      <n-space justify="space-around">
-        <n-statistic label="总下载量" :value="stats.total" />
-        <n-statistic label="成功" :value="stats.completed" />
-        <n-statistic label="失败" :value="stats.failed" />
-        <n-statistic label="成功率" :value="successRate + '%'" />
-      </n-space>
-    </n-card>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <GlassCard class="text-center">
+        <div class="text-2xl font-bold text-accent">{{ stats.total }}</div>
+        <div class="text-white/50 text-sm">总下载量</div>
+      </GlassCard>
+      <GlassCard class="text-center">
+        <div class="text-2xl font-bold text-green-400">{{ stats.completed }}</div>
+        <div class="text-white/50 text-sm">成功</div>
+      </GlassCard>
+      <GlassCard class="text-center">
+        <div class="text-2xl font-bold text-red-400">{{ stats.failed }}</div>
+        <div class="text-white/50 text-sm">失败</div>
+      </GlassCard>
+      <GlassCard class="text-center">
+        <div class="text-2xl font-bold text-blue-400">{{ successRate }}%</div>
+        <div class="text-white/50 text-sm">成功率</div>
+      </GlassCard>
+    </div>
 
-    <!-- 下载任务列表 -->
-    <n-card>
-      <template #header-extra>
-        <n-radio-group v-model:value="activeTab" size="small">
-          <n-radio-button value="downloading">下载中</n-radio-button>
-          <n-radio-button value="completed">已完成</n-radio-button>
-          <n-radio-button value="failed">下载失败</n-radio-button>
-          <n-radio-button value="history">历史记录</n-radio-button>
-        </n-radio-group>
-      </template>
+    <!-- Tab 切换 -->
+    <div class="flex flex-wrap gap-2 mb-6 p-2 glass rounded-2xl">
+      <button
+        v-for="tab in tabs"
+        :key="tab.value"
+        class="flex-1 min-w-[80px] py-2.5 px-4 rounded-xl transition-all duration-300 font-medium text-sm"
+        :class="activeTab === tab.value 
+          ? 'bg-accent text-white shadow-lg shadow-accent/25' 
+          : 'text-white/60 hover:text-white hover:bg-white/10'"
+        @click="activeTab = tab.value"
+      >
+        {{ tab.label }}
+        <span v-if="tab.count" class="ml-1 text-xs opacity-70">({{ tab.count }})</span>
+      </button>
+    </div>
 
-      <!-- 下载中 -->
-      <template v-if="activeTab === 'downloading'">
-        <n-data-table
-          :columns="downloadingColumns"
-          :data="activeDownloads"
-          :loading="loading"
-          :pagination="{ pageSize: 10 }"
-          row-key="task_id"
-        />
-        <n-empty v-if="!loading && activeDownloads.length === 0" description="没有正在下载的任务" />
-      </template>
+    <!-- 加载状态 -->
+    <div v-if="loading" class="flex items-center justify-center py-20">
+      <div class="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
+    </div>
 
-      <!-- 已完成 -->
-      <template v-else-if="activeTab === 'completed'">
-        <n-data-table
-          :columns="completedColumns"
-          :data="completedDownloads"
-          :loading="loading"
-          :pagination="{ pageSize: 10 }"
-          row-key="task_id"
-        />
-        <n-empty v-if="!loading && completedDownloads.length === 0" description="没有已完成的下载" />
-      </template>
+    <!-- 空状态 -->
+    <GlassCard v-else-if="displayTasks.length === 0" class="flex flex-col items-center justify-center py-20">
+      <div class="text-6xl mb-4">{{ emptyIcon }}</div>
+      <h3 class="text-xl font-semibold mb-2">{{ emptyText }}</h3>
+      <button v-if="activeTab === 'downloading'" class="btn-primary mt-4" @click="showSearchModal = true">
+        添加下载
+      </button>
+    </GlassCard>
 
-      <!-- 下载失败 -->
-      <template v-else-if="activeTab === 'failed'">
-        <n-data-table
-          :columns="failedColumns"
-          :data="failedDownloads"
-          :loading="loading"
-          :pagination="{ pageSize: 10 }"
-          row-key="task_id"
-        />
-        <n-empty v-if="!loading && failedDownloads.length === 0" description="没有失败的下载" />
-      </template>
-
-      <!-- 历史记录 -->
-      <template v-else>
-        <n-data-table
-          :columns="historyColumns"
-          :data="downloadHistory"
-          :loading="loading"
-          :pagination="{ pageSize: 20 }"
-          row-key="source_id"
-        />
-        <n-empty v-if="!loading && downloadHistory.length === 0" description="没有下载历史" />
-      </template>
-    </n-card>
+    <!-- 任务列表 -->
+    <div v-else class="space-y-3">
+      <GlassCard 
+        v-for="task in displayTasks" 
+        :key="task.task_id || task.source_id"
+        hoverable
+        class="flex flex-col gap-4"
+      >
+        <div class="flex items-start gap-4">
+          <!-- 封面/图标 -->
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/30 to-accent/10 flex items-center justify-center text-2xl shrink-0">
+            🎵
+          </div>
+          
+          <!-- 信息 -->
+          <div class="flex-1 min-w-0">
+            <h3 class="font-semibold truncate">{{ task.title || task.task_id }}</h3>
+            <p class="text-white/50 text-sm truncate">{{ task.artist || '-' }} · {{ task.album || '-' }}</p>
+          </div>
+          
+          <!-- 状态标签 -->
+          <span 
+            class="shrink-0 px-3 py-1 rounded-full text-xs font-medium"
+            :class="statusClass(task.status || (task.progress !== undefined ? 'downloading' : 'completed'))"
+          >
+            {{ statusText(task.status || (task.progress !== undefined ? 'downloading' : 'completed')) }}
+          </span>
+        </div>
+        
+        <!-- 进度条 -->
+        <div v-if="task.progress !== undefined" class="space-y-2">
+          <div class="flex justify-between text-sm text-white/60">
+            <span>{{ formatFileSize(task.downloaded_bytes || 0) }} / {{ formatFileSize(task.total_bytes || 0) }}</span>
+            <span>{{ Math.round((task.progress || 0) * 100) }}%</span>
+          </div>
+          <div class="h-2 bg-white/10 rounded-full overflow-hidden">
+            <div 
+              class="h-full bg-accent transition-all duration-300 rounded-full"
+              :style="{ width: `${(task.progress || 0) * 100}%` }"
+            ></div>
+          </div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="flex items-center justify-between">
+          <div class="text-sm text-white/40">
+            <span v-if="task.quality">{{ qualityMap[task.quality] || task.quality }}</span>
+            <span v-if="task.created_at" class="ml-2">{{ formatDate(task.created_at) }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button 
+              v-if="task.progress !== undefined"
+              class="btn-ghost text-sm" 
+              @click="cancelDownload(task.task_id)"
+            >
+              取消
+            </button>
+            <button 
+              v-else-if="task.status === 'failed'"
+              class="btn-ghost text-sm" 
+              @click="retryDownload(task)"
+            >
+              🔄 重试
+            </button>
+            <button 
+              v-else-if="task.status === 'completed' || task.file_path"
+              class="btn-ghost text-sm" 
+              @click="playTrack(task.file_path)"
+            >
+              ▶️ 播放
+            </button>
+          </div>
+        </div>
+      </GlassCard>
+    </div>
 
     <!-- 搜索下载弹窗 -->
-    <n-modal v-model:show="showSearchModal" preset="card" title="搜索并下载" style="width: 600px">
-      <n-form ref="searchFormRef" :model="searchForm" label-placement="left" label-width="80">
-        <n-form-item label="关键词" path="keyword" :rule="{ required: true, message: '请输入关键词' }">
-          <n-input v-model:value="searchForm.keyword" placeholder="歌曲名、艺术家或专辑" />
-        </n-form-item>
-
-        <n-form-item label="来源" path="source">
-          <n-select
-            v-model:value="searchForm.source"
-            :options="sourceOptions"
-            placeholder="选择下载来源"
-          />
-        </n-form-item>
-
-        <n-form-item label="音质" path="quality">
-          <n-select
-            v-model:value="searchForm.quality"
-            :options="qualityOptions"
-            placeholder="选择音质"
-          />
-        </n-form-item>
-
-        <n-form-item label="数量" path="limit">
-          <n-input-number
-            v-model:value="searchForm.limit"
-            :min="1"
-            :max="20"
-            placeholder="下载数量"
-          />
-        </n-form-item>
-      </n-form>
-
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showSearchModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSearchAndDownload" :loading="searching">
+    <div 
+      v-if="showSearchModal" 
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      @click.self="showSearchModal = false"
+    >
+      <GlassCard class="w-full max-w-lg p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl font-semibold mb-6">搜索并下载</h2>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-white/70 text-sm mb-2">关键词</label>
+            <input 
+              v-model="searchForm.keyword" 
+              type="text" 
+              class="input-glass w-full" 
+              placeholder="歌曲名、艺术家或专辑"
+            />
+          </div>
+          <div>
+            <label class="block text-white/70 text-sm mb-2">来源</label>
+            <select v-model="searchForm.source" class="input-glass w-full">
+              <option v-for="opt in sourceOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-white/70 text-sm mb-2">音质</label>
+            <select v-model="searchForm.quality" class="input-glass w-full">
+              <option v-for="opt in qualityOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-white/70 text-sm mb-2">数量</label>
+            <input 
+              v-model.number="searchForm.limit" 
+              type="number" 
+              min="1" 
+              max="20"
+              class="input-glass w-full" 
+            />
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button class="btn-secondary" @click="showSearchModal = false">取消</button>
+          <button class="btn-primary" @click="handleSearchAndDownload" :loading="searching">
             搜索并下载
-          </n-button>
-        </n-space>
-      </template>
-    </n-modal>
+          </button>
+        </div>
+      </GlassCard>
+    </div>
 
     <!-- URL 下载弹窗 -->
-    <n-modal v-model:show="showUrlModal" preset="card" title="通过 URL 下载" style="width: 600px">
-      <n-form ref="urlFormRef" :model="urlForm" label-placement="left" label-width="80">
-        <n-form-item label="URL" path="url" :rule="{ required: true, message: '请输入 URL' }">
-          <n-input v-model:value="urlForm.url" placeholder="音乐 URL 或 ID" />
-        </n-form-item>
-
-        <n-form-item label="来源" path="source">
-          <n-select
-            v-model:value="urlForm.source"
-            :options="sourceOptions"
-            placeholder="选择下载来源"
-          />
-        </n-form-item>
-
-        <n-form-item label="音质" path="quality">
-          <n-select
-            v-model:value="urlForm.quality"
-            :options="qualityOptions"
-            placeholder="选择音质"
-          />
-        </n-form-item>
-
-        <n-form-item label="标题" path="title">
-          <n-input v-model:value="urlForm.title" placeholder="可选，覆盖自动识别的标题" />
-        </n-form-item>
-
-        <n-form-item label="艺术家" path="artist">
-          <n-input v-model:value="urlForm.artist" placeholder="可选，覆盖自动识别的艺术家" />
-        </n-form-item>
-
-        <n-form-item label="专辑" path="album">
-          <n-input v-model:value="urlForm.album" placeholder="可选，覆盖自动识别的专辑" />
-        </n-form-item>
-      </n-form>
-
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showUrlModal = false">取消</n-button>
-          <n-button type="primary" @click="handleUrlDownload" :loading="downloadingByUrl">
+    <div 
+      v-if="showUrlModal" 
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      @click.self="showUrlModal = false"
+    >
+      <GlassCard class="w-full max-w-lg p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl font-semibold mb-6">通过 URL 下载</h2>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-white/70 text-sm mb-2">URL</label>
+            <input 
+              v-model="urlForm.url" 
+              type="text" 
+              class="input-glass w-full" 
+              placeholder="音乐 URL 或 ID"
+            />
+          </div>
+          <div>
+            <label class="block text-white/70 text-sm mb-2">来源</label>
+            <select v-model="urlForm.source" class="input-glass w-full">
+              <option v-for="opt in sourceOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-white/70 text-sm mb-2">音质</label>
+            <select v-model="urlForm.quality" class="input-glass w-full">
+              <option v-for="opt in qualityOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-white/70 text-sm mb-2">标题（可选）</label>
+            <input 
+              v-model="urlForm.title" 
+              type="text" 
+              class="input-glass w-full" 
+              placeholder="覆盖自动识别的标题"
+            />
+          </div>
+          <div>
+            <label class="block text-white/70 text-sm mb-2">艺术家（可选）</label>
+            <input 
+              v-model="urlForm.artist" 
+              type="text" 
+              class="input-glass w-full" 
+              placeholder="覆盖自动识别的艺术家"
+            />
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button class="btn-secondary" @click="showUrlModal = false">取消</button>
+          <button class="btn-primary" @click="handleUrlDownload" :loading="downloadingByUrl">
             开始下载
-          </n-button>
-        </n-space>
-      </template>
-    </n-modal>
+          </button>
+        </div>
+      </GlassCard>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, h } from 'vue'
-import {
-  NPageHeader,
-  NCard,
-  NSpace,
-  NButton,
-  NIcon,
-  NTabs,
-  NTabPane,
-  NDataTable,
-  NEmpty,
-  NModal,
-  NForm,
-  NFormItem,
-  NInput,
-  NInputNumber,
-  NSelect,
-  NStatistic,
-  NTag,
-  NProgress,
-  useMessage,
-  useDialog,
-  type FormInst,
-  type DataTableColumns,
-} from 'naive-ui'
-import { Refresh, DownloadOutline, PlayCircleOutline, RefreshOutline } from '@vicons/ionicons5'
-
-const RefreshIcon = Refresh
-const DownloadIcon = DownloadOutline
-const PlayIcon = PlayCircleOutline
-const RetryIcon = RefreshOutline
-
-const message = useMessage()
-const dialog = useDialog()
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import GlassCard from '@/components/ui/GlassCard.vue'
 
 // 状态
 const loading = ref(false)
@@ -224,7 +274,7 @@ const showSearchModal = ref(false)
 const showUrlModal = ref(false)
 const activeTab = ref('downloading')
 
-// 下载任务
+// 下载任务数据
 const activeDownloads = ref<any[]>([])
 const completedDownloads = ref<any[]>([])
 const failedDownloads = ref<any[]>([])
@@ -237,15 +287,93 @@ const stats = ref({
   failed: 0,
 })
 
+// 计算显示的任务
+const displayTasks = computed(() => {
+  switch (activeTab.value) {
+    case 'downloading': return activeDownloads.value
+    case 'completed': return completedDownloads.value
+    case 'failed': return failedDownloads.value
+    case 'history': return downloadHistory.value
+    default: return []
+  }
+})
+
+// Tab 配置
+const tabs = computed(() => [
+  { label: '下载中', value: 'downloading', count: activeDownloads.value.length },
+  { label: '已完成', value: 'completed', count: completedDownloads.value.length },
+  { label: '失败', value: 'failed', count: failedDownloads.value.length },
+  { label: '历史', value: 'history', count: downloadHistory.value.length },
+])
+
+// 空状态
+const emptyIcon = computed(() => {
+  const icons: Record<string, string> = {
+    downloading: '⏳',
+    completed: '✅',
+    failed: '❌',
+    history: '📋',
+  }
+  return icons[activeTab.value] || '📭'
+})
+
+const emptyText = computed(() => {
+  const texts: Record<string, string> = {
+    downloading: '没有正在下载的任务',
+    completed: '没有已完成的下载',
+    failed: '没有失败的下载',
+    history: '没有下载历史',
+  }
+  return texts[activeTab.value] || '没有数据'
+})
+
 // 计算成功率
 const successRate = computed(() => {
   const total = stats.value.completed + stats.value.failed
   return total > 0 ? Math.round((stats.value.completed / total) * 100) : 0
 })
 
-// 表单引用
-const searchFormRef = ref<FormInst | null>(null)
-const urlFormRef = ref<FormInst | null>(null)
+// 状态映射
+const statusClass = (status: string) => {
+  const classes: Record<string, string> = {
+    pending: 'bg-yellow-500/20 text-yellow-400',
+    downloading: 'bg-blue-500/20 text-blue-400',
+    completed: 'bg-green-500/20 text-green-400',
+    failed: 'bg-red-500/20 text-red-400',
+    cancelled: 'bg-gray-500/20 text-gray-400',
+  }
+  return classes[status] || 'bg-white/10 text-white/60'
+}
+
+const statusText = (status: string) => {
+  const texts: Record<string, string> = {
+    pending: '等待中',
+    downloading: '下载中',
+    completed: '已完成',
+    failed: '失败',
+    cancelled: '已取消',
+  }
+  return texts[status] || status
+}
+
+// 选项配置
+const sourceOptions = [
+  { label: '网易云音乐', value: 'netease' },
+  { label: 'QQ音乐', value: 'qq' },
+  { label: '酷狗音乐', value: 'kugou' },
+]
+
+const qualityOptions = [
+  { label: '标准 (128kbps)', value: 'standard' },
+  { label: '高品质 (320kbps)', value: 'high' },
+  { label: '无损 (FLAC)', value: 'lossless' },
+]
+
+const qualityMap: Record<string, string> = {
+  standard: '标准',
+  high: '高品质',
+  lossless: '无损',
+}
 
 // 搜索表单
 const searchForm = ref({
@@ -265,204 +393,6 @@ const urlForm = ref({
   album: '',
 })
 
-// 选项
-const sourceOptions = [
-  { label: '网易云音乐', value: 'netease' },
-  // TODO: 添加其他来源
-]
-
-const qualityOptions = [
-  { label: '标准 (128kbps)', value: 'standard' },
-  { label: '高品质 (320kbps)', value: 'high' },
-  { label: '无损 (FLAC)', value: 'lossless' },
-]
-
-// 表格列定义（使用 h 函数代替 JSX）
-const downloadingColumns: DataTableColumns<any> = [
-  {
-    title: '标题',
-    key: 'title',
-    render: (row) => row.title || row.task_id,
-  },
-  {
-    title: '艺术家',
-    key: 'artist',
-    render: (row) => row.artist || '-',
-  },
-  {
-    title: '专辑',
-    key: 'album',
-    render: (row) => row.album || '-',
-  },
-  {
-    title: '音质',
-    key: 'quality',
-    render: (row) => {
-      const qualityMap: Record<string, string> = {
-        standard: '标准',
-        high: '高品质',
-        lossless: '无损',
-      }
-      return qualityMap[row.quality] || row.quality
-    },
-  },
-  {
-    title: '进度',
-    key: 'progress',
-    render: (row) => {
-      const percentage = (row.progress || 0) * 100
-      return h(NProgress, { percentage, indicatorPlacement: 'inside', processing: true })
-    },
-  },
-  {
-    title: '状态',
-    key: 'status',
-    render: () => h(NTag, { type: 'info' }, () => '下载中'),
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    render: (row) => {
-      return h(NSpace, null, {
-        default: () => h(NButton, { size: 'small', onClick: () => cancelDownload(row.task_id) }, () => '取消')
-      })
-    },
-  },
-]
-
-const completedColumns: DataTableColumns<any> = [
-  {
-    title: '标题',
-    key: 'title',
-    render: (row) => row.title || row.task_id,
-  },
-  {
-    title: '艺术家',
-    key: 'artist',
-    render: (row) => row.artist || '-',
-  },
-  {
-    title: '专辑',
-    key: 'album',
-    render: (row) => row.album || '-',
-  },
-  {
-    title: '音质',
-    key: 'quality',
-    render: (row) => {
-      const qualityMap: Record<string, string> = {
-        standard: '标准',
-        high: '高品质',
-        lossless: '无损',
-      }
-      return qualityMap[row.quality] || row.quality
-    },
-  },
-  {
-    title: '文件大小',
-    key: 'file_size',
-    render: (row) => row.total_bytes ? formatFileSize(row.total_bytes) : '-',
-  },
-  {
-    title: '文件路径',
-    key: 'file_path',
-    render: (row) => row.file_path || '-',
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    render: (row) => {
-      return h(NSpace, null, {
-        default: () => h(NButton, { size: 'small', type: 'primary', onClick: () => playTrack(row.file_path) }, {
-          default: () => [h(NIcon, null, { default: () => h(PlayIcon) }), '播放']
-        })
-      })
-    },
-  },
-]
-
-const failedColumns: DataTableColumns<any> = [
-  {
-    title: '标题',
-    key: 'title',
-    render: (row) => row.title || row.task_id,
-  },
-  {
-    title: '艺术家',
-    key: 'artist',
-    render: (row) => row.artist || '-',
-  },
-  {
-    title: '专辑',
-    key: 'album',
-    render: (row) => row.album || '-',
-  },
-  {
-    title: '错误信息',
-    key: 'error_message',
-    render: (row) => row.error_message || '-',
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    render: (row) => {
-      return h(NSpace, null, {
-        default: () => h(NButton, { size: 'small', onClick: () => retryDownload(row) }, {
-          default: () => [h(NIcon, null, { default: () => h(RetryIcon) }), '重试']
-        })
-      })
-    },
-  },
-]
-
-const historyColumns: DataTableColumns<any> = [
-  {
-    title: '标题',
-    key: 'title',
-    render: (row) => row.title || '-',
-  },
-  {
-    title: '艺术家',
-    key: 'artist',
-    render: (row) => row.artist || '-',
-  },
-  {
-    title: '专辑',
-    key: 'album',
-    render: (row) => row.album || '-',
-  },
-  {
-    title: '来源',
-    key: 'source',
-    render: (row) => {
-      const sourceMap: Record<string, string> = {
-        netease: '网易云音乐',
-      }
-      return sourceMap[row.source] || row.source
-    },
-  },
-  {
-    title: '状态',
-    key: 'status',
-    render: (row) => {
-      const statusMap: Record<string, { type: any; text: string }> = {
-        pending: { type: 'default', text: '等待中' },
-        downloading: { type: 'info', text: '下载中' },
-        completed: { type: 'success', text: '已完成' },
-        failed: { type: 'error', text: '失败' },
-        cancelled: { type: 'warning', text: '已取消' },
-      }
-      const status = statusMap[row.status] || { type: 'default', text: row.status }
-      return h(NTag, { type: status.type }, () => status.text)
-    },
-  },
-  {
-    title: '时间',
-    key: 'created_at',
-    render: (row) => row.created_at ? formatDate(row.created_at) : '-',
-  },
-]
-
 // 方法
 const refresh = async () => {
   loading.value = true
@@ -474,145 +404,95 @@ const refresh = async () => {
       fetchDownloadHistory(),
       fetchStats(),
     ])
-    message.success('刷新成功')
   } catch (error) {
-    message.error('刷新失败')
+    console.error('Refresh failed:', error)
   } finally {
     loading.value = false
   }
 }
 
 const fetchActiveDownloads = async () => {
-  // TODO: 调用 API 获取活跃下载
-  // const response = await api.get('/api/v1/downloads/active')
-  // activeDownloads.value = response.data
+  // TODO: 调用 API
+  activeDownloads.value = [
+    { task_id: '1', title: 'Shape of You', artist: 'Ed Sheeran', album: '÷', quality: 'high', progress: 0.45, status: 'downloading' },
+  ]
 }
 
 const fetchCompletedDownloads = async () => {
-  // TODO: 调用 API 获取已完成下载
-  // const response = await api.get('/api/v1/downloads/completed')
-  // completedDownloads.value = response.data
+  // TODO: 调用 API
+  completedDownloads.value = [
+    { task_id: '2', title: 'Blinding Lights', artist: 'The Weeknd', album: 'After Hours', quality: 'lossless', file_path: '/music/blinding-lights.flac' },
+  ]
 }
 
 const fetchFailedDownloads = async () => {
-  // TODO: 调用 API 获取失败下载
-  // const response = await api.get('/api/v1/downloads/failed')
-  // failedDownloads.value = response.data
+  // TODO: 调用 API
+  failedDownloads.value = []
 }
 
 const fetchDownloadHistory = async () => {
-  // TODO: 调用 API 获取下载历史
-  // const response = await api.get('/api/v1/download/history')
-  // downloadHistory.value = response.data
+  // TODO: 调用 API
+  downloadHistory.value = []
 }
 
 const fetchStats = async () => {
-  // TODO: 调用 API 获取下载统计
-  // const response = await api.get('/api/v1/downloads/stats')
-  // stats.value = response.data
+  // TODO: 调用 API
+  stats.value = {
+    total: activeDownloads.value.length + completedDownloads.value.length + failedDownloads.value.length,
+    completed: completedDownloads.value.length,
+    failed: failedDownloads.value.length,
+  }
 }
 
 const handleSearchAndDownload = async () => {
+  if (!searchForm.value.keyword.trim()) return
+  
+  searching.value = true
   try {
-    await searchFormRef.value?.validate()
-
-    searching.value = true
-    // TODO: 调用 API 搜索并下载
-    // await api.post('/api/v1/downloads/search-and-download', searchForm.value)
-
-    message.success('下载任务已添加')
+    // TODO: 调用 API
+    console.log('Search and download:', searchForm.value)
     showSearchModal.value = false
-
-    // 刷新下载列表
+    searchForm.value = { keyword: '', source: 'netease', quality: 'standard', limit: 1 }
     await refresh()
-
-    // 重置表单
-    searchForm.value = {
-      keyword: '',
-      source: 'netease',
-      quality: 'standard',
-      limit: 1,
-    }
-  } catch (error: any) {
-    if (error.errors) {
-      // 表单验证错误
-      return
-    }
-    message.error(error.message || '下载失败')
+  } catch (error) {
+    console.error('Search failed:', error)
   } finally {
     searching.value = false
   }
 }
 
 const handleUrlDownload = async () => {
+  if (!urlForm.value.url.trim()) return
+  
+  downloadingByUrl.value = true
   try {
-    await urlFormRef.value?.validate()
-
-    downloadingByUrl.value = true
-    // TODO: 调用 API 通过 URL 下载
-    // await api.post('/api/v1/downloads/download-by-url', urlForm.value)
-
-    message.success('下载任务已添加')
+    // TODO: 调用 API
+    console.log('URL download:', urlForm.value)
     showUrlModal.value = false
-
-    // 刷新下载列表
+    urlForm.value = { url: '', source: 'netease', quality: 'standard', title: '', artist: '', album: '' }
     await refresh()
-
-    // 重置表单
-    urlForm.value = {
-      url: '',
-      source: 'netease',
-      quality: 'standard',
-      title: '',
-      artist: '',
-      album: '',
-    }
-  } catch (error: any) {
-    if (error.errors) {
-      return
-    }
-    message.error(error.message || '下载失败')
+  } catch (error) {
+    console.error('URL download failed:', error)
   } finally {
     downloadingByUrl.value = false
   }
 }
 
 const cancelDownload = async (taskId: string) => {
-  dialog.warning({
-    title: '取消下载',
-    content: '确定要取消这个下载任务吗？',
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        // TODO: 调用 API 取消下载
-        // await api.post(`/api/v1/downloads/${taskId}/cancel`)
-
-        message.success('已取消下载')
-        await refresh()
-      } catch (error) {
-        message.error('取消失败')
-      }
-    },
-  })
+  // TODO: 调用 API 取消下载
+  console.log('Cancel download:', taskId)
+  await refresh()
 }
 
 const retryDownload = async (task: any) => {
-  try {
-    // TODO: 调用 API 重试下载
-    // await api.post(`/api/v1/downloads/${task.task_id}/retry`)
-
-    message.success('已重新开始下载')
-    await refresh()
-  } catch (error) {
-    message.error('重试失败')
-  }
+  // TODO: 调用 API 重试
+  console.log('Retry download:', task)
+  await refresh()
 }
 
 const playTrack = async (filePath: string) => {
-  // TODO: 调用播放器播放
-  // playerStore.playTrack(filePath)
-  message.info('播放功能待实现')
+  // TODO: 调用播放器
+  console.log('Play track:', filePath)
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -628,13 +508,12 @@ const formatDate = (dateStr: string): string => {
   return date.toLocaleString('zh-CN')
 }
 
-// 定时刷新下载状态
+// 定时刷新
 let refreshTimer: NodeJS.Timeout | null = null
 
 onMounted(async () => {
   await refresh()
-
-  // 每 5 秒刷新一次活跃下载
+  
   refreshTimer = setInterval(async () => {
     if (activeTab.value === 'downloading') {
       await fetchActiveDownloads()
@@ -652,10 +531,6 @@ onUnmounted(() => {
 
 <style scoped>
 .download-view {
-  padding: 20px;
-}
-
-.stats-card {
-  margin-bottom: 20px;
+  min-height: 100%;
 }
 </style>

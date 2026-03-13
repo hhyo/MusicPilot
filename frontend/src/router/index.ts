@@ -10,7 +10,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/library',
     name: 'Library',
-    component: () => import('../views/library/LibraryView.vue'),
+    component: () => import('../views/LibraryView.vue'),
   },
   {
     path: '/artists',
@@ -45,12 +45,12 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/download',
     name: 'Download',
-    component: () => import('../views/download/DownloadView.vue'),
+    component: () => import('../views/DownloadView.vue'),
   },
   {
     path: '/subscribe',
     name: 'Subscribe',
-    component: () => import('../views/subscribe/SubscribeView.vue'),
+    component: () => import('../views/SubscribeView.vue'),
   },
   {
     path: '/site',
@@ -70,12 +70,12 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/chart',
     name: 'Chart',
-    component: () => import('../views/chart/ChartView.vue'),
+    component: () => import('../views/ChartView.vue'),
   },
   {
     path: '/organize',
     name: 'Organize',
-    component: () => import('../views/organize/OrganizeView.vue'),
+    component: () => import('../views/OrganizeView.vue'),
   },
   {
     path: '/mediaserver',

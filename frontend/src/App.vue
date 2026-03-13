@@ -1,44 +1,83 @@
 <template>
-  <n-config-provider :theme="theme">
-    <n-layout class="layout">
-      <LayoutHeader />
-      <n-layout has-sider class="content-layout">
-        <LayoutSidebar />
-        <n-layout-content>
-          <router-view />
-        </n-layout-content>
-      </n-layout>
-      <PlayerBar />
-      <LayoutFooter />
-    </n-layout>
-  </n-config-provider>
+  <div class="min-h-screen bg-dark-900 text-white">
+    <!-- Header -->
+    <LayoutHeader @toggle-sidebar="sidebarOpen = true" />
+    
+    <!-- Sidebar -->
+    <LayoutSidebar :mobile-open="sidebarOpen" @close="sidebarOpen = false" />
+    
+    <!-- Main Content -->
+    <main
+      :class="[
+        'min-h-screen pt-16 pb-20 lg:pb-0 transition-all duration-300',
+        'lg:pl-64'
+      ]"
+    >
+      <div class="p-4 lg:p-6 max-w-7xl mx-auto">
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </div>
+    </main>
+    
+    <!-- Player Bar -->
+    <PlayerBar />
+    
+    <!-- Mobile Bottom Navigation -->
+    <MobileNav />
+    
+    <!-- Footer (Desktop only) -->
+    <LayoutFooter class="hidden lg:block" />
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { darkTheme, NConfigProvider, NLayout, NLayoutContent } from 'naive-ui'
+import { ref } from 'vue'
 import LayoutHeader from '@/components/common/LayoutHeader.vue'
 import LayoutSidebar from '@/components/common/LayoutSidebar.vue'
 import LayoutFooter from '@/components/common/LayoutFooter.vue'
 import PlayerBar from '@/components/player/PlayerBar.vue'
 
-const theme = computed(() => darkTheme)
+const sidebarOpen = ref(false)
 </script>
 
-<style scoped>
-.layout {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
+<style>
+/* Page transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
 }
 
-.content-layout {
-  flex: 1;
-  overflow: hidden;
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
-.n-layout-content {
-  padding: 20px;
-  overflow-y: auto;
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Selection color */
+::selection {
+  background: rgba(29, 185, 84, 0.3);
+  color: white;
 }
 </style>
