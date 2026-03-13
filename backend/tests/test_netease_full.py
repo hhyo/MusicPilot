@@ -2,8 +2,6 @@
 NeteaseDownloader 完整测试
 """
 
-from unittest.mock import patch
-
 import pytest
 
 
@@ -21,14 +19,7 @@ class TestNeteaseDownloaderFull:
         assert netease is not None
 
     @pytest.fixture
-    def mock_settings(self):
-        with patch("app.modules.downloader.netease.settings") as mock:
-            mock.download_path = "/tmp/downloads"
-            mock.temp_path = "/tmp/temp"
-            yield mock
-
-    @pytest.fixture
-    def downloader(self, mock_settings):
+    def downloader(self):
         from app.modules.downloader.netease import NeteaseDownloader
 
         return NeteaseDownloader()
