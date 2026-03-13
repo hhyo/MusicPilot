@@ -33,6 +33,7 @@ dependencies = [
     "feedparser>=6.0.10",
     "asyncpg>=0.30.0",
     "aiosqlite>=0.20.0",
+    "beautifulsoup4>=4.12.0",
 ]
 
 [project.optional-dependencies]
