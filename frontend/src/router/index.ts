@@ -67,6 +67,21 @@ const routes: RouteRecordRaw[] = [
     name: 'System',
     component: () => import('../views/system/SystemView.vue'),
   },
+  {
+    path: '/chart',
+    name: 'Chart',
+    component: () => import('../views/chart/ChartView.vue'),
+  },
+  {
+    path: '/organize',
+    name: 'Organize',
+    component: () => import('../views/organize/OrganizeView.vue'),
+  },
+  {
+    path: '/mediaserver',
+    name: 'MediaServer',
+    component: () => import('../views/mediaserver/MediaServerView.vue'),
+  },
 ]
 
 const router = createRouter({
