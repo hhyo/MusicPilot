@@ -46,7 +46,7 @@ async def get_subscribe_releases(
     - **limit**: 返回的最大记录数
     - **status**: 下载状态（可选：pending, downloading, completed, failed）
     """
-    oper = SubscribeReleaseOper(SubscribeRelease, db_manager)
+    oper = SubscribeReleaseOper(db_manager, SubscribeRelease)
 
     if status:
         releases = await oper.get_by_status(status, subscribe_id=subscribe_id, limit=limit)
@@ -68,7 +68,7 @@ async def get_release(subscribe_id: int, release_id: int, db: AsyncSession = Dep
     """
     根据ID获取发布记录详情
     """
-    oper = SubscribeReleaseOper(SubscribeRelease, db_manager)
+    oper = SubscribeReleaseOper(db_manager, SubscribeRelease)
     release = await oper.get_by_id(release_id)
 
     if not release or release.subscribe_id != subscribe_id:
@@ -86,7 +86,7 @@ async def get_release_statistics(subscribe_id: int, db: AsyncSession = Depends(g
     """
     获取订阅的发布统计信息
     """
-    oper = SubscribeReleaseOper(SubscribeRelease, db_manager)
+    oper = SubscribeReleaseOper(db_manager, SubscribeRelease)
     stats = await oper.get_release_statistics(subscribe_id)
     return SubscribeReleaseStatistics(**stats)
 
@@ -105,7 +105,7 @@ async def update_release(
     """
     更新发布记录（主要用于更新下载状态）
     """
-    oper = SubscribeReleaseOper(SubscribeRelease, db_manager)
+    oper = SubscribeReleaseOper(db_manager, SubscribeRelease)
 
     # 验证发布记录属于该订阅
     existing = await oper.get_by_id(release_id)
@@ -125,7 +125,7 @@ async def delete_release(subscribe_id: int, release_id: int, db: AsyncSession = 
     """
     删除发布记录
     """
-    oper = SubscribeReleaseOper(SubscribeRelease, db_manager)
+    oper = SubscribeReleaseOper(db_manager, SubscribeRelease)
 
     # 验证发布记录属于该订阅
     existing = await oper.get_by_id(release_id)
@@ -150,7 +150,7 @@ async def get_downloading_releases(limit: int = 100, db: AsyncSession = Depends(
     """
     获取所有正在下载的发布记录
     """
-    oper = SubscribeReleaseOper(SubscribeRelease, db_manager)
+    oper = SubscribeReleaseOper(db_manager, SubscribeRelease)
     releases = await oper.get_downloading()
     return releases[:limit]
 
@@ -164,6 +164,6 @@ async def get_failed_releases(limit: int = 100, db: AsyncSession = Depends(get_d
     """
     获取所有下载失败的发布记录
     """
-    oper = SubscribeReleaseOper(SubscribeRelease, db_manager)
+    oper = SubscribeReleaseOper(db_manager, SubscribeRelease)
     releases = await oper.get_failed(limit=limit)
     return releases

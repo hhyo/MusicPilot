@@ -17,7 +17,7 @@ from app.schemas.subscribe import (
 
 router = APIRouter()
 
-subscribe_oper = SubscribeOper(Subscribe, db_manager)
+subscribe_oper = SubscribeOper(db_manager, Subscribe)
 subscribe_chain = SubscribeChain()
 
 
@@ -73,8 +73,7 @@ async def create_subscribe(subscribe: SubscribeCreate):
             raise HTTPException(status_code=400, detail="歌单/榜单 ID 不能为空")
 
     # 创建订阅
-    subscribe_data = subscribe.dict()
-    result = await subscribe_oper.create(subscribe_data)
+    result = await subscribe_oper.create(**subscribe.model_dump())
 
     return SubscribeResponse.from_orm(result)
 

@@ -19,8 +19,21 @@
       </GlassCard>
     </div>
 
+    <!-- Loading State -->
+    <GlassCard v-if="loading">
+      <div class="space-y-3">
+        <div v-for="i in 5" :key="i" class="flex items-center gap-4 p-3 animate-pulse">
+          <div class="w-10 h-10 rounded-xl bg-white/10"></div>
+          <div class="flex-1">
+            <div class="h-4 bg-white/10 rounded w-1/2 mb-2"></div>
+            <div class="h-3 bg-white/10 rounded w-1/3"></div>
+          </div>
+        </div>
+      </div>
+    </GlassCard>
+
     <!-- Organize List -->
-    <GlassCard>
+    <GlassCard v-else>
       <div class="space-y-3">
         <div
           v-for="task in tasks"
@@ -54,6 +67,17 @@
             <p class="text-sm text-white/60">→ {{ task.target_path }}</p>
           </div>
 
+          <!-- Status Label -->
+          <span :class="[
+            'text-sm px-2 py-1 rounded',
+            task.status === 'completed' ? 'bg-green-500/20 text-green-500' :
+            task.status === 'processing' ? 'bg-accent/20 text-accent' :
+            task.status === 'failed' ? 'bg-red-500/20 text-red-500' :
+            'bg-white/10 text-white/60'
+          ]">
+            {{ getStatusLabel(task.status) }}
+          </span>
+
           <!-- Actions -->
           <Button
             v-if="task.status === 'failed'"
@@ -77,7 +101,7 @@
     </GlassCard>
 
     <!-- Empty State -->
-    <div v-if="!tasks.length" class="text-center py-20">
+    <div v-if="!loading && !tasks.length" class="text-center py-20">
       <svg class="w-20 h-20 text-white/20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
       </svg>
@@ -119,6 +143,7 @@ import { ref, onMounted } from 'vue'
 import GlassCard from '@/components/ui/GlassCard.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
+import { organizeApi } from '@/api/client'
 
 const stats = ref([
   { label: '进行中', value: 0, color: 'text-accent' },
@@ -127,7 +152,8 @@ const stats = ref([
   { label: '失败', value: 0, color: 'text-red-400' },
 ])
 
-const tasks = ref([])
+const tasks = ref<any[]>([])
+const loading = ref(false)
 const showAddModal = ref(false)
 const adding = ref(false)
 const newTask = ref({
@@ -135,14 +161,27 @@ const newTask = ref({
   target_path: '/library/music',
 })
 
+const getStatusLabel = (status: string) => {
+  const map: Record<string, string> = {
+    processing: '处理中',
+    completed: '已完成',
+    pending: '等待中',
+    failed: '失败',
+  }
+  return map[status] || status
+}
+
 const fetchTasks = async () => {
+  loading.value = true
   try {
-    const response = await fetch('/api/v1/organize/tasks')
-    const data = await response.json()
-    tasks.value = data.tasks || []
+    const res = await organizeApi.list()
+    tasks.value = res.tasks || []
     updateStats()
   } catch (error) {
     console.error('Failed to fetch tasks:', error)
+    tasks.value = []
+  } finally {
+    loading.value = false
   }
 }
 
@@ -158,15 +197,15 @@ const addTask = async () => {
   
   adding.value = true
   try {
-    await fetch('/api/v1/organize/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newTask.value)
+    await organizeApi.create({
+      source_path: newTask.value.source_path,
+      target_path: newTask.value.target_path,
     })
     showAddModal.value = false
     await fetchTasks()
   } catch (error) {
     console.error('Failed to add task:', error)
+    alert('创建整理任务失败')
   } finally {
     adding.value = false
   }
@@ -174,19 +213,23 @@ const addTask = async () => {
 
 const retryTask = async (id: number) => {
   try {
-    await fetch(`/api/v1/organize/tasks/${id}/retry`, { method: 'POST' })
+    await organizeApi.retry(id)
     await fetchTasks()
   } catch (error) {
     console.error('Failed to retry task:', error)
+    alert('重试失败')
   }
 }
 
 const deleteTask = async (id: number) => {
+  if (!confirm('确定要删除这个任务吗？')) return
+  
   try {
-    await fetch(`/api/v1/organize/tasks/${id}`, { method: 'DELETE' })
+    await organizeApi.delete(id)
     await fetchTasks()
   } catch (error) {
     console.error('Failed to delete task:', error)
+    alert('删除任务失败')
   }
 }
 

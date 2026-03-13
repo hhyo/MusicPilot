@@ -300,7 +300,8 @@ async def scan_library(
         scan_tasks[task_id]["completed_at"] = time.time()
 
         # 更新音乐库统计
-        track_oper = TrackOper()
+        from app.db import db_manager
+        track_oper = TrackOper(db_manager)
         tracks = await track_oper.get_by_library(library.path)
 
         await library_oper.update_stats(

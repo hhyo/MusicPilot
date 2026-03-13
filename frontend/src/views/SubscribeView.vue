@@ -11,8 +11,23 @@
       </Button>
     </div>
 
+    <!-- Loading State -->
+    <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div v-for="i in 6" :key="i" class="animate-pulse">
+        <GlassCard>
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-white/10"></div>
+            <div class="flex-1">
+              <div class="h-4 bg-white/10 rounded w-1/2 mb-2"></div>
+              <div class="h-3 bg-white/10 rounded w-1/3"></div>
+            </div>
+          </div>
+        </GlassCard>
+      </div>
+    </div>
+
     <!-- Subscriptions List -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <GlassCard
         v-for="sub in subscriptions"
         :key="sub.id"
@@ -28,7 +43,7 @@
             </div>
             <div>
               <p class="font-medium">{{ sub.name }}</p>
-              <p class="text-sm text-white/60">{{ sub.type === 'artist' ? '艺术家' : '专辑' }}</p>
+              <p class="text-sm text-white/60">{{ getTypeLabel(sub.type) }}</p>
             </div>
           </div>
           <button
@@ -41,14 +56,14 @@
           </button>
         </div>
         <div class="mt-4 flex items-center gap-4 text-sm text-white/60">
-          <span>状态: {{ sub.state }}</span>
+          <span>状态: {{ getStateLabel(sub.state) }}</span>
           <span>更新: {{ formatDate(sub.last_update) }}</span>
         </div>
       </GlassCard>
     </div>
 
     <!-- Empty State -->
-    <div v-if="!subscriptions.length" class="text-center py-20">
+    <div v-if="!loading && !subscriptions.length" class="text-center py-20">
       <svg class="w-20 h-20 text-white/20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
       </svg>
@@ -93,6 +108,11 @@
             label="名称"
             placeholder="输入艺术家或专辑名称"
           />
+          <Input
+            v-model="newSubscribe.musicbrainz_id"
+            label="MusicBrainz ID (可选)"
+            placeholder="例如: test-artist"
+          />
         </div>
         <div class="flex gap-3 mt-6">
           <Button variant="secondary" class="flex-1" @click="showAddModal = false">
@@ -112,22 +132,47 @@ import { ref, onMounted } from 'vue'
 import GlassCard from '@/components/ui/GlassCard.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
+import { subscribeApi } from '@/api/client'
 
-const subscriptions = ref([])
+const subscriptions = ref<any[]>([])
+const loading = ref(false)
 const showAddModal = ref(false)
 const adding = ref(false)
 const newSubscribe = ref({
   type: 'artist',
   name: '',
+  musicbrainz_id: '',
 })
 
+const getTypeLabel = (type: string) => {
+  const map: Record<string, string> = {
+    artist: '艺术家',
+    album: '专辑',
+    playlist: '播放列表',
+    chart: '榜单',
+  }
+  return map[type] || type
+}
+
+const getStateLabel = (state: string) => {
+  const map: Record<string, string> = {
+    active: '活跃',
+    pending: '等待中',
+    disabled: '已禁用',
+  }
+  return map[state] || state
+}
+
 const fetchSubscriptions = async () => {
+  loading.value = true
   try {
-    const response = await fetch('/api/v1/subscribes')
-    const data = await response.json()
-    subscriptions.value = data.items || []
+    const res = await subscribeApi.list({ limit: 100 })
+    subscriptions.value = res.data || []
   } catch (error) {
     console.error('Failed to fetch subscriptions:', error)
+    subscriptions.value = []
+  } finally {
+    loading.value = false
   }
 }
 
@@ -136,27 +181,31 @@ const addSubscribe = async () => {
   
   adding.value = true
   try {
-    await fetch('/api/v1/subscribes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newSubscribe.value)
+    await subscribeApi.create({
+      type: newSubscribe.value.type,
+      name: newSubscribe.value.name,
+      musicbrainz_id: newSubscribe.value.musicbrainz_id || undefined,
     })
     showAddModal.value = false
-    newSubscribe.value.name = ''
+    newSubscribe.value = { type: 'artist', name: '', musicbrainz_id: '' }
     await fetchSubscriptions()
   } catch (error) {
     console.error('Failed to add subscribe:', error)
+    alert('添加订阅失败')
   } finally {
     adding.value = false
   }
 }
 
 const deleteSubscribe = async (id: number) => {
+  if (!confirm('确定要删除这个订阅吗？')) return
+  
   try {
-    await fetch(`/api/v1/subscribes/${id}`, { method: 'DELETE' })
+    await subscribeApi.delete(id)
     await fetchSubscriptions()
   } catch (error) {
     console.error('Failed to delete subscribe:', error)
+    alert('删除订阅失败')
   }
 }
 

@@ -19,8 +19,22 @@
       </GlassCard>
     </div>
 
+    <!-- Loading State -->
+    <GlassCard v-if="loading">
+      <div class="space-y-3">
+        <div v-for="i in 5" :key="i" class="flex items-center gap-4 p-3 animate-pulse">
+          <div class="w-10 h-10 rounded-xl bg-white/10"></div>
+          <div class="flex-1">
+            <div class="h-4 bg-white/10 rounded w-1/2 mb-2"></div>
+            <div class="h-3 bg-white/10 rounded w-1/3"></div>
+          </div>
+          <div class="w-20 h-8 bg-white/10 rounded"></div>
+        </div>
+      </div>
+    </GlassCard>
+
     <!-- Download List -->
-    <GlassCard>
+    <GlassCard v-else>
       <div class="space-y-3">
         <div
           v-for="task in tasks"
@@ -50,8 +64,8 @@
 
           <!-- Info -->
           <div class="flex-1 min-w-0">
-            <p class="font-medium truncate">{{ task.name }}</p>
-            <p class="text-sm text-white/60">{{ task.save_path }}</p>
+            <p class="font-medium truncate">{{ task.name || task.torrent_url }}</p>
+            <p class="text-sm text-white/60 truncate">{{ task.save_path }}</p>
           </div>
 
           <!-- Progress -->
@@ -59,11 +73,22 @@
             <div class="h-2 bg-white/10 rounded-full overflow-hidden">
               <div
                 class="h-full bg-accent rounded-full transition-all duration-300"
-                :style="{ width: `${task.progress}%` }"
+                :style="{ width: `${task.progress || 0}%` }"
               />
             </div>
-            <p class="text-xs text-white/60 mt-1">{{ task.progress.toFixed(1) }}%</p>
+            <p class="text-xs text-white/60 mt-1">{{ (task.progress || 0).toFixed(1) }}%</p>
           </div>
+
+          <!-- Status Label -->
+          <span :class="[
+            'text-sm px-2 py-1 rounded',
+            task.status === 'completed' ? 'bg-green-500/20 text-green-500' :
+            task.status === 'downloading' ? 'bg-accent/20 text-accent' :
+            task.status === 'failed' ? 'bg-red-500/20 text-red-500' :
+            'bg-white/10 text-white/60'
+          ]">
+            {{ getStatusLabel(task.status) }}
+          </span>
 
           <!-- Actions -->
           <Button
@@ -78,6 +103,15 @@
         </div>
       </div>
     </GlassCard>
+
+    <!-- Empty State -->
+    <div v-if="!loading && !tasks.length" class="text-center py-20">
+      <svg class="w-20 h-20 text-white/20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      </svg>
+      <p class="text-white/60 mb-4">暂无下载任务</p>
+      <Button variant="primary" @click="showAddModal = true">添加下载</Button>
+    </div>
 
     <!-- Add Modal -->
     <div v-if="showAddModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -113,6 +147,7 @@ import { ref, onMounted } from 'vue'
 import GlassCard from '@/components/ui/GlassCard.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
+import { downloadApi } from '@/api/client'
 
 const stats = ref([
   { label: '下载中', value: 0, color: 'text-accent' },
@@ -121,7 +156,8 @@ const stats = ref([
   { label: '失败', value: 0, color: 'text-red-400' },
 ])
 
-const tasks = ref([])
+const tasks = ref<any[]>([])
+const loading = ref(false)
 const showAddModal = ref(false)
 const adding = ref(false)
 const newTask = ref({
@@ -129,14 +165,28 @@ const newTask = ref({
   save_path: '/downloads/music',
 })
 
+const getStatusLabel = (status: string) => {
+  const map: Record<string, string> = {
+    downloading: '下载中',
+    completed: '已完成',
+    pending: '等待中',
+    failed: '失败',
+    paused: '已暂停',
+  }
+  return map[status] || status
+}
+
 const fetchTasks = async () => {
+  loading.value = true
   try {
-    const response = await fetch('/api/v1/download/tasks')
-    const data = await response.json()
-    tasks.value = data.tasks || []
+    const res = await downloadApi.list()
+    tasks.value = res.tasks || []
     updateStats()
   } catch (error) {
     console.error('Failed to fetch tasks:', error)
+    tasks.value = []
+  } finally {
+    loading.value = false
   }
 }
 
@@ -152,27 +202,30 @@ const addTask = async () => {
   
   adding.value = true
   try {
-    await fetch('/api/v1/download/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newTask.value)
+    await downloadApi.create({
+      torrent_url: newTask.value.torrent_url,
+      save_path: newTask.value.save_path,
     })
     showAddModal.value = false
     newTask.value.torrent_url = ''
     await fetchTasks()
   } catch (error) {
     console.error('Failed to add task:', error)
+    alert('添加下载任务失败')
   } finally {
     adding.value = false
   }
 }
 
 const deleteTask = async (id: number) => {
+  if (!confirm('确定要删除这个任务吗？')) return
+  
   try {
-    await fetch(`/api/v1/download/tasks/${id}`, { method: 'DELETE' })
+    await downloadApi.delete(id)
     await fetchTasks()
   } catch (error) {
     console.error('Failed to delete task:', error)
+    alert('删除任务失败')
   }
 }
 

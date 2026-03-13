@@ -58,20 +58,12 @@ class SubscribeResponse(SubscribeBase):
 
 
 class SubscribeListResponse(BaseModel):
-    """订阅列表响应模型"""
+    """分页订阅列表响应模型"""
 
-    id: int
-    type: str
-    source_type: str
-    name: str
-    auto_download: bool
-    last_check: str | None
-    last_release: str | None
-    release_count: int | None
-    state: str
-
-    class Config:
-        from_attributes = True
+    items: list[SubscribeResponse]
+    total: int
+    page: int
+    page_size: int
 
 
 class CheckSubscribeResponse(BaseModel):
