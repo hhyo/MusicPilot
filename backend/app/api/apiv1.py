@@ -7,9 +7,13 @@ from fastapi import APIRouter
 from app.api.endpoints import (
     album,
     artist,
+    chart,
     covers,
+    download,
     library,
+    mediaserver,
     metadata,
+    organize,
     player,
     playlist,
     site,
@@ -35,12 +39,11 @@ api_router.include_router(site.router, prefix="/sites", tags=["sites"])
 api_router.include_router(subscribe_release.router, tags=["subscribe-releases"])
 api_router.include_router(subscribe.router, prefix="/subscribes", tags=["subscribes"])
 
-# TODO: 注册其他路由
-# from app.api.endpoints import download, subscribe, media, system
-# api_router.include_router(download.router, prefix="/download", tags=["download"])
-# api_router.include_router(subscribe.router, prefix="/subscribes", tags=["subscribes"])
-# api_router.include_router(media.router, prefix="/media", tags=["media"])
-# api_router.include_router(system.router, prefix="/system", tags=["system"])
+# 新模块路由
+api_router.include_router(chart.router, tags=["chart"])
+api_router.include_router(organize.router, tags=["organize"])
+api_router.include_router(download.router, tags=["download"])
+api_router.include_router(mediaserver.router, tags=["mediaserver"])
 
 
 # 临时占位路由
@@ -58,5 +61,9 @@ async def api_v1_root():
             "libraries": "/api/v1/libraries",
             "sites": "/api/v1/sites",
             "subscribe-releases": "/api/v1/subscribes/{subscribe_id}/releases",
+            "chart": "/api/v1/chart",
+            "organize": "/api/v1/organize",
+            "download": "/api/v1/download",
+            "mediaserver": "/api/v1/mediaserver",
         },
     }
