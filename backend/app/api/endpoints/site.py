@@ -44,7 +44,7 @@ async def get_sites(
     - **enabled**: 是否启用（可选）
     - **downloader**: 下载器类型（可选）
     """
-    oper = SiteOper(Site, db_manager)
+    oper = SiteOper(db_manager, Site)
 
     if enabled is not None:
         sites = await oper.get_all(skip=skip, limit=limit, enabled=enabled)
@@ -64,7 +64,7 @@ async def get_enabled_sites(db: AsyncSession = Depends(get_db)):
     """
     获取所有启用的站点，按优先级排序
     """
-    oper = SiteOper(Site, db_manager)
+    oper = SiteOper(db_manager, Site)
     sites = await oper.get_enabled()
     return sites
 
@@ -74,7 +74,7 @@ async def get_site(site_id: int, db: AsyncSession = Depends(get_db)):
     """
     根据ID获取站点详情
     """
-    oper = SiteOper(Site, db_manager)
+    oper = SiteOper(db_manager, Site)
     site = await oper.get_by_id(site_id)
 
     if not site:
@@ -88,7 +88,7 @@ async def create_site(site: SiteCreate, db: AsyncSession = Depends(get_db)):
     """
     创建新站点
     """
-    oper = SiteOper(Site, db_manager)
+    oper = SiteOper(db_manager, Site)
     new_site = await oper.create(**site.model_dump())
     logger.info(f"创建站点: {new_site.name}")
     return new_site
@@ -99,7 +99,7 @@ async def update_site(site_id: int, site: SiteUpdate, db: AsyncSession = Depends
     """
     更新站点信息
     """
-    oper = SiteOper(Site, db_manager)
+    oper = SiteOper(db_manager, Site)
     updated_site = await oper.update(site_id, **site.model_dump(exclude_unset=True))
 
     if not updated_site:
@@ -114,7 +114,7 @@ async def delete_site(site_id: int, db: AsyncSession = Depends(get_db)):
     """
     删除站点
     """
-    oper = SiteOper(Site, db_manager)
+    oper = SiteOper(db_manager, Site)
     success = await oper.delete(site_id)
 
     if not success:
@@ -129,7 +129,7 @@ async def toggle_site(site_id: int, db: AsyncSession = Depends(get_db)):
     """
     切换站点的启用状态
     """
-    oper = SiteOper(Site, db_manager)
+    oper = SiteOper(db_manager, Site)
     site = await oper.toggle_enabled(site_id)
 
     if not site:
@@ -144,6 +144,6 @@ async def test_site(request: TestSiteRequest, db: AsyncSession = Depends(get_db)
     """
     测试站点连接
     """
-    oper = SiteOper(Site, db_manager)
+    oper = SiteOper(db_manager, Site)
     success, message = await oper.test_connection(request.id)
     return TestSiteResponse(success=success, message=message)
