@@ -30,15 +30,17 @@ class MTeamSite:
         torrents = []
 
         for item in result.get("data", []):
-            torrents.append(TorrentInfo(
-                id=item.get("id"),
-                name=item.get("name"),
-                site=self.name,
-                size=int(item.get("size", 0)),
-                seeders=item.get("seeders", 0),
-                leechers=item.get("leechers", 0),
-                download_url=item.get("downloadUrl", "")
-            ))
+            torrents.append(
+                TorrentInfo(
+                    id=item.get("id"),
+                    name=item.get("name"),
+                    site=self.name,
+                    size=int(item.get("size", 0)),
+                    seeders=item.get("seeders", 0),
+                    leechers=item.get("leechers", 0),
+                    download_url=item.get("downloadUrl", ""),
+                )
+            )
 
         return torrents
 
@@ -61,5 +63,5 @@ class MTeamSite:
             description=data.get("description", ""),
             files=data.get("files", []),
             seeders=data.get("seeders", 0),
-            leechers=data.get("leechers", 0)
+            leechers=data.get("leechers", 0),
         )

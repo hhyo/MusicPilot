@@ -1,10 +1,12 @@
 """Site Module 模型"""
+
 from dataclasses import dataclass
 
 
 @dataclass
 class SiteConfig:
     """站点配置"""
+
     name: str
     url: str
     api_key: str | None = None
@@ -17,6 +19,7 @@ class SiteConfig:
 @dataclass
 class TorrentInfo:
     """种子信息"""
+
     id: str
     name: str
     site: str
@@ -31,6 +34,7 @@ class TorrentInfo:
 @dataclass
 class TorrentDetail:
     """种子详情"""
+
     id: str
     name: str
     size: int

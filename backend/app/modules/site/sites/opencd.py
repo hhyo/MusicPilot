@@ -63,15 +63,17 @@ class OpenCDSite:
             # Convert size to bytes (simplified)
             size = self._parse_size(size_cell)
 
-            torrents.append(TorrentInfo(
-                id=torrent_id,
-                name=name,
-                site=self.name,
-                size=size,
-                seeders=int(seeders_cell) if seeders_cell.isdigit() else 0,
-                leechers=int(leechers_cell) if leechers_cell.isdigit() else 0,
-                download_url=f"{self.base_url}/download.php?id={torrent_id}"
-            ))
+            torrents.append(
+                TorrentInfo(
+                    id=torrent_id,
+                    name=name,
+                    site=self.name,
+                    size=size,
+                    seeders=int(seeders_cell) if seeders_cell.isdigit() else 0,
+                    leechers=int(leechers_cell) if leechers_cell.isdigit() else 0,
+                    download_url=f"{self.base_url}/download.php?id={torrent_id}",
+                )
+            )
 
         return torrents
 
@@ -82,13 +84,7 @@ class OpenCDSite:
     def _parse_size(self, size_str: str) -> int:
         """解析大小字符串为字节"""
         size_str = size_str.upper().strip()
-        multipliers = {
-            "B": 1,
-            "KB": 1024,
-            "MB": 1024**2,
-            "GB": 1024**3,
-            "TB": 1024**4
-        }
+        multipliers = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4}
 
         for unit, mult in multipliers.items():
             if unit in size_str:
