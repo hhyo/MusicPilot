@@ -19,7 +19,7 @@ from app.schemas.site import (
     TestSiteResponse,
 )
 
-router = APIRouter(prefix="/sites", tags=["站点管理"])
+router = APIRouter(tags=["站点管理"])
 
 
 async def get_db():

@@ -31,7 +31,7 @@ async def list_subscribes(
     """
     获取订阅列表
     """
-    subscribes = await subscribe_oper.list(skip=skip, limit=limit)
+    subscribes = await subscribe_oper.get_all(skip=skip, limit=limit)
 
     # 过滤
     if type:
