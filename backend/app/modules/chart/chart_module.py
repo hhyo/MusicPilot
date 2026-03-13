@@ -2,7 +2,6 @@
 Chart Module - 榜单模块
 """
 
-
 from app.modules.chart.fetchers.base import ChartData
 from app.modules.chart.fetchers.netease import NeteaseChartFetcher
 from app.modules.chart.fetchers.qq_music import QQMusicChartFetcher

@@ -2,7 +2,6 @@
 订阅模块 - 榜单订阅功能
 """
 
-
 from app.modules.chart.chart_module import ChartModule
 from app.modules.chart.fetchers.base import ChartEntry
 
