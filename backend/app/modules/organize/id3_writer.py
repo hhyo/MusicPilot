@@ -2,10 +2,9 @@
 
 import os
 from pathlib import Path
-from typing import Dict, Optional
+
 from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
-from mutagen.id3 import ID3, TIT2, TPE1, TALB, TPE2, TRCK, TDRC, TCON, TPOS
 
 
 class ID3Writer:
@@ -18,7 +17,7 @@ class ID3Writer:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def _prepare_metadata(self, metadata: Dict) -> Dict[str, str]:
+    def _prepare_metadata(self, metadata: dict) -> dict[str, str]:
         """准备元数据映射"""
         mapping = {}
 
@@ -46,7 +45,7 @@ class ID3Writer:
 
         return mapping
 
-    async def write_tags(self, file_path: str, metadata: Dict) -> bool:
+    async def write_tags(self, file_path: str, metadata: dict) -> bool:
         """写入标签到音频文件"""
         try:
             if not os.path.exists(file_path):
@@ -65,7 +64,7 @@ class ID3Writer:
             print(f"写入标签失败: {e}")
             return False
 
-    async def _write_flac_tags(self, file_path: str, metadata: Dict) -> bool:
+    async def _write_flac_tags(self, file_path: str, metadata: dict) -> bool:
         """写入 FLAC 标签"""
         audio = FLAC(file_path)
 
@@ -79,7 +78,7 @@ class ID3Writer:
         audio.save()
         return True
 
-    async def _write_mp3_tags(self, file_path: str, metadata: Dict) -> bool:
+    async def _write_mp3_tags(self, file_path: str, metadata: dict) -> bool:
         """写入 MP3 标签"""
         audio = MP3(file_path)
 
