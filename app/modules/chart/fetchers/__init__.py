@@ -1,4 +1,5 @@
 """Chart Fetchers"""
+
 from .base import ChartData, ChartEntry, BaseChartFetcher
 from .netease import NeteaseChartFetcher
 from .qq_music import QQMusicChartFetcher
