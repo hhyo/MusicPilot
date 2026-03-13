@@ -2,11 +2,13 @@
 订阅模型 - 榜单订阅扩展
 定义订阅类型和榜单数据源枚举
 """
+
 import enum
 
 
 class SubscriptionType(str, enum.Enum):
     """订阅类型"""
+
     ARTIST = "artist"
     ALBUM = "album"
     SINGLE = "single"
@@ -16,6 +18,7 @@ class SubscriptionType(str, enum.Enum):
 
 class ChartSource(str, enum.Enum):
     """榜单数据源 🆕 新增"""
+
     SPOTIFY = "spotify"
     APPLE_MUSIC = "apple_music"
     NETEASE = "netease"
@@ -29,6 +32,6 @@ from app.db.models.subscribe import Subscribe as Subscription  # noqa: E402, F40
 
 __all__ = [
     "SubscriptionType",
-    "ChartSource", 
+    "ChartSource",
     "Subscription",
 ]

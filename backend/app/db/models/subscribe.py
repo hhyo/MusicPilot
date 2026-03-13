@@ -39,8 +39,8 @@ class Subscribe(Base, TimestampMixin):
 
     # 🆕 榜单订阅特有字段
     chart_source: Mapped[str] = mapped_column(String(20), nullable=True)  # netease, qq_music, etc.
-    chart_type: Mapped[str] = mapped_column(String(50), nullable=True)     # new_songs, hot_songs, etc.
-    chart_limit: Mapped[int] = mapped_column(Integer, default=50)          # 榜单返回数量
+    chart_type: Mapped[str] = mapped_column(String(50), nullable=True)  # new_songs, hot_songs, etc.
+    chart_limit: Mapped[int] = mapped_column(Integer, default=50)  # 榜单返回数量
 
     # 检查和发布
     last_check: Mapped[str] = mapped_column(String(50), nullable=True)
