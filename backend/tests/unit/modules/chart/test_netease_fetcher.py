@@ -1,9 +1,10 @@
 """网易云音乐榜单抓取器测试"""
 
+
 import pytest
-from datetime import datetime
+
+from app.modules.chart.fetchers.base import ChartData
 from app.modules.chart.fetchers.netease import NeteaseChartFetcher
-from app.modules.chart.fetchers.base import ChartData, ChartEntry
 
 
 class TestNeteaseChartFetcher:

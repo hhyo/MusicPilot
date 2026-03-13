@@ -2,7 +2,7 @@
 MediaServer API 端点 - 媒体服务器管理
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/mediaserver", tags=["媒体服务器"])

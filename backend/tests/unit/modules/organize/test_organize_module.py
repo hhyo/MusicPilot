@@ -1,11 +1,12 @@
 """Organize Module 测试"""
 
-import pytest
-from pathlib import Path
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import patch
+
+import pytest
+
+from app.modules.organize.models import OrganizeStatus, OrganizeTask
 from app.modules.organize.organize_module import OrganizeModule
-from app.modules.organize.models import OrganizeTask, OrganizeStatus
 
 
 class TestOrganizeModule:

@@ -2,7 +2,7 @@
 Download API 端点 - 下载管理
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/download", tags=["下载管理"])

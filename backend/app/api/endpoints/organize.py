@@ -2,7 +2,7 @@
 Organize API 端点 - 文件整理管理
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.modules.organize.organize_module import OrganizeModule

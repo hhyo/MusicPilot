@@ -1,9 +1,10 @@
 """QQ音乐榜单抓取器测试"""
 
+
 import pytest
-from datetime import datetime
+
+from app.modules.chart.fetchers.base import ChartData
 from app.modules.chart.fetchers.qq_music import QQMusicChartFetcher
-from app.modules.chart.fetchers.base import ChartData, ChartEntry
 
 
 class TestQQMusicChartFetcher:

@@ -78,6 +78,6 @@ async def get_chart(source: str, chart_type: str, limit: int = 50):
             ],
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取榜单数据失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取榜单数据失败: {str(e)}") from None

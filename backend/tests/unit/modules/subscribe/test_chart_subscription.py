@@ -1,8 +1,9 @@
 """榜单订阅集成测试 - TDD"""
 
-import pytest
 from datetime import datetime
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 
 class TestChartSubscription:
@@ -28,7 +29,7 @@ class TestChartSubscription:
 
     def test_subscription_model_chart_fields(self):
         """测试 Subscription 模型有榜单字段 🆕"""
-        from app.modules.subscribe.models import Subscription, SubscriptionType, ChartSource
+        from app.modules.subscribe.models import ChartSource, Subscription, SubscriptionType
 
         sub = Subscription(
             type=SubscriptionType.CHART,
@@ -57,9 +58,9 @@ class TestChartSubscription:
     @pytest.mark.asyncio
     async def test_process_chart_subscription(self):
         """测试处理榜单订阅 🆕"""
-        from app.modules.subscribe.subscribe_module import SubscribeModule
-        from app.modules.subscribe.models import Subscription, SubscriptionType, ChartSource
         from app.modules.chart.fetchers.base import ChartData, ChartEntry
+        from app.modules.subscribe.models import ChartSource, Subscription, SubscriptionType
+        from app.modules.subscribe.subscribe_module import SubscribeModule
 
         # Mock ChartData
         mock_chart_data = ChartData(
@@ -101,9 +102,8 @@ class TestChartSubscription:
     @pytest.mark.asyncio
     async def test_chart_subscription_deduplication(self):
         """测试榜单订阅去重 🆕"""
-        from app.modules.subscribe.subscribe_module import SubscribeModule
-        from app.modules.subscribe.models import Subscription, SubscriptionType, ChartSource
         from app.modules.chart.fetchers.base import ChartEntry
+        from app.modules.subscribe.subscribe_module import SubscribeModule
 
         subscribe_module = SubscribeModule()
 

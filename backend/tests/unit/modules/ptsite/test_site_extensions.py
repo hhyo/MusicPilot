@@ -1,11 +1,12 @@
 """PT 站点扩展测试"""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from datetime import datetime
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+
+from app.modules.site.models import SiteConfig, TorrentInfo
 from app.modules.site.sites.mteam import MTeamSite
 from app.modules.site.sites.opencd import OpenCDSite
-from app.modules.site.models import TorrentInfo, SiteConfig
 
 
 class TestMTeamSite:

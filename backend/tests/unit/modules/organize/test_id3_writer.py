@@ -1,8 +1,9 @@
 """ID3 标签写入测试"""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
+
 from app.modules.organize.id3_writer import ID3Writer
 
 
