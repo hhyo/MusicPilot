@@ -5,10 +5,10 @@ FROM node:20-slim
 WORKDIR /app
 
 # 复制依赖文件
-COPY package*.json ./
+COPY package.json ./
 
 # 安装依赖
-RUN npm ci
+RUN npm install
 
 # 复制应用代码
 COPY . ./
