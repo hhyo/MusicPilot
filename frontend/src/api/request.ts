@@ -6,11 +6,7 @@ const getBaseURL = () => {
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL
   }
-  // 生产环境使用 Render 后端
-  if (import.meta.env.PROD) {
-    return 'https://musicpilot-backend.onrender.com'
-  }
-  // 开发环境使用本地后端
+  // 默认使用本地后端（开发测试）
   return 'http://localhost:8000'
 }
 

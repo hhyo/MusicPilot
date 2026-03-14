@@ -102,6 +102,15 @@ import GlassCard from '@/components/ui/GlassCard.vue'
 import Button from '@/components/ui/Button.vue'
 import AlbumCard from '@/components/music/AlbumCard.vue'
 import { albumApi, chartApi, subscribeApi } from '@/api/client'
+import { 
+  People as UsersIcon, 
+  Disc as DiscIcon, 
+  MusicalNotes as MusicIcon, 
+  Notifications as BellIcon,
+  Search as SearchIcon,
+  BarChart as ChartIcon,
+  Download as DownloadIcon
+} from '@vicons/ionicons5'
 
 // Loading states
 const loading = ref(false)
@@ -109,18 +118,18 @@ const chartLoading = ref(false)
 
 // Stats
 const stats = ref([
-  { label: '艺术家', value: 0, icon: 'UsersIcon', bgColor: 'bg-blue-500' },
-  { label: '专辑', value: 0, icon: 'DiscIcon', bgColor: 'bg-purple-500' },
-  { label: '歌曲', value: 0, icon: 'MusicIcon', bgColor: 'bg-green-500' },
-  { label: '订阅', value: 0, icon: 'BellIcon', bgColor: 'bg-orange-500' },
+  { label: '艺术家', value: 0, icon: UsersIcon, bgColor: 'bg-blue-500' },
+  { label: '专辑', value: 0, icon: DiscIcon, bgColor: 'bg-purple-500' },
+  { label: '歌曲', value: 0, icon: MusicIcon, bgColor: 'bg-green-500' },
+  { label: '订阅', value: 0, icon: BellIcon, bgColor: 'bg-orange-500' },
 ])
 
 // Quick Actions
 const quickActions = [
-  { label: '搜索音乐', desc: '查找艺术家、专辑', icon: 'SearchIcon', path: '/search' },
-  { label: '音乐榜单', desc: '查看热门榜单', icon: 'ChartIcon', path: '/chart' },
-  { label: '我的订阅', desc: '管理音乐订阅', icon: 'BellIcon', path: '/subscribe' },
-  { label: '下载管理', desc: '查看下载任务', icon: 'DownloadIcon', path: '/download' },
+  { label: '搜索音乐', desc: '查找艺术家、专辑', icon: SearchIcon, path: '/search' },
+  { label: '音乐榜单', desc: '查看热门榜单', icon: ChartIcon, path: '/chart' },
+  { label: '我的订阅', desc: '管理音乐订阅', icon: BellIcon, path: '/subscribe' },
+  { label: '下载管理', desc: '查看下载任务', icon: DownloadIcon, path: '/download' },
 ]
 
 // Recent Albums
