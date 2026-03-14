@@ -225,53 +225,5 @@ export const playlistApi = {
     api.get(`/api/v1/playlists/${playlistId}/tracks`),
 }
 
-// ========== 播放器 API ==========
-export const playerApi = {
-  // 获取当前播放信息
-  current: () => api.get('/api/v1/player/current'),
-  
-  // 获取播放历史
-  history: (params?: { limit?: number }) => 
-    api.get('/api/v1/player/history', params),
-  
-  // 获取播放队列
-  queue: () => api.get('/api/v1/player/queue'),
-  
-  // 播放
-  play: () => api.post('/api/v1/player/play'),
-  
-  // 暂停
-  pause: () => api.post('/api/v1/player/pause'),
-  
-  // 停止
-  stop: () => api.post('/api/v1/player/stop'),
-  
-  // 下一首
-  next: () => api.post('/api/v1/player/next'),
-  
-  // 上一首
-  previous: () => api.post('/api/v1/player/previous'),
-  
-  // 跳转
-  seek: (position: number) => 
-    api.post('/api/v1/player/seek', { position }),
-  
-  // 设置音量
-  volume: (level: number) => 
-    api.post('/api/v1/player/volume', { level }),
-  
-  // 静音
-  mute: (muted: boolean) => 
-    api.post('/api/v1/player/mute', { muted }),
-  
-  // 随机播放
-  shuffle: (enabled: boolean) => 
-    api.post('/api/v1/player/shuffle', { enabled }),
-  
-  // 循环模式
-  repeat: (mode: 'off' | 'one' | 'all') => 
-    api.post('/api/v1/player/repeat', { mode }),
-}
-
 // 导出默认 API 实例
 export default api

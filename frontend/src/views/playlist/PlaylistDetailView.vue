@@ -15,12 +15,6 @@
             </template>
             添加曲目
           </n-button>
-          <n-button size="small" @click="playPlaylist">
-            <template #icon>
-              <n-icon><PlayIcon /></n-icon>
-            </template>
-            播放全部
-          </n-button>
         </n-space>
       </template>
     </n-page-header>
@@ -43,29 +37,17 @@
                   </template>
                   {{ dragMode ? '完成排序' : '排序' }}
                 </n-button>
-                <n-button size="small" quaternary @click="shufflePlay">
-                  <template #icon>
-                    <n-icon><ShuffleIcon /></n-icon>
-                  </template>
-                  随机播放
-                </n-button>
               </n-space>
             </div>
           </template>
 
           <Loading :loading="tracksLoading" description="加载曲目中...">
             <n-empty v-if="!tracksLoading && !tracks.length" description="暂无曲目" />
-            <TrackList
-              v-else
-              :tracks="tracks"
-              :draggable="dragMode"
-              :selectable="true"
-              :show-batch-actions="true"
-              @play="handleTrackPlay"
-              @reorder="handleReorder"
-              @remove="handleRemoveTracks"
-              @add-to-queue="handleAddToQueue"
-            />
+            <n-list v-else>
+              <n-list-item v-for="track in tracks" :key="track.id">
+                <n-thing :title="track.title" :description="`${track.artist} - ${track.album}`" />
+              </n-list-item>
+            </n-list>
           </Loading>
         </n-card>
 
@@ -96,7 +78,6 @@
             <n-radio value="track">单首曲目</n-radio>
           </n-radio-group>
         </n-form-item>
-        <!-- TODO: 根据选择方式显示不同的选择界面 -->
       </n-form>
       <template #action>
         <n-button @click="showAddTrackModal = false">取消</n-button>
@@ -109,21 +90,16 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { NPageHeader, NEmpty, NCard, NSpace, NButton, NIcon, NDescriptions, NDescriptionsItem, NModal, NForm, NFormItem, NRadioGroup, NRadio } from 'naive-ui'
+import { NPageHeader, NEmpty, NCard, NSpace, NButton, NIcon, NDescriptions, NDescriptionsItem, NModal, NForm, NFormItem, NRadioGroup, NRadio, NList, NListItem, NThing } from 'naive-ui'
 import {
   RefreshOutline as RefreshIcon,
   AddOutline as AddIcon,
-  PlayOutline as PlayIcon,
   Menu as MenuIcon,
-  ShuffleOutline as ShuffleIcon,
 } from '@vicons/ionicons5'
-import TrackList from '@/components/audio/TrackList.vue'
 import Loading from '@/components/common/Loading.vue'
-import { usePlayerStore } from '@/store/player'
 
 const router = useRouter()
 const route = useRoute()
-const playerStore = usePlayerStore()
 
 const loading = ref(false)
 const tracksLoading = ref(false)
@@ -159,7 +135,6 @@ onMounted(async () => {
 async function loadPlaylist() {
   loading.value = true
   try {
-    // TODO: 调用 playlistApi.getById(playlistId.value)
     playlist.value = {
       id: playlistId.value,
       name: '示例播放列表',
@@ -174,9 +149,7 @@ async function loadPlaylist() {
 async function loadTracks() {
   tracksLoading.value = true
   try {
-    // TODO: 调用 playlistApi.getTracks(playlistId.value)
     tracks.value = [
-      // 示例数据
       { id: 1, title: '示例曲目 1', artist: '艺术家 A', album: '专辑 A', duration: 180000 },
       { id: 2, title: '示例曲目 2', artist: '艺术家 B', album: '专辑 B', duration: 210000 },
     ]
@@ -189,60 +162,18 @@ function goBack() {
   router.back()
 }
 
-// 播放曲目
-function handleTrackPlay(track: any) {
-  // 设置播放队列并播放
-  playerStore.setQueue(tracks.value, tracks.value.findIndex(t => t.id === track.id))
-}
-
-// 播放整个播放列表
-function playPlaylist() {
-  if (tracks.value.length === 0) return
-  playerStore.setQueue(tracks.value, 0)
-  playerStore.playTrack(tracks.value[0])
-}
-
-// 随机播放
-function shufflePlay() {
-  if (tracks.value.length === 0) return
-  const shuffled = [...tracks.value].sort(() => Math.random() - 0.5)
-  playerStore.setQueue(shuffled, 0)
-  playerStore.setRepeatMode('all')
-  playerStore.toggleShuffle()
-  playerStore.playTrack(shuffled[0])
-}
-
 // 切换拖拽排序模式
 function toggleDragMode() {
   dragMode.value = !dragMode.value
 }
 
-// 处理曲目重排序
-function handleReorder(reorderedTracks: any[]) {
-  tracks.value = reorderedTracks
-  // TODO: 调用 API 保存新顺序
-}
-
-// 移除曲目
-function handleRemoveTracks(trackIds: number[]) {
-  tracks.value = tracks.value.filter(t => !trackIds.includes(t.id))
-  // TODO: 调用 API 删除曲目
-}
-
-// 添加到队列
-function handleAddToQueue(newTracks: any[]) {
-  playerStore.addToQueue(newTracks)
-}
-
 // 刷新智能播放列表
 function refreshSmartPlaylist() {
-  // TODO: 调用 API 刷新智能播放列表
   loadTracks()
 }
 
 // 添加曲目
 function handleAddTracks() {
-  // TODO: 调用 API 添加曲目
   showAddTrackModal.value = false
 }
 </script>

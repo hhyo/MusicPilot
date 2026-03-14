@@ -42,7 +42,6 @@ import LayoutHeader from '@/components/common/LayoutHeader.vue'
 import LayoutSidebar from '@/components/common/LayoutSidebar.vue'
 import LayoutFooter from '@/components/common/LayoutFooter.vue'
 import MobileNav from '@/components/common/MobileNav.vue'
-import PlayerBar from '@/components/player/PlayerBar.vue'
 
 const sidebarOpen = ref(false)
 </script>

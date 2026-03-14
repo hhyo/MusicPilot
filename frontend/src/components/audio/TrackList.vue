@@ -4,12 +4,6 @@
     <div v-if="showBatchActions && selectedTracks.size > 0" class="batch-actions">
       <span class="selected-count">已选择 {{ selectedTracks.size }} 首</span>
       <n-space>
-        <n-button size="small" type="primary" @click="addToQueue">
-          加入播放队列
-        </n-button>
-        <n-button size="small" @click="removeSelected">
-          移除
-        </n-button>
         <n-button size="small" @click="clearSelection">
           取消选择
         </n-button>
@@ -30,7 +24,6 @@
               class="track-item"
               :class="{
                 'selected': selectedTracks.has(track.id),
-                'playing': isCurrentTrack(track),
               }"
             >
               <!-- 拖拽手柄 -->
@@ -46,28 +39,14 @@
               />
 
               <!-- 序号 -->
-              <div class="track-index">
-                <n-icon v-if="isCurrentTrack(track) && playerStore.isPlaying">
-                  <VolumeHighIcon />
-                </n-icon>
-                <span v-else>{{ index + 1 }}</span>
-              </div>
+              <div class="track-index">{{ index + 1 }}</div>
 
-              <!-- 封面 -->
-              <div class="track-cover">
-                <img v-if="track.cover" :src="track.cover" alt="封面" />
-                <div v-else class="cover-placeholder">
-                  <n-icon><MusicalNoteIcon /></n-icon>
-                </div>
-              </div>
-
-              <!-- 信息 -->
+              <!-- 曲目信息 -->
               <div class="track-info">
                 <div class="track-title">{{ track.title }}</div>
                 <div class="track-meta">
-                  <span class="artist">{{ track.artist }}</span>
-                  <span v-if="track.album" class="separator">·</span>
-                  <span v-if="track.album" class="album">{{ track.album }}</span>
+                  <span>{{ track.artist }}</span>
+                  <span v-if="track.album"> · {{ track.album }}</span>
                 </div>
               </div>
 
@@ -76,27 +55,13 @@
                 {{ formatDuration(track.duration) }}
               </div>
 
-              <!-- 操作按钮 -->
+              <!-- 操作 -->
               <div class="track-actions">
-                <n-button quaternary circle size="small" @click.stop="playTrack(track)">
+                <n-button size="small" quaternary @click="handleAction('detail', track)">
                   <template #icon>
-                    <n-icon><PlayIcon /></n-icon>
+                    <n-icon><InformationIcon /></n-icon>
                   </template>
                 </n-button>
-                <n-button quaternary circle size="small" @click.stop="toggleFavorite(track)">
-                  <template #icon>
-                    <n-icon :color="isFavorite(track) ? '#ff6b6b' : undefined">
-                      {{ isFavorite(track) ? HeartIcon : HeartOutlineIcon }}
-                    </n-icon>
-                  </template>
-                </n-button>
-                <n-dropdown :options="getMenuOptions(track)" placement="bottom-end" @select="(key) => handleMenuAction(key, track)">
-                  <n-button quaternary circle size="small">
-                    <template #icon>
-                      <n-icon><EllipsisVerticalIcon /></n-icon>
-                    </template>
-                  </n-button>
-                </n-dropdown>
               </div>
             </div>
           </n-list-item>
@@ -107,18 +72,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { NList, NListItem, NButton, NIcon, NCheckbox, NSpace, NDropdown, DropdownOption } from 'naive-ui'
-import { MusicalNotesOutline as MusicalNoteIcon, PlayOutline as PlayIcon, HeartOutline as HeartOutlineIcon, Heart as HeartIcon, Menu as MenuIcon, VolumeHighOutline as VolumeHighIcon, EllipsisVerticalOutline as EllipsisVerticalIcon } from '@vicons/ionicons5'
+import { ref, computed } from 'vue'
+import { NList, NListItem, NSpace, NButton, NIcon, NCheckbox } from 'naive-ui'
+import { Menu as MenuIcon, InformationCircleOutline as InformationIcon } from '@vicons/ionicons5'
 import draggable from 'vuedraggable'
-import { usePlayerStore } from '@/store/player'
 
 interface Track {
   id: number
   title: string
-  artist?: string
+  artist: string
   album?: string
-  cover?: string
   duration?: number
 }
 
@@ -130,36 +93,20 @@ const props = withDefaults(defineProps<{
 }>(), {
   draggable: false,
   selectable: false,
-  showBatchActions: true,
+  showBatchActions: false,
 })
 
 const emit = defineEmits<{
-  play: [track: Track]
   reorder: [tracks: Track[]]
-  remove: [trackIds: number[]]
-  addToQueue: [tracks: Track[]]
+  action: [type: string, track: Track]
 }>()
 
-const playerStore = usePlayerStore()
-const trackList = ref<Track[]>([...props.tracks])
+const trackList = computed({
+  get: () => props.tracks,
+  set: (val) => emit('reorder', val)
+})
+
 const selectedTracks = ref<Set<number>>(new Set())
-const favorites = ref<Set<number>>(new Set())
-
-// 监听 tracks 变化
-watch(() => props.tracks, (newTracks) => {
-  trackList.value = [...newTracks]
-}, { deep: true })
-
-// 是否是当前播放曲目
-function isCurrentTrack(track: Track): boolean {
-  return playerStore.currentTrack?.id === track.id
-}
-
-// 播放曲目
-function playTrack(track: Track) {
-  emit('play', track)
-  playerStore.playTrack(track)
-}
 
 // 切换选择
 function toggleSelection(track: Track) {
@@ -170,7 +117,7 @@ function toggleSelection(track: Track) {
   }
 }
 
-// 清空选择
+// 清除选择
 function clearSelection() {
   selectedTracks.value.clear()
 }
@@ -180,33 +127,9 @@ function onDragEnd() {
   emit('reorder', trackList.value)
 }
 
-// 添加到播放队列
-function addToQueue() {
-  const tracks = trackList.value.filter(t => selectedTracks.value.has(t.id))
-  emit('addToQueue', tracks)
-  playerStore.addToQueue(tracks)
-  clearSelection()
-}
-
-// 移除选中的曲目
-function removeSelected() {
-  const trackIds = Array.from(selectedTracks.value)
-  emit('remove', trackIds)
-  clearSelection()
-}
-
-// 切换收藏
-function toggleFavorite(track: Track) {
-  if (favorites.value.has(track.id)) {
-    favorites.value.delete(track.id)
-  } else {
-    favorites.value.add(track.id)
-  }
-}
-
-// 是否收藏
-function isFavorite(track: Track): boolean {
-  return favorites.value.has(track.id)
+// 处理操作
+function handleAction(type: string, track: Track) {
+  emit('action', type, track)
 }
 
 // 格式化时长
@@ -216,67 +139,25 @@ function formatDuration(ms: number): string {
   const secs = seconds % 60
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
-
-// 获取菜单选项
-function getMenuOptions(track: Track): DropdownOption[] {
-  return [
-    {
-      label: '下一首播放',
-      key: 'playNext',
-      icon: () => h(NIcon, null, { default: () => h(PlayIcon) }),
-    },
-    {
-      label: '添加到队列',
-      key: 'addToQueue',
-      icon: () => h(NIcon, null, { default: () => h(PlayIcon) }),
-    },
-    { type: 'divider' },
-    {
-      label: '添加到播放列表',
-      key: 'addToPlaylist',
-    },
-    {
-      label: '从列表移除',
-      key: 'remove',
-      icon: () => h(NIcon, null, { default: () => h(HeartOutlineIcon) }),
-    },
-  ]
-}
-
-// 处理菜单操作
-function handleMenuAction(key: string, track: Track) {
-  switch (key) {
-    case 'playNext':
-      // TODO: 实现下一首播放
-      break
-    case 'addToQueue':
-      playerStore.addToQueue([track])
-      break
-    case 'addToPlaylist':
-      // TODO: 打开选择播放列表对话框
-      break
-    case 'remove':
-      emit('remove', [track.id])
-      break
-  }
-}
-
-import { h } from 'vue'
 </script>
 
 <style scoped>
+.track-list {
+  width: 100%;
+}
+
 .batch-actions {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   padding: 12px 16px;
-  background: var(--n-color);
-  border-bottom: 1px solid var(--n-border-color);
+  background: var(--n-color-embedded);
+  border-radius: 4px;
+  margin-bottom: 12px;
 }
 
 .selected-count {
-  font-size: 14px;
-  color: var(--n-text-color-2);
+  font-weight: 500;
 }
 
 .track-item {
@@ -284,64 +165,32 @@ import { h } from 'vue'
   align-items: center;
   gap: 12px;
   padding: 8px 0;
-  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .track-item:hover {
-  background: var(--n-color);
+  background-color: var(--n-color-hover);
 }
 
 .track-item.selected {
-  background: var(--n-color-hover);
-}
-
-.track-item.playing {
-  color: var(--n-primary-color);
+  background-color: var(--n-color-pressed);
 }
 
 .drag-handle {
-  cursor: move;
+  cursor: grab;
   color: var(--n-text-color-3);
-  opacity: 0;
 }
 
-.track-item:hover .drag-handle {
-  opacity: 1;
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .track-index {
   width: 32px;
   text-align: center;
-  color: var(--n-text-color-2);
-  font-size: 14px;
-}
-
-.track-item.playing .track-index {
-  color: var(--n-primary-color);
-}
-
-.track-cover {
-  width: 48px;
-  height: 48px;
-  border-radius: 4px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.track-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.cover-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--n-color);
   color: var(--n-text-color-3);
+  font-size: 14px;
 }
 
 .track-info {
@@ -350,41 +199,24 @@ import { h } from 'vue'
 }
 
 .track-title {
-  font-size: 14px;
   font-weight: 500;
   margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.track-item.playing .track-title {
-  color: var(--n-primary-color);
 }
 
 .track-meta {
   font-size: 12px;
-  color: var(--n-text-color-2);
-}
-
-.separator {
-  margin: 0 4px;
+  color: var(--n-text-color-3);
 }
 
 .track-duration {
-  width: 50px;
+  color: var(--n-text-color-3);
+  font-size: 14px;
+  min-width: 50px;
   text-align: right;
-  font-size: 12px;
-  color: var(--n-text-color-2);
 }
 
 .track-actions {
   display: flex;
   gap: 4px;
-  opacity: 0;
-}
-
-.track-item:hover .track-actions {
-  opacity: 1;
 }
 </style>
