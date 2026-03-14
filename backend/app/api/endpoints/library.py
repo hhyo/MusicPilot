@@ -301,6 +301,7 @@ async def scan_library(
 
         # 更新音乐库统计
         from app.db import db_manager
+
         track_oper = TrackOper(db_manager)
         tracks = await track_oper.get_by_library(library.path)
 

@@ -1,6 +1,5 @@
 """QQ音乐榜单抓取器测试"""
 
-
 import pytest
 
 from app.modules.chart.fetchers.base import ChartData

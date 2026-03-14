@@ -40,7 +40,7 @@ class TestArtistOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = ArtistOper(Artist, mock_db)
+        oper = ArtistOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -57,7 +57,7 @@ class TestArtistOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = ArtistOper(Artist, mock_db)
+        oper = ArtistOper(mock_db)
         result = await oper.get_all()
         assert len(result) == 1
 
@@ -77,6 +77,6 @@ class TestArtistOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = ArtistOper(Artist, mock_db)
+        oper = ArtistOper(mock_db)
         result = await oper.get_by_musicbrainz_id("mb-123")
         assert result is not None

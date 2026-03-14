@@ -26,7 +26,7 @@ class TestSubscribeOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.get_by_musicbrainz_id("mb-123")
         assert result is not None
 
@@ -45,7 +45,7 @@ class TestSubscribeOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.get_by_playlist_id("playlist-123")
         assert result is not None
 
@@ -63,7 +63,7 @@ class TestSubscribeOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.get_by_type("artist")
         assert len(result) == 1
 
@@ -81,7 +81,7 @@ class TestSubscribeOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.get_by_source_type("netease")
         assert len(result) == 1
 
@@ -99,7 +99,7 @@ class TestSubscribeOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.get_active()
         assert len(result) == 1
 
@@ -117,7 +117,7 @@ class TestSubscribeOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.search_by_name("Test")
         assert len(result) == 1
 
@@ -137,7 +137,7 @@ class TestSubscribeOperMethods:
         mock_session.commit = AsyncMock()
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.update_check_time(1)
         assert result is not None
 
@@ -157,6 +157,6 @@ class TestSubscribeOperMethods:
         mock_session.commit = AsyncMock()
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.update_release(1, 10)
         assert result is not None

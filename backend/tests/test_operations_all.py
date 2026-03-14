@@ -23,7 +23,7 @@ class TestAllOperations:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is None
 
@@ -40,7 +40,7 @@ class TestAllOperations:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = AlbumOper(Album, mock_db)
+        oper = AlbumOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is None
 
@@ -57,7 +57,7 @@ class TestAllOperations:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = ArtistOper(Artist, mock_db)
+        oper = ArtistOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is None
 
@@ -74,7 +74,7 @@ class TestAllOperations:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = PlaylistOper(Playlist, mock_db)
+        oper = PlaylistOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is None
 
@@ -91,7 +91,7 @@ class TestAllOperations:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SiteOper(Site, mock_db)
+        oper = SiteOper(mock_db)
         result = await oper.get_enabled()
         assert result == []
 
@@ -108,7 +108,7 @@ class TestAllOperations:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = LibraryOper(Library, mock_db)
+        oper = LibraryOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is None
 
@@ -125,7 +125,7 @@ class TestAllOperations:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is None
 
@@ -142,7 +142,7 @@ class TestAllOperations:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = MediaServerOper(MediaServer, mock_db)
+        oper = MediaServerOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is None
 
@@ -159,7 +159,7 @@ class TestAllOperations:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = DownloadHistoryOper(DownloadHistory, mock_db)
+        oper = DownloadHistoryOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is None
 
@@ -176,7 +176,7 @@ class TestAllOperations:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeReleaseOper(SubscribeRelease, mock_db)
+        oper = SubscribeReleaseOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is None
 
@@ -193,6 +193,6 @@ class TestAllOperations:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SystemConfigOper(SystemConfig, mock_db)
+        oper = SystemConfigOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is None

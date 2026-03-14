@@ -25,7 +25,7 @@ class TestTrackOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -43,7 +43,7 @@ class TestTrackOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.get_all()
         assert len(result) == 1
 
@@ -61,7 +61,7 @@ class TestTrackOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.get_by_album_id(1)
         assert len(result) == 1
 
@@ -79,7 +79,7 @@ class TestTrackOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.get_by_artist_id(1)
         assert len(result) == 1
 
@@ -97,7 +97,7 @@ class TestTrackOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.search_by_title("Test")
         assert len(result) == 1
 
@@ -115,7 +115,7 @@ class TestTrackOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.get_most_played(limit=10)
         assert len(result) == 1
 
@@ -133,6 +133,6 @@ class TestTrackOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.get_recently_played(limit=10)
         assert len(result) == 1

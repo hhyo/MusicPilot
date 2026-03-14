@@ -26,7 +26,7 @@ class TestTrackOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db_manager.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db_manager)
+        oper = TrackOper(mock_db_manager)
         result = await oper.get_by_musicbrainz_id("mb-123")
 
         assert result is not None
@@ -47,7 +47,7 @@ class TestTrackOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db_manager.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db_manager)
+        oper = TrackOper(mock_db_manager)
         result = await oper.get_by_file_hash("abc123")
 
         assert result is not None
@@ -71,7 +71,7 @@ class TestAlbumOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db_manager.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = AlbumOper(Album, mock_db_manager)
+        oper = AlbumOper(mock_db_manager)
         result = await oper.get_by_artist_id(1)
 
         assert len(result) == 1
@@ -91,7 +91,7 @@ class TestAlbumOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db_manager.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = AlbumOper(Album, mock_db_manager)
+        oper = AlbumOper(mock_db_manager)
         result = await oper.search_by_title("Test")
 
         assert len(result) == 1
@@ -116,7 +116,7 @@ class TestArtistOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db_manager.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = ArtistOper(Artist, mock_db_manager)
+        oper = ArtistOper(mock_db_manager)
         result = await oper.search_by_name("Test")
 
         assert len(result) == 1
@@ -141,7 +141,7 @@ class TestSiteOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db_manager.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SiteOper(Site, mock_db_manager)
+        oper = SiteOper(mock_db_manager)
         result = await oper.get_enabled()
 
         assert len(result) == 1
@@ -165,7 +165,7 @@ class TestPlaylistOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db_manager.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = PlaylistOper(Playlist, mock_db_manager)
+        oper = PlaylistOper(mock_db_manager)
         result = await oper.get_public_playlists()
 
         assert len(result) == 1

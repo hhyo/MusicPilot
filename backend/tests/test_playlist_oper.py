@@ -26,7 +26,7 @@ class TestPlaylistOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = PlaylistOper(Playlist, mock_db)
+        oper = PlaylistOper(mock_db)
         result = await oper.get_with_tracks(1)
         assert result is not None
 
@@ -44,7 +44,7 @@ class TestPlaylistOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = PlaylistOper(Playlist, mock_db)
+        oper = PlaylistOper(mock_db)
         result = await oper.get_public_playlists()
         assert len(result) == 1
 
@@ -62,7 +62,7 @@ class TestPlaylistOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = PlaylistOper(Playlist, mock_db)
+        oper = PlaylistOper(mock_db)
         result = await oper.get_smart_playlists()
         assert len(result) == 1
 
@@ -85,7 +85,7 @@ class TestSiteOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SiteOper(Site, mock_db)
+        oper = SiteOper(mock_db)
         result = await oper.get_enabled()
         assert len(result) == 1
 
@@ -103,7 +103,7 @@ class TestSiteOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SiteOper(Site, mock_db)
+        oper = SiteOper(mock_db)
         result = await oper.get_by_downloader("qbittorrent")
         assert len(result) == 1
 
@@ -127,7 +127,7 @@ class TestSystemConfigOper:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SystemConfigOper(SystemConfig, mock_db)
+        oper = SystemConfigOper(mock_db)
         result = await oper.get_by_key("test_key")
         assert result is not None
 
@@ -150,7 +150,7 @@ class TestSubscribeOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.get_active()
         assert len(result) == 1
 
@@ -168,6 +168,6 @@ class TestSubscribeOperMethods:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.get_by_type("artist")
         assert len(result) == 1

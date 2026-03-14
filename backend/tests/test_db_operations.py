@@ -24,7 +24,7 @@ class TestOperBase:
     @pytest.fixture
     def oper(self, mock_db_manager):
         """创建 OperBase 实例"""
-        return OperBase(Artist, mock_db_manager)
+        return OperBase(mock_db_manager, Artist)
 
     def _create_mock_session(self):
         """创建模拟会话"""

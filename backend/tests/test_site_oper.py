@@ -39,7 +39,7 @@ class TestSiteOper:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SiteOper(Site, mock_db)
+        oper = SiteOper(mock_db)
         result = await oper.get_all()
         assert len(result) == 1
 
@@ -55,6 +55,6 @@ class TestSiteOper:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SiteOper(Site, mock_db)
+        oper = SiteOper(mock_db)
         result = await oper.get_enabled()
         assert result is not None

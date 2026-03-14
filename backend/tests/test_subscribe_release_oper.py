@@ -39,7 +39,7 @@ class TestSubscribeReleaseOper:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeReleaseOper(SubscribeRelease, mock_db)
+        oper = SubscribeReleaseOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -56,7 +56,7 @@ class TestSubscribeReleaseOper:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeReleaseOper(SubscribeRelease, mock_db)
+        oper = SubscribeReleaseOper(mock_db)
         result = await oper.get_all()
         assert len(result) == 1
 
@@ -72,6 +72,6 @@ class TestSubscribeReleaseOper:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeReleaseOper(SubscribeRelease, mock_db)
+        oper = SubscribeReleaseOper(mock_db)
         result = await oper.get_by_subscribe_id(1)
         assert result is not None

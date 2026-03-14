@@ -24,7 +24,7 @@ class TestTrackOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.get_by_album_id(1)
         assert len(result) == 1
 
@@ -42,7 +42,7 @@ class TestTrackOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.get_by_artist_id(1)
         assert len(result) == 1
 
@@ -60,7 +60,7 @@ class TestTrackOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.search_by_title("Test")
         assert len(result) == 1
 
@@ -82,7 +82,7 @@ class TestAlbumOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = AlbumOper(Album, mock_db)
+        oper = AlbumOper(mock_db)
         result = await oper.get_by_artist_id(1)
         assert len(result) == 1
 
@@ -100,7 +100,7 @@ class TestAlbumOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = AlbumOper(Album, mock_db)
+        oper = AlbumOper(mock_db)
         result = await oper.get_recent()
         assert len(result) == 1
 
@@ -122,7 +122,7 @@ class TestArtistOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = ArtistOper(Artist, mock_db)
+        oper = ArtistOper(mock_db)
         result = await oper.get_top_rated()
         assert len(result) == 1
 
@@ -144,6 +144,6 @@ class TestSubscribeReleaseOperExtended:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeReleaseOper(SubscribeRelease, mock_db)
+        oper = SubscribeReleaseOper(mock_db)
         result = await oper.get_by_subscribe_id(1)
         assert len(result) == 1

@@ -25,7 +25,7 @@ class TestTrackOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -42,7 +42,7 @@ class TestTrackOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.get_all()
         assert result == []
 
@@ -59,7 +59,7 @@ class TestTrackOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.exists(1)
         assert result is True
 
@@ -77,7 +77,7 @@ class TestTrackOperComprehensive:
         mock_session.commit = AsyncMock()
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = TrackOper(Track, mock_db)
+        oper = TrackOper(mock_db)
         result = await oper.delete(1)
         assert result is True
 
@@ -100,7 +100,7 @@ class TestAlbumOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = AlbumOper(Album, mock_db)
+        oper = AlbumOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -118,7 +118,7 @@ class TestAlbumOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = AlbumOper(Album, mock_db)
+        oper = AlbumOper(mock_db)
         result = await oper.search_by_title("Test")
         assert len(result) == 1
 
@@ -141,7 +141,7 @@ class TestArtistOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = ArtistOper(Artist, mock_db)
+        oper = ArtistOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -159,7 +159,7 @@ class TestArtistOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = ArtistOper(Artist, mock_db)
+        oper = ArtistOper(mock_db)
         result = await oper.search_by_name("Test")
         assert len(result) == 1
 
@@ -182,7 +182,7 @@ class TestPlaylistOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = PlaylistOper(Playlist, mock_db)
+        oper = PlaylistOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -200,7 +200,7 @@ class TestPlaylistOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = PlaylistOper(Playlist, mock_db)
+        oper = PlaylistOper(mock_db)
         result = await oper.get_public_playlists()
         assert len(result) == 1
 
@@ -223,7 +223,7 @@ class TestSiteOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SiteOper(Site, mock_db)
+        oper = SiteOper(mock_db)
         result = await oper.get_enabled()
         assert len(result) == 1
 
@@ -246,7 +246,7 @@ class TestLibraryOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = LibraryOper(Library, mock_db)
+        oper = LibraryOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -264,6 +264,6 @@ class TestLibraryOperComprehensive:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = LibraryOper(Library, mock_db)
+        oper = LibraryOper(mock_db)
         result = await oper.get_auto_scan_libraries()
         assert len(result) == 1

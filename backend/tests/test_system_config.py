@@ -26,7 +26,7 @@ class TestSystemConfigOper:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SystemConfigOper(SystemConfig, mock_db)
+        oper = SystemConfigOper(mock_db)
         result = await oper.get_by_key("test_key")
         assert result is not None
 
@@ -44,7 +44,7 @@ class TestSystemConfigOper:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SystemConfigOper(SystemConfig, mock_db)
+        oper = SystemConfigOper(mock_db)
         result = await oper.get_all()
         assert len(result) == 1
 
@@ -63,6 +63,6 @@ class TestSystemConfigOper:
         mock_session.commit = AsyncMock()
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SystemConfigOper(SystemConfig, mock_db)
+        oper = SystemConfigOper(mock_db)
         result = await oper.set_value("test_key", "test_value")
         assert result is not None
