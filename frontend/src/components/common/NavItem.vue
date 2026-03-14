@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, Component } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -101,7 +101,7 @@ const route = useRoute()
 interface NavItemType {
   path: string
   label: string
-  icon: string
+  icon: Component | string
 }
 
 const props = defineProps<{

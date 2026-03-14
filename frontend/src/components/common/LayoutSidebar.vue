@@ -88,16 +88,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, Component } from 'vue'
 import { useRoute } from 'vue-router'
 import NavItem from './NavItem.vue'
+import { 
+  Home as HomeIcon,
+  Library as LibraryIcon,
+  People as UsersIcon,
+  Disc as DiscIcon,
+  BarChart as ChartIcon,
+  Notifications as BellIcon,
+  Download as DownloadIcon,
+  Folder as FolderIcon,
+  Settings as SettingsIcon
+} from '@vicons/ionicons5'
 
 const route = useRoute()
 
 interface NavItemType {
   path: string
   label: string
-  icon: string
+  icon: Component
   children?: NavItemType[]
 }
 
@@ -112,22 +123,22 @@ defineEmits<{
 }>()
 
 const navItems: NavItemType[] = [
-  { path: '/', label: '首页', icon: 'HomeIcon' },
-  { path: '/library', label: '音乐库', icon: 'LibraryIcon' },
-  { path: '/artists', label: '艺术家', icon: 'UsersIcon' },
-  { path: '/albums', label: '专辑', icon: 'DiscIcon' },
-  { path: '/chart', label: '榜单', icon: 'ChartIcon' },
-  { path: '/subscribe', label: '订阅', icon: 'BellIcon' },
-  { path: '/download', label: '下载', icon: 'DownloadIcon' },
-  { path: '/organize', label: '整理', icon: 'FolderIcon' },
+  { path: '/', label: '首页', icon: HomeIcon },
+  { path: '/library', label: '音乐库', icon: LibraryIcon },
+  { path: '/artists', label: '艺术家', icon: UsersIcon },
+  { path: '/albums', label: '专辑', icon: DiscIcon },
+  { path: '/chart', label: '榜单', icon: ChartIcon },
+  { path: '/subscribe', label: '订阅', icon: BellIcon },
+  { path: '/download', label: '下载', icon: DownloadIcon },
+  { path: '/organize', label: '整理', icon: FolderIcon },
 ]
 
 const mobileNavItems = [
-  { path: '/', label: '首页', icon: 'HomeIcon' },
-  { path: '/library', label: '音乐库', icon: 'LibraryIcon' },
-  { path: '/chart', label: '榜单', icon: 'ChartIcon' },
-  { path: '/subscribe', label: '订阅', icon: 'BellIcon' },
-  { path: '/settings', label: '设置', icon: 'SettingsIcon' },
+  { path: '/', label: '首页', icon: HomeIcon },
+  { path: '/library', label: '音乐库', icon: LibraryIcon },
+  { path: '/chart', label: '榜单', icon: ChartIcon },
+  { path: '/subscribe', label: '订阅', icon: BellIcon },
+  { path: '/settings', label: '设置', icon: SettingsIcon },
 ]
 </script>
 
