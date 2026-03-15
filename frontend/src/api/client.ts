@@ -208,6 +208,25 @@ export const siteApi = {
     api.post(`/api/v1/sites/${siteId}/toggle`),
 }
 
+// ========== 音乐库 API ==========
+export const libraryApi = {
+  // 获取音乐库列表
+  list: () => api.get('/api/v1/library/'),
+  
+  // 获取音乐库详情
+  get: (libraryId: number) => api.get(`/api/v1/library/${libraryId}`),
+  
+  // 创建音乐库
+  create: (data: { name: string; path: string }) => 
+    api.post('/api/v1/library/', data),
+  
+  // 删除音乐库
+  delete: (libraryId: number) => api.delete(`/api/v1/library/${libraryId}`),
+  
+  // 扫描音乐库
+  scan: (libraryId: number) => api.post(`/api/v1/library/${libraryId}/scan'),
+}
+
 // ========== 播放列表 API ==========
 export const playlistApi = {
   // 获取播放列表
