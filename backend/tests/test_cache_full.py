@@ -58,14 +58,13 @@ class TestAsyncFileCacheFull:
             cache = AsyncFileCache(tmpdir)
             assert cache is not None
 
-    @pytest.mark.asyncio
-    async def test_async_file_cache_set_get(self):
+    def test_async_file_cache_set_get(self):
         from app.core.cache import AsyncFileCache
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = AsyncFileCache(tmpdir)
-            await cache.set("test_key", "test_value")
-            result = await cache.get("test_key")
+            cache.set("test_key", "test_value")
+            result = cache.get("test_key")
             assert result == "test_value"
 
 

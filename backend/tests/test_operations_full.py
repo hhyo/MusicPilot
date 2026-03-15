@@ -236,7 +236,7 @@ class TestSubscribeOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -252,7 +252,7 @@ class TestSubscribeOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeOper(Subscribe, mock_db)
+        oper = SubscribeOper(mock_db)
         result = await oper.get_all()
         assert len(result) == 1
 
@@ -286,7 +286,7 @@ class TestSiteOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SiteOper(Site, mock_db)
+        oper = SiteOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -302,7 +302,7 @@ class TestSiteOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SiteOper(Site, mock_db)
+        oper = SiteOper(mock_db)
         result = await oper.get_all()
         assert len(result) == 1
 
@@ -336,7 +336,7 @@ class TestLibraryOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = LibraryOper(Library, mock_db)
+        oper = LibraryOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -352,7 +352,7 @@ class TestLibraryOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = LibraryOper(Library, mock_db)
+        oper = LibraryOper(mock_db)
         result = await oper.get_all()
         assert len(result) == 1
 
@@ -386,7 +386,7 @@ class TestSystemConfigOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SystemConfigOper(SystemConfig, mock_db)
+        oper = SystemConfigOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -402,7 +402,7 @@ class TestSystemConfigOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SystemConfigOper(SystemConfig, mock_db)
+        oper = SystemConfigOper(mock_db)
         result = await oper.get_all()
         assert len(result) == 1
 
@@ -436,7 +436,7 @@ class TestDownloadHistoryOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = DownloadHistoryOper(DownloadHistory, mock_db)
+        oper = DownloadHistoryOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -452,7 +452,7 @@ class TestDownloadHistoryOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = DownloadHistoryOper(DownloadHistory, mock_db)
+        oper = DownloadHistoryOper(mock_db)
         result = await oper.get_all()
         assert len(result) == 1
 
@@ -486,7 +486,7 @@ class TestSubscribeReleaseOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeReleaseOper(SubscribeRelease, mock_db)
+        oper = SubscribeReleaseOper(mock_db)
         result = await oper.get_by_id(1)
         assert result is not None
 
@@ -502,7 +502,7 @@ class TestSubscribeReleaseOperFull:
         mock_session.execute.return_value = mock_result
         mock_db.get_session.return_value.__aenter__.return_value = mock_session
 
-        oper = SubscribeReleaseOper(SubscribeRelease, mock_db)
+        oper = SubscribeReleaseOper(mock_db)
         result = await oper.get_all()
         assert len(result) == 1
 
