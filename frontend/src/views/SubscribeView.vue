@@ -167,7 +167,8 @@ const fetchSubscriptions = async () => {
   loading.value = true
   try {
     const res = await subscribeApi.list({ limit: 100 })
-    subscriptions.value = res.data || []
+    // API returns { items, total, page, page_size }
+    subscriptions.value = res.items || []
   } catch (error) {
     console.error('Failed to fetch subscriptions:', error)
     subscriptions.value = []
