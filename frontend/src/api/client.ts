@@ -224,7 +224,7 @@ export const libraryApi = {
   delete: (libraryId: number) => api.delete(`/api/v1/library/${libraryId}`),
   
   // 扫描音乐库
-  scan: (libraryId: number) => api.post(`/api/v1/library/${libraryId}/scan'),
+  scan: (libraryId: number) => api.post(`/api/v1/library/${libraryId}/scan`),
 }
 
 // ========== 播放列表 API ==========
