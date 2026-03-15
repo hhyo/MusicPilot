@@ -81,9 +81,11 @@ const sources = [
 const activeSource = ref('netease')
 const chartData = ref([])
 
+const API_BASE_URL = 'http://localhost:8000'
+
 const fetchChart = async () => {
   try {
-    const response = await fetch(`/api/v1/chart/${activeSource.value}/new_songs?limit=20`)
+    const response = await fetch(`${API_BASE_URL}/api/v1/chart/${activeSource.value}/new_songs?limit=20`)
     const data = await response.json()
     chartData.value = data.entries || []
   } catch (error) {
@@ -97,7 +99,7 @@ const playSong = (song: any) => {
 
 const subscribeSong = async (song: any) => {
   try {
-    await fetch('/api/v1/subscribes', {
+    await fetch(`${API_BASE_URL}/api/v1/subscribes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

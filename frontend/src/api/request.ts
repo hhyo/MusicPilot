@@ -1,17 +1,10 @@
 import axios from 'axios'
 
-// 根据环境自动选择 API 基础 URL
-const getBaseURL = () => {
-  // 优先使用环境变量
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL
-  }
-  // 默认使用本地后端（开发测试）
-  return 'http://localhost:8000'
-}
+// API 基础 URL - 生产环境使用完整 URL
+const API_BASE_URL = 'http://localhost:8000'
 
 const api = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: API_BASE_URL,
   timeout: 30000,
 })
 
