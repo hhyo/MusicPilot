@@ -92,6 +92,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import GlassCard from '@/components/ui/GlassCard.vue'
+import { artistApi } from '@/api/client'
 
 interface Artist {
   id: number
@@ -120,20 +121,13 @@ const filteredArtists = computed(() => {
 const loadArtists = async () => {
   loading.value = true
   try {
-    // TODO: 调用 API 获取艺术家列表
-    artists.value = [
-      { id: 1, name: '周杰伦', image_url: '', trackCount: 234 },
-      { id: 2, name: '林俊杰', image_url: '', trackCount: 156 },
-      { id: 3, name: '陈奕迅', image_url: '', trackCount: 189 },
-      { id: 4, name: '张学友', image_url: '', trackCount: 267 },
-      { id: 5, name: '邓紫棋', image_url: '', trackCount: 98 },
-      { id: 6, name: 'Ed Sheeran', image_url: '', trackCount: 145 },
-      { id: 7, name: 'Taylor Swift', image_url: '', trackCount: 178 },
-      { id: 8, name: 'The Weeknd', image_url: '', trackCount: 123 },
-    ]
-    total.value = artists.value.length
+    const res = await artistApi.list({ limit: 100 })
+    artists.value = res.data || []
+    total.value = res.total || 0
   } catch (error) {
     console.error('Failed to load artists:', error)
+    artists.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
