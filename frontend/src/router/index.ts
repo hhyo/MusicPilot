@@ -8,9 +8,9 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/HomeView.vue'),
   },
   {
-    path: '/search',
-    name: 'Search',
-    component: () => import('../views/SearchView.vue'),
+    path: '/discover',
+    name: 'Discover',
+    component: () => import('../views/DiscoverView.vue'),
   },
   {
     path: '/subscribe',
@@ -23,14 +23,19 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/DownloadView.vue'),
   },
   {
+    path: '/organize',
+    name: 'Organize',
+    component: () => import('../views/OrganizeView.vue'),
+  },
+  {
+    path: '/site',
+    name: 'Site',
+    component: () => import('../views/site/SiteView.vue'),
+  },
+  {
     path: '/system',
     name: 'System',
     component: () => import('../views/system/SystemView.vue'),
-  },
-  {
-    path: '/mediaserver',
-    name: 'MediaServer',
-    component: () => import('../views/mediaserver/MediaServerView.vue'),
   },
 ]
 

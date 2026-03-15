@@ -96,6 +96,8 @@ import {
   Search as SearchIcon,
   Notifications as BellIcon,
   Download as DownloadIcon,
+  Folder as FolderIcon,
+  Globe as GlobeIcon,
   Settings as SettingsIcon
 } from '@vicons/ionicons5'
 
@@ -120,14 +122,16 @@ defineEmits<{
 
 const navItems: NavItemType[] = [
   { path: '/', label: '首页', icon: HomeIcon },
-  { path: '/search', label: '搜索/发现', icon: SearchIcon },
-  { path: '/subscribe', label: '我的订阅', icon: BellIcon },
-  { path: '/download', label: '下载管理', icon: DownloadIcon },
+  { path: '/discover', label: '发现', icon: SearchIcon },
+  { path: '/subscribe', label: '订阅', icon: BellIcon },
+  { path: '/download', label: '下载', icon: DownloadIcon },
+  { path: '/organize', label: '整理', icon: FolderIcon },
+  { path: '/site', label: '站点', icon: GlobeIcon },
 ]
 
 const mobileNavItems = [
   { path: '/', label: '首页', icon: HomeIcon },
-  { path: '/search', label: '搜索', icon: SearchIcon },
+  { path: '/discover', label: '发现', icon: SearchIcon },
   { path: '/subscribe', label: '订阅', icon: BellIcon },
   { path: '/settings', label: '设置', icon: SettingsIcon },
 ]
