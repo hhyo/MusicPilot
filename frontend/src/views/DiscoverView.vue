@@ -212,7 +212,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import GlassCard from '@/components/ui/GlassCard.vue'
-import { subscribeApi, chartApi, siteApi } from '@/api/client'
+import { subscribeApi, chartApi, siteApi, artistApi, albumApi, trackApi } from '@/api/client'
 
 const router = useRouter()
 
@@ -241,23 +241,29 @@ const handleSearch = async () => {
   hasSearched.value = true
   
   try {
-    // TODO: 调用 MusicBrainz 搜索 API
-    searchResults.artists = [
-      { id: '1', name: '周杰伦' },
-      { id: '2', name: '林俊杰' },
-    ].filter(a => a.name.includes(searchQuery.value))
+    // 同时搜索艺术家、专辑、歌曲
+    const [artistRes, albumRes, trackRes] = await Promise.all([
+      artistApi.list({ limit: 20 }),
+      albumApi.list({ limit: 20 }),
+      trackApi.list({ limit: 20 }),
+    ])
     
-    searchResults.albums = [
-      { id: '1', title: '范特西', artist: '周杰伦' },
-      { id: '2', title: '七里香', artist: '周杰伦' },
-    ].filter(a => a.title.includes(searchQuery.value))
-    
-    searchResults.tracks = [
-      { id: '1', title: '稻香', artist: '周杰伦' },
-      { id: '2', title: '晴天', artist: '周杰伦' },
-    ].filter(t => t.title.includes(searchQuery.value))
+    // 前端过滤匹配的结果
+    const keyword = searchQuery.value.toLowerCase()
+    searchResults.artists = (artistRes.data || []).filter((a: any) => 
+      a.name.toLowerCase().includes(keyword)
+    )
+    searchResults.albums = (albumRes.data || []).filter((a: any) => 
+      a.title.toLowerCase().includes(keyword)
+    )
+    searchResults.tracks = (trackRes.data || []).filter((t: any) => 
+      t.title.toLowerCase().includes(keyword)
+    )
   } catch (error) {
     console.error('Search failed:', error)
+    searchResults.artists = []
+    searchResults.albums = []
+    searchResults.tracks = []
   } finally {
     searchLoading.value = false
   }
