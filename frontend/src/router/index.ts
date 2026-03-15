@@ -8,44 +8,9 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/HomeView.vue'),
   },
   {
-    path: '/library',
-    name: 'Library',
-    component: () => import('../views/LibraryView.vue'),
-  },
-  {
-    path: '/artists',
-    name: 'Artists',
-    component: () => import('../views/artist/ArtistListView.vue'),
-  },
-  {
-    path: '/artist/:id',
-    name: 'ArtistDetail',
-    component: () => import('../views/artist/ArtistDetailView.vue'),
-  },
-  {
-    path: '/albums',
-    name: 'Albums',
-    component: () => import('../views/album/AlbumListView.vue'),
-  },
-  {
-    path: '/album/:id',
-    name: 'AlbumDetail',
-    component: () => import('../views/album/AlbumDetailView.vue'),
-  },
-  {
-    path: '/playlists',
-    name: 'Playlists',
-    component: () => import('../views/playlist/PlaylistListView.vue'),
-  },
-  {
-    path: '/playlist/:id',
-    name: 'PlaylistDetail',
-    component: () => import('../views/playlist/PlaylistDetailView.vue'),
-  },
-  {
-    path: '/download',
-    name: 'Download',
-    component: () => import('../views/DownloadView.vue'),
+    path: '/search',
+    name: 'Search',
+    component: () => import('../views/SearchView.vue'),
   },
   {
     path: '/subscribe',
@@ -53,29 +18,14 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/SubscribeView.vue'),
   },
   {
-    path: '/site',
-    name: 'Site',
-    component: () => import('../views/site/SiteView.vue'),
-  },
-  {
-    path: '/media',
-    name: 'Media',
-    component: () => import('../views/media/MediaView.vue'),
+    path: '/download',
+    name: 'Download',
+    component: () => import('../views/DownloadView.vue'),
   },
   {
     path: '/system',
     name: 'System',
     component: () => import('../views/system/SystemView.vue'),
-  },
-  {
-    path: '/chart',
-    name: 'Chart',
-    component: () => import('../views/ChartView.vue'),
-  },
-  {
-    path: '/organize',
-    name: 'Organize',
-    component: () => import('../views/OrganizeView.vue'),
   },
   {
     path: '/mediaserver',

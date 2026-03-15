@@ -93,13 +93,9 @@ import { useRoute } from 'vue-router'
 import NavItem from './NavItem.vue'
 import { 
   Home as HomeIcon,
-  Library as LibraryIcon,
-  People as UsersIcon,
-  Disc as DiscIcon,
-  BarChart as ChartIcon,
+  Search as SearchIcon,
   Notifications as BellIcon,
   Download as DownloadIcon,
-  Folder as FolderIcon,
   Settings as SettingsIcon
 } from '@vicons/ionicons5'
 
@@ -124,19 +120,14 @@ defineEmits<{
 
 const navItems: NavItemType[] = [
   { path: '/', label: '首页', icon: HomeIcon },
-  { path: '/library', label: '音乐库', icon: LibraryIcon },
-  { path: '/artists', label: '艺术家', icon: UsersIcon },
-  { path: '/albums', label: '专辑', icon: DiscIcon },
-  { path: '/chart', label: '榜单', icon: ChartIcon },
-  { path: '/subscribe', label: '订阅', icon: BellIcon },
-  { path: '/download', label: '下载', icon: DownloadIcon },
-  { path: '/organize', label: '整理', icon: FolderIcon },
+  { path: '/search', label: '搜索/发现', icon: SearchIcon },
+  { path: '/subscribe', label: '我的订阅', icon: BellIcon },
+  { path: '/download', label: '下载管理', icon: DownloadIcon },
 ]
 
 const mobileNavItems = [
   { path: '/', label: '首页', icon: HomeIcon },
-  { path: '/library', label: '音乐库', icon: LibraryIcon },
-  { path: '/chart', label: '榜单', icon: ChartIcon },
+  { path: '/search', label: '搜索', icon: SearchIcon },
   { path: '/subscribe', label: '订阅', icon: BellIcon },
   { path: '/settings', label: '设置', icon: SettingsIcon },
 ]
