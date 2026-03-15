@@ -49,10 +49,10 @@
         <!-- 统计 -->
         <div class="flex items-center gap-3 shrink-0">
           <span class="glass rounded-full px-4 py-1.5 text-sm">
-            {{ library.trackCount || 0 }} 首曲目
+            {{ library.track_count || 0 }} 首曲目
           </span>
           <span class="glass rounded-full px-4 py-1.5 text-sm">
-            {{ library.albumCount || 0 }} 张专辑
+            {{ library.album_count || 0 }} 张专辑
           </span>
         </div>
         
@@ -97,13 +97,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import GlassCard from '@/components/ui/GlassCard.vue'
+import { libraryApi } from '@/api/client'
 
 interface Library {
   id: string
   name: string
   path: string
-  trackCount?: number
-  albumCount?: number
+  track_count?: number
+  album_count?: number
 }
 
 const loading = ref(false)
@@ -112,31 +113,54 @@ const showAddDialog = ref(false)
 const newLibrary = ref({ name: '', path: '' })
 
 onMounted(async () => {
-  loading.value = true
-  // TODO: 调用 API 获取音乐库列表
-  libraries.value = [
-    { id: '1', name: '我的音乐', path: '/home/user/Music', trackCount: 1234, albumCount: 89 },
-    { id: '2', name: '下载音乐', path: '/home/user/Downloads', trackCount: 56, albumCount: 12 },
-  ]
-  loading.value = false
+  await loadLibraries()
 })
 
-const addLibrary = () => {
-  // TODO: 实现添加音乐库
-  showAddDialog.value = false
-  newLibrary.value = { name: '', path: '' }
+const loadLibraries = async () => {
+  loading.value = true
+  try {
+    const res = await libraryApi.list()
+    libraries.value = res.items || []
+  } catch (error) {
+    console.error('Failed to load libraries:', error)
+    libraries.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
-const scanLibrary = (id: string) => {
-  // TODO: 实现扫描音乐库
+const addLibrary = async () => {
+  if (!newLibrary.value.name || !newLibrary.value.path) return
+  try {
+    await libraryApi.create(newLibrary.value)
+    showAddDialog.value = false
+    newLibrary.value = { name: '', path: '' }
+    await loadLibraries()
+  } catch (error) {
+    console.error('Failed to add library:', error)
+  }
+}
+
+const scanLibrary = async (id: string) => {
+  try {
+    await libraryApi.scan(Number(id))
+    await loadLibraries()
+  } catch (error) {
+    console.error('Failed to scan library:', error)
+  }
 }
 
 const editLibrary = (id: string) => {
-  // TODO: 实现编辑音乐库
+  console.log('Edit library:', id)
 }
 
-const deleteLibrary = (id: string) => {
-  // TODO: 实现删除音乐库
+const deleteLibrary = async (id: string) => {
+  try {
+    await libraryApi.delete(Number(id))
+    await loadLibraries()
+  } catch (error) {
+    console.error('Failed to delete library:', error)
+  }
 }
 </script>
 

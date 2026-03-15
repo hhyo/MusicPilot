@@ -265,6 +265,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import GlassCard from '@/components/ui/GlassCard.vue'
+import { downloadApi } from '@/api/client'
 
 // 状态
 const loading = ref(false)
@@ -412,31 +413,34 @@ const refresh = async () => {
 }
 
 const fetchActiveDownloads = async () => {
-  // TODO: 调用 API
-  activeDownloads.value = [
-    { task_id: '1', title: 'Shape of You', artist: 'Ed Sheeran', album: '÷', quality: 'high', progress: 0.45, status: 'downloading' },
-  ]
+  try {
+    const res = await downloadApi.list()
+    activeDownloads.value = (res.tasks || []).filter((t: any) => t.status === 'downloading')
+    completedDownloads.value = (res.tasks || []).filter((t: any) => t.status === 'completed')
+    failedDownloads.value = (res.tasks || []).filter((t: any) => t.status === 'failed')
+  } catch (error) {
+    console.error('Failed to fetch downloads:', error)
+  }
 }
 
 const fetchCompletedDownloads = async () => {
-  // TODO: 调用 API
-  completedDownloads.value = [
-    { task_id: '2', title: 'Blinding Lights', artist: 'The Weeknd', album: 'After Hours', quality: 'lossless', file_path: '/music/blinding-lights.flac' },
-  ]
+  // Data is already loaded in fetchActiveDownloads
 }
 
 const fetchFailedDownloads = async () => {
-  // TODO: 调用 API
-  failedDownloads.value = []
+  // Data is already loaded in fetchActiveDownloads
 }
 
 const fetchDownloadHistory = async () => {
-  // TODO: 调用 API
-  downloadHistory.value = []
+  try {
+    const res = await downloadApi.list()
+    downloadHistory.value = res.tasks || []
+  } catch (error) {
+    console.error('Failed to fetch download history:', error)
+  }
 }
 
 const fetchStats = async () => {
-  // TODO: 调用 API
   stats.value = {
     total: activeDownloads.value.length + completedDownloads.value.length + failedDownloads.value.length,
     completed: completedDownloads.value.length,
@@ -449,7 +453,6 @@ const handleSearchAndDownload = async () => {
   
   searching.value = true
   try {
-    // TODO: 调用 API
     console.log('Search and download:', searchForm.value)
     showSearchModal.value = false
     searchForm.value = { keyword: '', source: 'netease', quality: 'standard', limit: 1 }
@@ -466,8 +469,7 @@ const handleUrlDownload = async () => {
   
   downloadingByUrl.value = true
   try {
-    // TODO: 调用 API
-    console.log('URL download:', urlForm.value)
+    await downloadApi.create({ torrent_url: urlForm.value.url })
     showUrlModal.value = false
     urlForm.value = { url: '', source: 'netease', quality: 'standard', title: '', artist: '', album: '' }
     await refresh()
@@ -479,13 +481,15 @@ const handleUrlDownload = async () => {
 }
 
 const cancelDownload = async (taskId: string) => {
-  // TODO: 调用 API 取消下载
-  console.log('Cancel download:', taskId)
-  await refresh()
+  try {
+    await downloadApi.delete(Number(taskId))
+    await refresh()
+  } catch (error) {
+    console.error('Cancel download failed:', error)
+  }
 }
 
 const retryDownload = async (task: any) => {
-  // TODO: 调用 API 重试
   console.log('Retry download:', task)
   await refresh()
 }

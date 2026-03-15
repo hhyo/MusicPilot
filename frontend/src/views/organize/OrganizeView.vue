@@ -115,6 +115,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import GlassCard from '@/components/ui/GlassCard.vue'
+import { organizeApi } from '@/api/client'
 
 interface OrganizeTask {
   id: number
@@ -178,16 +179,8 @@ const statusIconClass = (status: string) => {
 const fetchTasks = async () => {
   loading.value = true
   try {
-    // TODO: 调用 API
-    // const data = await organizeApi.getTasks()
-    // tasks.value = data
-    
-    // 模拟数据
-    tasks.value = [
-      { id: 1, source_path: '/music/unsorted/track1.mp3', target_path: '/music/Artist/Album/track1.mp3', status: 'completed', created_at: '2024-01-15T10:30:00' },
-      { id: 2, source_path: '/music/unsorted/track2.flac', target_path: '/music/Artist2/Album2/track2.flac', status: 'processing', created_at: '2024-01-15T11:00:00' },
-      { id: 3, source_path: '/music/unsorted/track3.mp3', target_path: '/music/Artist3/Album3/track3.mp3', status: 'failed', created_at: '2024-01-15T11:30:00' },
-    ]
+    const res = await organizeApi.list()
+    tasks.value = res.tasks || []
 
     // 计算统计
     stats.value = {
@@ -198,6 +191,7 @@ const fetchTasks = async () => {
     }
   } catch (error) {
     console.error('Fetch tasks failed:', error)
+    tasks.value = []
   } finally {
     loading.value = false
   }
@@ -205,8 +199,7 @@ const fetchTasks = async () => {
 
 const retryTask = async (id: number) => {
   try {
-    // TODO: 调用 API 重试
-    console.log('Retry task:', id)
+    await organizeApi.retry(id)
     await fetchTasks()
   } catch (error) {
     console.error('Retry failed:', error)
