@@ -4,9 +4,11 @@ Artist API 端点
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
+from app.db.models.track import Track
 from app.db.operations.artist import ArtistOper
 from app.schemas.artist import (
     ArtistCreate,
@@ -49,6 +51,16 @@ async def get_artists(
     total_pages = (total + limit - 1) // limit
     page = skip // limit + 1
 
+    # 获取每个艺术家的歌曲数量
+    from app.db import db_manager
+    async with db_manager.get_session() as session:
+        artist_track_counts = {}
+        for artist in artists:
+            result = await session.execute(
+                select(func.count(Track.id)).where(Track.artist_id == artist.id)
+            )
+            artist_track_counts[artist.id] = result.scalar() or 0
+
     artist_list = [
         ArtistListResponse(
             id=a.id,
@@ -57,6 +69,7 @@ async def get_artists(
             image_url=a.image_url,
             genres=a.genres,
             rating=a.rating,
+            track_count=artist_track_counts.get(a.id, 0),
         )
         for a in artists
     ]
@@ -78,6 +91,16 @@ async def get_top_artists(
     """获取评分最高的艺术家"""
     artists = await artist_oper.get_top_rated(limit=limit)
 
+    # 获取每个艺术家的歌曲数量
+    from app.db import db_manager
+    async with db_manager.get_session() as session:
+        artist_track_counts = {}
+        for artist in artists:
+            result = await session.execute(
+                select(func.count(Track.id)).where(Track.artist_id == artist.id)
+            )
+            artist_track_counts[artist.id] = result.scalar() or 0
+
     return [
         ArtistListResponse(
             id=a.id,
@@ -86,6 +109,7 @@ async def get_top_artists(
             image_url=a.image_url,
             genres=a.genres,
             rating=a.rating,
+            track_count=artist_track_counts.get(a.id, 0),
         )
         for a in artists
     ]

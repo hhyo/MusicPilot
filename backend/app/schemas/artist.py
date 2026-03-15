@@ -73,6 +73,7 @@ class ArtistListResponse(BaseModel):
     image_url: str | None
     genres: list[str] | None
     rating: float | None
+    track_count: int = 0
 
     class Config:
         from_attributes = True
