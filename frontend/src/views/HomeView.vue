@@ -101,7 +101,7 @@ import { ref, onMounted } from 'vue'
 import GlassCard from '@/components/ui/GlassCard.vue'
 import Button from '@/components/ui/Button.vue'
 import AlbumCard from '@/components/music/AlbumCard.vue'
-import { albumApi, chartApi, subscribeApi } from '@/api/client'
+import { albumApi, artistApi, trackApi, chartApi, subscribeApi } from '@/api/client'
 import { 
   People as UsersIcon, 
   Disc as DiscIcon, 
@@ -157,8 +157,9 @@ onMounted(async () => {
   loading.value = true
   try {
     const albumRes = await albumApi.recent({ limit: 5 })
-    recentAlbums.value = albumRes.data || []
-    stats.value[1].value = albumRes.total || 0
+    // API returns array directly, not wrapped object
+    recentAlbums.value = Array.isArray(albumRes) ? albumRes : (albumRes.data || [])
+    stats.value[1].value = recentAlbums.value.length
   } catch (error) {
     console.error('Failed to fetch recent albums:', error)
     // Use mock data as fallback
@@ -169,6 +170,7 @@ onMounted(async () => {
       { id: 4, title: '十一月的萧邦', artist: '周杰伦', cover: 'https://via.placeholder.com/300' },
       { id: 5, title: '依然范特西', artist: '周杰伦', cover: 'https://via.placeholder.com/300' },
     ]
+    stats.value[1].value = recentAlbums.value.length
   } finally {
     loading.value = false
   }
@@ -177,7 +179,8 @@ onMounted(async () => {
   chartLoading.value = true
   try {
     const chartRes = await chartApi.get('netease', 'hot_songs', { limit: 5 })
-    chartPreview.value = chartRes.data || []
+    // Chart API returns object with entries field
+    chartPreview.value = chartRes.entries || []
   } catch (error) {
     console.error('Failed to fetch chart:', error)
     // Use mock data as fallback
@@ -194,12 +197,12 @@ onMounted(async () => {
 
   // Fetch stats
   try {
-    const artistRes = await albumApi.list({ limit: 1 })
-    const trackRes = await albumApi.list({ limit: 1 })
+    const artistRes = await artistApi.list({ limit: 1 })
+    const trackRes = await trackApi.list({ limit: 1 })
     const subRes = await subscribeApi.list({ limit: 1 })
     stats.value[0].value = artistRes.total || 0
     stats.value[2].value = trackRes.total || 0
-    stats.value[3].value = subRes.total || 0
+    stats.value[3].value = subRes.subscribes?.length || 0
   } catch (error) {
     console.error('Failed to fetch stats:', error)
   }
