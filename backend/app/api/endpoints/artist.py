@@ -53,6 +53,7 @@ async def get_artists(
 
     # 获取每个艺术家的歌曲数量
     from app.db import db_manager
+
     async with db_manager.get_session() as session:
         artist_track_counts = {}
         for artist in artists:
@@ -93,6 +94,7 @@ async def get_top_artists(
 
     # 获取每个艺术家的歌曲数量
     from app.db import db_manager
+
     async with db_manager.get_session() as session:
         artist_track_counts = {}
         for artist in artists:
