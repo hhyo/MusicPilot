@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MusicPilot 产品方案最终合并版（高保真设计 + 页面级交互 + 可落地规格）</title>
+  <style>
+    :root{
+      --bg:#f6f7fb; --panel:#fff; --line:#e8e9f2; --text:#2e3140; --sub:#6f7488;
+      --muted:#98a0b3; --brand:#8c6ff7; --brand-soft:#f1edff; --shadow:0 10px 30px rgba(99,92,146,.08);
+    }
+    *{box-sizing:border-box} html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif;line-height:1.65}
+    .page{max-width:1280px;margin:0 auto;padding:32px 20px 70px}
+    .hero,.section-card{background:var(--panel);border:1px solid var(--line);border-radius:26px;box-shadow:var(--shadow)}
+    .hero{padding:34px;display:grid;grid-template-columns:1.45fr .95fr;gap:24px;background:linear-gradient(135deg,#fff 0%,#f8f4ff 60%,#f7f8fc 100%)}
+    .eyebrow{display:inline-flex;padding:8px 12px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-size:13px;font-weight:700}
+    h1{margin:14px 0 10px;font-size:34px;line-height:1.2} h2{margin:0 0 18px;font-size:24px} h3{margin:22px 0 12px;font-size:18px} h4{margin:0 0 10px;font-size:16px}
+    p{margin:8px 0}.lead{color:var(--sub);font-size:16px}.meta{display:flex;flex-wrap:wrap;gap:10px}
+    .pill,.tag,.status{display:inline-flex;align-items:center;padding:7px 12px;border-radius:999px;font-size:13px}
+    .pill{background:#fff;border:1px solid var(--line);color:var(--sub)} .tag{background:var(--brand-soft);color:var(--brand);font-weight:700}
+    .hero-card{display:grid;gap:14px}.mini{border:1px solid var(--line);border-radius:22px;padding:16px;background:#fff}
+    .mini-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.title{font-weight:700;font-size:18px}
+    .dots{display:flex;gap:6px}.dots span{width:8px;height:8px;border-radius:50%;background:#ddd}.dots span:last-child{background:var(--brand)}
+    .search{height:36px;border:1px solid var(--line);border-radius:999px;background:#f5f6fb}.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
+    .album{height:116px;border-radius:18px;background:linear-gradient(145deg,#4a428a,#a381ff);position:relative;overflow:hidden}.album:nth-child(2){background:linear-gradient(145deg,#223257,#b47dff)}.album:nth-child(3){background:linear-gradient(145deg,#bb6532,#37254f)}.album:nth-child(4){background:linear-gradient(145deg,#244b53,#a168ff)}
+    .album::before{content:attr(data-tag);position:absolute;top:10px;left:10px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.18);color:#fff;font-size:12px}
+    .section{margin-top:24px}.section-card{padding:28px}.grid-2,.grid-3,.grid-4{display:grid;gap:16px}.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px;height:100%}.card strong{display:block;margin-bottom:8px;font-size:16px}.muted{color:var(--sub)}
+    ul{margin:8px 0 0 18px;padding:0} li{margin:6px 0}.flow{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.step{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;position:relative}.step:not(:last-child)::after{content:'→';position:absolute;right:-10px;top:50%;transform:translateY(-50%);color:var(--brand);font-weight:700}
+    .compare{width:100%;border-collapse:collapse;font-size:14px}.compare th,.compare td{border:1px solid var(--line);padding:12px 14px;text-align:left;vertical-align:top}.compare th{background:#fafaff}
+    .page-spec{border:1px solid var(--line);border-radius:22px;padding:22px;background:#fcfcff;margin-top:18px}.spec-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px}.spec-title{font-size:22px;font-weight:800}.chips{display:flex;gap:8px;flex-wrap:wrap}
+    .module{border:1px solid var(--line);border-radius:18px;padding:16px;background:#fff;margin-top:14px}.module-list{display:grid;grid-template-columns:1.1fr 1.1fr 1fr;gap:14px}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#f5f6fb;border:1px solid var(--line);border-radius:10px;padding:2px 8px;font-size:12px}
+    .phone-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.phone{background:#fcfcff;border:1px solid var(--line);border-radius:28px;padding:18px;box-shadow:0 10px 20px rgba(99,92,146,.06)}.phone .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7f71f7,#d2c7ff)}
+    .seg{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.seg span{padding:7px 12px;border-radius:999px;background:#f3f4fb;color:var(--sub);font-size:13px}.seg span.on{background:var(--brand-soft);color:var(--brand);font-weight:700}
+    .cover-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.cover{height:126px;border-radius:18px;background:linear-gradient(145deg,#32344c,#a17bff);position:relative}.cover::before{content:'专辑';position:absolute;top:10px;left:10px;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px;color:#fff;font-size:12px}
+    .list-item{border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.btn{display:inline-block;padding:9px 14px;background:var(--brand-soft);color:var(--brand);border-radius:12px;font-size:14px;text-decoration:none}.footer{color:var(--muted);font-size:13px;margin-top:14px}
+    @media (max-width:1024px){.hero,.grid-4,.grid-3,.grid-2,.module-list,.phone-row,.flow{grid-template-columns:1fr}.step:not(:last-child)::after{display:none}.page{padding:18px 12px 48px}.hero,.section-card{padding:22px}h1{font-size:28px}}
+  
+    .mock-showcase{display:grid;grid-template-columns:1.08fr .92fr;gap:18px}
+    .app-preview{background:#fff;border:1px solid var(--line);border-radius:26px;padding:16px;box-shadow:0 10px 24px rgba(99,92,146,.06)}
+    .desktop-shell{background:linear-gradient(180deg,#ffffff,#fbfbff);border:1px solid var(--line);border-radius:24px;padding:14px;min-height:440px}
+    .desktop-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .brand{font-weight:800;font-size:18px}
+    .top-actions{display:flex;gap:10px}
+    .circle{width:10px;height:10px;border-radius:50%;background:#ddd}.circle.p{background:var(--brand)}
+    .desktop-body{display:grid;grid-template-columns:86px 1fr;gap:14px}
+    .sidebar{border:1px solid var(--line);border-radius:20px;padding:10px;background:#fafaff;display:flex;flex-direction:column;gap:10px}
+    .nav-icon{height:54px;border-radius:18px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:12px}
+    .nav-icon.active{background:var(--brand-soft);color:var(--brand);font-weight:700}
+    .content-panel{border:1px solid var(--line);border-radius:22px;padding:14px;background:#fff}
+    .hero-banner{border-radius:20px;padding:18px;background:linear-gradient(135deg,#231f57,#7b63f7 55%,#c2b2ff);color:#fff;display:grid;grid-template-columns:1.1fr .9fr;gap:12px;min-height:176px}
+    .hero-banner h3{margin:0 0 8px;color:#fff;font-size:24px}
+    .hero-banner p{margin:0;color:rgba(255,255,255,.88)}
+    .hero-albums{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .cover-art{min-height:72px;border-radius:16px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.18)}
+    .desktop-grid{margin-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+    .mini-card{border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff}
+    .mini-title{font-weight:700;margin-bottom:8px}
+    .line{height:10px;border-radius:999px;background:#f0f1f8;margin-top:8px}
+    .line.w70{width:70%}.line.w50{width:50%}.line.w90{width:90%}
+    .mock-caption{margin-top:10px;color:var(--muted);font-size:13px}
+    .section-kicker{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#fafaff;border:1px solid var(--line);font-size:12px;color:var(--sub);margin-bottom:10px}
+    @media (max-width:1024px){.mock-showcase,.desktop-body,.desktop-grid,.hero-banner{grid-template-columns:1fr}}
+
+  
+    .hifi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:14px}
+    .hifi-card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:16px;box-shadow:0 10px 24px rgba(99,92,146,.06)}
+    .hifi-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .hifi-title{font-weight:800;font-size:16px}
+    .hifi-chip{display:inline-flex;padding:6px 10px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-size:12px;font-weight:700}
+    .screen{border:1px solid var(--line);border-radius:24px;padding:14px;background:linear-gradient(180deg,#fff,#fcfcff)}
+    .screen-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .screen-title{font-weight:800;font-size:18px}
+    .screen-sub{font-size:12px;color:var(--muted)}
+    .hero-module{border-radius:20px;padding:18px;background:linear-gradient(135deg,#2a245f,#7b63f7 58%,#c7b7ff);color:#fff;margin-bottom:12px}
+    .hero-module h4{margin:0 0 6px;color:#fff;font-size:22px}
+    .hero-module p{margin:0;color:rgba(255,255,255,.88)}
+    .toolbar{height:38px;border:1px solid var(--line);border-radius:999px;background:#f5f6fb;margin-bottom:10px}
+    .toolbar.row{display:flex;gap:8px;padding:0;background:none;border:none;height:auto}
+    .toolbar.row .pillbox{height:34px;flex:1;border:1px solid var(--line);border-radius:999px;background:#f6f7fd}
+    .two-col{display:grid;grid-template-columns:1.15fr .85fr;gap:10px}
+    .stack{display:grid;gap:10px}
+    .module-box{border:1px solid var(--line);background:#fff;border-radius:18px;padding:12px}
+    .module-box.dark{background:linear-gradient(145deg,#3a3168,#9f80ff);color:#fff;border-color:rgba(255,255,255,.08)}
+    .module-box.dark .meta-line{background:rgba(255,255,255,.18)}
+    .meta-line{height:10px;border-radius:999px;background:#eef0f7;margin-top:8px}
+    .meta-line.w80{width:80%}.meta-line.w60{width:60%}.meta-line.w40{width:40%}.meta-line.w90{width:90%}
+    .cover-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .cover-big{height:122px;border-radius:18px;background:linear-gradient(145deg,#2f334a,#a17bff);position:relative;overflow:hidden}
+    .cover-big::before{content:'封面';position:absolute;top:10px;left:10px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.16);color:#fff;font-size:12px}
+    .result-item{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:#fff}
+    .action-btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 14px;border-radius:12px;background:var(--brand-soft);color:var(--brand);font-size:13px;font-weight:700}
+    .split-pane{display:grid;grid-template-columns:1fr .92fr;gap:12px}
+    .drawer{border:1px solid var(--line);border-radius:20px;padding:14px;background:#fbfbff}
+    .drawer h5{margin:0 0 8px;font-size:15px}
+    .small-tag{display:inline-flex;padding:5px 9px;border-radius:999px;background:#fafaff;border:1px solid var(--line);font-size:12px;color:var(--sub);margin-right:6px;margin-bottom:6px}
+    @media (max-width:1024px){.hifi-grid,.two-col,.split-pane{grid-template-columns:1fr}}
+
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">MusicPilot · 最终合并版 · 高保真设计 + 页面级交互 + 可落地规格</div>
+        <h1>MusicPilot 产品方案最终合并版</h1>
+        <p class="lead">本版以你确认过的页面拆细稿为基底，完整保留全局 UI/UX 规范、页面模块、字段与交互细节，并叠加高保真视觉方向、组件级拆解、状态机、路由与接口建议，形成真正可交付设计与前端的最终合并版。</p>
+        <div class="meta"><span class="pill">独立音乐业务入口</span><span class="pill">保持 MoviePilot 原风格</span><span class="pill">移动优先</span><span class="pill">可直接给前端落地</span></div>
+      </div>
+      <div class="hero-card">
+        <div class="mini"><div class="mini-top"><div class="title">MusicPilot</div><div class="dots"><span></span><span></span><span></span></div></div><div class="search"></div><div class="cards"><div class="album" data-tag="榜单"></div><div class="album" data-tag="搜索"></div><div class="album" data-tag="订阅"></div><div class="album" data-tag="下载"></div></div></div>
+        <div class="card"><strong>总设计原则</strong><div class="muted">页面风格跟随宿主：浅色背景、紫色强调、圆角卡片、轻量状态标签、抽屉式操作、低学习成本。</div></div>
+      </div>
+    </section>
+    <section class="section"><div class="section-card"><h2>1. 设计总纲</h2><div class="grid-4"><div class="card"><strong>视觉继承</strong><div class="muted">延续宿主浅背景、大圆角、轻阴影、紫色激活态。</div></div><div class="card"><strong>交互继承</strong><div class="muted">保持底部导航、分段筛选、胶囊筛选、抽屉配置、列表操作等习惯。</div></div><div class="card"><strong>业务突出</strong><div class="muted">围绕发现、搜索、订阅、获取、下载、整理构建闭环。</div></div><div class="card"><strong>状态可见</strong><div class="muted">所有长链路任务都必须让用户看见执行位置、最近状态和下一步动作。</div></div></div><h3>建议导航结构</h3><div class="flow"><div class="step"><strong>首页</strong><div class="muted">总览与快捷入口</div></div><div class="step"><strong>榜单</strong><div class="muted">热门发现与批量订阅</div></div><div class="step"><strong>搜索</strong><div class="muted">歌曲/专辑/艺人检索</div></div><div class="step"><strong>订阅</strong><div class="muted">四类订阅管理</div></div><div class="step"><strong>下载</strong><div class="muted">获取与确认</div></div><div class="step"><strong>整理</strong><div class="muted">命名、入库、补全</div></div></div></div></section>
+    <section class="section"><div class="section-card"><h2>2. 全局交互规范</h2><div class="grid-3"><div class="card"><strong>导航规范</strong><ul><li>移动端底部导航推荐：<span class="kbd">首页 / 榜单 / 搜索 / 订阅 / 更多</span></li><li>更多内承载：下载、整理、设置、日志。</li><li>桌面端可将下载与整理提升为侧边导航直达项。</li></ul></div><div class="card"><strong>动作优先级</strong><ul><li>每个实体卡片最多 2 个高优先动作：<span class="kbd">订阅</span>、<span class="kbd">获取</span>。</li><li>编辑、分享、删除、历史记录收纳到更多菜单或抽屉中。</li><li>破坏性动作必须二次确认。</li></ul></div><div class="card"><strong>状态表达</strong><ul><li>启用、待更新、匹配失败、下载中、已完成等均使用状态标签 + 辅助文案。</li><li>避免只用颜色传递状态，必须带文字。</li><li>列表态看到结果，详情态看到原因。</li></ul></div></div><h3>统一组件建议</h3><table class="compare"><tr><th>组件</th><th>建议样式</th><th>适用场景</th></tr><tr><td>搜索框</td><td>大圆角、浅底、左图标、右侧筛选入口</td><td>首页、搜索页、榜单页筛选</td></tr><tr><td>胶囊筛选</td><td>轻底色 + 激活紫色</td><td>平台、类型、状态、排序</td></tr><tr><td>实体卡片</td><td>封面 + 关键信息 + 2 个主按钮</td><td>歌曲、专辑、艺人、榜单</td></tr><tr><td>抽屉</td><td>右侧或底部滑出</td><td>编辑订阅、候选确认、高级筛选</td></tr><tr><td>空状态</td><td>轻插画/图标 + 1 个明确行动按钮</td><td>无搜索结果、无订阅、无任务</td></tr></table></div></section>
+    <section class="section"><div class="section-card"><h2>3. 页面级详细设计</h2>
+      <div class="page-spec"><div class="spec-head"><div><div class="spec-title">3.1 MusicPilot 首页</div><div class="muted">定位为音乐业务工作台，不是内容社区首页，也不是播放器首页。</div></div><div class="chips"><span class="tag">高频入口</span><span class="tag">状态总览</span><span class="tag">低学习成本</span></div></div><div class="module-list"><div class="module"><h4>页面目标</h4><ul><li>让用户 1 次进入就找到常用音乐操作。</li><li>优先看到待处理任务和最近关注内容。</li><li>为榜单、搜索、订阅、下载确认提供快捷入口。</li></ul></div><div class="module"><h4>首屏区块</h4><ul><li>顶部标题区：MusicPilot 名称、消息或任务提醒。</li><li>全局搜索框：支持搜歌、搜专辑、搜艺人。</li><li>快捷操作：搜索、看榜单、新建订阅、处理待确认。</li><li>状态卡：今日新增、待处理、下载中、整理失败。</li></ul></div><div class="module"><h4>次级区块</h4><ul><li>最近搜索</li><li>最近订阅</li><li>最近新增资源</li><li>推荐榜单入口</li></ul></div></div><div class="module"><h4>展示与交互细节</h4><ul><li>搜索框获得焦点后，优先展示最近搜索和推荐关键词，而不是立即跳转空白页。</li><li>快捷操作卡片使用图标 + 一句话说明，点击后直接进入对应页面或打开弹层。</li><li>状态卡点击后必须可下钻，例如待确认 8 条点击进入下载确认列表并自动带上状态筛选。</li><li>最近订阅区每张卡片展示：对象名、订阅类型、最近执行时间、当前状态、快捷开关。</li></ul></div><div class="grid-3"><div class="module"><h4>空状态</h4><div class="muted">新用户进入时，显示去搜索音乐、订阅热门榜单、导入已有目录三个引导入口。</div></div><div class="module"><h4>异常状态</h4><div class="muted">后端服务不可用时，只收起动态区块，保留静态导航与重试按钮，避免整页白屏。</div></div><div class="module"><h4>埋点建议</h4><div class="muted">搜索框点击率、快捷入口点击率、状态卡下钻率、最近订阅恢复访问率。</div></div></div></div>
+      <div class="page-spec"><div class="spec-head"><div><div class="spec-title">3.2 榜单页</div><div class="muted">榜单页负责发现和批量订阅，不承担全局搜索职责。</div></div><div class="chips"><span class="tag">平台切换</span><span class="tag">榜单筛选</span><span class="tag">批量订阅</span></div></div><div class="module-list"><div class="module"><h4>页面结构</h4><ul><li>顶部平台切换：QQ 音乐 / 网易云 / Bilibili 等。</li><li>榜单筛选区：地区、语种、类型、更新周期、排序。</li><li>榜单卡片区：宫格或双列卡片。</li><li>底部悬浮批量操作栏：勾选后出现。</li></ul></div><div class="module"><h4>榜单卡片字段</h4><ul><li>封面</li><li>榜单名称</li><li>平台来源</li><li>更新时间/刷新频率</li><li>当前订阅状态</li><li>主按钮：查看详情、订阅</li></ul></div><div class="module"><h4>详情页下钻</h4><ul><li>榜单简介</li><li>入榜曲目列表</li><li>近几次更新变化</li><li>Top N 订阅策略</li><li>仅增量同步开关</li></ul></div></div><div class="module"><h4>关键交互</h4><ul><li>切换平台时保留可继承筛选条件，不兼容条件自动清除并提示。</li><li>点击订阅时弹出底部抽屉，确认订阅粒度：Top 10 / Top 20 / Top 50 / 全量。</li><li>批量勾选榜单后，悬浮操作栏提供批量订阅、批量取消、统一设置更新频率。</li><li>榜单详情页中的曲目支持批量加入歌曲订阅，但默认不开启，避免误操作。</li></ul></div><div class="grid-3"><div class="module"><h4>空状态</h4><div class="muted">筛选后无结果时，展示清除筛选与切换平台两个主要按钮。</div></div><div class="module"><h4>异常状态</h4><div class="muted">平台榜单拉取失败时，保留上次缓存内容并标记数据可能不是最新。</div></div><div class="module"><h4>埋点建议</h4><div class="muted">平台切换次数、榜单订阅转化率、Top N 选择分布、详情页曲目下钻率。</div></div></div></div>
+      <div class="page-spec"><div class="spec-head"><div><div class="spec-title">3.3 全局搜索页</div><div class="muted">核心任务是快速定位歌曲、专辑、艺人，并在结果层完成订阅或获取。</div></div><div class="chips"><span class="tag">结果分段</span><span class="tag">结果直达动作</span><span class="tag">低跳转成本</span></div></div><div class="module-list"><div class="module"><h4>页面结构</h4><ul><li>吸顶搜索框</li><li>搜索历史与热搜推荐</li><li>结果分段：综合 / 歌曲 / 专辑 / 艺人</li><li>结果列表</li><li>底部加载更多或分页</li></ul></div><div class="module"><h4>结果项字段</h4><ul><li>歌曲：歌名、艺人、专辑、版本、年份</li><li>专辑：专辑名、艺人、发行时间、版本信息</li><li>艺人：姓名、别名、地区、代表作品数</li></ul></div><div class="module"><h4>结果项动作</h4><ul><li>订阅</li><li>获取</li><li>查看详情</li><li>加入收藏/稍后处理</li></ul></div></div><div class="module"><h4>关键交互</h4><ul><li>输入期间先提供联想建议，回车后进入标准结果页。</li><li>综合结果默认每类展示前几条，并在分组头部提供查看全部。</li><li>每条结果应支持直接操作，不要求用户必须进入详情页。</li><li>连续搜索时，保留上一个搜索词可快速清除或二次编辑。</li><li>对高歧义词，优先提供你是不是要找：歌曲 / 专辑 / 艺人的弱提示，不强制打断。</li></ul></div><div class="grid-3"><div class="module"><h4>无结果</h4><div class="muted">提示检查关键词、切换搜索类型、尝试艺人/专辑名，并提供创建手动订阅。</div></div><div class="module"><h4>加载状态</h4><div class="muted">使用骨架屏，不使用纯转圈。每类结果可分段完成，先返回先展示。</div></div><div class="module"><h4>埋点建议</h4><div class="muted">联想点击率、结果点击率、结果页直接订阅率、直接获取率、无结果率。</div></div></div></div>
+      <div class="page-spec"><div class="spec-head"><div><div class="spec-title">3.4 详情页（艺人 / 专辑 / 歌曲）</div><div class="muted">详情页承担补充理解、启动动作、查看历史的职责。</div></div><div class="chips"><span class="tag">头部摘要</span><span class="tag">内容分区</span><span class="tag">历史可追溯</span></div></div><div class="module-list"><div class="module"><h4>头部摘要区</h4><ul><li>封面/头像</li><li>标题与副标题</li><li>核心元数据</li><li>主按钮：订阅、获取</li><li>次按钮：收藏、分享、更多</li></ul></div><div class="module"><h4>中部内容区</h4><ul><li>简介</li><li>歌曲列表 / 专辑列表 / 参与作品</li><li>版本信息</li><li>相关推荐</li></ul></div><div class="module"><h4>底部工具区</h4><ul><li>最近订阅记录</li><li>最近获取记录</li><li>命中率</li><li>失败原因与重试入口</li></ul></div></div><div class="module"><h4>不同实体的差异化要求</h4><ul><li>艺人页更强调作品时间线、新歌/新专开关、合作曲策略。</li><li>专辑页更强调版本差异、发行时间、曲目列表、整专下载策略。</li><li>歌曲页更强调版本、音质、别名、是否属于某专辑。</li></ul></div><div class="grid-3"><div class="module"><h4>交互细节</h4><div class="muted">作品列表支持单项操作和批量操作；展开版本信息时用折叠区，不额外跳页。</div></div><div class="module"><h4>空状态</h4><div class="muted">若简介缺失则隐藏简介区；若无历史记录，展示尚未执行过获取/订阅。</div></div><div class="module"><h4>埋点建议</h4><div class="muted">详情页订阅率、详情页获取率、作品列表展开率、版本筛选使用率。</div></div></div></div>
+      <div class="page-spec"><div class="spec-head"><div><div class="spec-title">3.5 订阅页</div><div class="muted">统一管理榜单、歌曲、专辑、艺人四类订阅，核心是看懂当前策略。</div></div><div class="chips"><span class="tag">分类管理</span><span class="tag">策略可视</span><span class="tag">批量维护</span></div></div><div class="module-list"><div class="module"><h4>页面结构</h4><ul><li>顶部统计：全部、启用中、待处理、异常</li><li>分类 Tab：榜单 / 歌曲 / 专辑 / 艺人</li><li>筛选器：状态、更新时间、策略类型</li><li>列表区</li></ul></div><div class="module"><h4>订阅卡片字段</h4><ul><li>对象名称</li><li>订阅类型</li><li>当前策略摘要</li><li>最近执行时间</li><li>最近结果</li><li>启用开关</li></ul></div><div class="module"><h4>快捷动作</h4><ul><li>编辑策略</li><li>立即执行</li><li>暂停</li><li>删除</li></ul></div></div><div class="module"><h4>策略编辑抽屉建议</h4><ul><li>榜单订阅：Top N、更新周期、是否仅增量。</li><li>歌曲订阅：版本偏好、音质偏好、是否允许现场版/翻唱。</li><li>专辑订阅：标准版/豪华版/重制版优先级、是否整专获取。</li><li>艺人订阅：新歌、新专、合作曲、回填历史作品、时间范围。</li></ul></div><div class="grid-3"><div class="module"><h4>列表交互</h4><div class="muted">左滑或更多菜单提供次级操作；长按或勾选后进入批量模式。</div></div><div class="module"><h4>异常状态</h4><div class="muted">若最近执行失败，列表直接展示失败标签，点开可看原因与一键重试。</div></div><div class="module"><h4>埋点建议</h4><div class="muted">新建订阅转化率、编辑策略完成率、暂停率、异常重试率。</div></div></div></div>
+      <div class="page-spec"><div class="spec-head"><div><div class="spec-title">3.6 获取与下载页</div><div class="muted">这是最强工具属性页面，必须强调任务状态、候选确认和批量处理效率。</div></div><div class="chips"><span class="tag">任务列表</span><span class="tag">候选确认</span><span class="tag">批量处理</span></div></div><div class="module-list"><div class="module"><h4>顶部筛选区</h4><ul><li>状态：待搜索 / 搜索中 / 待确认 / 已派发 / 已完成 / 失败</li><li>来源：订阅触发 / 手动触发 / 榜单触发</li><li>时间范围</li><li>排序：最近更新 / 优先级 / 失败优先</li></ul></div><div class="module"><h4>任务列表字段</h4><ul><li>对象名</li><li>对象类型</li><li>触发来源</li><li>当前状态</li><li>更新时间</li><li>可执行动作</li></ul></div><div class="module"><h4>候选资源抽屉</h4><ul><li>站点来源</li><li>标题解析结果</li><li>音质/格式/体积</li><li>匹配分</li><li>下载按钮 / 忽略按钮</li></ul></div></div><div class="module"><h4>关键交互</h4><ul><li>待确认任务点击进入右侧抽屉或底部抽屉，避免跳到新页面导致上下文丢失。</li><li>候选资源默认按匹配分排序，但用户可以切换按体积、格式、发布时间排序。</li><li>批量模式支持：批量通过、批量忽略、批量重试、批量暂停。</li><li>下载完成后，状态自动流转到整理页；若失败则保留失败原因和再次搜索入口。</li></ul></div><div class="grid-3"><div class="module"><h4>空状态</h4><div class="muted">没有待处理任务时，强调当前队列已清空，并提供返回订阅页或榜单页的快捷入口。</div></div><div class="module"><h4>异常状态</h4><div class="muted">搜索失败和下载失败必须区分展示，分别给出重试搜索和重派下载按钮。</div></div><div class="module"><h4>埋点建议</h4><div class="muted">待确认通过率、人工改选率、失败重试率、批量操作使用率。</div></div></div></div>
+      <div class="page-spec"><div class="spec-head"><div><div class="spec-title">3.7 整理页</div><div class="muted">整理页主要承担命名、归档、标签写入、封面歌词补全和失败处理。</div></div><div class="chips"><span class="tag">结果可见</span><span class="tag">失败可修复</span><span class="tag">工具属性强</span></div></div><div class="module-list"><div class="module"><h4>页面结构</h4><ul><li>顶部统计：成功、失败、处理中</li><li>筛选区：状态、来源、时间、目录</li><li>整理结果列表</li></ul></div><div class="module"><h4>列表字段</h4><ul><li>文件/专辑名称</li><li>目标路径</li><li>命名规则结果</li><li>标签写入状态</li><li>封面/歌词补全状态</li><li>最终状态</li></ul></div><div class="module"><h4>可执行动作</h4><ul><li>查看详情</li><li>重试整理</li><li>修正映射</li><li>复制日志</li></ul></div></div><div class="module"><h4>关键交互</h4><ul><li>失败项直接暴露失败原因摘要，例如命名冲突、标签写入失败、路径不可写。</li><li>点击失败项可展开详细日志，但默认不在列表中堆大段文本。</li><li>支持多选后批量重试整理。</li><li>若封面或歌词补全失败，可单独重新触发，不需要整体重跑。</li></ul></div><div class="grid-3"><div class="module"><h4>空状态</h4><div class="muted">暂无整理任务时显示新的下载完成后会自动出现在这里。</div></div><div class="module"><h4>异常状态</h4><div class="muted">当目录不可写或规则配置异常时，在页首展示全局警告条，而不是埋在列表中。</div></div><div class="module"><h4>埋点建议</h4><div class="muted">整理成功率、单独重试率、失败原因分布、日志展开率。</div></div></div></div>
+      <div class="page-spec"><div class="spec-head"><div><div class="spec-title">3.8 设置页</div><div class="muted">设置页服务于策略配置与连接管理，设计上要克制，减少恐惧感。</div></div><div class="chips"><span class="tag">表单型页面</span><span class="tag">分组配置</span><span class="tag">校验友好</span></div></div><div class="module-list"><div class="module"><h4>配置分组</h4><ul><li>榜单源配置</li><li>搜索策略配置</li><li>下载器映射</li><li>整理命名规则</li><li>元数据补全</li></ul></div><div class="module"><h4>交互建议</h4><ul><li>按组折叠</li><li>保存前校验</li><li>支持恢复默认</li><li>危险设置单独确认</li></ul></div><div class="module"><h4>反馈设计</h4><ul><li>保存成功 Toast</li><li>字段级错误提示</li><li>测试连接按钮</li><li>最近更新时间</li></ul></div></div></div>
+    </div></section>
+    
+    <section class="section"><div class="section-card">
+      <div class="section-kicker">高保真视觉设计补充</div>
+      <h2>4.1 高保真视觉方向与页面示意</h2>
+      <div class="mock-showcase">
+        <div class="app-preview">
+          <div class="desktop-shell">
+            <div class="desktop-top">
+              <div class="brand">MusicPilot</div>
+              <div class="top-actions"><span class="circle"></span><span class="circle"></span><span class="circle p"></span></div>
+            </div>
+            <div class="desktop-body">
+              <div class="sidebar">
+                <div class="nav-icon active">首页</div>
+                <div class="nav-icon">榜单</div>
+                <div class="nav-icon">搜索</div>
+                <div class="nav-icon">订阅</div>
+                <div class="nav-icon">下载</div>
+                <div class="nav-icon">整理</div>
+              </div>
+              <div class="content-panel">
+                <div class="hero-banner">
+                  <div>
+                    <h3>你的音乐工作台</h3>
+                    <p>在与 MoviePilot 原风格一致的空间里，完成音乐发现、搜索、订阅、获取、下载与整理入库。</p>
+                  </div>
+                  <div class="hero-albums">
+                    <div class="cover-art"></div><div class="cover-art"></div><div class="cover-art"></div><div class="cover-art"></div>
+                  </div>
+                </div>
+                <div class="desktop-grid">
+                  <div class="mini-card"><div class="mini-title">待确认任务</div><div class="line w90"></div><div class="line w70"></div><div class="line w50"></div></div>
+                  <div class="mini-card"><div class="mini-title">最近订阅</div><div class="line w90"></div><div class="line w70"></div><div class="line w50"></div></div>
+                  <div class="mini-card"><div class="mini-title">热门榜单</div><div class="line w90"></div><div class="line w70"></div><div class="line w50"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mock-caption">桌面端高保真方向：侧边导航 + 工作台首屏 + 高饱和音乐封面内容，但整体底色保持克制。</div>
+        </div>
+        <div class="grid-2">
+          <div class="phone">
+            <div class="topbar"><div class="title">搜索</div><div class="avatar"></div></div>
+            <div class="search"></div>
+            <div class="seg" style="margin-top:12px;"><span class="on">综合</span><span>歌曲</span><span>专辑</span><span>艺人</span></div>
+            <div class="list-item"><div><strong>七里香</strong><div class="muted">周杰伦 · 歌曲</div></div><a class="btn">订阅</a></div>
+            <div class="list-item"><div><strong>范特西</strong><div class="muted">周杰伦 · 专辑</div></div><a class="btn">获取</a></div>
+            <div class="list-item"><div><strong>周杰伦</strong><div class="muted">艺人 · 中国台湾</div></div><a class="btn">详情</a></div>
+          </div>
+          <div class="phone">
+            <div class="topbar"><div class="title">订阅</div><div class="avatar"></div></div>
+            <div class="seg"><span class="on">全部</span><span>榜单</span><span>歌曲</span><span>专辑</span><span>艺人</span></div>
+            <div class="list-item"><div><strong>QQ 飙升榜</strong><div class="muted">Top 20 · 每日 09:00</div></div><span class="tag">启用</span></div>
+            <div class="list-item"><div><strong>七里香</strong><div class="muted">无损优先 · 单曲订阅</div></div><span class="tag">正常</span></div>
+            <div class="list-item"><div><strong>周杰伦</strong><div class="muted">新歌 + 新专</div></div><span class="tag">待更新</span></div>
+          </div>
+        </div>
+      </div>
+      <h3>高保真设计原则</h3>
+      <ul>
+        <li>页面背景保持浅色与留白，让音乐封面成为高饱和信息点，而不是整页都变成深色播放器风格。</li>
+        <li>按钮、激活态、标签、关键状态统一继承宿主紫色体系，不另起新品牌色。</li>
+        <li>信息密度上遵循“视觉吸引 + 工具效率”双目标：首页和榜单更偏展示，订阅、下载、整理更偏管理。</li>
+      </ul>
+    </div></section>
+
+    
+<section class="section"><div class="section-card">
+  <div class="section-kicker">逐页高保真设计补充</div>
+  <h2>6. 每个页面的高保真设计补充</h2>
+  <p class="muted">以下内容是在不删除原有页面说明、模块定义、字段定义和交互细节的前提下，对每个页面补充高保真视觉方向与更接近最终落地的界面表现。高保真部分用于统一视觉气质、信息层级和交互主次，不替代前文规格说明。</p>
+
+  <div class="hifi-grid">
+    <div class="hifi-card">
+      <div class="hifi-head"><div class="hifi-title">首页高保真设计</div><span class="hifi-chip">/music</span></div>
+      <div class="screen">
+        <div class="screen-top"><div><div class="screen-title">首页</div><div class="screen-sub">音乐业务工作台</div></div><div class="avatar"></div></div>
+        <div class="hero-module"><h4>你的音乐工作台</h4><p>搜索、榜单、订阅和待确认任务都在首屏直达。</p></div>
+        <div class="toolbar"></div>
+        <div class="two-col">
+          <div class="stack">
+            <div class="module-box"><strong>快捷入口</strong><div class="meta-line w90"></div><div class="meta-line w60"></div></div>
+            <div class="module-box"><strong>最近订阅</strong><div class="meta-line w90"></div><div class="meta-line w80"></div><div class="meta-line w40"></div></div>
+          </div>
+          <div class="stack">
+            <div class="module-box dark"><strong>待确认 8</strong><div class="meta-line w80"></div><div class="meta-line w60"></div></div>
+            <div class="module-box"><strong>今日新增</strong><div class="meta-line w80"></div><div class="meta-line w40"></div></div>
+          </div>
+        </div>
+      </div>
+      <ul>
+        <li>首屏主视觉采用品牌紫渐变 Banner，但仅占一屏上半区，不压迫信息区。</li>
+        <li>状态摘要卡使用更强对比度，确保“待确认”成为第一视觉焦点。</li>
+        <li>快捷入口采用图标卡片化布局，与 MoviePilot 首页工作台气质保持一致。</li>
+      </ul>
+    </div>
+
+    <div class="hifi-card">
+      <div class="hifi-head"><div class="hifi-title">榜单页高保真设计</div><span class="hifi-chip">/music/charts</span></div>
+      <div class="screen">
+        <div class="screen-top"><div><div class="screen-title">榜单</div><div class="screen-sub">平台榜单与批量订阅</div></div><div class="avatar"></div></div>
+        <div class="toolbar row"><div class="pillbox"></div><div class="pillbox"></div><div class="pillbox"></div></div>
+        <div class="cover-row">
+          <div class="cover-big"></div><div class="cover-big"></div><div class="cover-big"></div><div class="cover-big"></div>
+        </div>
+      </div>
+      <ul>
+        <li>榜单页应让封面成为主视觉，因此卡片建议比列表页更大，突出“内容发现”感。</li>
+        <li>顶部两层筛选：第一层平台切换，第二层榜单类别与地区语种筛选。</li>
+        <li>卡片右下角保留轻量订阅按钮，避免遮挡封面主图。</li>
+      </ul>
+    </div>
+
+    <div class="hifi-card">
+      <div class="hifi-head"><div class="hifi-title">搜索页高保真设计</div><span class="hifi-chip">/music/search</span></div>
+      <div class="screen">
+        <div class="screen-top"><div><div class="screen-title">搜索</div><div class="screen-sub">输入即联想，结果即动作</div></div><div class="avatar"></div></div>
+        <div class="toolbar"></div>
+        <div class="seg"><span class="on">综合</span><span>歌曲</span><span>专辑</span><span>艺人</span></div>
+        <div class="stack">
+          <div class="result-item"><div><strong>七里香</strong><div class="muted">周杰伦 · 歌曲 · 专辑同名曲</div></div><span class="action-btn">订阅</span></div>
+          <div class="result-item"><div><strong>范特西</strong><div class="muted">周杰伦 · 专辑 · 2001</div></div><span class="action-btn">获取</span></div>
+          <div class="result-item"><div><strong>周杰伦</strong><div class="muted">艺人 · 中国台湾</div></div><span class="action-btn">详情</span></div>
+        </div>
+      </div>
+      <ul>
+        <li>搜索框需要绝对突出，建议吸顶并在滚动后仍然保留。</li>
+        <li>分段控件采用浅底圆角胶囊，激活态使用品牌紫。</li>
+        <li>结果项采用“信息在左，动作在右”的高密度布局，突出直接操作能力。</li>
+      </ul>
+    </div>
+
+    <div class="hifi-card">
+      <div class="hifi-head"><div class="hifi-title">详情页高保真设计</div><span class="hifi-chip">/music/artist/:id</span></div>
+      <div class="screen">
+        <div class="screen-top"><div><div class="screen-title">艺人详情</div><div class="screen-sub">元信息 + 作品关系 + 历史记录</div></div><div class="avatar"></div></div>
+        <div class="split-pane">
+          <div class="module-box dark">
+            <strong>周杰伦</strong>
+            <div class="meta-line w80"></div><div class="meta-line w60"></div>
+          </div>
+          <div class="module-box">
+            <strong>主操作</strong>
+            <div class="seg"><span class="on">订阅</span><span>获取</span><span>分享</span></div>
+          </div>
+        </div>
+        <div class="module-box" style="margin-top:10px"><strong>作品列表</strong><div class="meta-line w90"></div><div class="meta-line w90"></div><div class="meta-line w70"></div></div>
+      </div>
+      <ul>
+        <li>头部摘要建议采用左右分栏：左侧实体摘要，右侧主操作与状态。</li>
+        <li>作品列表、版本信息、历史记录应采用分区卡片，不混成单一长列表。</li>
+        <li>详情页更适合高信息密度，但层次必须靠区块标题与边界来控制。</li>
+      </ul>
+    </div>
+
+    <div class="hifi-card">
+      <div class="hifi-head"><div class="hifi-title">订阅页高保真设计</div><span class="hifi-chip">/music/subscriptions</span></div>
+      <div class="screen">
+        <div class="screen-top"><div><div class="screen-title">订阅</div><div class="screen-sub">分类管理与策略可视</div></div><div class="avatar"></div></div>
+        <div class="seg"><span class="on">全部</span><span>榜单</span><span>歌曲</span><span>专辑</span><span>艺人</span></div>
+        <div class="stack">
+          <div class="result-item"><div><strong>QQ 飙升榜</strong><div class="muted">Top 20 · 每日 09:00</div></div><span class="status ok">启用</span></div>
+          <div class="result-item"><div><strong>七里香</strong><div class="muted">无损优先 · 单曲订阅</div></div><span class="status info">正常</span></div>
+          <div class="result-item"><div><strong>周杰伦</strong><div class="muted">新歌 + 新专</div></div><span class="status warn">待更新</span></div>
+        </div>
+      </div>
+      <ul>
+        <li>订阅页卡片建议更强调策略摘要，避免只显示对象名。</li>
+        <li>状态标签应有明显层次：启用、异常、待更新要在列表层一眼识别。</li>
+        <li>策略编辑入口放在每条卡片右侧更多菜单或“编辑”按钮中，保持整洁。</li>
+      </ul>
+    </div>
+
+    <div class="hifi-card">
+      <div class="hifi-head"><div class="hifi-title">获取与下载页高保真设计</div><span class="hifi-chip">/music/acquisition</span></div>
+      <div class="screen">
+        <div class="screen-top"><div><div class="screen-title">下载确认</div><div class="screen-sub">任务流与候选确认</div></div><div class="avatar"></div></div>
+        <div class="split-pane">
+          <div class="stack">
+            <div class="result-item"><div><strong>七里香</strong><div class="muted">候选资源 4 条</div></div><span class="status warn">待确认</span></div>
+            <div class="result-item"><div><strong>范特西</strong><div class="muted">已派发 qBittorrent</div></div><span class="status info">下载中</span></div>
+            <div class="result-item"><div><strong>某新专</strong><div class="muted">搜索失败，可重试</div></div><span class="status err">失败</span></div>
+          </div>
+          <div class="drawer">
+            <h5>候选资源</h5>
+            <span class="small-tag">FLAC</span><span class="small-tag">24bit</span><span class="small-tag">匹配 98</span>
+            <div class="meta-line w90"></div><div class="meta-line w70"></div><div class="meta-line w40"></div>
+          </div>
+        </div>
+      </div>
+      <ul>
+        <li>任务列表和候选抽屉要同时被看见，所以高保真建议采用“主列表 + 侧抽屉”布局。</li>
+        <li>待确认状态应使用更明显的暖色标签，成为任务列表首要关注点。</li>
+        <li>候选资源信息重点显示格式、音质、体积、匹配分和站点来源。</li>
+      </ul>
+    </div>
+
+    <div class="hifi-card">
+      <div class="hifi-head"><div class="hifi-title">整理页高保真设计</div><span class="hifi-chip">/music/organize</span></div>
+      <div class="screen">
+        <div class="screen-top"><div><div class="screen-title">整理</div><div class="screen-sub">命名、归档、标签写入</div></div><div class="avatar"></div></div>
+        <div class="stack">
+          <div class="result-item"><div><strong>范特西</strong><div class="muted">/Music/Jay/范特西</div></div><span class="status ok">成功</span></div>
+          <div class="result-item"><div><strong>某专辑</strong><div class="muted">标签写入失败</div></div><span class="status err">失败</span></div>
+          <div class="result-item"><div><strong>某艺人单曲</strong><div class="muted">封面补全中</div></div><span class="status info">处理中</span></div>
+        </div>
+      </div>
+      <ul>
+        <li>整理页以结果列表为主，不需要过强运营感，应该更像后台工具页。</li>
+        <li>成功和失败状态都要压缩在一行内说清楚，日志详情延迟到展开层。</li>
+        <li>页首适合放全局告警条，例如路径不可写、规则配置异常。</li>
+      </ul>
+    </div>
+
+    <div class="hifi-card">
+      <div class="hifi-head"><div class="hifi-title">设置页高保真设计</div><span class="hifi-chip">/music/settings</span></div>
+      <div class="screen">
+        <div class="screen-top"><div><div class="screen-title">设置</div><div class="screen-sub">配置与连接管理</div></div><div class="avatar"></div></div>
+        <div class="stack">
+          <div class="module-box"><strong>搜索策略</strong><div class="meta-line w90"></div><div class="meta-line w60"></div></div>
+          <div class="module-box"><strong>下载器映射</strong><div class="meta-line w90"></div><div class="meta-line w50"></div></div>
+          <div class="module-box"><strong>整理规则</strong><div class="meta-line w90"></div><div class="meta-line w70"></div></div>
+        </div>
+      </div>
+      <ul>
+        <li>设置页采用强分组卡片式结构，避免成为连续长表单。</li>
+        <li>每组内部优先显示摘要，点开后再进入具体编辑状态。</li>
+        <li>测试连接、恢复默认、保存等动作应固定在清晰位置，避免表单迷失。</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+<section class="section"><div class="section-card">
+      <div class="section-kicker">组件 / 状态机 / 路由 / 接口建议</div>
+      <h2>7. 组件级深化与实现建议</h2>
+      <div class="grid-3">
+        <div class="card">
+          <strong>前端组件清单</strong>
+          <ul>
+            <li>HeaderBar</li>
+            <li>GlobalSearchBox / StickySearchBar</li>
+            <li>ChartCard / ChartGrid</li>
+            <li>EntityHeroCard</li>
+            <li>SubscriptionStrategyDrawer</li>
+            <li>CandidateDrawer</li>
+            <li>HistoryTimeline</li>
+            <li>FailureLogSheet</li>
+          </ul>
+        </div>
+        <div class="card">
+          <strong>统一状态机建议</strong>
+          <ul>
+            <li>Initial：首屏骨架屏</li>
+            <li>Ready：正常内容态</li>
+            <li>Empty：空状态 + 行动按钮</li>
+            <li>Error：错误提示 + 重试</li>
+            <li>Partial：局部失败不拖垮整页</li>
+          </ul>
+        </div>
+        <div class="card">
+          <strong>宿主复用建议</strong>
+          <ul>
+            <li>导航容器</li>
+            <li>表单字段和校验</li>
+            <li>抽屉 / 弹窗 / Toast</li>
+            <li>卡片容器</li>
+            <li>筛选 Chips</li>
+          </ul>
+        </div>
+      </div>
+      <h3>接口草案</h3>
+      <table class="compare">
+        <tr><th>接口</th><th>说明</th></tr>
+        <tr><td><span class="kbd">GET /music/dashboard</span></td><td>首页工作台数据</td></tr>
+        <tr><td><span class="kbd">GET /music/charts</span></td><td>榜单列表</td></tr>
+        <tr><td><span class="kbd">POST /music/charts/{id}/subscribe</span></td><td>创建榜单订阅</td></tr>
+        <tr><td><span class="kbd">GET /music/search?q=</span></td><td>综合搜索</td></tr>
+        <tr><td><span class="kbd">GET /music/subscriptions</span></td><td>订阅列表</td></tr>
+        <tr><td><span class="kbd">PATCH /music/subscriptions/{id}</span></td><td>编辑订阅策略</td></tr>
+        <tr><td><span class="kbd">GET /music/acquisition/jobs</span></td><td>获取与下载任务列表</td></tr>
+        <tr><td><span class="kbd">POST /music/acquisition/jobs/{id}/confirm</span></td><td>确认候选资源</td></tr>
+        <tr><td><span class="kbd">GET /music/organize/results</span></td><td>整理结果</td></tr>
+        <tr><td><span class="kbd">GET /music/settings</span></td><td>读取设置</td></tr>
+      </table>
+      <h3>统一响应结构建议</h3>
+      <table class="compare">
+        <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+        <tr><td><span class="kbd">code</span></td><td>number</td><td>业务状态码</td></tr>
+        <tr><td><span class="kbd">message</span></td><td>string</td><td>可直接展示的提示</td></tr>
+        <tr><td><span class="kbd">data</span></td><td>object | array</td><td>主体数据</td></tr>
+        <tr><td><span class="kbd">trace_id</span></td><td>string</td><td>问题排查标识</td></tr>
+      </table>
+    </div></section>
+
+    <section class="section"><div class="section-card">
+      <h2>8. 实现优先级与交付结论</h2>
+      <table class="compare">
+        <tr><th>阶段</th><th>范围</th><th>目标</th></tr>
+        <tr><td>MVP</td><td>首页、榜单、搜索、订阅、下载、设置基础项</td><td>跑通发现 → 搜索 → 订阅 → 获取 → 下载链路</td></tr>
+        <tr><td>增强</td><td>详情页、整理页、批量能力、失败重试</td><td>提升效率和维护性</td></tr>
+        <tr><td>优化</td><td>趋势变化、模板复用、日志与历史增强</td><td>提升体验与运营能力</td></tr>
+      </table>
+      <div class="grid-3" style="margin-top:16px">
+        <div class="card"><strong>保留原交互细节</strong><div class="muted">这一版完整保留你确认过的全局规范、页面模块和字段说明，同时逐页补上高保真设计。</div></div>
+        <div class="card"><strong>补足高保真设计</strong><div class="muted">额外叠加高保真视觉方向和页面示意，不再只剩规格文字。</div></div>
+        <div class="card"><strong>可作为最终主文档</strong><div class="muted">适合作为产品、设计、前端、Codex 共同使用的最终版输入。</div></div>
+      </div>
+    </div></section>
+
+    <section class="section"><div class="section-card"><h2>9. 移动端低保真示意</h2><div class="phone-row"><div class="phone"><div class="topbar"><div class="title">首页</div><div class="avatar"></div></div><div class="search"></div><div class="seg" style="margin-top:12px"><span class="on">待确认 8</span><span>下载中 3</span><span>失败 2</span></div><div class="list-item"><div><strong>搜索音乐</strong><div class="muted">歌曲 / 专辑 / 艺人</div></div><a class="btn">进入</a></div><div class="list-item"><div><strong>热门榜单</strong><div class="muted">QQ 音乐 / 网易云</div></div><a class="btn">查看</a></div><div class="list-item"><div><strong>待确认任务</strong><div class="muted">8 条需要人工处理</div></div><a class="btn">处理</a></div></div><div class="phone"><div class="topbar"><div class="title">榜单</div><div class="avatar"></div></div><div class="seg"><span class="on">QQ 音乐</span><span>网易云</span><span>B站</span></div><div class="seg"><span class="on">飙升</span><span>新歌</span><span>热歌</span><span>华语</span></div><div class="cover-grid"><div class="cover"></div><div class="cover"></div><div class="cover"></div><div class="cover"></div></div></div><div class="phone"><div class="topbar"><div class="title">下载确认</div><div class="avatar"></div></div><div class="seg"><span class="on">待确认</span><span>失败</span><span>已完成</span></div><div class="list-item"><div><strong>周杰伦 - 七里香</strong><div class="muted">候选资源 4 条</div></div><span class="status">待确认</span></div><div class="list-item"><div><strong>最伟大的作品</strong><div class="muted">已派发 qBittorrent</div></div><span class="status">下载中</span></div><div class="list-item"><div><strong>某艺人新专</strong><div class="muted">搜索失败，可重试</div></div><span class="status">失败</span></div></div></div></div></section>
+    <section class="section"><div class="section-card"><h2>10. 页面间跳转关系</h2><table class="compare"><tr><th>来源页面</th><th>动作</th><th>目标页面 / 目标状态</th></tr><tr><td>首页</td><td>点击搜索框</td><td>进入搜索页，自动聚焦输入框</td></tr><tr><td>首页状态卡</td><td>点击待确认</td><td>进入下载页并自动筛选待确认</td></tr><tr><td>榜单页</td><td>点击订阅</td><td>打开订阅策略抽屉</td></tr><tr><td>搜索页</td><td>点击获取</td><td>创建获取任务，跳转下载页或停留当前页 Toast 成功</td></tr><tr><td>详情页</td><td>点击订阅</td><td>打开对应类型订阅策略抽屉</td></tr><tr><td>下载页</td><td>下载完成</td><td>自动流转到整理页状态</td></tr><tr><td>整理页</td><td>点击失败项</td><td>展开日志详情或打开修正抽屉</td></tr></table></div></section>
+    <section class="section"><div class="section-card"><h2>11. 设计结论</h2><div class="grid-3"><div class="card"><strong>不是重做 UI</strong><div class="muted">MusicPilot 最佳路径是沿用 MoviePilot 的宿主气质，而不是重新设计一套音乐产品视觉系统。</div></div><div class="card"><strong>重点在页面效率</strong><div class="muted">真正重要的是搜索、订阅、确认、下载、整理这些关键页面的操作效率与状态可见性。</div></div><div class="card"><strong>可继续深化</strong><div class="muted">下一版可以继续输出：逐页线框图、高保真原型说明、前端组件清单、移动端路由与状态机建议。</div></div></div><div class="footer">这版已经可以作为最终主规格文档使用：既保留页面级交互细节，也补齐了高保真视觉方向与实现建议。</div></div></section>
+  </div>
+</body>
+</html>

@@ -1,0 +1,853 @@
+openapi: 3.1.0
+info:
+  title: MusicPilot MVP API
+  version: 1.0.0
+  description: >
+    面向 MusicPilot 独立插件入口的 MVP API 契约。
+servers:
+  - url: /api/v1/plugin/musicpilot
+tags:
+  - name: Dashboard
+  - name: Charts
+  - name: Search
+  - name: Metadata
+  - name: Subscriptions
+  - name: Jobs
+  - name: Downloads
+  - name: Organize
+  - name: Settings
+
+paths:
+  /dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: 获取首页工作台摘要
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDashboardSummary'
+
+  /charts/providers:
+    get:
+      tags: [Charts]
+      summary: 获取榜单源列表
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseChartProviders'
+
+  /charts:
+    get:
+      tags: [Charts]
+      summary: 获取榜单列表
+      parameters:
+        - in: query
+          name: provider
+          schema: { type: string }
+        - in: query
+          name: chart_type
+          schema: { $ref: '#/components/schemas/ChartType' }
+        - in: query
+          name: region
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: page_size
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseCharts'
+
+  /charts/{chart_id}:
+    get:
+      tags: [Charts]
+      summary: 获取榜单详情
+      parameters:
+        - in: path
+          name: chart_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseChartDetail'
+
+  /charts/{chart_id}/subscribe:
+    post:
+      tags: [Charts]
+      summary: 创建榜单订阅
+      parameters:
+        - in: path
+          name: chart_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChartSubscriptionRequest'
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSubscription'
+
+  /search:
+    post:
+      tags: [Search]
+      summary: 统一音乐搜索
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSearch'
+
+  /artists/{artist_id}:
+    get:
+      tags: [Metadata]
+      summary: 获取艺人详情
+      parameters:
+        - in: path
+          name: artist_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseArtist'
+
+  /albums/{album_id}:
+    get:
+      tags: [Metadata]
+      summary: 获取专辑详情
+      parameters:
+        - in: path
+          name: album_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAlbum'
+
+  /tracks/{track_id}:
+    get:
+      tags: [Metadata]
+      summary: 获取歌曲详情
+      parameters:
+        - in: path
+          name: track_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTrack'
+
+  /subscriptions:
+    get:
+      tags: [Subscriptions]
+      summary: 获取订阅列表
+      parameters:
+        - in: query
+          name: target_type
+          schema: { $ref: '#/components/schemas/SubscriptionTargetType' }
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/SubscriptionStatus' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSubscriptions'
+    post:
+      tags: [Subscriptions]
+      summary: 创建订阅
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSubscription'
+
+  /subscriptions/{subscription_id}:
+    patch:
+      tags: [Subscriptions]
+      summary: 更新订阅
+      parameters:
+        - in: path
+          name: subscription_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSubscriptionRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSubscription'
+
+  /subscriptions/{subscription_id}/run:
+    post:
+      tags: [Subscriptions]
+      summary: 立即执行订阅扫描
+      parameters:
+        - in: path
+          name: subscription_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseJob'
+
+  /jobs:
+    get:
+      tags: [Jobs]
+      summary: 获取搜索/获取任务列表
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/JobStatus' }
+        - in: query
+          name: trigger_source
+          schema: { $ref: '#/components/schemas/TriggerSource' }
+      responses:
+        '200':
+          description: Job list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseJobs'
+    post:
+      tags: [Jobs]
+      summary: 创建获取任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJobRequest'
+      responses:
+        '200':
+          description: Job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseJob'
+
+  /jobs/{job_id}/results:
+    get:
+      tags: [Jobs]
+      summary: 获取获取任务候选结果
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: decision
+          schema: { $ref: '#/components/schemas/DecisionStatus' }
+      responses:
+        '200':
+          description: Job results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseJobResults'
+
+  /downloads/dispatch:
+    post:
+      tags: [Downloads]
+      summary: 派发下载
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchDownloadRequest'
+      responses:
+        '200':
+          description: Dispatched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDownloadBinding'
+
+  /organize/jobs:
+    get:
+      tags: [Organize]
+      summary: 获取整理任务列表
+      responses:
+        '200':
+          description: Organize jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseOrganizeJobs'
+
+  /library/items/{item_id}/retry:
+    post:
+      tags: [Organize]
+      summary: 重试整理
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Retry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseOrganizeJob'
+
+  /settings/providers:
+    get:
+      tags: [Settings]
+      summary: 获取 provider 配置
+      responses:
+        '200':
+          description: Providers settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseProvidersSettings'
+    put:
+      tags: [Settings]
+      summary: 更新 provider 配置
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderSettings'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseProvidersSettings'
+
+  /settings/profiles:
+    get:
+      tags: [Settings]
+      summary: 获取规则 profile
+      responses:
+        '200':
+          description: Profiles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseProfiles'
+    put:
+      tags: [Settings]
+      summary: 更新规则 profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RuleProfile'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseProfile'
+
+components:
+  schemas:
+    ApiMeta:
+      type: object
+      properties:
+        request_id: { type: string }
+        trace_id: { type: string }
+      required: [request_id]
+
+    ApiResponseBase:
+      type: object
+      properties:
+        code: { type: integer, default: 0 }
+        message: { type: string, default: OK }
+        meta: { $ref: '#/components/schemas/ApiMeta' }
+
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+
+    ChartType:
+      type: string
+      enum: [track, album, artist]
+
+    EntityType:
+      type: string
+      enum: [artist, album, track]
+
+    SubscriptionTargetType:
+      type: string
+      enum: [chart, artist, album, track]
+
+    SubscriptionStatus:
+      type: string
+      enum: [draft, enabled, paused, disabled]
+
+    JobStatus:
+      type: string
+      enum: [queued, running, matched, manual_pending, dispatched, completed, no_result, failed]
+
+    DecisionStatus:
+      type: string
+      enum: [auto_download, manual_confirm, reject, pending]
+
+    TriggerSource:
+      type: string
+      enum: [manual, chart, subscription, artist_watch]
+
+    AudioProfile:
+      type: string
+      enum: [mp3, aac, flac, ape, wav, hires]
+
+    ReleaseType:
+      type: string
+      enum: [single, ep, album, compilation, live, remaster, deluxe]
+
+    DashboardSummary:
+      type: object
+      properties:
+        subscriptions_total: { type: integer }
+        jobs_running: { type: integer }
+        downloads_pending: { type: integer }
+        organize_failed: { type: integer }
+      required: [subscriptions_total, jobs_running, downloads_pending, organize_failed]
+
+    Provider:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string, enum: [chart, metadata, pt] }
+        enabled: { type: boolean }
+      required: [id, name, type, enabled]
+
+    Chart:
+      type: object
+      properties:
+        id: { type: string }
+        provider: { type: string }
+        name: { type: string }
+        chart_type: { $ref: '#/components/schemas/ChartType' }
+        region: { type: string }
+        updated_at: { type: string, format: date-time }
+      required: [id, provider, name, chart_type, updated_at]
+
+    ChartEntry:
+      type: object
+      properties:
+        rank: { type: integer }
+        entity_type: { $ref: '#/components/schemas/EntityType' }
+        entity_id: { type: string }
+        title: { type: string }
+        subtitle: { type: string }
+      required: [rank, entity_type, entity_id, title]
+
+    Artist:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        aliases:
+          type: array
+          items: { type: string }
+      required: [id, name]
+
+    Album:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        artist_ids:
+          type: array
+          items: { type: string }
+        year: { type: integer }
+        release_type: { $ref: '#/components/schemas/ReleaseType' }
+      required: [id, title, artist_ids]
+
+    Track:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        artist_ids:
+          type: array
+          items: { type: string }
+        album_id: { type: string }
+        version: { type: string }
+      required: [id, title, artist_ids]
+
+    SearchHit:
+      type: object
+      properties:
+        entity_type: { $ref: '#/components/schemas/EntityType' }
+        score: { type: number }
+        artist: { $ref: '#/components/schemas/Artist' }
+        album: { $ref: '#/components/schemas/Album' }
+        track: { $ref: '#/components/schemas/Track' }
+
+    Subscription:
+      type: object
+      properties:
+        id: { type: string }
+        target_type: { $ref: '#/components/schemas/SubscriptionTargetType' }
+        target_id: { type: string }
+        profile_id: { type: string }
+        status: { $ref: '#/components/schemas/SubscriptionStatus' }
+        rule_json: { type: object, additionalProperties: true }
+      required: [id, target_type, target_id, status]
+
+    SearchJob:
+      type: object
+      properties:
+        id: { type: string }
+        target_type: { $ref: '#/components/schemas/SubscriptionTargetType' }
+        target_id: { type: string }
+        trigger_source: { $ref: '#/components/schemas/TriggerSource' }
+        profile_id: { type: string }
+        status: { $ref: '#/components/schemas/JobStatus' }
+      required: [id, target_type, target_id, trigger_source, status]
+
+    SearchResult:
+      type: object
+      properties:
+        id: { type: string }
+        site_id: { type: string }
+        raw_title: { type: string }
+        normalized_title: { type: string }
+        size_bytes: { type: integer }
+        seeders: { type: integer }
+        leechers: { type: integer }
+        audio_profile: { $ref: '#/components/schemas/AudioProfile' }
+        score_total: { type: number }
+        decision: { $ref: '#/components/schemas/DecisionStatus' }
+        reason_codes:
+          type: array
+          items: { type: string }
+      required: [id, site_id, raw_title, score_total, decision]
+
+    DownloadBinding:
+      type: object
+      properties:
+        id: { type: string }
+        result_id: { type: string }
+        downloader_task_id: { type: string }
+        status: { type: string, enum: [submitted, downloading, completed, failed] }
+      required: [id, result_id, status]
+
+    OrganizeJob:
+      type: object
+      properties:
+        id: { type: string }
+        library_item_id: { type: string }
+        status: { type: string, enum: [queued, running, completed, failed, ignored] }
+      required: [id, library_item_id, status]
+
+    ProviderSettings:
+      type: object
+      properties:
+        chart_providers:
+          type: array
+          items: { $ref: '#/components/schemas/Provider' }
+        metadata_providers:
+          type: array
+          items: { $ref: '#/components/schemas/Provider' }
+        pt_sites:
+          type: array
+          items: { $ref: '#/components/schemas/Provider' }
+
+    RuleProfile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        audio_profiles:
+          type: array
+          items: { $ref: '#/components/schemas/AudioProfile' }
+        allow_live: { type: boolean }
+        allow_remaster: { type: boolean }
+        auto_download_threshold: { type: number }
+        manual_confirm_threshold: { type: number }
+      required: [id, name, auto_download_threshold, manual_confirm_threshold]
+
+    SearchRequest:
+      type: object
+      properties:
+        keyword: { type: string }
+        type: { $ref: '#/components/schemas/EntityType' }
+        filters: { type: object, additionalProperties: true }
+        page: { type: integer, default: 1 }
+        page_size: { type: integer, default: 20 }
+      required: [keyword]
+
+    CreateChartSubscriptionRequest:
+      type: object
+      properties:
+        profile_id: { type: string }
+        top_n: { type: integer }
+        region: { type: string }
+        allow_keywords:
+          type: array
+          items: { type: string }
+      required: [profile_id]
+
+    CreateSubscriptionRequest:
+      type: object
+      properties:
+        target_type: { $ref: '#/components/schemas/SubscriptionTargetType' }
+        target_id: { type: string }
+        profile_id: { type: string }
+        rule_json: { type: object, additionalProperties: true }
+      required: [target_type, target_id, profile_id]
+
+    UpdateSubscriptionRequest:
+      type: object
+      properties:
+        status: { $ref: '#/components/schemas/SubscriptionStatus' }
+        profile_id: { type: string }
+        rule_json: { type: object, additionalProperties: true }
+
+    CreateJobRequest:
+      type: object
+      properties:
+        target_type: { $ref: '#/components/schemas/SubscriptionTargetType' }
+        target_id: { type: string }
+        trigger_source: { $ref: '#/components/schemas/TriggerSource' }
+        profile_id: { type: string }
+      required: [target_type, target_id, trigger_source, profile_id]
+
+    DispatchDownloadRequest:
+      type: object
+      properties:
+        result_id: { type: string }
+        downloader_id: { type: string }
+        save_path_policy: { type: string, enum: [auto, manual] }
+        manual_confirm: { type: boolean }
+      required: [result_id, downloader_id]
+
+    ApiResponseDashboardSummary:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/DashboardSummary' }
+
+    ApiResponseChartProviders:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Provider' }
+
+    ApiResponseCharts:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Chart' }
+            pagination: { $ref: '#/components/schemas/Pagination' }
+
+    ApiResponseChartDetail:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                chart: { $ref: '#/components/schemas/Chart' }
+                entries:
+                  type: array
+                  items: { $ref: '#/components/schemas/ChartEntry' }
+
+    ApiResponseSearch:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/SearchHit' }
+            pagination: { $ref: '#/components/schemas/Pagination' }
+
+    ApiResponseArtist:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Artist' }
+
+    ApiResponseAlbum:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Album' }
+
+    ApiResponseTrack:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Track' }
+
+    ApiResponseSubscription:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Subscription' }
+
+    ApiResponseSubscriptions:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Subscription' }
+
+    ApiResponseJob:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/SearchJob' }
+
+    ApiResponseJobs:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/SearchJob' }
+
+    ApiResponseJobResults:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/SearchResult' }
+
+    ApiResponseDownloadBinding:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/DownloadBinding' }
+
+    ApiResponseOrganizeJobs:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/OrganizeJob' }
+
+    ApiResponseOrganizeJob:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/OrganizeJob' }
+
+    ApiResponseProvidersSettings:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ProviderSettings' }
+
+    ApiResponseProfiles:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/RuleProfile' }
+
+    ApiResponseProfile:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/RuleProfile' }

@@ -1,0 +1,10 @@
+{
+  "name": "musicpilot-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MusicPilot plugin runtime placeholder output for MoviePilot integration.",
+  "scripts": {
+    "package": "python3 ../scripts/package_plugin.py",
+    "sync-version": "python3 ../scripts/sync_version.py 0.1.0"
+  }
+}

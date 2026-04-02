@@ -1,0 +1,16 @@
+{
+  "schema_status": "placeholder",
+  "name": "musicpilot",
+  "display_name": "MusicPilot",
+  "version": "0.1.0",
+  "phase": "Phase 0",
+  "runtime_entry": "TBD_AFTER_HOST_CONTRACT",
+  "backend_mount_note": "Do not treat this file as a real MoviePilot manifest yet.",
+  "static_dir": "static",
+  "todo": [
+    "Confirm actual host manifest schema.",
+    "Confirm plugin registration entrypoint.",
+    "Confirm packaged frontend mount path."
+  ]
+}
+

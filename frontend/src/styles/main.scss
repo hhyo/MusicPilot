@@ -1,0 +1,39 @@
+:root {
+  --mp-bg: #f6f7fb;
+  --mp-panel: rgba(255, 255, 255, 0.78);
+  --mp-line: #e7e8f1;
+  --mp-text: #2e3140;
+  --mp-muted: #6f7488;
+  --mp-accent: #7e5ef8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--mp-text);
+  font-family:
+    'Avenir Next',
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(126, 94, 248, 0.12), transparent 26%),
+    linear-gradient(180deg, #fafaff 0%, var(--mp-bg) 100%);
+}
+
+a,
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
