@@ -1,6 +1,6 @@
 # MusicPilot
 
-MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已完成 Phase 0、Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 与 Phase 6，重点先交付可启动、可构建、可装配、可联调的工程骨架，以及从 metadata 到 QueryBuilder、SearchJob、候选评分、mock dispatch，再到 subscriptions、mock chart discovery、subscription run、host-aware organize preview/apply，逐步收口到可探测、可降级、可解释的宿主接入闭环，而不是提前实现生产级自动化。
+MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已完成 Phase 0、Phase 1、Phase 2、Phase 3、Phase 4、Phase 5、Phase 6 与 Phase 7A，重点先交付可启动、可构建、可装配、可联调的工程骨架，以及从 metadata 到 QueryBuilder、SearchJob、候选评分、mock dispatch，再到 subscriptions、mock chart discovery、subscription run、host-aware organize preview/apply，并在 Phase 7A 收口到“真实 MoviePilot 宿主语义已核对、可验证、可降级、可解释”的层级，而不是提前实现生产级自动化。
 
 ## 项目简介
 
@@ -93,9 +93,9 @@ python -m app.db_init --reseed
 
 - Subscription 执行模式：当前仅支持手动触发一次同步 run，不启用生产级 cron、消息队列或分布式 scheduler。
 - Chart discovery：当前为 local seed / mock chart source，只验证发现入口与从 chart item 创建订阅的动作。
-- Host search：当前已升级为 `mock + host-backed selectable`。默认仍走 mock；当启用 host integration 且能力可用时，会优先走 host-backed skeleton。
-- Dispatch：当前已升级为 `mock + host-backed selectable`。默认仍走 mock；当启用 host integration 且能力可用时，会优先走 host-backed skeleton。
-- Organize：当前已升级为 `mock + host-backed selectable` 的 preview/apply 双阶段边界。默认仍走 mock；当启用 host integration 且 organize capability 可用时，会优先走 host-backed skeleton。真实文件移动、硬链接、标签写入和媒体库刷新仍未宣称完成。
+- Host search：当前已升级为 `mock + host-backed selectable`。Phase 7A 已对真实 MoviePilot `/api/v1/search/title` 与 `/api/v1/search/last` 完成语义验证；`search/media` 仍待正向样例补充。
+- Dispatch：当前已升级为 `mock + host-backed selectable`。Phase 7A 已对真实 `/api/v1/download/clients` 和 `/api/v1/download/add` 的负向语义完成验证；真实成功创建下载任务仍是 `unverified`。
+- Organize：当前已升级为 `mock + host-backed selectable` 的 preview/apply 双阶段边界。Phase 7A 已把它映射到真实 MoviePilot `transfer/name` / `transfer/manual` 语义，并确认请求契约与负向返回；真实成功整理仍未宣称完成。
 
 ## 如何启用 host integration
 
@@ -103,14 +103,22 @@ python -m app.db_init --reseed
 
 ```bash
 export MUSICPILOT_HOST_INTEGRATION_ENABLED=true
-export MUSICPILOT_HOST_BASE_URL=http://127.0.0.1:19090
-export MUSICPILOT_HOST_HEALTH_PATH=/health
-export MUSICPILOT_HOST_SITES_PATH=/sites
-export MUSICPILOT_HOST_SEARCH_PATH=/search
-export MUSICPILOT_HOST_DOWNLOADERS_PATH=/downloaders
-export MUSICPILOT_HOST_DISPATCH_PATH=/dispatch
-export MUSICPILOT_HOST_ORGANIZE_PREVIEW_PATH=/organize/preview
-export MUSICPILOT_HOST_ORGANIZE_APPLY_PATH=/organize/apply
+export MUSICPILOT_HOST_BASE_URL=http://127.0.0.1:3000
+export MUSICPILOT_HOST_AUTH_TOKEN="$TOKEN"
+export MUSICPILOT_HOST_AUTH_MODE=x_api_key
+export MUSICPILOT_HOST_API_KEY_HEADER_NAME=X-API-KEY
+export MUSICPILOT_HOST_HEALTH_PATH=/api/v1/search/last
+export MUSICPILOT_HOST_SITES_PATH=/api/v1/site
+export MUSICPILOT_HOST_SEARCH_TITLE_PATH=/api/v1/search/title
+export MUSICPILOT_HOST_SEARCH_MEDIA_PATH=/api/v1/search/media
+export MUSICPILOT_HOST_SEARCH_LAST_PATH=/api/v1/search/last
+export MUSICPILOT_HOST_DOWNLOADERS_PATH=/api/v1/download/clients
+export MUSICPILOT_HOST_DOWNLOAD_ADD_PATH=/api/v1/download/add
+export MUSICPILOT_HOST_DOWNLOAD_MEDIA_PATH=/api/v1/download/
+export MUSICPILOT_HOST_TRANSFER_NAME_PATH=/api/v1/transfer/name
+export MUSICPILOT_HOST_TRANSFER_QUEUE_PATH=/api/v1/transfer/queue
+export MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual
+export MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
 export MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
@@ -130,6 +138,12 @@ python3 scripts/host_integration_stub.py
 ```
 
 它只用于验证 resolver、payload 和 fallback，不代表真实 MoviePilot 宿主已经联通。
+
+更细的真实宿主联调结论见：
+
+- [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)
+- [docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)
+- [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)
 
 ## 如何查看当前 active adapter
 
@@ -163,6 +177,7 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - Phase 4 / 订阅与编排最小闭环
 - Phase 5 / 宿主真实接入优先级最高的收口阶段
 - Phase 6 / 真实 organize 接入优先阶段
+- Phase 7A / 真实 MoviePilot 宿主语义验证与差异收敛
 - 宿主能力探针 API 骨架
 - MVP 路由骨架与统一响应结构
 - metadata 搜索服务最小可用版
@@ -171,6 +186,7 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - QueryBuilder、SearchJob、候选评分与 mock dispatch 最小闭环
 - 订阅模型与 API、mock charts/discovery、subscription run 记录与 host-aware organize preview/apply
 - host-aware search / dispatch / organize adapter resolver、配置映射、fallback 机制与联调说明
+- 真实 MoviePilot search / download / transfer 语义验证与字段映射收敛
 
 ## 当前阶段未完成范围
 
@@ -180,7 +196,9 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - 真实 PT 搜索、匹配、下载派发
 - 真实 organize 文件处理、标签、媒体库刷新
 - 真实 MoviePilot 宿主安装与挂载逻辑
-- 真实 MoviePilot 宿主接口语义验证完成
+- 真实 MoviePilot download 成功派发样例
+- 真实 MoviePilot transfer/name 正向命名样例
+- 真实 MoviePilot transfer/manual 成功整理样例
 
 以上能力本轮均只保留目录、接口、注释或说明性占位，不提前实现。
 

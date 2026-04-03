@@ -63,6 +63,7 @@ class DispatchService:
             dispatch_backend=adapter_result.dispatch_backend,
             capability_source=adapter_result.capability_source,
             fallback_reason=adapter_result.fallback_reason,
+            failure_reason=adapter_result.failure_reason,
             verification_state=adapter_result.verification_state,
             adapter_resolution=adapter_result.adapter_resolution,
         )

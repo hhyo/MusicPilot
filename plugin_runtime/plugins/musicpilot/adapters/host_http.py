@@ -20,23 +20,41 @@ class HostHttpClientConfig:
     timeout_seconds: float
     verify_tls: bool
     auth_token: str | None = None
+    auth_mode: str = "x_api_key"
+    api_key_header_name: str = "X-API-KEY"
 
 
 class HostHttpClient:
     def __init__(self, config: HostHttpClientConfig):
         self.config = config
 
-    def get_json(self, path: str | None) -> dict[str, Any]:
-        return self._request_json("GET", path)
+    def get_json(
+        self,
+        path: str | None,
+        *,
+        params: dict[str, Any] | None = None,
+        auth_mode: str | None = None,
+    ) -> dict[str, Any]:
+        return self._request_json("GET", path, params=params, auth_mode=auth_mode)
 
-    def post_json(self, path: str | None, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request_json("POST", path, payload)
+    def post_json(
+        self,
+        path: str | None,
+        payload: dict[str, Any],
+        *,
+        params: dict[str, Any] | None = None,
+        auth_mode: str | None = None,
+    ) -> dict[str, Any]:
+        return self._request_json("POST", path, payload, params=params, auth_mode=auth_mode)
 
     def _request_json(
         self,
         method: str,
         path: str | None,
         payload: dict[str, Any] | None = None,
+        *,
+        params: dict[str, Any] | None = None,
+        auth_mode: str | None = None,
     ) -> dict[str, Any]:
         if not self.config.base_url:
             raise HostTransportError(
@@ -52,14 +70,21 @@ class HostHttpClient:
         headers = {"Accept": "application/json"}
         if payload is not None:
             headers["Content-Type"] = "application/json"
-        if self.config.auth_token:
-            headers["Authorization"] = f"Bearer {self.config.auth_token}"
+
+        request_params = {key: value for key, value in (params or {}).items() if value is not None}
+        self._apply_auth(headers=headers, params=request_params, auth_mode=auth_mode)
 
         url = f"{self.config.base_url.rstrip('/')}/{path.lstrip('/')}"
 
         try:
             with httpx.Client(timeout=self.config.timeout_seconds, verify=self.config.verify_tls) as client:
-                response = client.request(method=method, url=url, headers=headers, json=payload)
+                response = client.request(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    params=request_params or None,
+                    json=payload,
+                )
                 response.raise_for_status()
                 data = response.json()
         except httpx.HTTPStatusError as exc:
@@ -87,3 +112,31 @@ class HostHttpClient:
             f"Host endpoint returned an unsupported JSON shape: {url}",
             reason_code="host_unsupported_payload",
         )
+
+    def _apply_auth(
+        self,
+        *,
+        headers: dict[str, str],
+        params: dict[str, Any],
+        auth_mode: str | None,
+    ) -> None:
+        mode = (auth_mode or self.config.auth_mode or "x_api_key").lower()
+        if not self.config.auth_token:
+            return
+
+        if mode == "bearer":
+            headers["Authorization"] = f"Bearer {self.config.auth_token}"
+            return
+
+        if mode == "query_token":
+            params.setdefault("token", self.config.auth_token)
+            return
+
+        if mode == "query_apikey":
+            params.setdefault("apikey", self.config.auth_token)
+            return
+
+        if mode == "none":
+            return
+
+        headers[self.config.api_key_header_name] = self.config.auth_token

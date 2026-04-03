@@ -12,6 +12,7 @@ from ..adapters.host_probe import HostProbeAdapter
 from ..adapters.host_search import HostSearchAdapter
 from ..adapters.organize import OrganizeAdapter
 from ..core.config import Settings
+from ..adapters.host_http import HostTransportError
 from ..schemas.acquisition import DispatchAdapterResult, HostSearchCandidate, QueryBuildResult, SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, HostIntegrationRuntimeState, VerificationState
 from ..schemas.metadata import MetadataDetail
@@ -34,6 +35,25 @@ class DispatchExecutionResult:
 class OrganizeExecutionResult:
     result: OrganizeAdapterResult
     resolution: AdapterResolution
+
+
+def _merge_resolution(current: AdapterResolution | None, fallback: AdapterResolution) -> AdapterResolution:
+    if current is None:
+        return fallback
+    return fallback.model_copy(
+        update={
+            "capability_source": current.capability_source or fallback.capability_source,
+            "verification_state": current.verification_state or fallback.verification_state,
+            "fallback_reason": current.fallback_reason or fallback.fallback_reason,
+            "integration_point": current.integration_point or fallback.integration_point,
+        }
+    )
+
+
+def _build_runtime_error_reason(prefix: str, exc: Exception) -> str:
+    if isinstance(exc, HostTransportError):
+        return f"{prefix}:{exc.reason_code}"
+    return f"{prefix}:{type(exc).__name__}"
 
 
 class HostIntegrationService:
@@ -305,19 +325,22 @@ class HostIntegrationService:
         )
 
     def _dispatch_capability_from_probe(self, value: bool | None) -> bool | None:
-        if self.settings.host_dispatch_path:
+        if self.settings.host_dispatch_path or self.settings.host_download_add_path:
             return value if value is not None else True
         return value
 
     def _organize_capability_from_config(self) -> bool | None:
-        has_endpoint = bool(
-            self.settings.host_base_url
-            and (self.settings.host_organize_preview_path or self.settings.host_organize_apply_path)
+        has_any_path = bool(
+            self.settings.host_transfer_name_path
+            or self.settings.host_transfer_manual_path
+            or self.settings.host_organize_preview_path
+            or self.settings.host_organize_apply_path
         )
+        has_endpoint = bool(self.settings.host_base_url and has_any_path)
         if has_endpoint:
             return True
-        if self.settings.host_organize_preview_path or self.settings.host_organize_apply_path:
-            return None
+        if has_any_path:
+            return False
         return False
 
     def _resolve_bool(self, override: bool | None, probe_value: bool | None) -> bool | None:
@@ -361,7 +384,7 @@ class HostSearchAdapterResolver:
                     strategy=resolution.strategy,
                     capability_source=runtime_state.capability_source,
                     verification_state=VerificationState.PLACEHOLDER,
-                    fallback_reason=f"host_search_runtime_error:{type(exc).__name__}",
+                    fallback_reason=_build_runtime_error_reason("host_search_runtime_error", exc),
                     integration_point="HostSearchAdapterResolver",
                     host_integration_enabled=self.integration_service.settings.host_integration_enabled,
                 )
@@ -381,13 +404,23 @@ class HostSearchAdapterResolver:
         )
 
     def _apply_resolution(self, candidate: HostSearchCandidate, resolution: AdapterResolution) -> HostSearchCandidate:
-        candidate.adapter_resolution = resolution
-        candidate.mock = resolution.adapter_mode == AdapterMode.MOCK
-        if resolution.fallback_reason:
-            candidate.note = f"{candidate.note} Fallback reason: {resolution.fallback_reason}."
+        effective_resolution = resolution
+        if candidate.adapter_resolution is not None:
+            effective_resolution = resolution.model_copy(
+                update={
+                    "capability_source": candidate.adapter_resolution.capability_source or resolution.capability_source,
+                    "verification_state": candidate.adapter_resolution.verification_state or resolution.verification_state,
+                    "fallback_reason": candidate.adapter_resolution.fallback_reason or resolution.fallback_reason,
+                    "integration_point": candidate.adapter_resolution.integration_point or resolution.integration_point,
+                }
+            )
+        candidate.adapter_resolution = effective_resolution
+        candidate.mock = effective_resolution.adapter_mode == AdapterMode.MOCK
+        if effective_resolution.fallback_reason:
+            candidate.note = f"{candidate.note} Fallback reason: {effective_resolution.fallback_reason}."
         candidate.raw_payload = {
             **(candidate.raw_payload or {}),
-            "adapter_resolution": resolution.model_dump(mode="json"),
+            "adapter_resolution": effective_resolution.model_dump(mode="json"),
         }
         return candidate
 
@@ -432,7 +465,7 @@ class DispatchAdapterResolver:
                     strategy=resolution.strategy,
                     capability_source=runtime_state.capability_source,
                     verification_state=VerificationState.PLACEHOLDER,
-                    fallback_reason=f"host_dispatch_runtime_error:{type(exc).__name__}",
+                    fallback_reason=_build_runtime_error_reason("host_dispatch_runtime_error", exc),
                     integration_point="DispatchAdapterResolver",
                     host_integration_enabled=self.integration_service.settings.host_integration_enabled,
                 )
@@ -453,11 +486,11 @@ class DispatchAdapterResolver:
                 detail=f"Host-backed dispatch adapter failed and no safe fallback was allowed: {exc}",
             ) from exc
 
-        result.adapter_resolution = resolution
-        result.dispatch_backend = resolution.adapter_mode
-        result.capability_source = runtime_state.capability_source
-        result.fallback_reason = resolution.fallback_reason
-        result.verification_state = resolution.verification_state
+        result.adapter_resolution = _merge_resolution(result.adapter_resolution, resolution)
+        result.dispatch_backend = result.adapter_resolution.adapter_mode
+        result.capability_source = result.capability_source or result.adapter_resolution.capability_source
+        result.fallback_reason = result.fallback_reason or result.adapter_resolution.fallback_reason
+        result.verification_state = result.adapter_resolution.verification_state
         return DispatchExecutionResult(result=result, resolution=resolution)
 
 
@@ -564,7 +597,7 @@ class OrganizeAdapterResolver:
                 strategy=resolution.strategy,
                 capability_source=runtime_state.capability_source,
                 verification_state=VerificationState.PLACEHOLDER,
-                fallback_reason=f"host_organize_preview_runtime_error:{type(exc).__name__}",
+                    fallback_reason=_build_runtime_error_reason("host_organize_preview_runtime_error", exc),
                 integration_point="OrganizeAdapterResolver.preview",
                 host_integration_enabled=self.integration_service.settings.host_integration_enabled,
             )
@@ -600,7 +633,7 @@ class OrganizeAdapterResolver:
                 strategy=resolution.strategy,
                 capability_source=runtime_state.capability_source,
                 verification_state=VerificationState.PLACEHOLDER,
-                fallback_reason=f"host_organize_apply_runtime_error:{type(exc).__name__}",
+                    fallback_reason=_build_runtime_error_reason("host_organize_apply_runtime_error", exc),
                 integration_point="OrganizeAdapterResolver.apply",
                 host_integration_enabled=self.integration_service.settings.host_integration_enabled,
             )
@@ -626,13 +659,14 @@ class OrganizeAdapterResolver:
         resolution: AdapterResolution,
         runtime_state: HostIntegrationRuntimeState,
     ) -> OrganizeExecutionResult:
-        result.organize_backend = resolution.adapter_mode
-        result.adapter_mode = resolution.adapter_mode
-        result.capability_source = runtime_state.capability_source
-        result.fallback_reason = resolution.fallback_reason
-        result.verification_state = resolution.verification_state
-        result.adapter_resolution = resolution
-        result.mock = resolution.adapter_mode == AdapterMode.MOCK
-        if resolution.fallback_reason:
-            result.note = f"{result.note} Fallback reason: {resolution.fallback_reason}."
+        merged_resolution = _merge_resolution(result.adapter_resolution, resolution)
+        result.organize_backend = merged_resolution.adapter_mode
+        result.adapter_mode = merged_resolution.adapter_mode
+        result.capability_source = result.capability_source or merged_resolution.capability_source or runtime_state.capability_source
+        result.fallback_reason = result.fallback_reason or merged_resolution.fallback_reason
+        result.verification_state = merged_resolution.verification_state
+        result.adapter_resolution = merged_resolution
+        result.mock = merged_resolution.adapter_mode == AdapterMode.MOCK
+        if result.fallback_reason:
+            result.note = f"{result.note} Fallback reason: {result.fallback_reason}."
         return OrganizeExecutionResult(result=result, resolution=resolution)

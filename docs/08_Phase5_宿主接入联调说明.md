@@ -17,14 +17,14 @@ Phase 5 的目标不是宣称“已经真实接通宿主全部能力”，而是
 | 接入点 | 当前状态 | 说明 |
 |---|---|---|
 | Host probe mock adapter | verified | 已在本仓库内运行验证，通过 `/api/probe/*` 可见统一结构。 |
-| Host probe real adapter skeleton | verified | 已对“本地 host stub”完成请求构造与响应解析验证；对真实 MoviePilot 宿主仍是 `unverified`。 |
+| Host probe real adapter skeleton | verified | 已对真实 MoviePilot 宿主完成 API 前缀、鉴权与低风险连通性验证。 |
 | Host search mock adapter | verified | 已在 SearchJob 链路中跑通。 |
-| Host search real adapter skeleton | verified | 已对 `scripts/host_integration_stub.py` 完成联调；对真实 MoviePilot 宿主仍是 `unverified`。 |
+| Host search real adapter skeleton | verified | `search/title` 与 `search/last` 已在真实 MoviePilot 宿主完成语义验证；`search/media` 仍是 `unverified`。 |
 | Download dispatch mock adapter | verified | 已在 `/downloads/dispatch` 路由中跑通。 |
-| Download dispatch real adapter skeleton | verified | 已对 `scripts/host_integration_stub.py` 完成联调；对真实 MoviePilot 宿主仍是 `unverified`。 |
+| Download dispatch real adapter skeleton | unverified | 已在真实 MoviePilot 宿主确认 `download/clients` 与 `download/add` 负向语义；真实成功派发样例仍缺失。 |
 | Notify real adapter | placeholder | 仅保留 endpoint 骨架与配置入口。 |
 | Config real adapter | placeholder | 仅保留 endpoint 骨架与配置入口。 |
-| 真实 MoviePilot 宿主接口语义 | unverified | 需要后续人工联调、记录真实请求响应样例后再升级为 `verified`。 |
+| 真实 MoviePilot 宿主接口语义 | unverified | Phase 7A 已完成首轮真实宿主差异收敛，详见 `docs/10_Phase7A_真实宿主语义验证与差异收敛.md`。 |
 
 ## 8.3 配置项
 
@@ -32,13 +32,19 @@ Phase 5 的目标不是宣称“已经真实接通宿主全部能力”，而是
 
 ```env
 MUSICPILOT_HOST_INTEGRATION_ENABLED=true
-MUSICPILOT_HOST_BASE_URL=http://127.0.0.1:19090
+MUSICPILOT_HOST_BASE_URL=http://127.0.0.1:3000
+MUSICPILOT_HOST_AUTH_TOKEN=<local env only>
+MUSICPILOT_HOST_AUTH_MODE=x_api_key
+MUSICPILOT_HOST_API_KEY_HEADER_NAME=X-API-KEY
 MUSICPILOT_HOST_VERIFICATION_STATE=unverified
-MUSICPILOT_HOST_HEALTH_PATH=/health
-MUSICPILOT_HOST_SITES_PATH=/sites
-MUSICPILOT_HOST_SEARCH_PATH=/search
-MUSICPILOT_HOST_DOWNLOADERS_PATH=/downloaders
-MUSICPILOT_HOST_DISPATCH_PATH=/dispatch
+MUSICPILOT_HOST_HEALTH_PATH=/api/v1/search/last
+MUSICPILOT_HOST_SITES_PATH=/api/v1/site
+MUSICPILOT_HOST_SEARCH_TITLE_PATH=/api/v1/search/title
+MUSICPILOT_HOST_SEARCH_MEDIA_PATH=/api/v1/search/media
+MUSICPILOT_HOST_SEARCH_LAST_PATH=/api/v1/search/last
+MUSICPILOT_HOST_DOWNLOADERS_PATH=/api/v1/download/clients
+MUSICPILOT_HOST_DOWNLOAD_ADD_PATH=/api/v1/download/add
+MUSICPILOT_HOST_DOWNLOAD_MEDIA_PATH=/api/v1/download/
 MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
 MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
 MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
@@ -70,7 +76,17 @@ MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
    - `active_search_adapter=mock_host_search`
    - `active_dispatch_adapter=mock_download_dispatch`
 
-### B. 本地 host stub + prefer_host
+### B. 真实 MoviePilot 宿主 + prefer_host
+
+1. 配置 `prefer_host`、`X-API-KEY` 和真实 `HOST_BASE_URL`
+2. 启动 backend
+3. 预期：
+   - `/health` 与 `/api/probe/health` 中出现 `real_host_search / real_download_dispatch`
+   - SearchJob candidates 中 `adapter_mode=host`
+   - dispatch result 中 `dispatch_backend=host`
+   - 若宿主拒绝 payload，仍会保留 `dispatch_backend=host`，并给出真实 `failure_reason`
+
+### C. 本地 host stub + prefer_host
 
 1. 启动 stub：
 
@@ -80,11 +96,10 @@ python3 scripts/host_integration_stub.py
 
 2. 配置 `prefer_host` 并启动 backend
 3. 预期：
-   - `/health` 与 `/api/probe/health` 中出现 `real_host_search / real_download_dispatch`
-   - SearchJob candidates 中 `adapter_mode=host`
-   - dispatch result 中 `dispatch_backend=host`
+   - 行为与真实宿主保持同一套 resolver / fallback 逻辑
+   - 但返回语义仍然只是本地 stub，不能替代真实宿主验证
 
-### C. strict_host 失败验证
+### D. strict_host 失败验证
 
 1. 开启 `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
 2. 设置：
@@ -121,3 +136,5 @@ python3 scripts/host_integration_stub.py
 
 当前仓库**没有**宣称“已真实接通宿主全部能力”。  
 真实 MoviePilot 宿主联调结果，请继续记录到 [docs/07_宿主能力验证记录模板.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/07_宿主能力验证记录模板.md)。
+
+Phase 7A 的真实宿主差异与验证结论，见 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)。

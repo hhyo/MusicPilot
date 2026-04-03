@@ -2,7 +2,7 @@
   <section class="job-panel">
     <header class="job-panel__header">
       <div>
-        <p class="job-panel__eyebrow">Phase 6 Host-Aware Acquisition Loop</p>
+        <p class="job-panel__eyebrow">Phase 7A Real Host Semantic Alignment</p>
         <h3>搜索任务、候选评分与宿主派发边界</h3>
       </div>
       <el-tag v-if="job" :type="jobAdapterMode === 'host' ? 'success' : 'warning'" effect="plain">
@@ -11,7 +11,7 @@
     </header>
 
     <el-alert
-      title="当前页面展示的是 Phase 6 host-aware acquisition loop。若宿主能力可用会优先走 host-backed skeleton；若能力缺失或配置不完整，会自动回退到 mock，并显式展示 fallback 信息。"
+      title="当前页面展示的是 Phase 7A host-aware acquisition loop。search / dispatch 已按真实 MoviePilot 宿主语义收敛；若能力缺失、语义不匹配或请求失败，会自动回退到 mock，并显式展示 fallback 信息。"
       :type="jobAdapterMode === 'host' ? 'success' : 'warning'"
       :closable="false"
       show-icon
@@ -165,8 +165,14 @@
                 <p v-if="dispatchResults[candidate.id]">
                   dispatch_backend: {{ dispatchResults[candidate.id].dispatch_backend }} / {{ dispatchResults[candidate.id].target_downloader }}
                 </p>
+                <p v-if="dispatchResults[candidate.id]">
+                  dispatch verification: {{ dispatchResults[candidate.id].verification_state }}
+                </p>
                 <p v-if="dispatchResults[candidate.id]?.fallback_reason">
                   dispatch fallback: {{ dispatchResults[candidate.id]?.fallback_reason }}
+                </p>
+                <p v-if="dispatchResults[candidate.id]?.failure_reason">
+                  dispatch failure: {{ dispatchResults[candidate.id]?.failure_reason }}
                 </p>
                 <p v-if="dispatchResults[candidate.id]">{{ dispatchResults[candidate.id].note }}</p>
               </div>

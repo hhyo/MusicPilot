@@ -72,6 +72,8 @@ def get_host_http_client() -> HostHttpClient:
             timeout_seconds=settings.host_timeout_seconds,
             verify_tls=settings.host_verify_tls,
             auth_token=settings.host_auth_token,
+            auth_mode=settings.host_auth_mode,
+            api_key_header_name=settings.host_api_key_header_name,
         )
     )
 

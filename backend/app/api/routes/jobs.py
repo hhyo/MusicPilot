@@ -1,4 +1,4 @@
-"""Search job routes for the Phase 5 host-aware acquisition loop."""
+"""Search job routes for the Phase 7A host-aware acquisition loop."""
 
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ async def run_job(
         message="Search job executed through the host-aware search resolver.",
         code="SEARCH_JOB_EXECUTED",
         mock=job.mock,
-        note="当前执行链路会按 strategy 与 capability 在 host-backed skeleton 和 mock adapter 之间选择，并在需要时回退。",
+        note="当前执行链路会按 strategy 与 capability 在真实 MoviePilot search 语义和 mock adapter 之间选择，并在需要时回退。",
     )
 
 

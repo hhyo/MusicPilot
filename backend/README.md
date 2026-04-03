@@ -10,6 +10,7 @@ FastAPI 工程目录。当前已完成：
 - SubscriptionService、subscription run 与 mock chart discovery
 - host-aware organize preview/apply 与 organize 状态记录
 - host-aware search / dispatch / organize adapter resolver 与 fallback 机制
+- 真实 MoviePilot search / download / transfer 语义收敛与差异记录
 
 当前仍不包含：
 
@@ -17,7 +18,9 @@ FastAPI 工程目录。当前已完成：
 - 真实榜单抓取与增量监控
 - 真实 PT 搜索与下载器派发
 - 生产级订阅调度器与真实整理规则
-- 真实 MoviePilot 宿主接口语义验证完成
+- 真实 MoviePilot download 成功派发样例
+- 真实 MoviePilot transfer/name 正向命名样例
+- 真实 MoviePilot transfer/manual 成功整理样例
 
 手动初始化本地数据库：
 
@@ -37,14 +40,22 @@ python -m app.db_init --reseed
 
 ```bash
 export MUSICPILOT_HOST_INTEGRATION_ENABLED=true
-export MUSICPILOT_HOST_BASE_URL=http://127.0.0.1:19090
-export MUSICPILOT_HOST_HEALTH_PATH=/health
-export MUSICPILOT_HOST_SITES_PATH=/sites
-export MUSICPILOT_HOST_SEARCH_PATH=/search
-export MUSICPILOT_HOST_DOWNLOADERS_PATH=/downloaders
-export MUSICPILOT_HOST_DISPATCH_PATH=/dispatch
-export MUSICPILOT_HOST_ORGANIZE_PREVIEW_PATH=/organize/preview
-export MUSICPILOT_HOST_ORGANIZE_APPLY_PATH=/organize/apply
+export MUSICPILOT_HOST_BASE_URL=http://127.0.0.1:3000
+export MUSICPILOT_HOST_AUTH_TOKEN="$TOKEN"
+export MUSICPILOT_HOST_AUTH_MODE=x_api_key
+export MUSICPILOT_HOST_API_KEY_HEADER_NAME=X-API-KEY
+export MUSICPILOT_HOST_HEALTH_PATH=/api/v1/search/last
+export MUSICPILOT_HOST_SITES_PATH=/api/v1/site
+export MUSICPILOT_HOST_SEARCH_TITLE_PATH=/api/v1/search/title
+export MUSICPILOT_HOST_SEARCH_MEDIA_PATH=/api/v1/search/media
+export MUSICPILOT_HOST_SEARCH_LAST_PATH=/api/v1/search/last
+export MUSICPILOT_HOST_DOWNLOADERS_PATH=/api/v1/download/clients
+export MUSICPILOT_HOST_DOWNLOAD_ADD_PATH=/api/v1/download/add
+export MUSICPILOT_HOST_DOWNLOAD_MEDIA_PATH=/api/v1/download/
+export MUSICPILOT_HOST_TRANSFER_NAME_PATH=/api/v1/transfer/name
+export MUSICPILOT_HOST_TRANSFER_QUEUE_PATH=/api/v1/transfer/queue
+export MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual
+export MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
 export MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
@@ -56,6 +67,6 @@ export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
 python3 ../scripts/host_integration_stub.py
 ```
 
-然后通过 `/health`、`/api/probe/health`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend 与 fallback 信息。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md) 和 [docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)。
+然后通过 `/health`、`/api/probe/health`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend、verification state 与 fallback 信息。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)、[docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md) 和 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)。
 
 启动方式见仓库根目录 [README.md](../README.md)。

@@ -1,8 +1,9 @@
-"""Host PT search adapter boundary for Phase 3."""
+"""Host PT search adapter boundary with MoviePilot runtime mapping."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import re
 from typing import Any
 
 from .host_http import HostHttpClient, HostTransportError
@@ -117,11 +118,13 @@ class MockHostSearchAdapter(HostSearchAdapter):
 
 
 class RealHostSearchAdapter(HostSearchAdapter):
-    """Host-backed PT search skeleton for Phase 5.
+    """MoviePilot-backed PT search adapter.
 
-    The request/response mapping is intentionally generic because the final host contract
-    is still unverified. This adapter should only be selected by the resolver when host
-    integration is enabled and the search capability is considered available.
+    Runtime verification in Phase 7A confirmed that MoviePilot search is not a generic
+    JSON POST endpoint. The verified host semantics are:
+    - ``GET /api/v1/search/title`` with ``keyword`` and ``page`` query params.
+    - ``GET /api/v1/search/media/{mediaid}`` with query params when a compatible media id exists.
+    - ``GET /api/v1/search/last`` returning ``List[Context]`` directly.
     """
 
     def __init__(self, *, settings: Settings, client: HostHttpClient):
@@ -129,77 +132,221 @@ class RealHostSearchAdapter(HostSearchAdapter):
         self.client = client
 
     def search(self, *, query_build: QueryBuildResult, detail: MetadataDetail) -> list[HostSearchCandidate]:
-        payload = {
-            "queries": [item.query for item in query_build.ordered_queries],
-            "query_context": query_build.query_context.model_dump(mode="json"),
-            "preferences": query_build.preferences.model_dump(mode="json"),
-            "query_source_type": query_build.query_source_type.value,
-            "query_source_id": query_build.query_source_id,
-            "detail": detail.model_dump(mode="json"),
-        }
-        response = self.client.post_json(self.settings.host_search_path, payload)
-        items = self._extract_items(response)
+        media_id = self._resolve_media_id(query_build)
+        if media_id:
+            items = self._search_by_media(media_id=media_id, detail=detail)
+            if items:
+                return items
 
+        for clause in self._iter_positive_queries(query_build):
+            items = self._search_by_title(clause_query=clause.query, detail=detail, query_type=clause.query_type)
+            if items:
+                return items
+
+        if self.settings.host_strict_empty_as_error:
+            raise HostTransportError(
+                "MoviePilot search endpoints were reachable but returned no parsable candidates for the current query set.",
+                reason_code="moviepilot_search_empty",
+            )
+        return []
+
+    def _search_by_title(
+        self,
+        *,
+        clause_query: str,
+        detail: MetadataDetail,
+        query_type: str,
+    ) -> list[HostSearchCandidate]:
+        payload = self.client.get_json(
+            self.settings.host_search_title_path or self.settings.host_search_path,
+            params={"keyword": clause_query, "page": 0},
+            auth_mode="x_api_key",
+        )
+        if payload.get("success") is False:
+            if self._is_empty_search_response(payload):
+                return []
+            raise HostTransportError(
+                f"MoviePilot search/title rejected the request: {payload.get('message') or 'unknown error'}",
+                reason_code="moviepilot_search_title_rejected",
+            )
+        return self._map_context_items(
+            self._extract_context_items(payload),
+            detail=detail,
+            endpoint_label="search.title",
+            note=(
+                "当前候选来自真实 MoviePilot `/api/v1/search/title` 返回结构，字段映射已经按宿主 Context/TorrentInfo "
+                "语义收敛。"
+            ),
+            query_query=clause_query,
+            query_type=query_type,
+        )
+
+    def _search_by_media(self, *, media_id: str, detail: MetadataDetail) -> list[HostSearchCandidate]:
+        base_path = self.settings.host_search_media_path or "/api/v1/search/media"
+        payload = self.client.get_json(
+            f"{base_path.rstrip('/')}/{media_id}",
+            params={"area": "title"},
+            auth_mode="x_api_key",
+        )
+        if payload.get("success") is False:
+            if self._is_empty_search_response(payload):
+                return []
+            raise HostTransportError(
+                f"MoviePilot search/media rejected the request: {payload.get('message') or 'unknown error'}",
+                reason_code="moviepilot_search_media_rejected",
+            )
+        return self._map_context_items(
+            self._extract_context_items(payload),
+            detail=detail,
+            endpoint_label="search.media",
+            note=(
+                "当前候选来自真实 MoviePilot `/api/v1/search/media/{mediaid}` 返回结构。"
+                "Phase 7A 只完成了该端点的源码核对与真实宿主负向样例验证，正向候选样例仍待补充。"
+            ),
+            query_query=media_id,
+            query_type="canonical",
+            verification_state=VerificationState.UNVERIFIED,
+        )
+
+    def _extract_context_items(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
+        data = payload.get("data")
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+        if isinstance(data, dict) and isinstance(data.get("items"), list):
+            return [item for item in data["items"] if isinstance(item, dict)]
+        items = payload.get("items")
+        if isinstance(items, list):
+            return [item for item in items if isinstance(item, dict)]
+        return []
+
+    def _map_context_items(
+        self,
+        items: list[dict[str, Any]],
+        *,
+        detail: MetadataDetail,
+        endpoint_label: str,
+        note: str,
+        query_query: str,
+        query_type: str,
+        verification_state: VerificationState = VerificationState.VERIFIED,
+    ) -> list[HostSearchCandidate]:
         candidates: list[HostSearchCandidate] = []
+        seen: set[str] = set()
+
         for index, item in enumerate(items, start=1):
-            title = str(item.get("raw_title") or item.get("title") or f"host-candidate-{index}")
-            size_value = item.get("size_bytes", item.get("size", 0))
-            size_bytes = self._to_int(size_value)
-            seeders = self._to_int(item.get("seeders", 0))
-            peers = self._to_int(item.get("peers", item.get("leechers", 0)))
-            bitrate = item.get("bitrate_kbps", item.get("bitrate"))
-            source_tags = item.get("source_tags") or item.get("tags") or []
+            context = item if isinstance(item, dict) else {}
+            torrent = context.get("torrent_info") if isinstance(context.get("torrent_info"), dict) else context
+            title = str(torrent.get("title") or context.get("title") or f"moviepilot-candidate-{index}")
+            page_url = str(torrent.get("page_url") or torrent.get("enclosure") or "")
+            dedupe_key = page_url or f"{torrent.get('site_name')}::{title}"
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+
+            labels = [str(label) for label in (torrent.get("labels") or []) if label]
+            resolution = AdapterResolution(
+                adapter_key="real_host_search",
+                adapter_mode=AdapterMode.HOST,
+                strategy=AdapterStrategy.PREFER_HOST,
+                capability_source=f"moviepilot.runtime.{endpoint_label}",
+                verification_state=verification_state,
+                integration_point=f"RealHostSearchAdapter.{endpoint_label}",
+                host_integration_enabled=self.settings.host_integration_enabled,
+            )
+            raw_payload = {
+                "host_context": context,
+                "query_query": query_query,
+                "query_type": query_type,
+                "endpoint": endpoint_label,
+                "page_url": page_url or None,
+                "adapter_resolution": resolution.model_dump(mode="json"),
+            }
 
             candidates.append(
                 HostSearchCandidate(
-                    site_id=str(item.get("site_id") or item.get("site") or f"host-site-{index}"),
-                    site_name=str(item.get("site_name") or item.get("site") or "Host Site"),
+                    site_id=str(torrent.get("site") or torrent.get("site_id") or f"site-{index}"),
+                    site_name=str(torrent.get("site_name") or context.get("site_name") or "MoviePilot Site"),
                     title=title,
-                    normalized_title=normalize_title(str(item.get("normalized_title") or title)),
-                    size_bytes=size_bytes,
-                    seeders=seeders,
-                    peers=peers,
-                    format_tag=self._extract_format(item),
-                    bitrate_kbps=self._to_int(bitrate) if bitrate is not None else None,
-                    source_tags=[str(tag) for tag in source_tags],
+                    normalized_title=normalize_title(title),
+                    size_bytes=self._to_int(torrent.get("size", torrent.get("size_bytes", 0))),
+                    seeders=self._to_int(torrent.get("seeders", 0)),
+                    peers=self._to_int(torrent.get("peers", torrent.get("leechers", 0))),
+                    format_tag=self._extract_format(torrent, title, labels),
+                    bitrate_kbps=self._extract_bitrate(torrent, title),
+                    source_tags=self._build_source_tags(labels, torrent),
                     mock=False,
-                    note=(
-                        "当前候选来自 configured host search endpoint。字段映射已落为可联调骨架，但 MoviePilot "
-                        "真实返回结构仍需联调确认。"
-                    ),
-                    adapter_resolution=AdapterResolution(
-                        adapter_key="real_host_search",
-                        adapter_mode=AdapterMode.HOST,
-                        strategy=AdapterStrategy.PREFER_HOST,
-                        capability_source="host.endpoint",
-                        verification_state=VerificationState(self.settings.host_verification_state),
-                        integration_point="RealHostSearchAdapter.search",
-                        host_integration_enabled=self.settings.host_integration_enabled,
-                    ),
-                    raw_payload=item,
+                    note=note,
+                    adapter_resolution=resolution,
+                    raw_payload=raw_payload,
                 )
             )
 
-        if not candidates and self.settings.host_strict_empty_as_error:
-            raise HostTransportError(
-                "Configured host search endpoint returned no parsable candidates.",
-                reason_code="host_search_empty",
-            )
         return candidates
 
-    def _extract_items(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
-        data = payload.get("data", payload)
-        if isinstance(data, dict) and isinstance(data.get("items"), list):
-            return [item for item in data["items"] if isinstance(item, dict)]
-        if isinstance(data, list):
-            return [item for item in data if isinstance(item, dict)]
-        if isinstance(payload.get("items"), list):
-            return [item for item in payload["items"] if isinstance(item, dict)]
-        return []
+    def _resolve_media_id(self, query_build: QueryBuildResult) -> str | None:
+        external_ids = query_build.query_context.external_ids
+        for key in ("moviepilot_mediaid", "mediaid"):
+            value = external_ids.get(key)
+            if value:
+                return value
+        if external_ids.get("moviepilot_tmdb_id"):
+            return f"tmdb:{external_ids['moviepilot_tmdb_id']}"
+        if external_ids.get("moviepilot_douban_id"):
+            return f"douban:{external_ids['moviepilot_douban_id']}"
+        if external_ids.get("moviepilot_bangumi_id"):
+            return f"bangumi:{external_ids['moviepilot_bangumi_id']}"
+        return None
 
-    def _extract_format(self, payload: dict[str, Any]) -> str | None:
-        value = payload.get("format_tag") or payload.get("audio_profile") or payload.get("format")
-        return str(value).lower() if value else None
+    def _iter_positive_queries(self, query_build: QueryBuildResult) -> list[Any]:
+        queries: list[Any] = []
+        seen: set[str] = set()
+        for clause in query_build.ordered_queries:
+            if clause.query_type == "negative":
+                continue
+            normalized = normalize_title(clause.query)
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            queries.append(clause)
+            if len(queries) >= 4:
+                break
+        return queries
+
+    def _is_empty_search_response(self, payload: dict[str, Any]) -> bool:
+        message = str(payload.get("message") or "")
+        return "未搜索到任何资源" in message or message == ""
+
+    def _extract_format(self, payload: dict[str, Any], title: str, labels: list[str]) -> str | None:
+        for value in (payload.get("audio_profile"), payload.get("format"), payload.get("format_tag")):
+            if value:
+                return str(value).lower()
+        title_lower = title.lower()
+        for marker in ("flac", "ape", "wav", "aac", "mp3", "alac", "dsd"):
+            if marker in title_lower:
+                return marker
+        for label in labels:
+            lowered = label.lower()
+            for marker in ("flac", "ape", "wav", "aac", "mp3", "alac", "dsd"):
+                if marker in lowered:
+                    return marker
+        return None
+
+    def _extract_bitrate(self, payload: dict[str, Any], title: str) -> int | None:
+        for value in (payload.get("bitrate_kbps"), payload.get("bitrate")):
+            if value not in (None, ""):
+                return self._to_int(value)
+        match = re.search(r"(?P<bitrate>\d{3,4})\s?(?:kbps|k)", title.lower())
+        if match:
+            return self._to_int(match.group("bitrate"))
+        return None
+
+    def _build_source_tags(self, labels: list[str], payload: dict[str, Any]) -> list[str]:
+        tags = list(labels)
+        for key in ("volume_factor", "date_elapsed", "site_name"):
+            value = payload.get(key)
+            if value:
+                tags.append(str(value))
+        return tags
 
     def _to_int(self, value: Any) -> int:
         if value in (None, ""):

@@ -133,6 +133,7 @@ export interface SearchCandidateDetail {
   note?: string | null;
   created_at: string;
   adapter_resolution?: AdapterResolution | null;
+  raw_payload?: Record<string, unknown>;
 }
 
 export interface SearchCandidateListData {
@@ -175,6 +176,7 @@ export interface DispatchResult {
   dispatch_backend: AdapterMode;
   capability_source: string;
   fallback_reason?: string | null;
+  failure_reason?: string | null;
   verification_state: VerificationState;
   adapter_resolution?: AdapterResolution | null;
 }

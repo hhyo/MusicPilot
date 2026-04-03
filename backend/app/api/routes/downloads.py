@@ -1,4 +1,4 @@
-"""Dispatch routes for the Phase 5 host-aware dispatch boundary."""
+"""Dispatch routes for the Phase 7A host-aware dispatch boundary."""
 
 from __future__ import annotations
 
@@ -26,6 +26,6 @@ async def dispatch_download(
         message="Dispatch boundary handled the candidate.",
         code="DISPATCH_BOUNDARY_OK",
         mock=result.dispatch_backend == "mock",
-        note="当前 dispatch 会优先尝试 host-backed adapter skeleton；若能力缺失、配置不完整或运行失败，会按策略回退到 mock。",
-        todo=["Replace the host dispatch skeleton with a verified MoviePilot downloader integration after joint validation."],
+        note="当前 dispatch 会优先尝试真实 MoviePilot download 语义；若能力缺失、配置不完整、payload 不兼容或运行失败，会按策略回退到 mock。",
+        todo=["继续补充真实 MoviePilot 成功派发样例，并确认音乐资源在宿主中的最终可识别语义。"],
     )

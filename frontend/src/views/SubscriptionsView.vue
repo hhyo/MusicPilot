@@ -5,15 +5,16 @@
         <p class="hero-panel__eyebrow">Subscriptions</p>
         <h2>订阅与执行记录最小闭环</h2>
         <p class="hero-panel__description">
-          当前页面展示的是 Phase 6 最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
-          回看 SearchJob 摘要与 organize preview/apply。真实 scheduler、真实榜单增量与真实文件整理链路仍未完成验证。
+          当前页面展示的是 Phase 7A 最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
+          回看 SearchJob 摘要与 organize preview/apply。search / dispatch / organize 已开始对齐真实 MoviePilot 宿主语义，
+          但真实 scheduler、真实榜单增量与真实文件整理链路仍未完成验证。
         </p>
       </div>
       <el-tag type="warning" effect="plain">host-aware organize / sync subscription executor</el-tag>
     </section>
 
     <el-alert
-      title="Phase 6 订阅执行器仍为同步最小骨架：不会自动定时执行；organize 已升级为 host-aware preview/apply，但真实文件移动、硬链接、刮削与媒体库刷新仍待宿主验证。"
+      title="Phase 7A 订阅执行器仍为同步最小骨架：不会自动定时执行；organize 已按真实 MoviePilot transfer 语义收敛，但真实文件移动、硬链接、刮削与媒体库刷新仍待宿主进一步验证。"
       type="warning"
       :closable="false"
       show-icon

@@ -18,11 +18,11 @@ Phase 6 的目标不是宣称“已经真实完成文件移动、硬链接、刮
 |---|---|---|
 | Mock organize preview | verified | 已在本仓库内完成可重复验证。 |
 | Mock organize apply | verified | 已在本仓库内完成可重复验证，但不会真实处理文件。 |
-| Real organize preview skeleton | verified | 已对 `scripts/host_integration_stub.py` 完成请求构造与响应解析验证；对真实 MoviePilot 宿主仍是 `unverified`。 |
-| Real organize apply skeleton | verified | 已对 `scripts/host_integration_stub.py` 完成请求构造与响应解析验证；对真实 MoviePilot 宿主仍是 `unverified`。 |
+| Real organize preview skeleton | unverified | 已对真实 MoviePilot `/api/v1/transfer/name` 完成源码核对与负向样例验证；真实正向命名样例仍缺失。 |
+| Real organize apply skeleton | unverified | 已对真实 MoviePilot `/api/v1/transfer/manual` 完成源码核对与负向样例验证；真实成功整理样例仍缺失。 |
 | Organize strategy mapping | verified | 已可通过 settings / env 配置库路径、命名模板与 conflict policy。 |
 | 真实文件移动 / 硬链接 / 刮削 / 媒体库刷新 | placeholder | 仅保留 host-backed apply 骨架与结果记录，不宣称真实完成。 |
-| 真实 MoviePilot organize 语义 | unverified | 需要后续人工联调、记录真实请求响应样例后再升级为 `verified`。 |
+| 真实 MoviePilot organize 语义 | unverified | Phase 7A 已明确它本质上映射的是 MoviePilot transfer 语义，而不是独立 organize preview/apply 接口。 |
 
 ## 9.3 配置项
 
@@ -30,10 +30,14 @@ Phase 6 的目标不是宣称“已经真实完成文件移动、硬链接、刮
 
 ```env
 MUSICPILOT_HOST_INTEGRATION_ENABLED=true
-MUSICPILOT_HOST_BASE_URL=http://127.0.0.1:19090
+MUSICPILOT_HOST_BASE_URL=http://127.0.0.1:3000
+MUSICPILOT_HOST_AUTH_TOKEN=<local env only>
+MUSICPILOT_HOST_AUTH_MODE=x_api_key
 MUSICPILOT_HOST_VERIFICATION_STATE=unverified
-MUSICPILOT_HOST_ORGANIZE_PREVIEW_PATH=/organize/preview
-MUSICPILOT_HOST_ORGANIZE_APPLY_PATH=/organize/apply
+MUSICPILOT_HOST_TRANSFER_NAME_PATH=/api/v1/transfer/name
+MUSICPILOT_HOST_TRANSFER_QUEUE_PATH=/api/v1/transfer/queue
+MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual
+MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
 MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
 MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
 
@@ -59,7 +63,7 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
 ## 9.4 preview / apply 现状
 
 - `POST /api/v1/plugin/musicpilot/organize/preview`
-  - 当前会根据 resolver 选择 mock 或 host-backed skeleton。
+  - 当前会根据 resolver 选择 mock 或映射到真实 MoviePilot `transfer/name`。
   - 返回中会明确展示：
     - `organize_backend`
     - `adapter_mode`
@@ -70,8 +74,8 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
     - `fallback_reason`
     - `verification_state`
 - `POST /api/v1/plugin/musicpilot/organize/apply`
-  - 当前可能走 mock apply，也可能走 host-backed apply skeleton。
-  - 即使返回 `applied`，也只表示“状态记录已更新”或“host stub 已返回 applied”，并不等价于真实 MoviePilot 已完成文件处理。
+  - 当前可能走 mock apply，也可能映射到真实 MoviePilot `transfer/manual`。
+  - 即使返回 `applied`，也不等价于“真实文件移动 / 硬链接 / 刮削 / 媒体库刷新已全部验证完成”。
 - `GET /api/v1/plugin/musicpilot/organize/jobs`
   - 可回看 organize records 列表。
 - `GET /api/v1/plugin/musicpilot/organize/jobs/{id}`
@@ -92,7 +96,17 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
    - preview 为 `preview_ready`
    - apply 为 `applied`
 
-### B. prefer_host 但 capability 不足
+### B. prefer_host + 真实宿主但 organize 输入不足
+
+1. 开启：
+   - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
+   - `MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host`
+2. SearchJob 候选只有远端 torrent context，尚无真实本地下载文件路径
+3. 预期：
+   - organize 会自动回退到 mock
+   - `fallback_reason` 会体现 `moviepilot_transfer_source_path_missing`
+
+### C. prefer_host 但 capability 不足
 
 1. 开启：
    - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
@@ -102,7 +116,7 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
    - organize 会自动回退到 mock
    - 返回中出现 `fallback_reason=host_capability_unavailable` 或同类原因
 
-### C. 本地 host stub + prefer_host
+### D. 本地 host stub + prefer_host
 
 1. 启动 stub：
 
@@ -113,15 +127,15 @@ python3 scripts/host_integration_stub.py
 2. 配置：
    - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
    - `MUSICPILOT_HOST_BASE_URL=http://127.0.0.1:19090`
-   - `MUSICPILOT_HOST_ORGANIZE_PREVIEW_PATH=/organize/preview`
-   - `MUSICPILOT_HOST_ORGANIZE_APPLY_PATH=/organize/apply`
+   - `MUSICPILOT_HOST_TRANSFER_NAME_PATH=/api/v1/transfer/name`
+   - `MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual`
    - `MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host`
 3. 预期：
    - `/health` 中 `active_organize_adapter=real_organize`
    - preview/apply 返回 `organize_backend=host`
-   - `verification_state` 仍为 `unverified` 或 `placeholder`，除非你已拿真实宿主完成验证
+   - `verification_state` 仍为 `unverified`，因为 stub 不能替代真实宿主正向样例
 
-### D. strict_host 失败验证
+### E. strict_host 失败验证
 
 1. 开启：
    - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
@@ -156,3 +170,5 @@ python3 scripts/host_integration_stub.py
 
 当前仓库**没有**宣称“已真实完成文件移动、硬链接、刮削入库或媒体库刷新”。  
 真实 organize 联调结果，请继续记录到 [docs/07_宿主能力验证记录模板.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/07_宿主能力验证记录模板.md)。
+
+Phase 7A 对真实 MoviePilot transfer 语义的差异说明，见 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)。

@@ -1,8 +1,9 @@
-"""Download dispatch adapter boundary for Phase 3."""
+"""Download dispatch adapter boundary with MoviePilot runtime mapping."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from .host_http import HostHttpClient
 from ..core.config import Settings
@@ -97,7 +98,7 @@ class MockDownloadDispatchAdapter(DownloadDispatchAdapter):
 
 
 class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
-    """Host-backed dispatch skeleton for Phase 5."""
+    """MoviePilot-backed download dispatch adapter."""
 
     def __init__(self, *, settings: Settings, client: HostHttpClient):
         self.settings = settings
@@ -110,64 +111,126 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
         downloader_id: str,
         manual_confirm: bool,
     ) -> DispatchAdapterResult:
-        payload = {
-            "candidate": {
-                "id": candidate.id,
-                "job_id": candidate.job_id,
-                "title": candidate.title,
-                "site_id": candidate.site_id,
-                "site_name": candidate.site_name,
-                "size_bytes": candidate.size_bytes,
-                "seeders": candidate.seeders,
-                "peers": candidate.peers,
-                "format_tag": candidate.format_tag,
-                "bitrate_kbps": candidate.bitrate_kbps,
-                "source_tags": candidate.source_tags,
-                "decision": candidate.decision,
-            },
-            "candidate_id": candidate.id,
-            "job_id": candidate.job_id,
-            "title": candidate.title,
-            "site_id": candidate.site_id,
-            "size_bytes": candidate.size_bytes,
-            "seeders": candidate.seeders,
-            "peers": candidate.peers,
-            "format_tag": candidate.format_tag,
-            "bitrate_kbps": candidate.bitrate_kbps,
-            "source_tags": candidate.source_tags,
-            "decision": candidate.decision,
-            "downloader_id": downloader_id,
-            "manual_confirm": manual_confirm,
-        }
-        data = self.client.post_json(self.settings.host_dispatch_path, payload)
-        accepted = bool(data.get("accepted", data.get("dispatchable", False)))
-        dispatch_status = str(
-            data.get(
-                "dispatch_status",
-                "host_submitted" if accepted else "host_rejected",
-            )
-        )
+        context_payload = self._extract_host_context(candidate)
+        torrent_in = self._build_torrent_payload(candidate, context_payload)
+        media_in = self._extract_media_payload(context_payload)
+        target_downloader, downloader_fallback = self._resolve_target_downloader(downloader_id)
+
+        if media_in:
+            path = self.settings.host_download_media_path or "/api/v1/download/"
+            payload = {
+                "media_in": media_in,
+                "torrent_in": torrent_in,
+                "downloader": target_downloader,
+            }
+        else:
+            path = self.settings.host_download_add_path or self.settings.host_dispatch_path
+            payload = {
+                "torrent_in": torrent_in,
+                "downloader": target_downloader,
+            }
+
+        data = self.client.post_json(path, payload, auth_mode="x_api_key")
+        success = bool(data.get("success"))
+        message = self._optional_text(data.get("message"))
+        response_data = data.get("data") if isinstance(data.get("data"), dict) else {}
+        dispatch_status = "host_submitted" if success else "host_rejected"
+
         return DispatchAdapterResult(
-            dispatchable=accepted,
+            dispatchable=success,
             dispatch_status=dispatch_status,
-            target_downloader=str(data.get("target_downloader") or downloader_id),
-            downloader_task_id=data.get("downloader_task_id"),
+            target_downloader=target_downloader,
+            downloader_task_id=self._optional_text(response_data.get("download_id") if isinstance(response_data, dict) else None),
             note=(
-                "当前派发结果来自 configured host dispatch endpoint。请求构造与响应解析已落为可联调骨架，"
-                "但真实 MoviePilot 下载器语义仍需联调确认。"
+                "当前派发结果来自真实 MoviePilot `/api/v1/download/add` 或 `/api/v1/download/` 语义。"
+                "如果宿主返回 `success=false`，这表示 payload 已被宿主接受并给出明确拒绝原因，而不是本地 mock。"
             ),
-            integration_point="RealDownloadDispatchAdapter.dispatch",
+            integration_point="RealDownloadDispatchAdapter.dispatch.moviepilot",
             mock=False,
             dispatch_backend=AdapterMode.HOST,
-            capability_source="host.endpoint",
-            verification_state=VerificationState(self.settings.host_verification_state),
+            capability_source="moviepilot.runtime.download.add",
+            fallback_reason=downloader_fallback,
+            failure_reason=message if not success else None,
+            verification_state=VerificationState.UNVERIFIED,
             adapter_resolution=AdapterResolution(
                 adapter_key="real_download_dispatch",
                 adapter_mode=AdapterMode.HOST,
                 strategy=AdapterStrategy.PREFER_HOST,
-                capability_source="host.endpoint",
-                verification_state=VerificationState(self.settings.host_verification_state),
-                integration_point="RealDownloadDispatchAdapter.dispatch",
+                capability_source="moviepilot.runtime.download.add",
+                verification_state=VerificationState.UNVERIFIED,
+                fallback_reason=downloader_fallback,
+                integration_point="RealDownloadDispatchAdapter.dispatch.moviepilot",
                 host_integration_enabled=self.settings.host_integration_enabled,
             ),
         )
+
+    def _resolve_target_downloader(self, requested: str) -> tuple[str, str | None]:
+        if not self.settings.host_dispatch_validate_clients:
+            return requested, None
+
+        payload = self.client.get_json(
+            self.settings.host_downloaders_path,
+            auth_mode="x_api_key",
+        )
+        items = payload.get("items") if isinstance(payload.get("items"), list) else payload
+        if not isinstance(items, list):
+            return requested, None
+
+        available_names = [str(item.get("name")) for item in items if isinstance(item, dict) and item.get("name")]
+        if requested in available_names:
+            return requested, None
+        if available_names:
+            return available_names[0], f"downloader_name_remapped:{requested}->{available_names[0]}"
+        return requested, "downloader_clients_empty"
+
+    def _extract_host_context(self, candidate: SearchCandidateDetail) -> dict[str, Any]:
+        raw_payload = candidate.raw_payload or {}
+        host_context = raw_payload.get("host_context")
+        return host_context if isinstance(host_context, dict) else {}
+
+    def _build_torrent_payload(self, candidate: SearchCandidateDetail, context_payload: dict[str, Any]) -> dict[str, Any]:
+        torrent = context_payload.get("torrent_info") if isinstance(context_payload.get("torrent_info"), dict) else {}
+        payload = {
+            "site": self._to_int_or_none(torrent.get("site")) or self._to_int_or_none(candidate.site_id),
+            "site_name": str(torrent.get("site_name") or candidate.site_name),
+            "title": str(torrent.get("title") or candidate.title),
+            "description": str(torrent.get("description") or candidate.note or ""),
+            "enclosure": self._optional_text(torrent.get("enclosure")),
+            "page_url": self._optional_text(torrent.get("page_url") or context_payload.get("page_url")),
+            "size": self._numeric_size(torrent.get("size"), candidate.size_bytes),
+            "seeders": self._to_int_or_none(torrent.get("seeders")) or candidate.seeders,
+            "peers": self._to_int_or_none(torrent.get("peers")) or candidate.peers,
+            "labels": torrent.get("labels") if isinstance(torrent.get("labels"), list) else candidate.source_tags,
+            "volume_factor": self._optional_text(torrent.get("volume_factor")),
+            "pubdate": self._optional_text(torrent.get("pubdate")),
+        }
+        return {key: value for key, value in payload.items() if value is not None}
+
+    def _extract_media_payload(self, context_payload: dict[str, Any]) -> dict[str, Any] | None:
+        media = context_payload.get("media_info")
+        if not isinstance(media, dict):
+            return None
+        if not any(value not in (None, "", [], {}) for value in media.values()):
+            return None
+        return media
+
+    def _numeric_size(self, raw_size: Any, fallback: int) -> float:
+        if raw_size in (None, ""):
+            return float(fallback)
+        try:
+            return float(raw_size)
+        except (TypeError, ValueError):
+            return float(fallback)
+
+    def _to_int_or_none(self, value: Any) -> int | None:
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _optional_text(self, value: Any) -> str | None:
+        if value in (None, ""):
+            return None
+        return str(value)

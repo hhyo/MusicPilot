@@ -1,4 +1,4 @@
-"""Organize boundary routes for Phase 6 host-aware preview/apply flow."""
+"""Organize boundary routes for the Phase 7A transfer-aware preview/apply flow."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ async def preview_organize(
         message="Organize preview created.",
         code="ORGANIZE_PREVIEW_OK",
         mock=result.mock,
-        note="当前 organize preview 会按 strategy 和 capability 在 host-backed skeleton 与 mock organize 之间选择。",
+        note="当前 organize preview 会按 strategy 和 capability 在真实 MoviePilot transfer/name 映射与 mock organize 之间选择。",
     )
 
 
@@ -59,7 +59,7 @@ async def apply_organize(
         message="Organize apply handled the record.",
         code="ORGANIZE_APPLY_OK",
         mock=result.mock,
-        note="当前 organize apply 可能是 mock apply，也可能是 host-backed skeleton；结果会明确显示 backend、fallback 与 verification state。",
+        note="当前 organize apply 可能是 mock apply，也可能映射到真实 MoviePilot transfer/manual；结果会明确显示 backend、fallback 与 verification state。",
     )
 
 

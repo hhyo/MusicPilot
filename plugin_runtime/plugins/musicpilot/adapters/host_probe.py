@@ -257,8 +257,9 @@ class RealHostProbeAdapter(HostProbeAdapter):
                 status=self._status_from_availability(checks.get("host_online")),
                 integration_point="RealHostProbeAdapter.probe_health",
                 note=(
-                    "Host health endpoint was called through the configured integration path. "
-                    "Actual MoviePilot compatibility remains unverified until host validation is recorded."
+                    "Host health summary was derived from a real MoviePilot endpoint. "
+                    "In Phase 7A this defaults to `/api/v1/search/last`, because MoviePilot does not expose a dedicated "
+                    "public health endpoint for this integration path."
                 ),
             )
         except HostTransportError as exc:
@@ -308,33 +309,30 @@ class RealHostProbeAdapter(HostProbeAdapter):
         return ProbeSitesPayload(summary=summary, items=items)
 
     def search_summary(self) -> ProbeSearchPayload:
-        available = bool(self.settings.host_search_path and self.settings.host_base_url)
+        available = bool((self.settings.host_search_title_path or self.settings.host_search_path) and self.settings.host_base_url)
         summary = self._summary(
             capability="search",
             capability_available=available,
             status=self._status_from_availability(available),
             integration_point="RealHostProbeAdapter.probe_search",
             note=(
-                "Search summary is derived from configured host search endpoint availability. "
-                "Use POST /probe/search to validate request/response compatibility."
+                "Search summary is derived from real MoviePilot search endpoint availability. "
+                "Use POST /probe/search to validate `/api/v1/search/title` compatibility."
             ),
         )
         return ProbeSearchPayload(
             summary=summary,
             query_echo=ProbeSearchRequest().model_dump(mode="json"),
-            sample_result_fields=["site_id", "title", "size_bytes", "seeders"],
+            sample_result_fields=["meta_info", "media_info", "torrent_info"],
             sample_result_count=0,
         )
 
     def probe_search(self, payload: ProbeSearchRequest) -> ProbeSearchPayload:
         try:
-            data = self.client.post_json(
-                self.settings.host_search_path,
-                {
-                    "keyword": payload.keyword,
-                    "site_scope": payload.site_scope,
-                    "dry_run": payload.dry_run,
-                },
+            data = self.client.get_json(
+                self.settings.host_search_title_path or self.settings.host_search_path,
+                params={"keyword": payload.keyword, "page": 0},
+                auth_mode="x_api_key",
             )
             items = self._extract_items(data)
             summary = self._summary(
@@ -342,12 +340,12 @@ class RealHostProbeAdapter(HostProbeAdapter):
                 capability_available=True,
                 status=self._status_from_availability(True),
                 integration_point="RealHostProbeAdapter.probe_search",
-                note="Host search endpoint accepted the probe payload. Response field mapping is still inferred and unverified.",
+                note="Probe search called the real MoviePilot `/api/v1/search/title` endpoint.",
             )
             return ProbeSearchPayload(
                 summary=summary,
                 query_echo=payload.model_dump(mode="json"),
-                sample_result_fields=list(items[0].keys())[:6] if items else ["site_id", "title", "size_bytes", "seeders"],
+                sample_result_fields=list(items[0].keys())[:6] if items else ["meta_info", "media_info", "torrent_info"],
                 sample_result_count=len(items),
             )
         except HostTransportError as exc:
@@ -369,11 +367,11 @@ class RealHostProbeAdapter(HostProbeAdapter):
             raw_items = self._extract_items(payload)
             items = [
                 {
-                    "id": str(item.get("id") or item.get("downloader_id") or f"downloader-{index}"),
+                    "id": str(item.get("name") or item.get("id") or f"downloader-{index}"),
                     "name": str(item.get("name") or item.get("display_name") or "Unknown Downloader"),
                     "is_default": bool(item.get("is_default", index == 1)),
                     "status": "unverified",
-                    "note": "Loaded from configured host downloader endpoint; mapping is inferred.",
+                    "note": f"Loaded from real MoviePilot downloader endpoint; downloader type={item.get('type')!s}.",
                 }
                 for index, item in enumerate(raw_items, start=1)
             ]
@@ -382,7 +380,7 @@ class RealHostProbeAdapter(HostProbeAdapter):
                 capability_available=bool(items),
                 status=self._status_from_availability(bool(items)),
                 integration_point="RealHostProbeAdapter.list_downloaders",
-                note="Downloader list was loaded through the configured host endpoint.",
+                note="Downloader list was loaded through the real MoviePilot `/api/v1/download/clients` endpoint.",
             )
         except HostTransportError as exc:
             items = []
@@ -397,26 +395,41 @@ class RealHostProbeAdapter(HostProbeAdapter):
     def probe_dispatch(self, payload: ProbeDispatchRequest) -> ProbeDispatchPayload:
         try:
             data = self.client.post_json(
-                self.settings.host_dispatch_path,
-                payload.model_dump(mode="json"),
+                self.settings.host_download_add_path or self.settings.host_dispatch_path,
+                {
+                    "torrent_in": {
+                        "title": f"MusicPilot Probe {payload.result_id}",
+                        "description": "Low-risk dispatch payload compatibility validation",
+                        "site": 0,
+                        "site_name": "MusicPilot Probe",
+                        "size": 1,
+                        "seeders": 0,
+                        "peers": 0,
+                        "enclosure": "magnet:?xt=urn:btih:0000000000000000000000000000000000000000",
+                    },
+                    "downloader": payload.downloader_id,
+                },
+                auth_mode="x_api_key",
             )
             preview = {
-                "accepted": bool(data.get("accepted", data.get("dispatchable", False))),
-                "downloader_task_id": data.get("downloader_task_id"),
-                "mode": "host-backed",
+                "accepted": bool(data.get("success", False)),
+                "downloader_task_id": (data.get("data") or {}).get("download_id") if isinstance(data.get("data"), dict) else None,
+                "mode": "moviepilot.download.add",
+                "message": data.get("message"),
             }
             summary = self._summary(
                 capability="dispatch",
                 capability_available=True,
                 status=self._status_from_availability(True),
                 integration_point="RealHostProbeAdapter.probe_dispatch",
-                note="Dispatch probe hit the configured host endpoint. Actual downloader semantics still need host validation.",
+                note="Dispatch probe hit the real MoviePilot `/api/v1/download/add` endpoint with a low-risk validation payload.",
             )
         except HostTransportError as exc:
             preview = {
                 "accepted": False,
                 "downloader_task_id": None,
                 "mode": "host-unavailable",
+                "message": str(exc),
             }
             summary = self._degraded_summary(
                 capability="dispatch",
@@ -600,6 +613,12 @@ class RealHostProbeAdapter(HostProbeAdapter):
 
     def _extract_health_checks(self, payload: dict[str, Any]) -> dict[str, str | bool | None]:
         data = payload.get("data", payload)
+        if isinstance(data, dict) and isinstance(data.get("items"), list):
+            return {
+                "host_online": True,
+                "plugin_api_registered": None,
+                "note": "Host health was inferred from a real MoviePilot list endpoint returning JSON successfully.",
+            }
         if isinstance(data, dict):
             status = data.get("status")
             return {

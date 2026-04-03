@@ -161,6 +161,7 @@ class SearchCandidateDetail(BaseModel):
     note: str | None = None
     created_at: datetime
     adapter_resolution: AdapterResolution | None = None
+    raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class SearchCandidateListData(BaseModel):
@@ -193,6 +194,7 @@ class DispatchResult(BaseModel):
     dispatch_backend: AdapterMode = AdapterMode.MOCK
     capability_source: str = "mock.adapter"
     fallback_reason: str | None = None
+    failure_reason: str | None = None
     verification_state: VerificationState = VerificationState.PLACEHOLDER
     adapter_resolution: AdapterResolution | None = None
 
@@ -208,5 +210,6 @@ class DispatchAdapterResult(BaseModel):
     dispatch_backend: AdapterMode = AdapterMode.MOCK
     capability_source: str = "mock.adapter"
     fallback_reason: str | None = None
+    failure_reason: str | None = None
     verification_state: VerificationState = VerificationState.PLACEHOLDER
     adapter_resolution: AdapterResolution | None = None

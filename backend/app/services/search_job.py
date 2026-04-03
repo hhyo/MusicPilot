@@ -121,15 +121,20 @@ class SearchJobService:
                 status = JobStatus.MATCHED.value
                 recommendation = "review_rejected"
 
+            effective_resolution = (
+                raw_candidates[0].adapter_resolution
+                if raw_candidates and raw_candidates[0].adapter_resolution is not None
+                else search_execution.resolution
+            )
             summary = {
                 "candidate_count": len(persisted_candidates),
                 "dispatch_recommendation": recommendation,
                 "best_score": max((candidate.score_total for candidate in persisted_candidates), default=0.0),
-                "mock_host_search": search_execution.resolution.adapter_mode == AdapterMode.MOCK,
-                "adapter_resolution": search_execution.resolution.model_dump(mode="json"),
-                "active_search_adapter": search_execution.resolution.adapter_key,
+                "mock_host_search": effective_resolution.adapter_mode == AdapterMode.MOCK,
+                "adapter_resolution": effective_resolution.model_dump(mode="json"),
+                "active_search_adapter": effective_resolution.adapter_key,
             }
-            job.mock = search_execution.resolution.adapter_mode == AdapterMode.MOCK
+            job.mock = effective_resolution.adapter_mode == AdapterMode.MOCK
             self.repository.mark_job_finished(job, status=status, summary_json=summary)
             self.session.commit()
         except Exception as exc:
@@ -214,6 +219,7 @@ def serialize_candidate(candidate: SearchCandidateModel) -> SearchCandidateDetai
         note=candidate.note,
         created_at=candidate.created_at,
         adapter_resolution=_extract_resolution(raw_payload),
+        raw_payload=raw_payload,
     )
 
 

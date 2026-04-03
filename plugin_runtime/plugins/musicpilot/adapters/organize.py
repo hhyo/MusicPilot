@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from .host_http import HostHttpClient
+from .host_http import HostHttpClient, HostTransportError
 from ..core.config import Settings
 from ..schemas.acquisition import SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, VerificationState
@@ -127,7 +127,13 @@ class MockOrganizeAdapter(OrganizeAdapter):
 
 
 class RealOrganizeAdapter(OrganizeAdapter):
-    """Host-backed organize preview/apply skeleton for Phase 6."""
+    """MoviePilot transfer-backed organize adapter.
+
+    Phase 7A verified that MoviePilot does not expose a native ``/organize/preview`` /
+    ``/organize/apply`` pair. The closest real host semantics are:
+    - ``GET /api/v1/transfer/name`` for naming preview.
+    - ``POST /api/v1/transfer/manual`` for manual transfer/apply.
+    """
 
     def __init__(self, *, settings: Settings, client: HostHttpClient):
         self.settings = settings
@@ -141,23 +147,35 @@ class RealOrganizeAdapter(OrganizeAdapter):
         binding_id: str | None = None,
         plan: OrganizePlan,
     ) -> OrganizeAdapterResult:
-        payload = self._build_payload(
-            candidate=candidate,
-            metadata_detail=metadata_detail,
-            binding_id=binding_id,
-            plan=plan,
-            organize_job_id=None,
+        source = self._resolve_source(candidate)
+        if not source:
+            raise HostTransportError(
+                "MoviePilot transfer/name requires a downloaded local file path, but the current candidate/binding only contains remote torrent context.",
+                reason_code="moviepilot_transfer_source_path_missing",
+            )
+
+        payload = self.client.get_json(
+            self.settings.host_transfer_name_path or self.settings.host_organize_preview_path,
+            params={"path": source["path"], "filetype": source["filetype"]},
+            auth_mode="x_api_key",
         )
-        data = self.client.post_json(self.settings.host_organize_preview_path, payload)
+        success = bool(payload.get("success"))
+        preview_name = self._extract_preview_name(payload)
+        relative_path = self._merge_preview_name(plan.target_relative_path, preview_name) if preview_name else plan.target_relative_path
         return self._build_result(
-            payload=data,
-            default_status=OrganizeStatus.PREVIEW_READY,
+            payload=payload,
+            default_status=OrganizeStatus.PREVIEW_READY if success else OrganizeStatus.FAILED,
             default_note=(
-                "当前 organize preview 来自 configured host organize preview endpoint。字段映射与状态解释仍需真实 "
-                "MoviePilot 宿主联调确认。"
+                "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。"
+                "MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。"
+                "Phase 7A 已验证请求契约与负向返回语义，但真实正向命名样例仍待补充。"
             ),
-            integration_point="RealOrganizeAdapter.preview",
+            integration_point="RealOrganizeAdapter.preview.moviepilot_transfer_name",
             plan=plan,
+            capability_source="moviepilot.runtime.transfer.name",
+            verification_state=VerificationState.UNVERIFIED,
+            organizeable=success,
+            target_relative_path=relative_path,
         )
 
     def apply(
@@ -169,43 +187,61 @@ class RealOrganizeAdapter(OrganizeAdapter):
         binding_id: str | None = None,
         plan: OrganizePlan,
     ) -> OrganizeAdapterResult:
-        payload = self._build_payload(
+        source = self._resolve_source(candidate)
+        if not source:
+            raise HostTransportError(
+                "MoviePilot transfer/manual requires a downloaded local file path, but the current candidate/binding does not expose one.",
+                reason_code="moviepilot_transfer_source_path_missing",
+            )
+
+        payload = self._build_manual_payload(
             candidate=candidate,
-            metadata_detail=metadata_detail,
-            binding_id=binding_id,
+            source=source,
             plan=plan,
-            organize_job_id=organize_job_id,
         )
-        data = self.client.post_json(self.settings.host_organize_apply_path, payload)
-        default_status = OrganizeStatus.APPLY_PENDING
-        if bool(data.get("applied", False)):
-            default_status = OrganizeStatus.APPLIED
+        data = self.client.post_json(
+            self.settings.host_transfer_manual_path or self.settings.host_organize_apply_path,
+            payload,
+            params={"background": "false"},
+            auth_mode="x_api_key",
+        )
+        success = bool(data.get("success"))
+        default_status = OrganizeStatus.APPLIED if success else OrganizeStatus.FAILED
         return self._build_result(
             payload=data,
             default_status=default_status,
             default_note=(
-                "当前 organize apply 来自 configured host organize apply endpoint。请求构造与响应解析已落为可联调骨架，"
-                "但真实 MoviePilot 文件处理与媒体库刷新语义仍需联调确认。"
+                "当前 organize apply 映射到了真实 MoviePilot `/api/v1/transfer/manual`。"
+                "请求/失败语义已完成宿主验证，但真实文件移动、硬链接、刮削入库和媒体库刷新仍未被本仓库宣称为已验证。"
             ),
-            integration_point="RealOrganizeAdapter.apply",
+            integration_point="RealOrganizeAdapter.apply.moviepilot_transfer_manual",
             plan=plan,
+            capability_source="moviepilot.runtime.transfer.manual",
+            verification_state=VerificationState.UNVERIFIED,
+            organizeable=success,
         )
 
-    def _build_payload(
+    def _build_manual_payload(
         self,
         *,
         candidate: SearchCandidateDetail,
-        metadata_detail: MetadataDetail | None,
-        binding_id: str | None,
+        source: dict[str, str],
         plan: OrganizePlan,
-        organize_job_id: str | None,
     ) -> dict[str, Any]:
         return {
-            "organize_job_id": organize_job_id,
-            "binding_id": binding_id,
-            "candidate": candidate.model_dump(mode="json"),
-            "metadata": metadata_detail.model_dump(mode="json") if metadata_detail else None,
-            "plan": plan.model_dump(mode="json"),
+            "fileitem": {
+                "storage": source["storage"],
+                "path": source["path"],
+                "type": source["filetype"],
+                "name": source["name"],
+                "basename": source["basename"],
+                "extension": source["extension"],
+                "size": candidate.size_bytes,
+            },
+            "target_path": plan.target_library_path,
+            "transfer_type": self.settings.organize_transfer_type,
+            "scrape": False,
+            "from_history": False,
         }
 
     def _build_result(
@@ -216,6 +252,10 @@ class RealOrganizeAdapter(OrganizeAdapter):
         default_note: str,
         integration_point: str,
         plan: OrganizePlan,
+        capability_source: str,
+        verification_state: VerificationState,
+        organizeable: bool,
+        target_relative_path: str | None = None,
     ) -> OrganizeAdapterResult:
         raw_status = payload.get("organize_status")
         organize_status = default_status
@@ -226,31 +266,78 @@ class RealOrganizeAdapter(OrganizeAdapter):
                 organize_status = default_status
 
         return OrganizeAdapterResult(
-            organizeable=bool(payload.get("organizeable", True)),
+            organizeable=bool(payload.get("organizeable", organizeable)),
             organize_backend=AdapterMode.HOST,
             adapter_mode=AdapterMode.HOST,
             strategy=plan.strategy,
             strategy_snapshot=plan.strategy_snapshot,
             organize_status=organize_status,
             target_library_path=str(payload.get("target_library_path") or plan.target_library_path),
-            target_relative_path=str(payload.get("target_relative_path") or plan.target_relative_path),
+            target_relative_path=str(payload.get("target_relative_path") or target_relative_path or plan.target_relative_path),
             strategy_note=str(payload.get("strategy_note") or plan.strategy_note),
             integration_point=integration_point,
-            capability_source="host.endpoint",
-            failure_reason=self._optional_text(payload.get("failure_reason")),
-            verification_state=VerificationState(self.settings.host_verification_state),
+            capability_source=capability_source,
+            failure_reason=self._optional_text(payload.get("failure_reason") or payload.get("message")),
+            verification_state=verification_state,
             mock=False,
             note=str(payload.get("note") or default_note),
             adapter_resolution=AdapterResolution(
                 adapter_key="real_organize",
                 adapter_mode=AdapterMode.HOST,
                 strategy=AdapterStrategy.PREFER_HOST,
-                capability_source="host.endpoint",
-                verification_state=VerificationState(self.settings.host_verification_state),
+                capability_source=capability_source,
+                verification_state=verification_state,
                 integration_point=integration_point,
                 host_integration_enabled=self.settings.host_integration_enabled,
             ),
         )
+
+    def _resolve_source(self, candidate: SearchCandidateDetail) -> dict[str, str] | None:
+        raw_payload = candidate.raw_payload or {}
+        for key in ("host_transfer_source", "source_fileitem"):
+            fileitem = raw_payload.get(key)
+            if isinstance(fileitem, dict) and fileitem.get("path"):
+                path = str(fileitem["path"])
+                return {
+                    "storage": str(fileitem.get("storage") or "local"),
+                    "path": path,
+                    "filetype": str(fileitem.get("type") or "file"),
+                    "name": str(fileitem.get("name") or path.rsplit("/", 1)[-1]),
+                    "basename": str(fileitem.get("basename") or path.rsplit("/", 1)[-1].rsplit(".", 1)[0]),
+                    "extension": str(fileitem.get("extension") or self._detect_extension(path)),
+                }
+
+        source_path = raw_payload.get("host_transfer_source_path") or raw_payload.get("local_file_path")
+        if source_path:
+            path = str(source_path)
+            name = path.rsplit("/", 1)[-1]
+            return {
+                "storage": "local",
+                "path": path,
+                "filetype": str(raw_payload.get("host_transfer_filetype") or "file"),
+                "name": name,
+                "basename": name.rsplit(".", 1)[0],
+                "extension": self._detect_extension(path),
+            }
+        return None
+
+    def _extract_preview_name(self, payload: dict[str, Any]) -> str | None:
+        data = payload.get("data")
+        if isinstance(data, dict) and data.get("name"):
+            return str(data["name"])
+        return None
+
+    def _merge_preview_name(self, target_relative_path: str, preview_name: str) -> str:
+        if not target_relative_path or "/" not in target_relative_path:
+            return preview_name
+        parent = target_relative_path.rsplit("/", 1)[0]
+        return f"{parent}/{preview_name}"
+
+    def _detect_extension(self, path: str) -> str:
+        name = path.rsplit("/", 1)[-1]
+        if "." not in name:
+            return ""
+        return "." + name.rsplit(".", 1)[-1]
 
     def _optional_text(self, value: Any) -> str | None:
         if value in (None, ""):
