@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -20,6 +22,7 @@ from ..schemas.integration import AdapterMode, AdapterResolution
 from ..schemas.metadata import MetadataDetail
 from ..schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from .host_integration import HostSearchAdapterResolver
+from .host_strategy import HostStrategyService
 from .metadata import MetadataService
 from .query_builder import QueryBuilderService
 from .scoring import MusicCandidateScorer
@@ -40,12 +43,14 @@ class SearchJobService:
         query_builder: QueryBuilderService,
         host_search_resolver: HostSearchAdapterResolver,
         scorer: MusicCandidateScorer,
+        strategy_service: HostStrategyService,
     ):
         self.session = session
         self.metadata_service = metadata_service
         self.query_builder = query_builder
         self.host_search_resolver = host_search_resolver
         self.scorer = scorer
+        self.strategy_service = strategy_service
         self.repository = AcquisitionRepository(session)
 
     def create_job(self, payload: SearchJobCreateRequest) -> SearchJobSummary:
@@ -63,6 +68,10 @@ class SearchJobService:
             metadata_snapshot=metadata_detail.model_dump(mode="json"),
             note=JOB_NOTE,
         )
+        job.summary_json = {
+            **(job.summary_json or {}),
+            "strategy_summary": self.strategy_service.summary().model_dump(mode="json"),
+        }
         self.session.commit()
         self.session.refresh(job)
         return serialize_job(job)
@@ -108,6 +117,38 @@ class SearchJobService:
                         score=score,
                     )
                 )
+                candidate_model = persisted_candidates[-1]
+                candidate_detail = SearchCandidateDetail(
+                    id=candidate_model.id,
+                    job_id=job.id,
+                    site_id=candidate_model.site_id,
+                    site_name=candidate_model.site_name,
+                    title=candidate_model.title,
+                    normalized_title=candidate_model.normalized_title,
+                    size_bytes=candidate_model.size_bytes,
+                    seeders=candidate_model.seeders,
+                    peers=candidate_model.peers,
+                    format_tag=candidate_model.format_tag,
+                    bitrate_kbps=candidate_model.bitrate_kbps,
+                    source_tags=list(candidate_model.source_tags or []),
+                    raw_score=candidate_model.raw_score,
+                    score_total=candidate_model.score_total,
+                    score_breakdown=candidate_model.score_breakdown or {},
+                    decision=DecisionStatus(candidate_model.decision),
+                    reason_codes=list(candidate_model.reason_codes or []),
+                    dispatchable=candidate_model.dispatchable,
+                    dispatch_status=candidate_model.dispatch_status,
+                    mock=candidate_model.mock,
+                    note=candidate_model.note,
+                    created_at=candidate_model.created_at or datetime.now(timezone.utc),
+                    adapter_resolution=raw_candidate.adapter_resolution,
+                    raw_payload=dict(candidate_model.raw_payload or {}),
+                )
+                strategy_decision = self.strategy_service.recommend_dispatch(candidate_detail)
+                candidate_model.raw_payload = {
+                    **(candidate_model.raw_payload or {}),
+                    "strategy_decision": strategy_decision.model_dump(mode="json"),
+                }
 
             if not persisted_candidates:
                 status = JobStatus.NO_RESULT.value
@@ -134,6 +175,7 @@ class SearchJobService:
                 "mock_host_search": effective_resolution.adapter_mode == AdapterMode.MOCK,
                 "adapter_resolution": effective_resolution.model_dump(mode="json"),
                 "active_search_adapter": effective_resolution.adapter_key,
+                "strategy_summary": self.strategy_service.summary().model_dump(mode="json"),
             }
             job.mock = effective_resolution.adapter_mode == AdapterMode.MOCK
             self.repository.mark_job_finished(job, status=status, summary_json=summary)
@@ -165,8 +207,9 @@ class SearchJobService:
             items=items,
             total=len(items),
             mock=_is_mock_resolution(_extract_resolution(job.summary_json or {})),
-            note="当前候选列表会显示 search adapter mode、capability source 和 fallback reason。",
+            note="当前候选列表会显示 search adapter、matrix-aware dispatch strategy、capability source 和 fallback reason。",
             adapter_resolution=_extract_resolution(job.summary_json or {}),
+            strategy_summary=_extract_strategy_summary(job.summary_json or {}),
         )
 
 
@@ -189,6 +232,7 @@ def serialize_job(job: SearchJobModel) -> SearchJobSummary:
         query_build=QueryBuildResult.model_validate(job.query_payload) if job.query_payload else None,
         metadata_snapshot=MetadataDetail.model_validate(job.metadata_snapshot) if job.metadata_snapshot else None,
         summary=job.summary_json or {},
+        strategy_summary=_extract_strategy_summary(job.summary_json or {}),
         error_message=job.error_message,
         adapter_resolution=_extract_resolution(job.summary_json or {}),
     )
@@ -220,6 +264,7 @@ def serialize_candidate(candidate: SearchCandidateModel) -> SearchCandidateDetai
         note=candidate.note,
         created_at=candidate.created_at,
         adapter_resolution=_extract_resolution(raw_payload),
+        strategy_decision=_extract_strategy_decision(raw_payload),
         path_handoff=_extract_path_handoff(raw_payload),
         raw_payload=raw_payload,
     )
@@ -243,3 +288,21 @@ def _extract_path_handoff(payload: dict) -> PathHandoffInfo | None:
     if not handoff:
         return None
     return PathHandoffInfo.model_validate(handoff)
+
+
+def _extract_strategy_summary(payload: dict):
+    summary = payload.get("strategy_summary")
+    if not summary:
+        return None
+    from ..schemas.strategy import HostStrategySummary
+
+    return HostStrategySummary.model_validate(summary)
+
+
+def _extract_strategy_decision(payload: dict):
+    decision = payload.get("strategy_decision")
+    if not decision:
+        return None
+    from ..schemas.strategy import HostStrategyDecision
+
+    return HostStrategyDecision.model_validate(decision)

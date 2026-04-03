@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint for MusicPilot Phase 8."""
+"""FastAPI application entrypoint for MusicPilot Phase 9."""
 
 from __future__ import annotations
 
@@ -11,11 +11,16 @@ from . import __version__
 from .api.health import build_health_payload
 from .api.router import plugin_api_router, probe_api_router
 from .core.config import settings
-from .core.dependencies import get_host_integration_service, get_validation_matrix_service
+from .core.dependencies import (
+    get_host_integration_service,
+    get_host_strategy_service,
+    get_validation_matrix_service,
+)
 from .core.http import configure_logging, register_exception_handlers, register_http_middleware
 from .core.responses import success_response
 from .schemas.common import ApiResponse
 from .services.host_integration import HostIntegrationService
+from .services.host_strategy import HostStrategyService
 from .services.metadata import bootstrap_metadata_storage
 from .services.validation_matrix import HostValidationMatrixService
 
@@ -58,14 +63,14 @@ def build_application() -> FastAPI:
             data={
                 "service": settings.app_name,
                 "version": __version__,
-                "phase": "Phase 8",
-                "status": "real-host-validation-matrix-ready",
+                "phase": "Phase 9",
+                "status": "matrix-aware-delivery-ready",
                 "host_integration": integration_service.runtime_state().model_dump(mode="json"),
             },
-            message="MusicPilot backend Phase 8 validation matrix runtime is running.",
+            message="MusicPilot backend Phase 9 strategy runtime is running.",
             code="ROOT_OK",
             mock=False,
-            note="This root endpoint confirms host-aware search, dispatch, path handoff, organize resolution, and the Phase 8 validation matrix export path are alive.",
+            note="This root endpoint confirms host-aware search, dispatch, path handoff, organize resolution, and the Phase 9 matrix-aware delivery strategy are alive.",
         )
 
     @app.get("/health", summary="Health check", tags=["Health"])
@@ -73,6 +78,7 @@ def build_application() -> FastAPI:
         request: Request,
         integration_service: HostIntegrationService = Depends(get_host_integration_service),
         validation_matrix_service: HostValidationMatrixService = Depends(get_validation_matrix_service),
+        strategy_service: HostStrategyService = Depends(get_host_strategy_service),
     ) -> ApiResponse:
         summary = validation_matrix_service.summary()
         return success_response(
@@ -80,11 +86,12 @@ def build_application() -> FastAPI:
             data=build_health_payload(
                 integration_service.runtime_state().model_dump(mode="json"),
                 summary.model_dump(mode="json") if summary else None,
+                strategy_service.summary().model_dump(mode="json"),
             ),
             message="Health check passed.",
             code="HEALTH_OK",
             mock=False,
-            note="This is application health plus current host integration wiring summary; it is not a proof that every MoviePilot host capability has been verified.",
+            note="This is application health plus current host integration wiring, matrix summary, and Phase 9 delivery strategy; it is not a proof that every MoviePilot host capability has been verified.",
         )
 
     app.include_router(plugin_api_router, prefix=settings.api_prefix)

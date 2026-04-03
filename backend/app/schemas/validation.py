@@ -49,3 +49,4 @@ class HostValidationMatrixReport(BaseModel):
     samples: list[HostValidationMatrixEntry] = Field(default_factory=list)
     summary: HostValidationMatrixSummary
     note: str
+

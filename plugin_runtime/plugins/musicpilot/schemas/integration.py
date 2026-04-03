@@ -6,6 +6,8 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+from .strategy import HostStrategySummary
+
 
 class AdapterMode(str, Enum):
     MOCK = "mock"
@@ -56,6 +58,7 @@ class HostIntegrationRuntimeState(BaseModel):
     search_fallback_reason: str | None = None
     dispatch_fallback_reason: str | None = None
     organize_fallback_reason: str | None = None
+    strategy_summary: HostStrategySummary | None = None
     note: str
     integration_point: str = Field(
         default=(

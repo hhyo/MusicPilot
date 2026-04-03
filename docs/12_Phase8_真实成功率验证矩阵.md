@@ -68,6 +68,23 @@
 - 部分 `download_add` title 样例
   - 宿主能接受请求，但后续 organize 仍可能失败。
 
+## 12.3A Phase 9 策略提炼
+
+Phase 9 不再只“记录这些差异”，而是把它们转成默认行为：
+
+- 默认推荐路径：
+  - `history/transfer -> organize replay/apply`
+- 保留但不默认：
+  - `search/title -> download_add -> history/download -> transfer/manual -> organize`
+- 显式阻断：
+  - `download_media + resolved_from_history_download -> organize apply`
+
+也就是说，当前矩阵的用途已经从“回看历史”升级成“解释运行时策略决策”：
+
+- `stable`：作为推荐路径
+- `single_sample`：允许继续尝试，但必须显示风险
+- `blocked`：默认阻断或明确提示，不再默默尝试
+
 ## 12.4 path handoff 稳定性结论
 
 当前 MusicPilot 对真实宿主 path handoff 的优先级与结论如下：
@@ -119,6 +136,9 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 - `/health`
 - `/api/probe/health`
 - `/api/probe/validation-matrix`
+- `jobs/{id}`、`jobs/{id}/results`
+- `downloads/dispatch`
+- `organize/preview`、`organize/apply`、`organize/jobs/{id}`
 
 ## 12.6 当前仍需继续补的点
 

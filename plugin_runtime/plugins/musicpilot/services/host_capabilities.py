@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ..adapters.host_probe import HostProbeAdapter
 from ..services.host_integration import HostIntegrationService
+from ..services.host_strategy import HostStrategyService
 from ..services.validation_matrix import HostValidationMatrixService
 from ..schemas.probe import (
     ProbeConfigRequest,
@@ -19,14 +20,21 @@ class HostCapabilitiesService:
         adapter: HostProbeAdapter,
         integration_service: HostIntegrationService,
         validation_matrix_service: HostValidationMatrixService | None = None,
+        strategy_service: HostStrategyService | None = None,
     ) -> None:
         self.adapter = adapter
         self.integration_service = integration_service
         self.validation_matrix_service = validation_matrix_service
+        self.strategy_service = strategy_service
 
     def probe_health(self) -> dict:
         payload = self.adapter.probe_health()
-        payload.runtime_state = self.integration_service.runtime_state()
+        runtime_state = self.integration_service.runtime_state()
+        if self.strategy_service is not None:
+            runtime_state = runtime_state.model_copy(
+                update={"strategy_summary": self.strategy_service.summary()}
+            )
+        payload.runtime_state = runtime_state
         data = payload.model_dump(mode="json")
         if self.validation_matrix_service is not None:
             summary = self.validation_matrix_service.summary()
@@ -58,7 +66,12 @@ class HostCapabilitiesService:
         return self.adapter.probe_config(payload).model_dump(mode="json")
 
     def runtime_state(self) -> dict:
-        return self.integration_service.runtime_state().model_dump(mode="json")
+        runtime_state = self.integration_service.runtime_state()
+        if self.strategy_service is not None:
+            runtime_state = runtime_state.model_copy(
+                update={"strategy_summary": self.strategy_service.summary()}
+            )
+        return runtime_state.model_dump(mode="json")
 
     def validation_matrix(self) -> dict | None:
         if self.validation_matrix_service is None:

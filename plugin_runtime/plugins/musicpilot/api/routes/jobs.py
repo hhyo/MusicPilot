@@ -1,4 +1,4 @@
-"""Search job routes for the Phase 7B host-aware acquisition loop."""
+"""Search job routes for the Phase 9 matrix-aware acquisition loop."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ async def list_jobs(
         message="Search jobs loaded.",
         code="SEARCH_JOBS_OK",
         mock=all(job.mock for job in jobs),
-        note="当前任务列表会显示每个 job 最后一次执行所选中的 search adapter。",
+        note="当前任务列表会显示 search adapter、Phase 9 strategy summary 与最近一次矩阵驱动的 dispatch 建议。",
     )
 
 
@@ -98,7 +98,7 @@ async def get_job(
         message="Search job detail loaded.",
         code="SEARCH_JOB_DETAIL_OK",
         mock=job.mock,
-        note="当前 job detail 会暴露 active search adapter、capability source 与 fallback 信息。",
+        note="当前 job detail 会暴露 active search adapter、Phase 9 strategy summary、capability source 与 fallback 信息。",
     )
 
 
@@ -119,7 +119,7 @@ async def run_job(
         message="Search job executed through the host-aware search resolver.",
         code="SEARCH_JOB_EXECUTED",
         mock=job.mock,
-        note="当前执行链路会按 strategy 与 capability 在真实 MoviePilot search 语义和 mock adapter 之间选择，并在需要时回退。",
+        note="当前执行链路会按 strategy 与 capability 在真实 MoviePilot search 语义和 mock adapter 之间选择，并把 Phase 9 的 matrix-aware dispatch 建议一起写回 job summary。",
     )
 
 
@@ -140,5 +140,5 @@ async def job_results(
         message="Job candidates loaded.",
         code="SEARCH_CANDIDATES_OK",
         mock=results.mock,
-        note="当前候选结果会显示 search adapter mode、verification state 与 fallback reason。",
+        note="当前候选结果会显示 search adapter mode、verification state、matrix status、dispatch strategy 与 fallback reason。",
     )

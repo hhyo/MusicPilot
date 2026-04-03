@@ -14,6 +14,14 @@ from ..schemas.orchestration import OrganizeAdapterResult, OrganizePlan, Organiz
 from ..services.host_path_handoff import HostPathHandoffService
 
 
+def _extract_candidate_path_handoff(candidate: SearchCandidateDetail) -> PathHandoffInfo | None:
+    raw_payload = candidate.raw_payload or {}
+    handoff = raw_payload.get("path_handoff")
+    if not handoff:
+        return None
+    return PathHandoffInfo.model_validate(handoff)
+
+
 class OrganizeAdapter(ABC):
     @abstractmethod
     def preview(
@@ -72,7 +80,7 @@ class MockOrganizeAdapter(OrganizeAdapter):
                 "当前为 mock organize preview。它只验证命名与目录映射，不执行真实文件移动、硬链接、"
                 "刮削入库或媒体库刷新。"
             ),
-            path_handoff=self._extract_path_handoff(candidate),
+            path_handoff=_extract_candidate_path_handoff(candidate),
             adapter_resolution=AdapterResolution(
                 adapter_key="mock_organize",
                 adapter_mode=AdapterMode.MOCK,
@@ -116,7 +124,7 @@ class MockOrganizeAdapter(OrganizeAdapter):
             note=(
                 "当前为 mock organize apply。它只更新状态记录，不会真实执行文件移动、硬链接、刮削或媒体库刷新。"
             ),
-            path_handoff=self._extract_path_handoff(candidate),
+            path_handoff=_extract_candidate_path_handoff(candidate),
             adapter_resolution=AdapterResolution(
                 adapter_key="mock_organize",
                 adapter_mode=AdapterMode.MOCK,
@@ -243,7 +251,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
             verification_state=VerificationState.VERIFIED,
             organizeable=success,
             target_relative_path=relative_path,
-            path_handoff=self._extract_path_handoff(candidate),
+            path_handoff=_extract_candidate_path_handoff(candidate),
         )
 
     def apply(
@@ -351,7 +359,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
             capability_source="moviepilot.runtime.transfer.manual",
             verification_state=VerificationState.VERIFIED,
             organizeable=success,
-            path_handoff=self._extract_path_handoff(candidate),
+            path_handoff=_extract_candidate_path_handoff(candidate),
         )
 
     def _build_manual_payload(
@@ -531,13 +539,6 @@ class RealOrganizeAdapter(OrganizeAdapter):
         if isinstance(data, dict) and data.get("name"):
             return str(data["name"])
         return None
-
-    def _extract_path_handoff(self, candidate: SearchCandidateDetail) -> PathHandoffInfo | None:
-        raw_payload = candidate.raw_payload or {}
-        handoff = raw_payload.get("path_handoff")
-        if not handoff:
-            return None
-        return PathHandoffInfo.model_validate(handoff)
 
     def _merge_preview_name(self, target_relative_path: str, preview_name: str) -> str:
         if not target_relative_path or "/" not in target_relative_path:

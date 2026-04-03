@@ -38,6 +38,7 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py --allow-side-eff
 - 需要本机私有环境里已经注入真实 MoviePilot Base URL 和 token。
 - 默认输出文件是 `backend/data/host_validation_matrix.latest.json`。
 - 目的是回看 `stable / single_sample / blocked / unverified` 这些真实样例状态，而不是单纯证明“曾经成功过一次”。
+- Phase 9 开始，这份矩阵还会进一步驱动默认策略选择与 blocked 路径显式阻断。
 
 Phase 7B 后，stub 与真实宿主仍有这些边界差异需要注意：
 
@@ -46,4 +47,10 @@ Phase 7B 后，stub 与真实宿主仍有这些边界差异需要注意：
 - 真实宿主 `search/title`、`download/clients`、`download/`、`transfer/name`、`transfer/manual` 已在 docs 中记录到实测差异
 - 真实宿主 `transfer/now` 需要 `?token=`，这一点已经被 stub 同步模拟
 
-详细差异见 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)、[docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md) 和 [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)。
+详细差异见 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)、[docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)、[docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md) 和 [docs/13_Phase9_策略收敛与交付说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/13_Phase9_策略收敛与交付说明.md)。
+
+Phase 9 交付建议：
+
+- 演示前先查看 `/api/probe/validation-matrix`
+- 优先展示 stable 的 `history/transfer` replay 路径
+- 不要默认演示已知 blocked 的 `download_media + history/download -> organize apply`

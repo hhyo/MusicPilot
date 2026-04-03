@@ -2,7 +2,7 @@
   <section class="job-panel">
     <header class="job-panel__header">
       <div>
-        <p class="job-panel__eyebrow">Phase 7B Real Success Loop</p>
+        <p class="job-panel__eyebrow">Phase 9 Strategy Delivery</p>
         <h3>搜索任务、候选评分与宿主派发边界</h3>
       </div>
       <el-tag v-if="job" :type="jobAdapterMode === 'host' ? 'success' : 'warning'" effect="plain">
@@ -11,7 +11,7 @@
     </header>
 
     <el-alert
-      title="当前页面展示的是 Phase 7B host-aware acquisition loop。search / dispatch 已按真实 MoviePilot 宿主语义收敛；成功派发后会尽量回读 host history 形成 path handoff，并继续暴露 fallback 信息。"
+      title="当前页面展示的是 Phase 9 matrix-aware acquisition loop。系统会优先沿用真实矩阵里更稳的 dispatch / handoff 路径，并对已知 blocked 组合显式提示或阻断。"
       :type="jobAdapterMode === 'host' ? 'success' : 'warning'"
       :closable="false"
       show-icon
@@ -47,13 +47,23 @@
         <article class="job-card">
           <span>Dispatch Recommendation</span>
           <strong>{{ dispatchRecommendation }}</strong>
-          <p>best_score: {{ bestScore }}</p>
+          <p>best_score: {{ bestScore }} / matrix: {{ job.strategy_summary?.preferred_dispatch_endpoint ?? 'n/a' }}</p>
         </article>
         <article class="job-card">
           <span>Active Search Adapter</span>
           <strong>{{ activeSearchAdapter }}</strong>
           <p>{{ activeFallbackReason }}</p>
         </article>
+      </section>
+
+      <section v-if="job.strategy_summary" class="query-section">
+        <h4>Phase 9 策略摘要</h4>
+        <p class="query-section__note">{{ job.strategy_summary.note }}</p>
+        <div class="candidate-card__meta">
+          <span>preferred_dispatch: {{ job.strategy_summary.preferred_dispatch_endpoint }}</span>
+          <span>preferred_handoff: {{ job.strategy_summary.preferred_handoff_source }}</span>
+          <span>preferred_organize: {{ job.strategy_summary.preferred_organize_path }}</span>
+        </div>
       </section>
 
       <section v-if="job.query_build" class="query-section">
@@ -139,11 +149,25 @@
               <el-tag size="small" effect="plain" type="info">
                 verification: {{ candidate.adapter_resolution?.verification_state ?? 'placeholder' }}
               </el-tag>
+              <el-tag
+                v-if="candidate.strategy_decision"
+                size="small"
+                effect="plain"
+                :type="strategyTagType(candidate.strategy_decision.matrix_status)"
+              >
+                matrix: {{ candidate.strategy_decision.matrix_status }}
+              </el-tag>
             </div>
 
             <p class="candidate-card__note">{{ candidate.note }}</p>
             <p v-if="candidate.adapter_resolution?.fallback_reason" class="candidate-card__runtime">
               fallback: {{ candidate.adapter_resolution.fallback_reason }}
+            </p>
+            <p v-if="candidate.strategy_decision" class="candidate-card__runtime">
+              strategy: {{ candidate.strategy_decision.selected_path }} / {{ candidate.strategy_decision.recommended_action }}
+            </p>
+            <p v-if="candidate.strategy_decision?.blocked" class="candidate-card__runtime">
+              blocked reason: {{ candidate.strategy_decision.reason }}
             </p>
 
             <div class="candidate-card__breakdown">
@@ -167,6 +191,10 @@
                 </p>
                 <p v-if="dispatchResults[candidate.id]?.host_response_summary?.endpoint_type">
                   dispatch endpoint: {{ dispatchResults[candidate.id]?.host_response_summary?.endpoint_type }}
+                </p>
+                <p v-if="dispatchResults[candidate.id]?.strategy_decision">
+                  dispatch strategy: {{ dispatchResults[candidate.id]?.strategy_decision?.matrix_status }}
+                  / {{ dispatchResults[candidate.id]?.strategy_decision?.selected_path }}
                 </p>
                 <p v-if="dispatchResults[candidate.id]">
                   dispatch verification: {{ dispatchResults[candidate.id].verification_state }}
@@ -198,7 +226,7 @@
                 :loading="dispatchingCandidateId === candidate.id"
                 @click="$emit('dispatch', candidate)"
               >
-                {{ candidate.decision === 'manual_confirm' ? '手动确认并派发' : '执行 mock 派发' }}
+                {{ candidate.decision === 'manual_confirm' ? '手动确认并派发' : '执行派发' }}
               </el-button>
             </footer>
           </article>
@@ -211,7 +239,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { DispatchResult, SearchCandidateDetail, SearchJobSummary } from '@/types/acquisition';
+import type {
+  DispatchResult,
+  MatrixStatus,
+  SearchCandidateDetail,
+  SearchJobSummary,
+} from '@/types/acquisition';
 
 const props = defineProps<{
   job: SearchJobSummary | null;
@@ -246,6 +279,19 @@ function decisionTagType(decision: SearchCandidateDetail['decision']) {
     return 'warning';
   }
   return 'danger';
+}
+
+function strategyTagType(status?: MatrixStatus | null) {
+  if (status === 'stable') {
+    return 'success';
+  }
+  if (status === 'single_sample') {
+    return 'warning';
+  }
+  if (status === 'blocked') {
+    return 'danger';
+  }
+  return 'info';
 }
 </script>
 

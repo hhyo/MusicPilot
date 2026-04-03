@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..repositories.acquisition import AcquisitionRepository
 from ..repositories.orchestration import OrchestrationRepository
+from ..schemas.acquisition import PathHandoffInfo
 from ..schemas.integration import AdapterMode, AdapterResolution, VerificationState
 from ..schemas.metadata import MetadataDetail
 from ..schemas.orchestration import (
@@ -23,6 +24,7 @@ from ..schemas.orchestration import (
 )
 from .host_integration import OrganizeAdapterResolver
 from .host_path_handoff import HostPathHandoffService
+from .host_strategy import HostStrategyService
 from .organize_strategy import OrganizeStrategyService
 from .search_job import serialize_candidate
 
@@ -35,11 +37,13 @@ class OrganizeService:
         resolver: OrganizeAdapterResolver,
         strategy_service: OrganizeStrategyService,
         path_handoff_service: HostPathHandoffService,
+        host_strategy_service: HostStrategyService,
     ):
         self.session = session
         self.resolver = resolver
         self.strategy_service = strategy_service
         self.path_handoff_service = path_handoff_service
+        self.host_strategy_service = host_strategy_service
         self.acquisition_repository = AcquisitionRepository(session)
         self.repository = OrchestrationRepository(session)
 
@@ -54,19 +58,27 @@ class OrganizeService:
             candidate=context["candidate"],
             metadata_detail=context["metadata_detail"],
         )
+        dispatch_endpoint_type = self.host_strategy_service.extract_dispatch_endpoint_type(
+            context["candidate"].raw_payload
+        )
+        strategy_decision = self.host_strategy_service.evaluate_handoff(
+            handoff=context["candidate"].path_handoff,
+            dispatch_endpoint_type=dispatch_endpoint_type,
+        )
         organize_execution = self.resolver.preview(
             candidate=context["candidate"],
             metadata_detail=context["metadata_detail"],
             binding_id=context["binding_id"],
             plan=plan,
         )
+        preview_result = organize_execution.result.model_copy(update={"strategy_decision": strategy_decision})
 
         record = self.repository.create_organize_record(
             subscription_run_id=subscription_run_id,
             search_job_id=context["candidate_model"].job_id,
             candidate_id=context["candidate_model"].id,
             binding_id=context["binding_id"],
-            result=organize_execution.result,
+            result=preview_result,
         )
         self.session.commit()
         self.session.refresh(record)
@@ -82,6 +94,25 @@ class OrganizeService:
             candidate=context["candidate"],
             metadata_detail=context["metadata_detail"],
         )
+        dispatch_endpoint_type = self.host_strategy_service.extract_dispatch_endpoint_type(
+            context["candidate"].raw_payload
+        )
+        strategy_decision = self.host_strategy_service.evaluate_organize_apply(
+            handoff=context["candidate"].path_handoff,
+            dispatch_endpoint_type=dispatch_endpoint_type,
+        )
+
+        if strategy_decision.blocked:
+            blocked_result = self._build_blocked_result(
+                record=record,
+                plan=plan,
+                strategy_decision=strategy_decision,
+                path_handoff=context["candidate"].path_handoff,
+            )
+            self.repository.update_organize_record(record, result=blocked_result)
+            self.session.commit()
+            self.session.refresh(record)
+            return serialize_organize_record(record)
 
         self.repository.mark_organize_apply_pending(record)
         self.session.commit()
@@ -95,7 +126,8 @@ class OrganizeService:
                 binding_id=context["binding_id"],
                 plan=plan,
             )
-            self.repository.update_organize_record(record, result=organize_execution.result)
+            apply_result = organize_execution.result.model_copy(update={"strategy_decision": strategy_decision})
+            self.repository.update_organize_record(record, result=apply_result)
             self.session.commit()
         except Exception as exc:
             self.session.rollback()
@@ -174,9 +206,15 @@ class OrganizeService:
                         **binding_payload,
                         **self._binding_payload_patch_from_candidate(candidate_payload),
                     }
+        if "host_response_summary" not in candidate_payload and isinstance(binding_payload.get("host_response_summary"), dict):
+            candidate_payload["host_response_summary"] = binding_payload["host_response_summary"]
+        if "strategy_decision" not in candidate_payload and isinstance(binding_payload.get("strategy_decision"), dict):
+            candidate_payload["strategy_decision"] = binding_payload["strategy_decision"]
         candidate = serialize_candidate(candidate_model)
         if candidate_payload:
             candidate.raw_payload = candidate_payload
+            candidate.path_handoff = _extract_candidate_path_handoff(candidate_payload)
+            candidate.strategy_decision = _extract_candidate_strategy_decision(candidate_payload)
 
         return {
             "candidate_model": candidate_model,
@@ -220,11 +258,46 @@ class OrganizeService:
             capability_source=current.capability_source,
             fallback_reason=current.fallback_reason,
             failure_reason=failure_reason,
+            strategy_decision=current.strategy_decision,
             path_handoff=current.path_handoff,
             verification_state=current.verification_state,
             adapter_resolution=current.adapter_resolution,
             mock=current.mock,
             note="Organize apply failed before a verified result could be recorded.",
+        )
+
+    def _build_blocked_result(
+        self,
+        *,
+        record,
+        plan: OrganizePlan,
+        strategy_decision,
+        path_handoff,
+    ) -> OrganizeAdapterResult:
+        current = serialize_organize_record(record)
+        return OrganizeAdapterResult(
+            organizeable=False,
+            organize_backend=AdapterMode.HOST,
+            adapter_mode=AdapterMode.HOST,
+            strategy=plan.strategy,
+            strategy_snapshot=plan.strategy_snapshot,
+            organize_status=OrganizeStatus.SKIPPED,
+            target_library_path=plan.target_library_path,
+            target_relative_path=plan.target_relative_path,
+            strategy_note=plan.strategy_note,
+            integration_point="OrganizeService.apply.strategy_gate",
+            capability_source="musicpilot.phase9.strategy_gate",
+            fallback_reason="blocked_by_phase9_matrix_strategy",
+            failure_reason=strategy_decision.reason,
+            strategy_decision=strategy_decision,
+            path_handoff=path_handoff,
+            verification_state=current.verification_state,
+            adapter_resolution=current.adapter_resolution,
+            mock=False,
+            note=(
+                "Phase 9 根据真实验证矩阵在 apply 前显式阻断了这条已知高风险组合，"
+                "避免继续把请求发送给真实 MoviePilot organize 端点。"
+            ),
         )
 
     def _has_source_payload(self, payload: dict) -> bool:
@@ -258,12 +331,19 @@ class OrganizeService:
         if not download_hash:
             return payload
 
-        resolved = self.path_handoff_service.resolve(str(download_hash))
+        resolved = self.path_handoff_service.resolve_from_transfer(str(download_hash))
+        if resolved is None:
+            resolved = self.path_handoff_service.resolve_with_retry(str(download_hash))
         if resolved is None:
             if binding_model is not None and self._binding_handoff_stale(binding_model):
                 payload["path_handoff"] = self.path_handoff_service.build_unresolved(
                     download_hash=str(download_hash),
-                    handoff_source="moviepilot.runtime.history.download",
+                    handoff_source="moviepilot.runtime.history.transfer",
+                ).model_dump(mode="json")
+            elif binding_model is not None:
+                payload["path_handoff"] = self.path_handoff_service.build_pending(
+                    download_hash=str(download_hash),
+                    handoff_source="moviepilot.runtime.history.transfer",
                 ).model_dump(mode="json")
             return payload
 
@@ -339,6 +419,7 @@ def serialize_organize_record(record) -> OrganizePreviewResult:
         capability_source=record.capability_source or raw_payload.get("capability_source") or "mock.adapter",
         fallback_reason=record.fallback_reason or raw_payload.get("fallback_reason"),
         failure_reason=record.failure_reason or raw_payload.get("failure_reason"),
+        strategy_decision=raw_payload.get("strategy_decision"),
         path_handoff=raw_payload.get("path_handoff"),
         verification_state=VerificationState(verification_state),
         adapter_resolution=AdapterResolution.model_validate(resolution_payload) if resolution_payload else None,
@@ -347,3 +428,19 @@ def serialize_organize_record(record) -> OrganizePreviewResult:
         created_at=record.created_at,
         updated_at=record.updated_at,
     )
+
+
+def _extract_candidate_path_handoff(payload: dict) -> PathHandoffInfo | None:
+    handoff = payload.get("path_handoff")
+    if not handoff:
+        return None
+    return PathHandoffInfo.model_validate(handoff)
+
+
+def _extract_candidate_strategy_decision(payload: dict):
+    decision = payload.get("strategy_decision")
+    if not decision:
+        return None
+    from ..schemas.strategy import HostStrategyDecision
+
+    return HostStrategyDecision.model_validate(decision)

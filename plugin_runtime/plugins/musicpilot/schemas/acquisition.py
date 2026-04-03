@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from .integration import AdapterMode, AdapterResolution, VerificationState
 from .metadata import MetadataDetail
 from .mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
+from .strategy import HostStrategyDecision, HostStrategySummary
 
 
 class QueryPreferences(BaseModel):
@@ -147,6 +148,7 @@ class SearchJobSummary(BaseModel):
     query_build: QueryBuildResult | None = None
     metadata_snapshot: MetadataDetail | None = None
     summary: dict[str, Any] = Field(default_factory=dict)
+    strategy_summary: HostStrategySummary | None = None
     error_message: str | None = None
     adapter_resolution: AdapterResolution | None = None
 
@@ -175,6 +177,7 @@ class SearchCandidateDetail(BaseModel):
     note: str | None = None
     created_at: datetime
     adapter_resolution: AdapterResolution | None = None
+    strategy_decision: HostStrategyDecision | None = None
     path_handoff: PathHandoffInfo | None = None
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
@@ -186,6 +189,7 @@ class SearchCandidateListData(BaseModel):
     mock: bool = True
     note: str
     adapter_resolution: AdapterResolution | None = None
+    strategy_summary: HostStrategySummary | None = None
 
 
 class DispatchRequest(BaseModel):
@@ -211,6 +215,7 @@ class DispatchResult(BaseModel):
     fallback_reason: str | None = None
     failure_reason: str | None = None
     verification_state: VerificationState = VerificationState.PLACEHOLDER
+    strategy_decision: HostStrategyDecision | None = None
     path_handoff: PathHandoffInfo | None = None
     host_response_summary: dict[str, Any] = Field(default_factory=dict)
     adapter_resolution: AdapterResolution | None = None
@@ -229,6 +234,7 @@ class DispatchAdapterResult(BaseModel):
     fallback_reason: str | None = None
     failure_reason: str | None = None
     verification_state: VerificationState = VerificationState.PLACEHOLDER
+    strategy_decision: HostStrategyDecision | None = None
     path_handoff: PathHandoffInfo | None = None
     host_response_summary: dict[str, Any] = Field(default_factory=dict)
     adapter_resolution: AdapterResolution | None = None

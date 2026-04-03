@@ -6,6 +6,9 @@
 > Phase 8 更新：当前这条闭环已不再是唯一成功依据。  
 > Phase 8 已补出真实样例矩阵，用于区分 `stable / single_sample / blocked`。最新结论请同时参考 [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)。
 
+> Phase 9 更新：当前这条样例已经被收口为“保留但不默认”的单样例成功路径。  
+> 推荐交付与演示路径已转向 `history/transfer` 的 stable organize replay，请同时参考 [docs/13_Phase9_策略收敛与交付说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/13_Phase9_策略收敛与交付说明.md)。
+
 ## 11.1 本轮目标
 
 Phase 7B 的重点不是继续扩大接口面，而是把 Phase 7A 里仍是 `unverified` 的关键主链路推进到至少一条真实成功样例：

@@ -1,4 +1,4 @@
-"""Dispatch routes for the Phase 7B host-aware dispatch boundary."""
+"""Dispatch routes for the Phase 9 matrix-aware dispatch boundary."""
 
 from __future__ import annotations
 
@@ -30,6 +30,6 @@ async def dispatch_download(
         message="Dispatch boundary handled the candidate.",
         code="DISPATCH_BOUNDARY_OK",
         mock=result.dispatch_backend == "mock",
-        note="当前 dispatch 会优先尝试真实 MoviePilot download 语义；成功派发后会尽量把 download hash 回灌成 host path handoff，供 organize 继续消费。若能力缺失、配置不完整、payload 不兼容或运行失败，会按策略回退到 mock。",
-        todo=["继续补充更多真实 MoviePilot 成功派发样例，并确认音乐资源在宿主中的最终可识别语义。"],
+        note="当前 dispatch 会结合 Phase 8 真实矩阵优先选择更稳的 endpoint，并把 strategy decision、path handoff、verification 与 fallback 一并返回。若能力缺失、配置不完整、payload 不兼容或运行失败，会按策略回退到 mock。",
+        todo=["继续把 `download_add` 从 single-sample 推进到 multi-sample 稳定成功。"],
     )

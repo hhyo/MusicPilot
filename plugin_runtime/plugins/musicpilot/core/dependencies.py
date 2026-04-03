@@ -30,6 +30,7 @@ from ..services.host_integration import (
     HostSearchAdapterResolver,
 )
 from ..services.host_path_handoff import HostPathHandoffService
+from ..services.host_strategy import HostStrategyService
 from ..services.metadata import MetadataService
 from ..services.mvp_placeholder import MvpPlaceholderService
 from ..services.organize import OrganizeService
@@ -48,6 +49,7 @@ def get_host_capabilities_service() -> HostCapabilitiesService:
         adapter=get_host_probe_adapter(),
         integration_service=get_host_integration_service(),
         validation_matrix_service=get_validation_matrix_service(),
+        strategy_service=get_host_strategy_service(),
     )
 
 
@@ -103,6 +105,11 @@ def get_validation_matrix_service() -> HostValidationMatrixService:
     return HostValidationMatrixService(settings=settings)
 
 
+@lru_cache
+def get_host_strategy_service() -> HostStrategyService:
+    return HostStrategyService(validation_matrix_service=get_validation_matrix_service())
+
+
 def get_metadata_service(
     session: Session = Depends(get_db_session),
     adapter: MetadataProviderAdapter = Depends(get_metadata_provider_adapter),
@@ -151,6 +158,7 @@ def get_search_job_service(
     query_builder: QueryBuilderService = Depends(get_query_builder_service),
     host_search_resolver: HostSearchAdapterResolver = Depends(get_host_search_adapter_resolver),
     scorer: MusicCandidateScorer = Depends(get_candidate_scorer),
+    strategy_service: HostStrategyService = Depends(get_host_strategy_service),
 ) -> SearchJobService:
     return SearchJobService(
         session,
@@ -158,6 +166,7 @@ def get_search_job_service(
         query_builder=query_builder,
         host_search_resolver=host_search_resolver,
         scorer=scorer,
+        strategy_service=strategy_service,
     )
 
 
@@ -172,6 +181,7 @@ def get_real_download_dispatch_adapter() -> DownloadDispatchAdapter:
         settings=settings,
         client=get_host_http_client(),
         path_handoff_service=get_host_path_handoff_service(),
+        strategy_service=get_host_strategy_service(),
     )
 
 
@@ -206,8 +216,9 @@ def get_dispatch_adapter_resolver() -> DispatchAdapterResolver:
 def get_dispatch_service(
     session: Session = Depends(get_db_session),
     resolver: DispatchAdapterResolver = Depends(get_dispatch_adapter_resolver),
+    strategy_service: HostStrategyService = Depends(get_host_strategy_service),
 ) -> DispatchService:
-    return DispatchService(session=session, resolver=resolver)
+    return DispatchService(session=session, resolver=resolver, strategy_service=strategy_service)
 
 
 @lru_cache
@@ -231,12 +242,14 @@ def get_organize_service(
     resolver: OrganizeAdapterResolver = Depends(get_organize_adapter_resolver),
     strategy_service: OrganizeStrategyService = Depends(get_organize_strategy_service),
     path_handoff_service: HostPathHandoffService = Depends(get_host_path_handoff_service),
+    host_strategy_service: HostStrategyService = Depends(get_host_strategy_service),
 ) -> OrganizeService:
     return OrganizeService(
         session=session,
         resolver=resolver,
         strategy_service=strategy_service,
         path_handoff_service=path_handoff_service,
+        host_strategy_service=host_strategy_service,
     )
 
 

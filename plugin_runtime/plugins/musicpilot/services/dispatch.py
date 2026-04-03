@@ -8,13 +8,20 @@ from sqlalchemy.orm import Session
 from ..repositories.acquisition import AcquisitionRepository
 from ..schemas.acquisition import DispatchRequest, DispatchResult
 from .host_integration import DispatchAdapterResolver
+from .host_strategy import HostStrategyService
 from .search_job import serialize_candidate
 
 
 class DispatchService:
-    def __init__(self, session: Session, resolver: DispatchAdapterResolver):
+    def __init__(
+        self,
+        session: Session,
+        resolver: DispatchAdapterResolver,
+        strategy_service: HostStrategyService,
+    ):
         self.session = session
         self.resolver = resolver
+        self.strategy_service = strategy_service
         self.repository = AcquisitionRepository(session)
 
     def dispatch(self, payload: DispatchRequest) -> DispatchResult:
@@ -29,14 +36,24 @@ class DispatchService:
             manual_confirm=payload.manual_confirm,
         )
         adapter_result = dispatch_execution.result
+        strategy_decision = (
+            adapter_result.strategy_decision
+            or candidate.strategy_decision
+            or self.strategy_service.recommend_dispatch(candidate)
+        )
 
         binding_id = None
         if adapter_result.dispatchable:
-            if adapter_result.path_handoff is not None:
-                candidate_model.raw_payload = self._merge_path_handoff_payload(
-                    candidate_model.raw_payload or {},
-                    adapter_result.path_handoff.model_dump(mode="json"),
-                )
+            candidate_model.raw_payload = self._merge_dispatch_payload(
+                raw_payload=candidate_model.raw_payload or {},
+                path_handoff=(
+                    adapter_result.path_handoff.model_dump(mode="json")
+                    if adapter_result.path_handoff is not None
+                    else None
+                ),
+                strategy_decision=strategy_decision.model_dump(mode="json"),
+                host_response_summary=adapter_result.host_response_summary,
+            )
             binding = self.repository.create_binding(
                 candidate=candidate_model,
                 dispatch_result=adapter_result,
@@ -49,8 +66,20 @@ class DispatchService:
                 "active_dispatch_adapter": adapter_result.adapter_resolution.adapter_key
                 if adapter_result.adapter_resolution
                 else None,
+                "active_dispatch_strategy": strategy_decision.model_dump(mode="json"),
             }
             binding_id = binding.id
+        else:
+            candidate_model.raw_payload = self._merge_dispatch_payload(
+                raw_payload=candidate_model.raw_payload or {},
+                path_handoff=(
+                    adapter_result.path_handoff.model_dump(mode="json")
+                    if adapter_result.path_handoff is not None
+                    else None
+                ),
+                strategy_decision=strategy_decision.model_dump(mode="json"),
+                host_response_summary=adapter_result.host_response_summary,
+            )
 
         self.session.commit()
 
@@ -70,23 +99,36 @@ class DispatchService:
             fallback_reason=adapter_result.fallback_reason,
             failure_reason=adapter_result.failure_reason,
             verification_state=adapter_result.verification_state,
+            strategy_decision=strategy_decision,
             path_handoff=adapter_result.path_handoff,
             host_response_summary=adapter_result.host_response_summary,
             adapter_resolution=adapter_result.adapter_resolution,
         )
 
-    def _merge_path_handoff_payload(
+    def _merge_dispatch_payload(
         self,
+        *,
         raw_payload: dict,
-        handoff: dict,
+        path_handoff: dict | None,
+        strategy_decision: dict | None,
+        host_response_summary: dict,
     ) -> dict:
-        merged = {**raw_payload, "path_handoff": handoff}
-        source_path = handoff.get("source_path")
-        source_filetype = handoff.get("source_filetype")
+        merged = {
+            **raw_payload,
+            "host_response_summary": host_response_summary,
+        }
+        if strategy_decision is not None:
+            merged["strategy_decision"] = strategy_decision
+        if path_handoff is None:
+            return merged
+
+        merged["path_handoff"] = path_handoff
+        source_path = path_handoff.get("source_path")
+        source_filetype = path_handoff.get("source_filetype")
         if source_path:
-            source_name = handoff.get("source_name") or source_path.rsplit("/", 1)[-1]
-            source_basename = handoff.get("source_basename") or source_name.rsplit(".", 1)[0]
-            source_extension = handoff.get("source_extension") or (
+            source_name = path_handoff.get("source_name") or source_path.rsplit("/", 1)[-1]
+            source_basename = path_handoff.get("source_basename") or source_name.rsplit(".", 1)[0]
+            source_extension = path_handoff.get("source_extension") or (
                 f".{source_name.rsplit('.', 1)[-1]}" if "." in source_name else ""
             )
             merged["host_transfer_source_path"] = source_path

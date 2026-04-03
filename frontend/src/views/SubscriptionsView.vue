@@ -5,16 +5,16 @@
         <p class="hero-panel__eyebrow">Subscriptions</p>
         <h2>订阅与执行记录最小闭环</h2>
         <p class="hero-panel__description">
-          当前页面展示的是 Phase 7B 最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
-          回看 SearchJob 摘要与 organize preview/apply。search / dispatch / organize 已开始对齐真实 MoviePilot 宿主语义，
-          且 organize 现在会显式展示 path handoff 来源；但真实 scheduler、真实榜单增量与完整文件整理链路仍未完成验证。
+          当前页面展示的是 Phase 9 最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
+          回看 SearchJob 摘要与 organize preview/apply。系统会优先沿用真实验证矩阵里更稳的 dispatch / handoff / organize 路径，
+          并对已知 blocked 组合显式提示或阻断；但真实 scheduler、真实榜单增量与完整文件整理链路仍未完成验证。
         </p>
       </div>
       <el-tag type="warning" effect="plain">host-aware organize / sync subscription executor</el-tag>
     </section>
 
     <el-alert
-      title="Phase 7B 订阅执行器仍为同步最小骨架：不会自动定时执行；organize 已按真实 MoviePilot transfer 语义收敛，并开始消费下载后的 path handoff，但真实文件移动、硬链接、刮削与媒体库刷新仍待宿主进一步验证。"
+      title="Phase 9 默认会优先使用更稳的 matrix 路径：history/transfer organize replay 是当前稳定优先来源；single-sample 组合会保留风险提示；已知 blocked 组合不会再静默继续 apply。"
       type="warning"
       :closable="false"
       show-icon
@@ -319,6 +319,13 @@
                   <div class="organize-card__body">
                     <p>backend: {{ selectedRunDetail.organize_preview.organize_backend }}</p>
                     <p>verification: {{ selectedRunDetail.organize_preview.verification_state }}</p>
+                    <p v-if="selectedRunDetail.organize_preview.strategy_decision">
+                      matrix: {{ selectedRunDetail.organize_preview.strategy_decision.matrix_status }}
+                      / {{ selectedRunDetail.organize_preview.strategy_decision.selected_path }}
+                    </p>
+                    <p v-if="selectedRunDetail.organize_preview.strategy_decision">
+                      strategy: {{ selectedRunDetail.organize_preview.strategy_decision.recommended_action }}
+                    </p>
                     <p>relative_path: {{ selectedRunDetail.organize_preview.target_relative_path }}</p>
                     <p>strategy: {{ selectedRunDetail.organize_preview.strategy }}</p>
                     <p>conflict_policy: {{ selectedRunDetail.organize_preview.strategy_snapshot.conflict_policy }}</p>
@@ -337,6 +344,9 @@
                     </p>
                     <p v-if="selectedRunDetail.organize_preview.failure_reason">
                       failure: {{ selectedRunDetail.organize_preview.failure_reason }}
+                    </p>
+                    <p v-if="selectedRunDetail.organize_preview.strategy_decision?.blocked">
+                      blocked reason: {{ selectedRunDetail.organize_preview.strategy_decision.reason }}
                     </p>
                     <p>{{ selectedRunDetail.organize_preview.strategy_note }}</p>
                   </div>

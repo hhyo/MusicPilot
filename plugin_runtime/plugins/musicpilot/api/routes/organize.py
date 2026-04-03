@@ -1,4 +1,4 @@
-"""Organize boundary routes for the Phase 7B transfer-aware preview/apply flow."""
+"""Organize boundary routes for the Phase 9 transfer-aware preview/apply flow."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ async def organize_jobs(
         message="Organize records loaded.",
         code="ORGANIZE_RECORDS_OK",
         mock=records.mock,
-        note="当前 organize records 会展示 organize backend、status、verification state 与 fallback 信息。",
+        note="当前 organize records 会展示 organize backend、status、verification state、matrix status 与 fallback 信息。",
     )
 
 
@@ -55,7 +55,7 @@ async def preview_organize(
         message="Organize preview created.",
         code="ORGANIZE_PREVIEW_OK",
         mock=result.mock,
-        note="当前 organize preview 会按 strategy 和 capability 在真实 MoviePilot transfer/name 映射与 mock organize 之间选择，并尽量显示 path handoff 来源。",
+        note="当前 organize preview 会按 strategy 和 capability 在真实 MoviePilot transfer/name 映射与 mock organize 之间选择，并尽量优先显示更稳的 transfer-history handoff 来源。",
     )
 
 
@@ -76,7 +76,7 @@ async def apply_organize(
         message="Organize apply handled the record.",
         code="ORGANIZE_APPLY_OK",
         mock=result.mock,
-        note="当前 organize apply 可能是 mock apply，也可能映射到真实 MoviePilot transfer/manual；结果会明确显示 backend、path handoff、fallback 与 verification state。",
+        note="当前 organize apply 可能是 mock apply，也可能映射到真实 MoviePilot transfer/manual；Phase 9 对已知 blocked 组合会在真正发送 host apply 前显式阻断，并返回 strategy decision。",
     )
 
 
@@ -97,5 +97,5 @@ async def organize_job_detail(
         message="Organize record detail loaded.",
         code="ORGANIZE_RECORD_DETAIL_OK",
         mock=result.mock,
-        note="当前 organize record detail 会显示 preview/apply 状态流、backend、path handoff 与失败原因。",
+        note="当前 organize record detail 会显示 preview/apply 状态流、backend、path handoff、matrix status 与失败原因。",
     )
