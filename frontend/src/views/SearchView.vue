@@ -1,0 +1,407 @@
+<template>
+  <div class="search-view">
+    <section class="search-hero">
+      <div>
+        <p class="search-hero__eyebrow">Metadata Search</p>
+        <h2>Artist / Album / Track 搜索最小闭环</h2>
+        <p class="search-hero__description">
+          当前只联调本地 seed metadata，用于验证搜索链路、结构化字段和详情视图。
+          不包含 PT 搜索、下载派发、订阅执行和整理结果。
+        </p>
+      </div>
+      <el-tag type="warning" effect="plain">当前为 local seed / mock provider</el-tag>
+    </section>
+
+    <section class="search-panel">
+      <el-tabs v-model="form.type" class="search-panel__tabs">
+        <el-tab-pane label="Artist" name="artist" />
+        <el-tab-pane label="Album" name="album" />
+        <el-tab-pane label="Track" name="track" />
+      </el-tabs>
+
+      <div class="search-panel__controls">
+        <el-input
+          v-model.trim="form.keyword"
+          :placeholder="placeholderText"
+          clearable
+          @keyup.enter="runSearch(true)"
+        />
+        <el-button type="primary" :loading="searching" @click="runSearch(true)">
+          搜索
+        </el-button>
+      </div>
+
+      <p class="search-panel__hint">
+        推荐试试：
+        <button
+          v-for="sample in sampleKeywords[form.type]"
+          :key="sample"
+          class="search-panel__sample"
+          type="button"
+          @click="applySample(sample)"
+        >
+          {{ sample }}
+        </button>
+      </p>
+    </section>
+
+    <section class="search-status">
+      <article class="status-card">
+        <span>搜索类型</span>
+        <strong>{{ form.type }}</strong>
+      </article>
+      <article class="status-card">
+        <span>当前 Provider</span>
+        <strong>{{ result?.provider ?? 'mock_seed_catalog' }}</strong>
+      </article>
+      <article class="status-card">
+        <span>结果总数</span>
+        <strong>{{ result?.total ?? 0 }}</strong>
+      </article>
+      <article class="status-card">
+        <span>分页</span>
+        <strong>{{ page }} / {{ totalPages }}</strong>
+      </article>
+    </section>
+
+    <section class="results-panel">
+      <header class="results-panel__header">
+        <div>
+          <p class="results-panel__eyebrow">Search Results</p>
+          <h3>结构化元数据结果</h3>
+        </div>
+        <el-tag v-if="result" type="info" effect="plain">
+          {{ result.source_type }} / {{ result.integration_point }}
+        </el-tag>
+      </header>
+
+      <el-alert
+        v-if="searchError"
+        :title="searchError"
+        type="error"
+        :closable="false"
+        show-icon
+      />
+
+      <div v-else-if="searching" class="results-panel__loading">
+        <el-skeleton v-for="index in 3" :key="index" animated :rows="5" />
+      </div>
+
+      <el-empty
+        v-else-if="searched && result && result.items.length === 0"
+        description="当前关键词在本地 seed metadata 中没有匹配结果。"
+      />
+
+      <div v-else-if="result && result.items.length > 0" class="results-grid">
+        <SearchResultCard
+          v-for="item in result.items"
+          :key="item.id"
+          :item="item"
+          @view-detail="openDetail"
+        />
+      </div>
+
+      <el-empty
+        v-else
+        description="输入关键词后开始搜索。当前阶段只返回 metadata 结果。"
+      />
+
+      <el-pagination
+        v-if="result && result.total > pageSize"
+        class="results-panel__pagination"
+        background
+        layout="prev, pager, next"
+        :current-page="page"
+        :page-size="pageSize"
+        :total="result.total"
+        @current-change="handlePageChange"
+      />
+    </section>
+
+    <MetadataDetailDrawer
+      v-model="detailVisible"
+      :loading="detailLoading"
+      :detail="detail"
+      :error-message="detailError"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import axios from 'axios';
+import { computed, reactive, ref } from 'vue';
+
+import MetadataDetailDrawer from '@/components/MetadataDetailDrawer.vue';
+import SearchResultCard from '@/components/SearchResultCard.vue';
+import { fetchMetadataDetail, searchMetadata } from '@/services/metadata';
+import type {
+  EntityType,
+  MetadataDetail,
+  MetadataSearchData,
+  MetadataSummary,
+} from '@/types/metadata';
+
+const pageSize = 6;
+
+const form = reactive<{
+  keyword: string;
+  type: EntityType;
+}>({
+  keyword: '',
+  type: 'artist',
+});
+
+const sampleKeywords: Record<EntityType, string[]> = {
+  artist: ['Adele', 'Taylor', 'Daft'],
+  album: ['25', '1989', 'Random'],
+  track: ['Hello', 'Anti', 'Lucky'],
+};
+
+const searched = ref(false);
+const searching = ref(false);
+const searchError = ref('');
+const result = ref<MetadataSearchData | null>(null);
+const page = ref(1);
+
+const detailVisible = ref(false);
+const detailLoading = ref(false);
+const detailError = ref('');
+const detail = ref<MetadataDetail | null>(null);
+
+const placeholderText = computed(() => {
+  const placeholderMap: Record<EntityType, string> = {
+    artist: '输入艺人名，例如 Adele、Taylor Swift',
+    album: '输入专辑名，例如 25、Random Access Memories',
+    track: '输入歌曲名，例如 Hello、Get Lucky',
+  };
+
+  return placeholderMap[form.type];
+});
+
+const totalPages = computed(() => {
+  if (!result.value || result.value.total === 0) {
+    return 1;
+  }
+
+  return Math.ceil(result.value.total / pageSize);
+});
+
+function applySample(keyword: string) {
+  form.keyword = keyword;
+  void runSearch(true);
+}
+
+async function runSearch(resetPage: boolean) {
+  const keyword = form.keyword.trim();
+
+  if (!keyword) {
+    searched.value = false;
+    result.value = null;
+    searchError.value = '请输入搜索关键词。';
+    return;
+  }
+
+  if (resetPage) {
+    page.value = 1;
+  }
+
+  searching.value = true;
+  searched.value = true;
+  searchError.value = '';
+
+  try {
+    const response = await searchMetadata({
+      keyword,
+      type: form.type,
+      page: page.value,
+      page_size: pageSize,
+    });
+
+    if (!response.success) {
+      throw new Error(response.message);
+    }
+
+    result.value = response.data;
+  } catch (error) {
+    result.value = null;
+    searchError.value = resolveErrorMessage(error, '元数据搜索失败，请确认后端服务已启动。');
+  } finally {
+    searching.value = false;
+  }
+}
+
+async function openDetail(item: MetadataSummary) {
+  detailVisible.value = true;
+  detailLoading.value = true;
+  detailError.value = '';
+  detail.value = null;
+
+  try {
+    const response = await fetchMetadataDetail(item.entity_type, item.id);
+
+    if (!response.success) {
+      throw new Error(response.message);
+    }
+
+    detail.value = response.data;
+  } catch (error) {
+    detailError.value = resolveErrorMessage(error, '详情加载失败，请稍后重试。');
+  } finally {
+    detailLoading.value = false;
+  }
+}
+
+function handlePageChange(nextPage: number) {
+  page.value = nextPage;
+  void runSearch(false);
+}
+
+function resolveErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message ?? error.message ?? fallback;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
+}
+</script>
+
+<style scoped lang="scss">
+.search-view {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.search-hero,
+.search-panel,
+.results-panel {
+  padding: 1.35rem;
+  border: 1px solid var(--mp-line);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 40px rgba(52, 37, 122, 0.06);
+}
+
+.search-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.search-hero h2,
+.search-hero__description,
+.results-panel__header h3,
+.results-panel__eyebrow {
+  margin: 0;
+}
+
+.search-hero__eyebrow,
+.results-panel__eyebrow {
+  color: var(--mp-accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.search-hero__description {
+  max-width: 72ch;
+  margin-top: 0.55rem;
+  color: var(--mp-muted);
+  line-height: 1.8;
+}
+
+.search-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.search-panel__controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.8rem;
+}
+
+.search-panel__hint {
+  margin: 0;
+  color: var(--mp-muted);
+}
+
+.search-panel__sample {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--mp-accent);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.search-status {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.status-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--mp-line);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.status-card span {
+  color: var(--mp-muted);
+  font-size: 0.88rem;
+}
+
+.status-card strong {
+  font-size: 1.15rem;
+}
+
+.results-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.results-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.results-grid,
+.results-panel__loading {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.results-panel__pagination {
+  justify-self: flex-end;
+}
+
+@media (max-width: 960px) {
+  .search-status,
+  .results-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .search-hero,
+  .results-panel__header {
+    flex-direction: column;
+  }
+
+  .search-panel__controls {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

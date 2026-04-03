@@ -11,8 +11,9 @@ backend/__pycache__/
 backend/.pytest_cache/
 backend/.ruff_cache/
 backend/**/*.pyc
+backend/data/*.db
+backend/data/*.sqlite3
 
 # Packaging
 plugin_runtime/plugins/musicpilot/static/assets/
 plugin_runtime/plugins/musicpilot/**/*.pyc
-

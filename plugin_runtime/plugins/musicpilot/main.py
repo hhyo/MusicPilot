@@ -1,6 +1,8 @@
-"""FastAPI application entrypoint for MusicPilot Phase 1."""
+"""FastAPI application entrypoint for MusicPilot Phase 2."""
 
 from __future__ import annotations
+
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +14,13 @@ from .core.config import settings
 from .core.http import configure_logging, register_exception_handlers, register_http_middleware
 from .core.responses import success_response
 from .schemas.common import ApiResponse
+from .services.metadata import bootstrap_metadata_storage
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    bootstrap_metadata_storage()
+    yield
 
 
 def build_application() -> FastAPI:
@@ -22,6 +31,7 @@ def build_application() -> FastAPI:
         version=__version__,
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     app.add_middleware(
@@ -42,13 +52,13 @@ def build_application() -> FastAPI:
             data={
                 "service": settings.app_name,
                 "version": __version__,
-                "phase": "Phase 1",
-                "status": "probe-and-contract-skeleton-ready",
+                "phase": "Phase 2",
+                "status": "metadata-minimum-loop-ready",
             },
-            message="MusicPilot backend Phase 1 skeleton is running.",
+            message="MusicPilot backend Phase 2 minimum loop is running.",
             code="ROOT_OK",
             mock=False,
-            note="This root endpoint confirms the backend skeleton is alive. Business capabilities are still placeholders.",
+            note="This root endpoint confirms the backend and local metadata seed runtime are alive. PT search and download logic are still out of scope.",
         )
 
     @app.get("/health", summary="Health check", tags=["Health"])
@@ -69,4 +79,3 @@ def build_application() -> FastAPI:
 
 
 app = build_application()
-

@@ -5,7 +5,7 @@
         <p class="brand-card__phase">{{ app.phaseLabel }}</p>
         <h1>{{ app.appName }}</h1>
         <p class="brand-card__description">
-          独立音乐插件入口壳。当前只提供工程骨架、模块边界和后续扩展位。
+          独立音乐插件入口壳。当前已接通 metadata 搜索最小闭环，并保留后续扩展位。
         </p>
       </div>
 
@@ -15,10 +15,10 @@
     <main class="shell__content">
       <header class="topbar">
         <div>
-          <p class="topbar__eyebrow">MoviePilot Plugin Skeleton</p>
-          <h2>MusicPilot 工程初始化</h2>
+          <p class="topbar__eyebrow">MoviePilot Plugin Metadata MVP</p>
+          <h2>MusicPilot Metadata 最小闭环</h2>
         </div>
-        <el-tag type="success" effect="plain">可继续扩展</el-tag>
+        <el-tag type="success" effect="plain">搜索链路可联调</el-tag>
       </header>
 
       <RouterView />
@@ -126,4 +126,3 @@ const app = useAppStore();
   }
 }
 </style>
-

@@ -5,8 +5,8 @@
         <p class="hero-panel__eyebrow">MusicPilot Home</p>
         <h2>你的音乐工作台</h2>
         <p class="hero-panel__description">
-          当前首页只承载 Phase 0 的导航壳、状态摘要和模块占位。真实搜索、榜单、订阅、下载、
-          整理逻辑均延后到后续阶段实现。
+          当前仓库已进入 Phase 2。搜索模块已打通本地 seed metadata 的最小闭环，
+          其余榜单、订阅、下载、整理仍保持占位边界，待后续阶段继续接入。
         </p>
         <div class="hero-panel__actions">
           <RouterLink class="hero-panel__action hero-panel__action--primary" to="/search">
@@ -29,10 +29,10 @@
     <section class="section">
       <header class="section__header">
         <div>
-          <p class="section__eyebrow">Module Placeholders</p>
-          <h3>本轮预留的核心模块</h3>
+          <p class="section__eyebrow">Phase 2 Scope</p>
+          <h3>当前模块状态</h3>
         </div>
-        <el-tag type="info" effect="plain">仅占位，不实现业务闭环</el-tag>
+        <el-tag type="success" effect="plain">搜索最小闭环已接通</el-tag>
       </header>
 
       <div class="module-grid">
@@ -47,7 +47,7 @@
     <section class="section section--compact">
       <header class="section__header">
         <div>
-          <p class="section__eyebrow">Phase 0 Notes</p>
+          <p class="section__eyebrow">Phase 2 Notes</p>
           <h3>当前边界说明</h3>
         </div>
       </header>
@@ -57,16 +57,16 @@
           <h4>已完成</h4>
           <ul>
             <li>App Shell 与基础路由。</li>
-            <li>首页工作台与模块入口占位。</li>
+            <li>本地 seed metadata 搜索与详情页最小闭环。</li>
             <li>前端服务、类型、状态管理扩展位。</li>
           </ul>
         </article>
         <article class="note-card">
           <h4>待后续接入</h4>
           <ul>
-            <li>真实 API 契约与 DTO。</li>
-            <li>真实元数据搜索与详情页。</li>
+            <li>真实第三方 metadata provider。</li>
             <li>真实 PT 搜索、下载、整理链路。</li>
+            <li>订阅调度、查询构建与规则决策。</li>
           </ul>
         </article>
       </div>
@@ -82,10 +82,10 @@ import ModuleEntryCard from '@/components/ModuleEntryCard.vue';
 import { navigationModules } from '@/types/module';
 
 const dashboardStats = [
-  { label: '待确认任务', value: '0', note: '占位完成，待接真实任务流。' },
+  { label: 'Metadata Provider', value: '1', note: '当前为本地 seed / mock provider。' },
+  { label: '可搜索实体', value: '3', note: 'Artist / Album / Track 已接通统一搜索页。' },
   { label: '最近订阅', value: '0', note: '占位完成，待接四类订阅模型。' },
-  { label: '下载中', value: '0', note: '占位完成，待接宿主下载器派发。' },
-  { label: '整理失败', value: '0', note: '占位完成，待接整理日志与重试。' },
+  { label: '待下载决策', value: '0', note: '本轮不实现 PT 搜索与下载派发。' },
 ];
 
 const featureModules = computed(() => navigationModules.filter((item) => item.key !== 'home'));
@@ -241,4 +241,3 @@ const featureModules = computed(() => navigationModules.filter((item) => item.ke
   }
 }
 </style>
-

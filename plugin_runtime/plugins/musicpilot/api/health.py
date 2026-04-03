@@ -18,7 +18,7 @@ def build_health_payload() -> dict[str, str]:
         "service": settings.app_name,
         "version": __version__,
         "api_prefix": settings.api_prefix,
-        "phase": "Phase 1",
+        "phase": "Phase 2",
     }
 
 
@@ -32,4 +32,3 @@ async def health_check(request: Request) -> ApiResponse:
         mock=False,
         note="This endpoint confirms the FastAPI app is running. It does not validate real host integration.",
     )
-

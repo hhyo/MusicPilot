@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import AppShell from '@/layouts/AppShell.vue';
 import HomeView from '@/views/HomeView.vue';
 import ModulePlaceholderView from '@/views/ModulePlaceholderView.vue';
+import SearchView from '@/views/SearchView.vue';
 
 const routes = [
   {
@@ -30,10 +31,10 @@ const routes = [
       {
         path: 'search',
         name: 'search',
-        component: ModulePlaceholderView,
+        component: SearchView,
         meta: {
           title: '搜索',
-          description: 'Phase 0 仅保留搜索页路由与交互占位，不实现真实 Artist / Album / Track 检索。',
+          description: 'Phase 2 打通最小 metadata 搜索闭环，联调本地 seed provider。',
         },
       },
       {
@@ -90,4 +91,3 @@ router.afterEach((to) => {
 });
 
 export default router;
-

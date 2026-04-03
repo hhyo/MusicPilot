@@ -7,4 +7,8 @@ TODO(Phase 1+):
 - AcquisitionService
 - OrganizerService
 """
+"""Service exports for backend business modules."""
 
+from .metadata import MetadataService
+
+__all__ = ["MetadataService"]

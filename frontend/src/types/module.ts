@@ -25,8 +25,8 @@ export const navigationModules: NavigationModule[] = [
     key: 'search',
     title: '搜索',
     route: '/search',
-    description: 'Artist / Album / Track 搜索入口占位',
-    status: '占位完成',
+    description: 'Artist / Album / Track metadata 搜索最小闭环',
+    status: '最小闭环',
   },
   {
     key: 'subscriptions',
@@ -57,4 +57,3 @@ export const navigationModules: NavigationModule[] = [
     status: '占位完成',
   },
 ];
-
