@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "musicpilot-backend"
 version = "0.1.0"
-description = "MusicPilot FastAPI backend with Phase 3 acquisition MVP."
+description = "MusicPilot FastAPI backend with Phase 4 subscription and organize preview MVP."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

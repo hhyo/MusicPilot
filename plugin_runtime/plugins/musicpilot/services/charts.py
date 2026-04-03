@@ -1,0 +1,51 @@
+"""Chart discovery service for Phase 4 mock subscriptions."""
+
+from __future__ import annotations
+
+from fastapi import HTTPException
+
+from ..adapters.chart_provider import CHART_INTEGRATION_POINT, ChartProviderAdapter
+from ..schemas.mvp import EntityType
+from ..schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartListData, ChartProviderInfo
+
+
+class ChartService:
+    def __init__(self, adapter: ChartProviderAdapter):
+        self.adapter = adapter
+
+    def list_providers(self) -> list[ChartProviderInfo]:
+        return self.adapter.list_providers()
+
+    def list_charts(
+        self,
+        *,
+        provider: str | None = None,
+        chart_type: EntityType | None = None,
+        region: str | None = None,
+    ) -> ChartListData:
+        items = self.adapter.list_charts()
+        if provider:
+            items = [item for item in items if item.chart_source == provider]
+        if chart_type:
+            items = [item for item in items if item.chart_type == chart_type]
+        if region:
+            items = [item for item in items if item.region == region]
+        return ChartListData(
+            items=items,
+            total=len(items),
+            mock=True,
+            note="当前榜单列表来自 mock chart source，只用于发现入口和订阅动作验证。",
+            integration_point=CHART_INTEGRATION_POINT,
+        )
+
+    def get_chart_detail(self, chart_id: str) -> ChartDetailData:
+        try:
+            return self.adapter.get_chart_detail(chart_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    def get_chart_entry(self, chart_id: str, item_id: str) -> ChartEntryInfo:
+        try:
+            return self.adapter.get_chart_entry(chart_id, item_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc

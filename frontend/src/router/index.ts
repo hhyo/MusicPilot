@@ -1,9 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 import AppShell from '@/layouts/AppShell.vue';
+import ChartsView from '@/views/ChartsView.vue';
 import HomeView from '@/views/HomeView.vue';
 import ModulePlaceholderView from '@/views/ModulePlaceholderView.vue';
 import SearchView from '@/views/SearchView.vue';
+import SubscriptionsView from '@/views/SubscriptionsView.vue';
 
 const routes = [
   {
@@ -22,10 +24,10 @@ const routes = [
       {
         path: 'charts',
         name: 'charts',
-        component: ModulePlaceholderView,
+        component: ChartsView,
         meta: {
           title: '榜单',
-          description: 'Phase 0 仅保留榜单入口与页面边界说明，后续接入真实榜单源。',
+          description: 'Phase 4 提供榜单发现与从榜单项创建订阅的最小闭环。',
         },
       },
       {
@@ -34,16 +36,16 @@ const routes = [
         component: SearchView,
         meta: {
           title: '搜索',
-          description: 'Phase 2 打通最小 metadata 搜索闭环，联调本地 seed provider。',
+          description: 'Phase 4 打通 metadata 搜索、SearchJob 与从详情创建订阅的最小闭环。',
         },
       },
       {
         path: 'subscriptions',
         name: 'subscriptions',
-        component: ModulePlaceholderView,
+        component: SubscriptionsView,
         meta: {
           title: '订阅',
-          description: 'Phase 0 仅保留四类订阅管理页面边界，不实现真实 CRUD 与调度。',
+          description: 'Phase 4 提供订阅管理、立即执行与 run 结果回看。',
         },
       },
       {

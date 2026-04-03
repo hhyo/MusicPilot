@@ -7,7 +7,7 @@
   >
     <div class="detail-drawer">
       <el-alert
-        title="当前已进入 Phase 3：可基于 metadata 创建 mock 搜索任务，但仍未接入真实 PT 站点与下载器。"
+        title="当前已进入 Phase 4：可基于 metadata 创建订阅与 mock 搜索任务，但仍未接入真实 PT 站点、真实 scheduler 与真实下载后整理。"
         type="info"
         :closable="false"
         show-icon
@@ -118,9 +118,11 @@
         </section>
 
         <section class="detail-section">
-          <h4>Phase 3 操作</h4>
+          <h4>Phase 4 操作</h4>
           <div class="detail-actions">
-            <el-button disabled>预留：加入订阅</el-button>
+            <el-button type="success" plain @click="$emit('create-subscription', detail)">
+              创建订阅
+            </el-button>
             <el-button type="primary" @click="$emit('search-resources', detail)">
               创建并执行搜索任务
             </el-button>
@@ -149,6 +151,7 @@ const props = defineProps<{
 defineEmits<{
   (event: 'update:modelValue', value: boolean): void;
   (event: 'search-resources', detail: MetadataDetail): void;
+  (event: 'create-subscription', detail: MetadataDetail): void;
 }>();
 
 const externalIdEntries = computed(() => Object.entries(props.detail?.external_ids ?? {}));

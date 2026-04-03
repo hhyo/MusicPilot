@@ -3,5 +3,6 @@
 
 from .acquisition import AcquisitionRepository
 from .metadata import MetadataRepository
+from .orchestration import OrchestrationRepository
 
-__all__ = ["AcquisitionRepository", "MetadataRepository"]
+__all__ = ["AcquisitionRepository", "MetadataRepository", "OrchestrationRepository"]

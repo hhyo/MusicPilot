@@ -145,6 +145,17 @@ class AcquisitionRepository:
         )
         return self.session.scalar(statement)
 
+    def get_binding(self, binding_id: str) -> DownloadBindingModel | None:
+        statement = (
+            select(DownloadBindingModel)
+            .options(
+                selectinload(DownloadBindingModel.candidate).selectinload(SearchCandidateModel.job),
+                selectinload(DownloadBindingModel.job),
+            )
+            .where(DownloadBindingModel.id == binding_id)
+        )
+        return self.session.scalar(statement)
+
     def create_binding(
         self,
         *,

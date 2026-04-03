@@ -5,12 +5,23 @@
         <p class="search-hero__eyebrow">Metadata Search</p>
         <h2>Metadata -> Query -> Job -> Candidate 最小闭环</h2>
         <p class="search-hero__description">
-          当前基于本地 seed metadata 打通 Phase 3 的最小获取链路。
-          任务执行、候选评分与派发都仍是 mock boundary，不包含真实 PT 站点和真实下载器。
+          当前基于本地 seed metadata 打通 Phase 4 的搜索与订阅入口。
+          任务执行、候选评分、订阅执行与 organize preview 仍是 mock boundary，不包含真实 PT 站点、
+          真实 scheduler、真实下载器和真实文件整理。
         </p>
       </div>
-      <el-tag type="warning" effect="plain">metadata seed + mock host search + mock dispatch</el-tag>
+      <el-tag type="warning" effect="plain">
+        metadata seed + mock host search + mock dispatch + mock organize
+      </el-tag>
     </section>
+
+    <el-alert
+      v-if="latestSubscription"
+      :title="`已创建订阅：${latestSubscription.target_name}（${latestSubscription.subscription_type}）`"
+      type="success"
+      :closable="false"
+      show-icon
+    />
 
     <section class="search-panel">
       <el-tabs v-model="form.type" class="search-panel__tabs">
@@ -123,6 +134,7 @@
       :loading="detailLoading"
       :detail="detail"
       :error-message="detailError"
+      @create-subscription="createSubscriptionFromDetail"
       @search-resources="createAndRunSearchJob"
     />
 
@@ -142,6 +154,7 @@
 <script setup lang="ts">
 import axios from 'axios';
 import { computed, reactive, ref } from 'vue';
+import { ElMessage } from 'element-plus';
 
 import MetadataDetailDrawer from '@/components/MetadataDetailDrawer.vue';
 import SearchResultCard from '@/components/SearchResultCard.vue';
@@ -153,6 +166,7 @@ import {
   fetchSearchCandidates,
 } from '@/services/acquisition';
 import { fetchMetadataDetail, searchMetadata } from '@/services/metadata';
+import { createSubscription } from '@/services/orchestration';
 import type {
   DispatchResult,
   SearchCandidateDetail,
@@ -164,6 +178,7 @@ import type {
   MetadataSearchData,
   MetadataSummary,
 } from '@/types/metadata';
+import type { SubscriptionSummary } from '@/types/orchestration';
 
 const pageSize = 6;
 
@@ -198,6 +213,7 @@ const jobLoading = ref(false);
 const jobError = ref('');
 const dispatchingCandidateId = ref('');
 const dispatchResults = ref<Record<string, DispatchResult>>({});
+const latestSubscription = ref<SubscriptionSummary | null>(null);
 
 const placeholderText = computed(() => {
   const placeholderMap: Record<EntityType, string> = {
@@ -324,6 +340,27 @@ async function createAndRunSearchJob(metadataDetail: MetadataDetail) {
     jobError.value = resolveErrorMessage(error, '搜索任务执行失败，请确认后端服务已启动。');
   } finally {
     jobLoading.value = false;
+  }
+}
+
+async function createSubscriptionFromDetail(metadataDetail: MetadataDetail) {
+  try {
+    const response = await createSubscription({
+      subscription_type: metadataDetail.entity_type,
+      target_id: metadataDetail.id,
+      target_name: metadataDetail.title,
+      target_entity_type: metadataDetail.entity_type,
+      mode: 'manual',
+    });
+
+    if (!response.success) {
+      throw new Error(response.message);
+    }
+
+    latestSubscription.value = response.data;
+    ElMessage.success(`已创建 ${response.data.target_name} 的订阅。`);
+  } catch (error) {
+    ElMessage.error(resolveErrorMessage(error, '创建订阅失败，请稍后重试。'));
   }
 }
 

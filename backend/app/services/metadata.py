@@ -13,6 +13,7 @@ from ..core.db import SessionLocal, initialize_database_schema
 from ..models.metadata import AlbumModel, ArtistModel, TrackModel
 from ..repositories.metadata import MetadataRepository
 from ..repositories.acquisition import AcquisitionRepository
+from ..repositories.orchestration import OrchestrationRepository
 from ..schemas.metadata import (
     MetadataDetail,
     MetadataReference,
@@ -234,7 +235,9 @@ def bootstrap_metadata_storage(
     with SessionLocal() as session:
         repository = MetadataRepository(session)
         acquisition_repository = AcquisitionRepository(session)
+        orchestration_repository = OrchestrationRepository(session)
         if reseed:
+            orchestration_repository.clear_all()
             acquisition_repository.clear_all()
             repository.clear_all()
 

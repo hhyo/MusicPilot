@@ -13,4 +13,4 @@
 
 __version__ = "0.1.0"
 PLUGIN_NAME = "MusicPilot"
-PLUGIN_DESCRIPTION = "Phase 3 runtime placeholder with acquisition MVP for future MoviePilot integration."
+PLUGIN_DESCRIPTION = "Phase 4 runtime placeholder with subscription and organize preview MVP for future MoviePilot integration."

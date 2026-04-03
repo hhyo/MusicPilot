@@ -1,44 +1,44 @@
-"""Organize route placeholders."""
+"""Organize boundary routes for Phase 4."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 
-from ...core.dependencies import get_mvp_placeholder_service
+from ...core.dependencies import get_organize_service
 from ...core.responses import success_response
 from ...schemas.common import ApiResponse
-from ...services.mvp_placeholder import MvpPlaceholderService
+from ...schemas.orchestration import OrganizePreviewRequest
+from ...services.organize import OrganizeService
 
-router = APIRouter(tags=["Organize"])
+router = APIRouter(prefix="/organize", tags=["Organize"])
 
 
-@router.get("/organize/jobs", summary="List organize jobs placeholder")
+@router.get("/jobs", summary="List organize previews and records")
 async def organize_jobs(
     request: Request,
-    service: MvpPlaceholderService = Depends(get_mvp_placeholder_service),
+    service: OrganizeService = Depends(get_organize_service),
 ) -> ApiResponse:
     return success_response(
         request,
-        data=service.organize_jobs(),
-        message="Organize jobs placeholder is callable.",
-        code="ORGANIZE_JOBS_PLACEHOLDER",
+        data=service.list_records(),
+        message="Organize records loaded.",
+        code="ORGANIZE_RECORDS_OK",
         mock=True,
-        note="当前整理任务为 mock 数据，未进入真实整理或入库流程。",
+        note="当前整理记录来自 mock organize boundary，仅保留状态与后续接入点说明。",
     )
 
 
-@router.post("/library/items/{item_id}/retry", summary="Retry organize placeholder")
-async def retry_library_item(
-    item_id: str,
+@router.post("/preview", summary="Create organize preview from candidate or binding")
+async def preview_organize(
+    payload: OrganizePreviewRequest,
     request: Request,
-    service: MvpPlaceholderService = Depends(get_mvp_placeholder_service),
+    service: OrganizeService = Depends(get_organize_service),
 ) -> ApiResponse:
     return success_response(
         request,
-        data=service.retry_library_item(item_id),
-        message="Retry organize placeholder is callable.",
-        code="RETRY_ORGANIZE_PLACEHOLDER",
+        data=service.preview(payload),
+        message="Organize preview created.",
+        code="ORGANIZE_PREVIEW_OK",
         mock=True,
-        note="当前仅验证整理重试契约，不会操作真实媒体库。",
+        note="当前只生成 organize preview，不会执行真实文件移动、硬链接、标签写入或媒体库刷新。",
     )
-

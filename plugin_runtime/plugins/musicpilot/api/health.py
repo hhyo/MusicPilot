@@ -18,7 +18,7 @@ def build_health_payload() -> dict[str, str]:
         "service": settings.app_name,
         "version": __version__,
         "api_prefix": settings.api_prefix,
-        "phase": "Phase 3",
+        "phase": "Phase 4",
     }
 
 
