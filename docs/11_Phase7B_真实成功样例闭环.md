@@ -3,6 +3,8 @@
 > 用途：记录 MusicPilot 在 Phase 7B 针对真实 MoviePilot 宿主拿到的第一条“成功下载 -> 路径回灌 -> transfer/name -> transfer/manual”闭环样例。  
 > 约束：不写入真实 token；所有宿主配置均通过本地环境变量注入。
 
+> 当前说明：本文记录的成功样例继续有效，但它现在只作为真实验证成果，不再驱动运行时 recommendation / strategy / matrix 决策。当前固定调用规则见 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
+
 > Phase 8 更新：当前这条闭环已不再是唯一成功依据。  
 > Phase 8 已补出真实样例矩阵，用于区分 `stable / single_sample / blocked`。最新结论请同时参考 [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)。
 

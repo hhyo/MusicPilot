@@ -1,4 +1,4 @@
-"""Unit tests for Phase 6 organize strategy and host-aware fallback behavior."""
+"""Unit tests for organize plan building and explicit host failure behavior."""
 
 from __future__ import annotations
 
@@ -85,7 +85,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(runtime.active_organize_adapter, "real_organize")
         self.assertEqual(runtime.organize_fallback_reason, "strict_host_required:host_capability_unavailable")
 
-    def test_prefer_host_organize_preview_falls_back_to_mock(self) -> None:
+    def test_prefer_host_organize_preview_raises_on_runtime_error(self) -> None:
         detail = build_album_detail()
         candidate = build_candidate()
         plan = OrganizeStrategyService(build_settings()).build_plan(candidate=candidate, metadata_detail=detail)
@@ -102,13 +102,13 @@ class OrganizeIntegrationTest(unittest.TestCase):
             host_adapter=DummyBrokenHostOrganizeAdapter(),
         )
 
-        result = resolver.preview(candidate=candidate, metadata_detail=detail, binding_id=None, plan=plan)
+        with self.assertRaises(HTTPException) as ctx:
+            resolver.preview(candidate=candidate, metadata_detail=detail, binding_id=None, plan=plan)
 
-        self.assertEqual(result.resolution.adapter_mode, AdapterMode.MOCK)
-        self.assertEqual(result.result.organize_backend, AdapterMode.MOCK)
-        self.assertIn("host_organize_preview_runtime_error:RuntimeError", result.result.fallback_reason or "")
+        self.assertEqual(ctx.exception.status_code, 503)
+        self.assertIn("host_organize_preview_runtime_error:RuntimeError", str(ctx.exception.detail))
 
-    def test_prefer_host_organize_apply_falls_back_to_mock(self) -> None:
+    def test_prefer_host_organize_apply_raises_on_runtime_error(self) -> None:
         detail = build_album_detail()
         candidate = build_candidate()
         plan = OrganizeStrategyService(build_settings()).build_plan(candidate=candidate, metadata_detail=detail)
@@ -125,16 +125,17 @@ class OrganizeIntegrationTest(unittest.TestCase):
             host_adapter=DummyBrokenHostOrganizeAdapter(),
         )
 
-        result = resolver.apply(
-            organize_job_id="org-001",
-            candidate=candidate,
-            metadata_detail=detail,
-            binding_id=None,
-            plan=plan,
-        )
+        with self.assertRaises(HTTPException) as ctx:
+            resolver.apply(
+                organize_job_id="org-001",
+                candidate=candidate,
+                metadata_detail=detail,
+                binding_id=None,
+                plan=plan,
+            )
 
-        self.assertEqual(result.result.organize_backend, AdapterMode.MOCK)
-        self.assertEqual(result.result.organize_status, OrganizeStatus.FALLBACK_APPLIED)
+        self.assertEqual(ctx.exception.status_code, 503)
+        self.assertIn("host_organize_apply_runtime_error:RuntimeError", str(ctx.exception.detail))
 
     def test_strict_host_organize_preview_raises_when_capability_missing(self) -> None:
         detail = build_album_detail()

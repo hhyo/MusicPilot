@@ -311,7 +311,6 @@ async function createAndRunSearchJob(metadataDetail: MetadataDetail) {
       query_source_id: metadataDetail.id,
       trigger_source: 'manual',
       mode: 'manual',
-      strategy: 'balanced',
     });
 
     if (!created.success) {

@@ -4,6 +4,8 @@
 > 范围：只处理 `search -> dispatch -> path handoff -> organize` 这条既有链路，不扩展新业务域。  
 > 约束：所有结论都以真实宿主矩阵与已验证样例为准，不用 mock/stub 推断真实稳定性。
 
+> 当前说明：本文保留 Phase 9 的历史收敛结论，但从当前轮开始，MusicPilot 不再继续扩展或依赖通用 strategy / matrix / recommendation 运行时体系。当前实现以固定接口语义、固定场景调用规则和单一权威数据来源为准，见 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
+
 ## 13.1 当前策略收敛结论
 
 当前 MusicPilot 已不再只是“知道有哪些组合曾经成功过”，而是把这些结果收敛成了三类策略：

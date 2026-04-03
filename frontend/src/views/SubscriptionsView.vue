@@ -5,16 +5,16 @@
         <p class="hero-panel__eyebrow">Subscriptions</p>
         <h2>订阅与执行记录最小闭环</h2>
         <p class="hero-panel__description">
-          当前页面展示的是 Phase 9 最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
-          回看 SearchJob 摘要与 organize preview/apply。系统会优先沿用真实验证矩阵里更稳的 dispatch / handoff / organize 路径，
-          并对已知 blocked 组合显式提示或阻断；但真实 scheduler、真实榜单增量与完整文件整理链路仍未完成验证。
+          当前页面展示的是收缩后的最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
+          回看 SearchJob 摘要与 organize preview/apply。页面只展示真实采用的宿主语义、handoff 来源和明确错误；
+          但真实 scheduler、真实榜单增量与完整文件整理链路仍未完成验证。
         </p>
       </div>
       <el-tag type="warning" effect="plain">host-aware organize / sync subscription executor</el-tag>
     </section>
 
     <el-alert
-      title="Phase 9 默认会优先使用更稳的 matrix 路径：history/transfer organize replay 是当前稳定优先来源；single-sample 组合会保留风险提示；已知 blocked 组合不会再静默继续 apply。"
+      title="当前 organize 只遵循固定宿主语义：preview 对应 transfer/name，apply 对应 transfer/manual；若缺少明确 source_path，就直接失败并暴露原因。"
       type="warning"
       :closable="false"
       show-icon
@@ -212,7 +212,7 @@
               >
                 <div>
                   <strong>{{ run.execution_status }}</strong>
-                  <p>{{ run.dispatch_recommendation }} · {{ run.matched_candidates_count }} candidates</p>
+                  <p>{{ run.dispatch_recommendation }} result · {{ run.matched_candidates_count }} candidates</p>
                 </div>
                 <span>{{ formatDate(run.finished_at || run.started_at) }}</span>
               </article>
@@ -243,7 +243,7 @@
                   <p>{{ selectedRunDetail.search_job?.id || '未生成' }}</p>
                 </article>
                 <article class="summary-card">
-                  <span>Dispatch Recommendation</span>
+                  <span>Dispatch Outcome</span>
                   <strong>{{ selectedRunDetail.dispatch_recommendation }}</strong>
                   <p>{{ selectedRunDetail.matched_candidates_count }} candidates</p>
                 </article>
@@ -319,15 +319,8 @@
                   <div class="organize-card__body">
                     <p>backend: {{ selectedRunDetail.organize_preview.organize_backend }}</p>
                     <p>verification: {{ selectedRunDetail.organize_preview.verification_state }}</p>
-                    <p v-if="selectedRunDetail.organize_preview.strategy_decision">
-                      matrix: {{ selectedRunDetail.organize_preview.strategy_decision.matrix_status }}
-                      / {{ selectedRunDetail.organize_preview.strategy_decision.selected_path }}
-                    </p>
-                    <p v-if="selectedRunDetail.organize_preview.strategy_decision">
-                      strategy: {{ selectedRunDetail.organize_preview.strategy_decision.recommended_action }}
-                    </p>
                     <p>relative_path: {{ selectedRunDetail.organize_preview.target_relative_path }}</p>
-                    <p>strategy: {{ selectedRunDetail.organize_preview.strategy }}</p>
+                    <p>layout: {{ selectedRunDetail.organize_preview.strategy }}</p>
                     <p>conflict_policy: {{ selectedRunDetail.organize_preview.strategy_snapshot.conflict_policy }}</p>
                     <p v-if="selectedRunDetail.organize_preview.path_handoff?.source_path">
                       source_path: {{ selectedRunDetail.organize_preview.path_handoff.source_path }}
@@ -345,10 +338,7 @@
                     <p v-if="selectedRunDetail.organize_preview.failure_reason">
                       failure: {{ selectedRunDetail.organize_preview.failure_reason }}
                     </p>
-                    <p v-if="selectedRunDetail.organize_preview.strategy_decision?.blocked">
-                      blocked reason: {{ selectedRunDetail.organize_preview.strategy_decision.reason }}
-                    </p>
-                    <p>{{ selectedRunDetail.organize_preview.strategy_note }}</p>
+                    <p>layout_note: {{ selectedRunDetail.organize_preview.strategy_note }}</p>
                   </div>
                 </article>
               </section>

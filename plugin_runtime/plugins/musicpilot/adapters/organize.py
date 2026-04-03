@@ -11,7 +11,6 @@ from ..schemas.acquisition import PathHandoffInfo, SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, VerificationState
 from ..schemas.metadata import MetadataDetail
 from ..schemas.orchestration import OrganizeAdapterResult, OrganizePlan, OrganizeStatus
-from ..services.host_path_handoff import HostPathHandoffService
 
 
 def _extract_candidate_path_handoff(candidate: SearchCandidateDetail) -> PathHandoffInfo | None:
@@ -151,11 +150,9 @@ class RealOrganizeAdapter(OrganizeAdapter):
         *,
         settings: Settings,
         client: HostHttpClient,
-        path_handoff_service: HostPathHandoffService | None = None,
     ):
         self.settings = settings
         self.client = client
-        self.path_handoff_service = path_handoff_service
 
     def preview(
         self,
@@ -165,54 +162,12 @@ class RealOrganizeAdapter(OrganizeAdapter):
         binding_id: str | None = None,
         plan: OrganizePlan,
     ) -> OrganizeAdapterResult:
-        return self._preview_with_transfer_fallback(
+        return self._preview_once(
             candidate=candidate,
             metadata_detail=metadata_detail,
             binding_id=binding_id,
             plan=plan,
         )
-
-    def _preview_with_transfer_fallback(
-        self,
-        *,
-        candidate: SearchCandidateDetail,
-        metadata_detail: MetadataDetail | None,
-        binding_id: str | None,
-        plan: OrganizePlan,
-    ) -> OrganizeAdapterResult:
-        try:
-            result = self._preview_once(
-                candidate=candidate,
-                metadata_detail=metadata_detail,
-                binding_id=binding_id,
-                plan=plan,
-            )
-        except HostTransportError as exc:
-            if exc.reason_code != "moviepilot_transfer_source_path_missing":
-                raise
-            fallback_candidate = self._candidate_with_transfer_fallback(candidate)
-            if fallback_candidate is None:
-                raise
-            retry = self._preview_once(
-                candidate=fallback_candidate,
-                metadata_detail=metadata_detail,
-                binding_id=binding_id,
-                plan=plan,
-            )
-            return self._apply_transfer_fallback_metadata(retry, fallback_candidate, "preview")
-
-        if result.organize_status == OrganizeStatus.FAILED and self._should_try_transfer_fallback(result):
-            fallback_candidate = self._candidate_with_transfer_fallback(candidate)
-            if fallback_candidate is None:
-                return result
-            retry = self._preview_once(
-                candidate=fallback_candidate,
-                metadata_detail=metadata_detail,
-                binding_id=binding_id,
-                plan=plan,
-            )
-            return self._apply_transfer_fallback_metadata(retry, fallback_candidate, "preview")
-        return result
 
     def _preview_once(
         self,
@@ -263,59 +218,13 @@ class RealOrganizeAdapter(OrganizeAdapter):
         binding_id: str | None = None,
         plan: OrganizePlan,
     ) -> OrganizeAdapterResult:
-        return self._apply_with_transfer_fallback(
+        return self._apply_once(
             organize_job_id=organize_job_id,
             candidate=candidate,
             metadata_detail=metadata_detail,
             binding_id=binding_id,
             plan=plan,
         )
-
-    def _apply_with_transfer_fallback(
-        self,
-        *,
-        organize_job_id: str,
-        candidate: SearchCandidateDetail,
-        metadata_detail: MetadataDetail | None,
-        binding_id: str | None,
-        plan: OrganizePlan,
-    ) -> OrganizeAdapterResult:
-        try:
-            result = self._apply_once(
-                organize_job_id=organize_job_id,
-                candidate=candidate,
-                metadata_detail=metadata_detail,
-                binding_id=binding_id,
-                plan=plan,
-            )
-        except HostTransportError as exc:
-            if exc.reason_code != "moviepilot_transfer_source_path_missing":
-                raise
-            fallback_candidate = self._candidate_with_transfer_fallback(candidate)
-            if fallback_candidate is None:
-                raise
-            retry = self._apply_once(
-                organize_job_id=organize_job_id,
-                candidate=fallback_candidate,
-                metadata_detail=metadata_detail,
-                binding_id=binding_id,
-                plan=plan,
-            )
-            return self._apply_transfer_fallback_metadata(retry, fallback_candidate, "apply")
-
-        if result.organize_status == OrganizeStatus.FAILED and self._should_try_transfer_fallback(result):
-            fallback_candidate = self._candidate_with_transfer_fallback(candidate)
-            if fallback_candidate is None:
-                return result
-            retry = self._apply_once(
-                organize_job_id=organize_job_id,
-                candidate=fallback_candidate,
-                metadata_detail=metadata_detail,
-                binding_id=binding_id,
-                plan=plan,
-            )
-            return self._apply_transfer_fallback_metadata(retry, fallback_candidate, "apply")
-        return result
 
     def _apply_once(
         self,
@@ -433,64 +342,6 @@ class RealOrganizeAdapter(OrganizeAdapter):
                 integration_point=integration_point,
                 host_integration_enabled=self.settings.host_integration_enabled,
             ),
-        )
-
-    def _apply_transfer_fallback_metadata(
-        self,
-        result: OrganizeAdapterResult,
-        candidate: SearchCandidateDetail,
-        stage: str,
-    ) -> OrganizeAdapterResult:
-        return result.model_copy(
-            update={
-                "fallback_reason": "handoff_rehydrated_from_transfer_history",
-                "path_handoff": candidate.path_handoff,
-                "note": (
-                    f"{result.note} MusicPilot 在 {stage} 阶段检测到 download history 路径不可用，"
-                    "已回退到真实 `/api/v1/history/transfer` 源路径后重试。"
-                ),
-            }
-        )
-
-    def _candidate_with_transfer_fallback(self, candidate: SearchCandidateDetail) -> SearchCandidateDetail | None:
-        if self.path_handoff_service is None:
-            return None
-
-        handoff = self._extract_path_handoff(candidate)
-        download_hash = handoff.download_hash if handoff else None
-        if not download_hash:
-            return None
-        if handoff and handoff.handoff_status == "resolved_from_history_transfer":
-            return None
-
-        transfer_handoff = self.path_handoff_service.resolve_from_transfer(download_hash)
-        if transfer_handoff is None:
-            return None
-
-        raw_payload = dict(candidate.raw_payload or {})
-        raw_payload["path_handoff"] = transfer_handoff.model_dump(mode="json")
-        raw_payload["host_transfer_source_path"] = transfer_handoff.source_path
-        raw_payload["host_transfer_filetype"] = transfer_handoff.source_filetype or "file"
-        raw_payload["host_transfer_source"] = {
-            "storage": "local",
-            "path": transfer_handoff.source_path,
-            "type": transfer_handoff.source_filetype or "file",
-            "name": transfer_handoff.source_name,
-            "basename": transfer_handoff.source_basename,
-            "extension": transfer_handoff.source_extension,
-        }
-        return candidate.model_copy(update={"path_handoff": transfer_handoff, "raw_payload": raw_payload})
-
-    def _should_try_transfer_fallback(self, result: OrganizeAdapterResult) -> bool:
-        if self.path_handoff_service is None:
-            return False
-        failure_reason = (result.failure_reason or "").strip()
-        return any(
-            marker in failure_reason
-            for marker in [
-                "没有找到可整理的媒体文件",
-                "未识别到媒体信息",
-            ]
         )
 
     def _resolve_source(self, candidate: SearchCandidateDetail) -> dict[str, str] | None:

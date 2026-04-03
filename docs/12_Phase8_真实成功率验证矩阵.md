@@ -4,6 +4,8 @@
 > 数据来源：`scripts/run_phase8_real_host_matrix.py --allow-side-effects` 导出的矩阵文件，默认落到 `backend/data/host_validation_matrix.latest.json`。  
 > 约束：不记录真实 token；真实宿主 Base URL 与 token 通过本地环境变量注入。
 
+> 当前说明：这份矩阵现在只保留为验证产物，用于回看哪些真实组合曾成功、哪些曾被阻断。当前运行时不再用它做 recommendation / strategy 决策，当前固定语义见 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
+
 ## 12.1 当前基线摘要
 
 当前最新矩阵包含 9 条真实宿主样例，统计结果如下：

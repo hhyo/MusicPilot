@@ -6,8 +6,6 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from .strategy import HostStrategySummary
-
 
 class AdapterMode(str, Enum):
     MOCK = "mock"
@@ -48,7 +46,6 @@ class HostIntegrationRuntimeState(BaseModel):
     organize_capability: bool | None = None
     downloaders_available: bool | None = None
     sites_visible: bool | None = None
-    fallback_to_mock: bool = True
     search_strategy: AdapterStrategy = AdapterStrategy.MOCK
     dispatch_strategy: AdapterStrategy = AdapterStrategy.MOCK
     organize_strategy: AdapterStrategy = AdapterStrategy.MOCK
@@ -58,11 +55,10 @@ class HostIntegrationRuntimeState(BaseModel):
     search_fallback_reason: str | None = None
     dispatch_fallback_reason: str | None = None
     organize_fallback_reason: str | None = None
-    strategy_summary: HostStrategySummary | None = None
     note: str
     integration_point: str = Field(
         default=(
-            "Host integration wiring is resolved centrally so services can prefer host-backed adapters "
-            "and safely degrade to mock when capability is missing or unverified."
+            "Host integration wiring is resolved centrally so services can choose explicit mock mode "
+            "or explicit host mode without hiding runtime failures behind other business semantics."
         )
     )

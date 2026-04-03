@@ -132,7 +132,7 @@ async def run_subscription(
         message="Subscription executed once.",
         code="SUBSCRIPTION_RUN_EXECUTED",
         mock=True,
-        note="当前执行器会同步创建 SearchJob，并按 strategy 在 host-backed skeleton 与 mock organize preview 之间选择。",
+        note="当前执行器会同步创建 SearchJob，并沿用固定的 search/dispatch/organize 调用语义。",
     )
  
 

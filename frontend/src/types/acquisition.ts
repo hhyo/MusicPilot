@@ -14,28 +14,6 @@ export type DecisionStatus = 'auto_download' | 'manual_confirm' | 'reject' | 'pe
 export type AdapterMode = 'mock' | 'host';
 export type AdapterStrategy = 'mock' | 'prefer_host' | 'strict_host';
 export type VerificationState = 'verified' | 'unverified' | 'placeholder';
-export type MatrixStatus = 'stable' | 'single_sample' | 'flaky' | 'blocked' | 'unknown';
-
-export interface HostStrategyDecision {
-  stage: 'dispatch_endpoint' | 'path_handoff' | 'organize_apply';
-  selected_path: string;
-  matrix_status: MatrixStatus;
-  risk_level: 'low' | 'medium' | 'high' | 'blocked';
-  recommended_action: string;
-  reason: string;
-  note: string;
-  blocked: boolean;
-  source_sample_ids: string[];
-}
-
-export interface HostStrategySummary {
-  preferred_dispatch_endpoint: string;
-  preferred_handoff_source: string;
-  preferred_organize_path: string;
-  caution_paths: string[];
-  blocked_paths: string[];
-  note: string;
-}
 
 export interface AdapterResolution {
   adapter_key: string;
@@ -136,7 +114,6 @@ export interface SearchJobSummary {
   query_build?: QueryBuildResult | null;
   metadata_snapshot?: MetadataDetail | null;
   summary: Record<string, unknown>;
-  strategy_summary?: HostStrategySummary | null;
   error_message?: string | null;
   adapter_resolution?: AdapterResolution | null;
 }
@@ -170,7 +147,6 @@ export interface SearchCandidateDetail {
   note?: string | null;
   created_at: string;
   adapter_resolution?: AdapterResolution | null;
-  strategy_decision?: HostStrategyDecision | null;
   path_handoff?: PathHandoffInfo | null;
   raw_payload?: Record<string, unknown>;
 }
@@ -182,7 +158,6 @@ export interface SearchCandidateListData {
   mock: boolean;
   note: string;
   adapter_resolution?: AdapterResolution | null;
-  strategy_summary?: HostStrategySummary | null;
 }
 
 export interface SearchJobCreatePayload {
@@ -218,7 +193,6 @@ export interface DispatchResult {
   fallback_reason?: string | null;
   failure_reason?: string | null;
   verification_state: VerificationState;
-  strategy_decision?: HostStrategyDecision | null;
   path_handoff?: PathHandoffInfo | null;
   host_response_summary: Record<string, unknown>;
   adapter_resolution?: AdapterResolution | null;

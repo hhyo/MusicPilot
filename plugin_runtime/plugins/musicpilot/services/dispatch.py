@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from ..repositories.acquisition import AcquisitionRepository
 from ..schemas.acquisition import DispatchRequest, DispatchResult
 from .host_integration import DispatchAdapterResolver
-from .host_strategy import HostStrategyService
 from .search_job import serialize_candidate
 
 
@@ -17,11 +16,9 @@ class DispatchService:
         self,
         session: Session,
         resolver: DispatchAdapterResolver,
-        strategy_service: HostStrategyService,
     ):
         self.session = session
         self.resolver = resolver
-        self.strategy_service = strategy_service
         self.repository = AcquisitionRepository(session)
 
     def dispatch(self, payload: DispatchRequest) -> DispatchResult:
@@ -36,11 +33,6 @@ class DispatchService:
             manual_confirm=payload.manual_confirm,
         )
         adapter_result = dispatch_execution.result
-        strategy_decision = (
-            adapter_result.strategy_decision
-            or candidate.strategy_decision
-            or self.strategy_service.recommend_dispatch(candidate)
-        )
 
         binding_id = None
         if adapter_result.dispatchable:
@@ -51,7 +43,6 @@ class DispatchService:
                     if adapter_result.path_handoff is not None
                     else None
                 ),
-                strategy_decision=strategy_decision.model_dump(mode="json"),
                 host_response_summary=adapter_result.host_response_summary,
             )
             binding = self.repository.create_binding(
@@ -66,7 +57,6 @@ class DispatchService:
                 "active_dispatch_adapter": adapter_result.adapter_resolution.adapter_key
                 if adapter_result.adapter_resolution
                 else None,
-                "active_dispatch_strategy": strategy_decision.model_dump(mode="json"),
             }
             binding_id = binding.id
         else:
@@ -77,7 +67,6 @@ class DispatchService:
                     if adapter_result.path_handoff is not None
                     else None
                 ),
-                strategy_decision=strategy_decision.model_dump(mode="json"),
                 host_response_summary=adapter_result.host_response_summary,
             )
 
@@ -99,7 +88,6 @@ class DispatchService:
             fallback_reason=adapter_result.fallback_reason,
             failure_reason=adapter_result.failure_reason,
             verification_state=adapter_result.verification_state,
-            strategy_decision=strategy_decision,
             path_handoff=adapter_result.path_handoff,
             host_response_summary=adapter_result.host_response_summary,
             adapter_resolution=adapter_result.adapter_resolution,
@@ -110,15 +98,12 @@ class DispatchService:
         *,
         raw_payload: dict,
         path_handoff: dict | None,
-        strategy_decision: dict | None,
         host_response_summary: dict,
     ) -> dict:
         merged = {
             **raw_payload,
             "host_response_summary": host_response_summary,
         }
-        if strategy_decision is not None:
-            merged["strategy_decision"] = strategy_decision
         if path_handoff is None:
             return merged
 

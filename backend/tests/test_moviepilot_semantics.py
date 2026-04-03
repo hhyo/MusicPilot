@@ -18,7 +18,6 @@ from app.schemas.orchestration import (
     OrganizeStrategySnapshot,
 )
 from app.services.host_path_handoff import HostPathHandoffService
-from app.services.host_strategy import HostStrategyService
 from app.services.query_builder import QueryBuilderService
 
 from test_query_builder import build_album_detail
@@ -223,7 +222,6 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
             settings=build_settings(),
             client=client,  # type: ignore[arg-type]
             path_handoff_service=HostPathHandoffService(settings=build_settings(), client=client),  # type: ignore[arg-type]
-            strategy_service=HostStrategyService(),
         )
 
         result = adapter.dispatch(candidate=candidate, downloader_id="mock-downloader", manual_confirm=True)
@@ -265,7 +263,6 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
             settings=settings,
             client=client,  # type: ignore[arg-type]
             path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
-            strategy_service=HostStrategyService(),
         )
 
         adapter.dispatch(candidate=candidate, downloader_id="QB", manual_confirm=True)
@@ -310,7 +307,7 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
                 },
             },
             post_responses={
-                "/api/v1/download/add": {
+                "/api/v1/download/": {
                     "success": True,
                     "message": None,
                     "data": {"download_id": "stub-download-001"},
@@ -322,7 +319,6 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
             settings=settings,
             client=client,  # type: ignore[arg-type]
             path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
-            strategy_service=HostStrategyService(),
         )
 
         result = adapter.dispatch(candidate=candidate, downloader_id="QB", manual_confirm=True)
@@ -337,31 +333,11 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
             "resolved_from_history_download",
         )
         self.assertEqual(result.host_response_summary["download_id"], "stub-download-001")
-        self.assertEqual(result.host_response_summary["endpoint_type"], "download_add")
+        self.assertEqual(result.host_response_summary["endpoint_type"], "download_media")
 
-    def test_dispatch_success_resolves_history_transfer_path_when_download_history_misses(self) -> None:
-        candidate = build_candidate(
-            raw_payload={
-                "host_context": {
-                    "torrent_info": {
-                        "site": 1,
-                        "site_name": "Stub Site",
-                        "title": "Argentina 1985 2022 AMZN WEB-DL 1080p AVC DDP5.1-ZmWeb",
-                        "description": "validation",
-                        "enclosure": "magnet:?xt=urn:btih:1",
-                    },
-                    "media_info": {
-                        "type": "电影",
-                        "title": "阿根廷1985",
-                        "year": "2022",
-                        "tmdb_id": 714888,
-                    },
-                }
-            }
-        )
+    def test_download_handoff_and_transfer_history_have_distinct_semantics(self) -> None:
         client = FakeHostClient(
             get_responses={
-                "/api/v1/download/clients": {"items": [{"name": "QB", "type": "qbittorrent"}]},
                 "/api/v1/history/download": {"items": []},
                 "/api/v1/history/transfer": {
                     "success": True,
@@ -379,31 +355,16 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
                         "total": 1,
                     },
                 },
-            },
-            post_responses={
-                "/api/v1/download/add": {
-                    "success": True,
-                    "message": None,
-                    "data": {"download_id": "stub-download-002"},
-                }
-            },
+            }
         )
-        settings = build_settings()
-        adapter = RealDownloadDispatchAdapter(
-            settings=settings,
-            client=client,  # type: ignore[arg-type]
-            path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
-            strategy_service=HostStrategyService(),
-        )
+        handoff_service = HostPathHandoffService(settings=build_settings(), client=client)  # type: ignore[arg-type]
 
-        result = adapter.dispatch(candidate=candidate, downloader_id="QB", manual_confirm=True)
-
-        self.assertTrue(result.dispatchable)
-        self.assertIsNotNone(result.path_handoff)
-        self.assertEqual(result.path_handoff.handoff_status, "resolved_from_history_transfer")
-        self.assertEqual(result.path_handoff.source_filetype, "file")
-        self.assertEqual(result.path_handoff.source_path, "/downloads/movie/Argentina.1985.2022.WEB-DL.1080p.mkv")
-        self.assertEqual(result.host_response_summary["endpoint_type"], "download_add")
+        self.assertIsNone(handoff_service.resolve_from_download_with_retry("stub-download-002"))
+        replay = handoff_service.resolve_from_transfer("stub-download-002")
+        self.assertIsNotNone(replay)
+        self.assertEqual(replay.handoff_status, "resolved_from_history_transfer")
+        self.assertEqual(replay.source_filetype, "file")
+        self.assertEqual(replay.source_path, "/downloads/movie/Argentina.1985.2022.WEB-DL.1080p.mkv")
 
 
 class RealOrganizeAdapterTest(unittest.TestCase):

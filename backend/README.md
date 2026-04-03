@@ -9,11 +9,11 @@ FastAPI 工程目录。当前已完成：
 - QueryBuilder、SearchJob、候选评分与 mock dispatch 边界
 - SubscriptionService、subscription run 与 mock chart discovery
 - host-aware organize preview/apply 与 organize 状态记录
-- host-aware search / dispatch / organize adapter resolver 与 fallback 机制
+- host-aware search / dispatch / organize adapter resolver 与必要的 mock/real 环境切换
 - 真实 MoviePilot search / download / transfer 语义收敛与差异记录
 - 真实 download success -> history path handoff -> transfer/name -> transfer/manual 成功样例
 - Phase 8 多样例真实验证矩阵与 path handoff 稳定性收敛
-- Phase 9 基于真实矩阵的默认策略收敛与 blocked 显式阻断
+- 验证矩阵作为验证产物保留，运行时改回固定接口语义与固定调用规则
 
 当前仍不包含：
 
@@ -37,7 +37,7 @@ python -m app.db_init --reseed
 - `charts/*` 为 local seed / mock chart source
 - `organize/preview` 和 `organize/apply` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择
 - `jobs/*` 与 `downloads/dispatch` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择
-- Phase 9 下，`jobs/*`、`downloads/dispatch` 与 `organize/*` 还会结合矩阵结果给出 `strategy_summary` / `strategy_decision`
+- 当前真实运行时不再做 recommendation / strategy / matrix 驱动的路径决策；矩阵只保留为验证产物
 
 启用 host integration 的最小配置示例：
 
@@ -76,13 +76,13 @@ export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backe
 python3 ../scripts/host_integration_stub.py
 ```
 
-然后通过 `/health`、`/api/probe/health`、`/api/probe/validation-matrix`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend、verification state、fallback、`path_handoff`、`strategy_summary`、`strategy_decision` 与多样例稳定性矩阵。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)、[docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)、[docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)、[docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)、[docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md) 和 [docs/13_Phase9_策略收敛与交付说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/13_Phase9_策略收敛与交付说明.md)。
+然后通过 `/health`、`/api/probe/health`、`/api/probe/validation-matrix`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend、verification state、fallback、`path_handoff` 与多样例验证产物。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)、[docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)、[docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)、[docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)、[docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)、[docs/13_Phase9_策略收敛与交付说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/13_Phase9_策略收敛与交付说明.md) 和 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
 
-Phase 9 推荐这样理解当前路径：
+当前建议这样理解当前路径：
 
-- 推荐路径：`history/transfer -> organize replay/apply`
-- 保留路径：`search/title -> download_add -> history/download -> transfer/manual -> organize`
-- blocked 路径：`download_media + resolved_from_history_download -> organize apply`
+- 历史重放/补充来源：`history/transfer -> organize replay/apply`
+- 单样例真实链路：`search/title -> download_add -> history/download -> transfer/manual -> organize`
+- 已知不应自动继续尝试的失败场景：`download_media + resolved_from_history_download -> organize apply`
 
 手动回归真实宿主样例矩阵：
 

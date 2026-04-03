@@ -12,7 +12,6 @@ from .acquisition import PathHandoffInfo, SearchCandidateDetail, SearchJobSummar
 from .integration import AdapterMode, AdapterResolution, VerificationState
 from .metadata import MetadataDetail
 from .mvp import EntityType
-from .strategy import HostStrategyDecision
 
 
 class SubscriptionType(str, Enum):
@@ -201,7 +200,6 @@ class OrganizePreviewResult(BaseModel):
     capability_source: str = "mock.adapter"
     fallback_reason: str | None = None
     failure_reason: str | None = None
-    strategy_decision: HostStrategyDecision | None = None
     path_handoff: PathHandoffInfo | None = None
     verification_state: VerificationState = VerificationState.PLACEHOLDER
     adapter_resolution: AdapterResolution | None = None
@@ -292,7 +290,6 @@ class OrganizeAdapterResult(BaseModel):
     capability_source: str = "mock.adapter"
     fallback_reason: str | None = None
     failure_reason: str | None = None
-    strategy_decision: HostStrategyDecision | None = None
     path_handoff: PathHandoffInfo | None = None
     verification_state: VerificationState = VerificationState.PLACEHOLDER
     adapter_resolution: AdapterResolution | None = None

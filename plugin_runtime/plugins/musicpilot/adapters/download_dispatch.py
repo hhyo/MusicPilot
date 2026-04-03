@@ -10,7 +10,6 @@ from ..core.config import Settings
 from ..schemas.acquisition import DispatchAdapterResult, SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, VerificationState
 from ..services.host_path_handoff import HostPathHandoffService
-from ..services.host_strategy import HostStrategyService
 
 
 class DownloadDispatchAdapter(ABC):
@@ -108,12 +107,10 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
         settings: Settings,
         client: HostHttpClient,
         path_handoff_service: HostPathHandoffService,
-        strategy_service: HostStrategyService,
     ):
         self.settings = settings
         self.client = client
         self.path_handoff_service = path_handoff_service
-        self.strategy_service = strategy_service
 
     def dispatch(
         self,
@@ -127,9 +124,19 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
         media_in = self._extract_media_payload(context_payload)
         media_reference = self._extract_media_reference(candidate, context_payload)
         target_downloader, downloader_fallback = self._resolve_target_downloader(downloader_id)
-        strategy_decision = self.strategy_service.recommend_dispatch(candidate)
 
-        if strategy_decision.selected_path == "download_add" or not media_in:
+        if media_in:
+            path = self.settings.host_download_media_path or "/api/v1/download/"
+            payload = {
+                "media_in": media_in,
+                "torrent_in": torrent_in,
+                "downloader": target_downloader,
+            }
+            endpoint_type = "download_media"
+            capability_source = "moviepilot.runtime.download.media"
+            integration_point = "RealDownloadDispatchAdapter.dispatch.moviepilot_download_media"
+            dispatch_semantics = "resolved_media_dispatch"
+        else:
             path = self.settings.host_download_add_path or self.settings.host_dispatch_path
             payload = {
                 "torrent_in": torrent_in,
@@ -142,16 +149,7 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
             endpoint_type = "download_add"
             capability_source = "moviepilot.runtime.download.add"
             integration_point = "RealDownloadDispatchAdapter.dispatch.moviepilot_download_add"
-        else:
-            path = self.settings.host_download_media_path or "/api/v1/download/"
-            payload = {
-                "media_in": media_in,
-                "torrent_in": torrent_in,
-                "downloader": target_downloader,
-            }
-            endpoint_type = "download_media"
-            capability_source = "moviepilot.runtime.download.media"
-            integration_point = "RealDownloadDispatchAdapter.dispatch.moviepilot_download_media"
+            dispatch_semantics = "torrent_only_dispatch"
 
         data = self.client.post_json(path, payload, auth_mode="x_api_key")
         success = bool(data.get("success"))
@@ -161,7 +159,7 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
         download_id = self._optional_text(response_data.get("download_id") if isinstance(response_data, dict) else None)
         path_handoff = None
         if success:
-            path_handoff = self.path_handoff_service.resolve_with_retry(download_id)
+            path_handoff = self.path_handoff_service.resolve_from_download_with_retry(download_id)
             if path_handoff is None:
                 path_handoff = self.path_handoff_service.build_pending(
                     download_hash=download_id,
@@ -185,11 +183,11 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
             fallback_reason=downloader_fallback,
             failure_reason=message if not success else None,
             verification_state=VerificationState.VERIFIED,
-            strategy_decision=strategy_decision.model_copy(update={"selected_path": endpoint_type}),
             path_handoff=path_handoff,
             host_response_summary={
                 "path": path,
                 "endpoint_type": endpoint_type,
+                "dispatch_semantics": dispatch_semantics,
                 "success": success,
                 "message": message,
                 "download_id": download_id,

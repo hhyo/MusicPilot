@@ -1,7 +1,6 @@
 import type {
   AdapterMode,
   AdapterResolution,
-  HostStrategyDecision,
   PathHandoffInfo,
   SearchCandidateDetail,
   SearchJobSummary,
@@ -158,7 +157,6 @@ export interface OrganizePreviewResult {
   capability_source: string;
   fallback_reason?: string | null;
   failure_reason?: string | null;
-  strategy_decision?: HostStrategyDecision | null;
   path_handoff?: PathHandoffInfo | null;
   verification_state: VerificationState;
   adapter_resolution?: AdapterResolution | null;

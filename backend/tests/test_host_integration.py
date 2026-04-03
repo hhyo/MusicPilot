@@ -1,4 +1,4 @@
-"""Unit tests for Phase 5 host-aware adapter resolution and fallback behavior."""
+"""Unit tests for host-aware adapter resolution with explicit failure semantics."""
 
 from __future__ import annotations
 
@@ -233,7 +233,7 @@ class HostIntegrationServiceTest(unittest.TestCase):
         self.assertEqual(runtime.search_fallback_reason, "strict_host_required:host_capability_unavailable")
         self.assertEqual(runtime.dispatch_fallback_reason, "strict_host_required:host_capability_unavailable")
 
-    def test_prefer_host_search_falls_back_to_mock_on_runtime_error(self) -> None:
+    def test_prefer_host_search_raises_on_runtime_error(self) -> None:
         detail = build_album_detail()
         query_build = QueryBuilderService.build_from_detail(detail)
         service = HostIntegrationService(
@@ -246,14 +246,13 @@ class HostIntegrationServiceTest(unittest.TestCase):
             host_adapter=DummyBrokenHostSearchAdapter(),
         )
 
-        result = resolver.search(query_build=query_build, detail=detail)
+        with self.assertRaises(HTTPException) as ctx:
+            resolver.search(query_build=query_build, detail=detail)
 
-        self.assertEqual(result.resolution.adapter_mode, AdapterMode.MOCK)
-        self.assertEqual(result.resolution.adapter_key, "mock_host_search")
-        self.assertEqual(result.candidates[0].adapter_resolution.adapter_mode, AdapterMode.MOCK)
-        self.assertIn("host_search_runtime_error:RuntimeError", result.resolution.fallback_reason or "")
+        self.assertEqual(ctx.exception.status_code, 503)
+        self.assertIn("host_search_runtime_error:RuntimeError", str(ctx.exception.detail))
 
-    def test_prefer_host_dispatch_falls_back_to_mock_on_runtime_error(self) -> None:
+    def test_prefer_host_dispatch_raises_on_runtime_error(self) -> None:
         service = HostIntegrationService(
             settings=build_settings(),
             probe_adapter=DummyProbeAdapter(),
@@ -264,15 +263,34 @@ class HostIntegrationServiceTest(unittest.TestCase):
             host_adapter=DummyBrokenHostDispatchAdapter(),
         )
 
-        result = resolver.dispatch(
-            candidate=build_candidate(),
-            downloader_id="mock-downloader",
-            manual_confirm=True,
+        with self.assertRaises(HTTPException) as ctx:
+            resolver.dispatch(
+                candidate=build_candidate(),
+                downloader_id="mock-downloader",
+                manual_confirm=True,
+            )
+
+        self.assertEqual(ctx.exception.status_code, 503)
+        self.assertIn("host_dispatch_runtime_error:RuntimeError", str(ctx.exception.detail))
+
+    def test_prefer_host_search_raises_when_capability_is_unavailable(self) -> None:
+        detail = build_album_detail()
+        query_build = QueryBuilderService.build_from_detail(detail)
+        service = HostIntegrationService(
+            settings=build_settings(),
+            probe_adapter=DummyProbeAdapter(search_capability=False),
+        )
+        resolver = HostSearchAdapterResolver(
+            integration_service=service,
+            mock_adapter=DummyMockSearchAdapter(),
+            host_adapter=DummyBrokenHostSearchAdapter(),
         )
 
-        self.assertEqual(result.resolution.adapter_mode, AdapterMode.MOCK)
-        self.assertEqual(result.result.dispatch_backend, AdapterMode.MOCK)
-        self.assertIn("host_dispatch_runtime_error:RuntimeError", result.result.fallback_reason or "")
+        with self.assertRaises(HTTPException) as ctx:
+            resolver.search(query_build=query_build, detail=detail)
+
+        self.assertEqual(ctx.exception.status_code, 503)
+        self.assertIn("host_capability_unavailable", str(ctx.exception.detail))
 
     def test_strict_host_search_raises_when_capability_is_unavailable(self) -> None:
         detail = build_album_detail()

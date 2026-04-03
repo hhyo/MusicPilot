@@ -1,4 +1,4 @@
-"""Central host integration wiring and adapter resolution for Phase 6."""
+"""Central host integration wiring with fixed host/mock semantics."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from ..adapters.host_http import HostTransportError
 from ..schemas.acquisition import DispatchAdapterResult, HostSearchCandidate, QueryBuildResult, SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, HostIntegrationRuntimeState, VerificationState
 from ..schemas.metadata import MetadataDetail
-from ..schemas.orchestration import OrganizeAdapterResult, OrganizePlan, OrganizeStatus
+from ..schemas.orchestration import OrganizeAdapterResult, OrganizePlan
 
 
 @dataclass(slots=True)
@@ -76,7 +76,6 @@ class HostIntegrationService:
                 organize_capability=False,
                 downloaders_available=False,
                 sites_visible=False,
-                fallback_to_mock=self.settings.host_fallback_to_mock,
                 search_strategy=AdapterStrategy(self.settings.host_search_strategy),
                 dispatch_strategy=AdapterStrategy(self.settings.host_dispatch_strategy),
                 organize_strategy=AdapterStrategy(self.settings.host_organize_strategy),
@@ -158,7 +157,6 @@ class HostIntegrationService:
             organize_capability=organize_capability,
             downloaders_available=downloaders_available,
             sites_visible=sites_visible,
-            fallback_to_mock=self.settings.host_fallback_to_mock,
             search_strategy=AdapterStrategy(self.settings.host_search_strategy),
             dispatch_strategy=AdapterStrategy(self.settings.host_dispatch_strategy),
             organize_strategy=AdapterStrategy(self.settings.host_organize_strategy),
@@ -170,7 +168,7 @@ class HostIntegrationService:
             organize_fallback_reason=organize_resolution.fallback_reason,
             note=(
                 "Adapter wiring is resolved from host capability probe + settings. "
-                "Host-backed adapters are only selected when capability and strategy allow it."
+                "Mock mode is only used when explicitly configured or when host integration is disabled."
             ),
         )
 
@@ -271,37 +269,29 @@ class HostIntegrationService:
             )
 
         fallback_reason = "host_capability_unavailable" if capability_available is False else "host_capability_unknown"
-        if strategy == AdapterStrategy.STRICT_HOST or not self.settings.host_fallback_to_mock:
-            if preview_only:
-                blocking_reason = (
-                    f"strict_host_required:{fallback_reason}"
-                    if strategy == AdapterStrategy.STRICT_HOST
-                    else f"host_required_without_mock_fallback:{fallback_reason}"
-                )
-                return AdapterResolution(
-                    adapter_key=adapter_key_host,
-                    adapter_mode=AdapterMode.HOST,
-                    strategy=strategy,
-                    capability_source=capability_source,
-                    verification_state=verification_state,
-                    fallback_reason=blocking_reason,
-                    integration_point=integration_point,
-                    host_integration_enabled=self.settings.host_integration_enabled,
-                )
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    f"{integration_point} requires host-backed capability, but current state is unavailable: "
-                    f"{fallback_reason}."
-                ),
+        if preview_only:
+            blocking_reason = (
+                f"strict_host_required:{fallback_reason}"
+                if strategy == AdapterStrategy.STRICT_HOST
+                else fallback_reason
+            )
+            return AdapterResolution(
+                adapter_key=adapter_key_host,
+                adapter_mode=AdapterMode.HOST,
+                strategy=strategy,
+                capability_source=capability_source,
+                verification_state=verification_state,
+                fallback_reason=blocking_reason,
+                integration_point=integration_point,
+                host_integration_enabled=self.settings.host_integration_enabled,
             )
 
-        return self._mock_resolution(
-            adapter_key_mock=adapter_key_mock,
-            strategy=strategy,
-            capability_source=capability_source,
-            integration_point=integration_point,
-            fallback_reason=fallback_reason,
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                f"{integration_point} requires host-backed capability, but current state is unavailable: "
+                f"{fallback_reason}."
+            ),
         )
 
     def _mock_resolution(
@@ -377,25 +367,12 @@ class HostSearchAdapterResolver:
         try:
             candidates = adapter.search(query_build=query_build, detail=detail)
         except Exception as exc:
-            if resolution.adapter_mode == AdapterMode.HOST and resolution.strategy == AdapterStrategy.PREFER_HOST and self.integration_service.settings.host_fallback_to_mock:
-                fallback_resolution = AdapterResolution(
-                    adapter_key="mock_host_search",
-                    adapter_mode=AdapterMode.MOCK,
-                    strategy=resolution.strategy,
-                    capability_source=runtime_state.capability_source,
-                    verification_state=VerificationState.PLACEHOLDER,
-                    fallback_reason=_build_runtime_error_reason("host_search_runtime_error", exc),
-                    integration_point="HostSearchAdapterResolver",
-                    host_integration_enabled=self.integration_service.settings.host_integration_enabled,
-                )
-                candidates = self.mock_adapter.search(query_build=query_build, detail=detail)
-                return SearchExecutionResult(
-                    candidates=[self._apply_resolution(candidate, fallback_resolution) for candidate in candidates],
-                    resolution=fallback_resolution,
-                )
             raise HTTPException(
                 status_code=503,
-                detail=f"Host-backed search adapter failed and no safe fallback was allowed: {exc}",
+                detail=(
+                    "Host-backed search adapter failed: "
+                    f"{_build_runtime_error_reason('host_search_runtime_error', exc)}"
+                ),
             ) from exc
 
         return SearchExecutionResult(
@@ -458,32 +435,12 @@ class DispatchAdapterResolver:
                 manual_confirm=manual_confirm,
             )
         except Exception as exc:
-            if resolution.adapter_mode == AdapterMode.HOST and resolution.strategy == AdapterStrategy.PREFER_HOST and self.integration_service.settings.host_fallback_to_mock:
-                fallback_resolution = AdapterResolution(
-                    adapter_key="mock_download_dispatch",
-                    adapter_mode=AdapterMode.MOCK,
-                    strategy=resolution.strategy,
-                    capability_source=runtime_state.capability_source,
-                    verification_state=VerificationState.PLACEHOLDER,
-                    fallback_reason=_build_runtime_error_reason("host_dispatch_runtime_error", exc),
-                    integration_point="DispatchAdapterResolver",
-                    host_integration_enabled=self.integration_service.settings.host_integration_enabled,
-                )
-                fallback_result = self.mock_adapter.dispatch(
-                    candidate=candidate,
-                    downloader_id=downloader_id,
-                    manual_confirm=manual_confirm,
-                )
-                fallback_result.adapter_resolution = fallback_resolution
-                fallback_result.dispatch_backend = AdapterMode.MOCK
-                fallback_result.capability_source = runtime_state.capability_source
-                fallback_result.fallback_reason = fallback_resolution.fallback_reason
-                fallback_result.verification_state = VerificationState.PLACEHOLDER
-                fallback_result.note = f"{fallback_result.note} Fallback reason: {fallback_resolution.fallback_reason}."
-                return DispatchExecutionResult(result=fallback_result, resolution=fallback_resolution)
             raise HTTPException(
                 status_code=503,
-                detail=f"Host-backed dispatch adapter failed and no safe fallback was allowed: {exc}",
+                detail=(
+                    "Host-backed dispatch adapter failed: "
+                    f"{_build_runtime_error_reason('host_dispatch_runtime_error', exc)}"
+                ),
             ) from exc
 
         result.adapter_resolution = _merge_resolution(result.adapter_resolution, resolution)
@@ -529,15 +486,13 @@ class OrganizeAdapterResolver:
                 plan=plan,
             )
         except Exception as exc:
-            return self._fallback_preview(
-                resolution=resolution,
-                runtime_state=runtime_state,
-                candidate=candidate,
-                metadata_detail=metadata_detail,
-                binding_id=binding_id,
-                plan=plan,
-                exc=exc,
-            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Host-backed organize preview failed: "
+                    f"{_build_runtime_error_reason('host_organize_preview_runtime_error', exc)}"
+                ),
+            ) from exc
 
         return self._finalize_result(result=result, resolution=resolution, runtime_state=runtime_state)
 
@@ -566,91 +521,15 @@ class OrganizeAdapterResolver:
                 plan=plan,
             )
         except Exception as exc:
-            return self._fallback_apply(
-                resolution=resolution,
-                runtime_state=runtime_state,
-                organize_job_id=organize_job_id,
-                candidate=candidate,
-                metadata_detail=metadata_detail,
-                binding_id=binding_id,
-                plan=plan,
-                exc=exc,
-            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Host-backed organize apply failed: "
+                    f"{_build_runtime_error_reason('host_organize_apply_runtime_error', exc)}"
+                ),
+            ) from exc
 
         return self._finalize_result(result=result, resolution=resolution, runtime_state=runtime_state)
-
-    def _fallback_preview(
-        self,
-        *,
-        resolution: AdapterResolution,
-        runtime_state: HostIntegrationRuntimeState,
-        candidate: SearchCandidateDetail,
-        metadata_detail: MetadataDetail | None,
-        binding_id: str | None,
-        plan: OrganizePlan,
-        exc: Exception,
-    ) -> OrganizeExecutionResult:
-        if resolution.adapter_mode == AdapterMode.HOST and resolution.strategy == AdapterStrategy.PREFER_HOST and self.integration_service.settings.host_fallback_to_mock:
-            fallback_resolution = AdapterResolution(
-                adapter_key="mock_organize",
-                adapter_mode=AdapterMode.MOCK,
-                strategy=resolution.strategy,
-                capability_source=runtime_state.capability_source,
-                verification_state=VerificationState.PLACEHOLDER,
-                    fallback_reason=_build_runtime_error_reason("host_organize_preview_runtime_error", exc),
-                integration_point="OrganizeAdapterResolver.preview",
-                host_integration_enabled=self.integration_service.settings.host_integration_enabled,
-            )
-            result = self.mock_adapter.preview(
-                candidate=candidate,
-                metadata_detail=metadata_detail,
-                binding_id=binding_id,
-                plan=plan,
-            )
-            return self._finalize_result(result=result, resolution=fallback_resolution, runtime_state=runtime_state)
-
-        raise HTTPException(
-            status_code=503,
-            detail=f"Host-backed organize preview failed and no safe fallback was allowed: {exc}",
-        ) from exc
-
-    def _fallback_apply(
-        self,
-        *,
-        resolution: AdapterResolution,
-        runtime_state: HostIntegrationRuntimeState,
-        organize_job_id: str,
-        candidate: SearchCandidateDetail,
-        metadata_detail: MetadataDetail | None,
-        binding_id: str | None,
-        plan: OrganizePlan,
-        exc: Exception,
-    ) -> OrganizeExecutionResult:
-        if resolution.adapter_mode == AdapterMode.HOST and resolution.strategy == AdapterStrategy.PREFER_HOST and self.integration_service.settings.host_fallback_to_mock:
-            fallback_resolution = AdapterResolution(
-                adapter_key="mock_organize",
-                adapter_mode=AdapterMode.MOCK,
-                strategy=resolution.strategy,
-                capability_source=runtime_state.capability_source,
-                verification_state=VerificationState.PLACEHOLDER,
-                    fallback_reason=_build_runtime_error_reason("host_organize_apply_runtime_error", exc),
-                integration_point="OrganizeAdapterResolver.apply",
-                host_integration_enabled=self.integration_service.settings.host_integration_enabled,
-            )
-            result = self.mock_adapter.apply(
-                organize_job_id=organize_job_id,
-                candidate=candidate,
-                metadata_detail=metadata_detail,
-                binding_id=binding_id,
-                plan=plan,
-            )
-            result.organize_status = OrganizeStatus.FALLBACK_APPLIED
-            return self._finalize_result(result=result, resolution=fallback_resolution, runtime_state=runtime_state)
-
-        raise HTTPException(
-            status_code=503,
-            detail=f"Host-backed organize apply failed and no safe fallback was allowed: {exc}",
-        ) from exc
 
     def _finalize_result(
         self,

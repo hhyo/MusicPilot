@@ -1,10 +1,10 @@
 # MusicPilot
 
-MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已完成 Phase 0、Phase 1、Phase 2、Phase 3、Phase 4、Phase 5、Phase 6、Phase 7A、Phase 7B、Phase 8 与 Phase 9，重点先交付可启动、可构建、可装配、可联调的工程骨架，以及从 metadata 到 QueryBuilder、SearchJob、候选评分、mock dispatch，再到 subscriptions、mock chart discovery、subscription run、host-aware organize preview/apply，并最终收口到“真实 MoviePilot 宿主成功率矩阵驱动的默认策略、默认稳态路径、blocked 显式阻断与交付说明都已具备”的层级，而不是提前实现生产级自动化。
+MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已完成 Phase 0 到 Phase 9 的 MVP 收口，并在本轮进一步把实现收缩为“接口语义明确、场景调用明确、数据来源明确”的形态。仓库继续保留已经验证过的真实宿主链路，但不再扩展通用策略、推荐或矩阵决策层。
 
 ## 项目简介
 
-- `frontend/`：基于 Vue 3 + TypeScript + Vite 的独立前端壳，当前提供首页工作台、metadata 搜索页、榜单页、订阅页，以及从 metadata / chart item 创建订阅、执行一次 run、查看 organize backend / status / fallback 的最小前端闭环。
+- `frontend/`：基于 Vue 3 + TypeScript + Vite 的独立前端壳，当前提供首页工作台、metadata 搜索页、榜单页、订阅页，以及从 metadata / chart item 创建订阅、执行一次 run、查看 organize backend / status / handoff 的最小前端闭环。
 - `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、host-aware search/dispatch resolver、SubscriptionService、mock chart discovery 与 host-aware organize preview/apply boundary。
 - `plugin_runtime/`：面向未来 MoviePilot 宿主集成的运行时占位产物目录，当前只保留 manifest、静态资源、后端挂载说明和打包边界。
 - `scripts/`：前端开发、后端开发、前端构建、插件装配、版本同步脚本。
@@ -93,9 +93,9 @@ python -m app.db_init --reseed
 
 - Subscription 执行模式：当前仅支持手动触发一次同步 run，不启用生产级 cron、消息队列或分布式 scheduler。
 - Chart discovery：当前为 local seed / mock chart source，只验证发现入口与从 chart item 创建订阅的动作。
-- Host search：当前已升级为 `mock + host-backed selectable`。真实 MoviePilot `/api/v1/search/title`、`/api/v1/search/last`、`/api/v1/search/media` 都已完成语义验证。
-- Dispatch：当前已升级为 `mock + host-backed selectable`。Phase 9 会根据真实矩阵优先使用更稳的 dispatch 路径，并把 `single_sample / blocked` 组合直接暴露给调用方。
-- Organize：当前已升级为 `mock + host-backed selectable` 的 preview/apply 双阶段边界。Phase 9 已把 `history/transfer` 收敛成更稳的 replay / fallback 来源，并对已知 blocked 组合加上显式策略阻断。
+- Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
+- Dispatch：当前保留 `mock + host-backed selectable`。当存在可靠 `media_in` 时走 `/api/v1/download/`；只有 `torrent_in` 时走 `/api/v1/download/add`。这两个接口是不同语义，不再由运行时策略层互相切换。
+- Organize：当前保留 `mock + host-backed selectable` 的 preview/apply 双阶段边界。`preview` 固定映射 `/api/v1/transfer/name`，`apply` 固定映射 `/api/v1/transfer/manual`。`history/download` 是新派发后的主 handoff 来源，`history/transfer` 只用于历史重放/补充来源，不再作为自动业务回退引擎。
 
 ## 如何启用 host integration
 
@@ -127,30 +127,32 @@ export MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
 export MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
-export MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
 export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backend/data/host_validation_matrix.latest.json
 ```
 
-可选策略：
+可选模式：
 
 - `mock`：始终使用 mock adapter
-- `prefer_host`：优先 host-backed，失败时按配置回退 mock
+- `prefer_host`：优先使用 host-backed adapter；若 capability 不满足或运行时报错，直接暴露失败
 - `strict_host`：必须使用 host-backed；能力不足时直接报错
 
-## Phase 9 推荐策略
+> `MUSICPILOT_HOST_FALLBACK_TO_MOCK` 仅为历史兼容配置保留，当前不再驱动真实运行时语义切换。
 
-- 推荐路径：
-  - `history/transfer -> organize replay/apply`
-- 保留但不默认：
-  - `search/title -> download_add -> history/download -> transfer/manual -> organize`
-- 明确 blocked：
-  - `download_media + resolved_from_history_download -> organize apply`
+## 当前固定调用规则
 
-也就是说，当前推荐的交付模式不是“所有 host-backed 路径都自动试一遍”，而是：
+- metadata 搜索默认走 `/api/v1/search/title`；只有拿到可靠宿主媒体 ID 时才走 `/api/v1/search/media/{mediaid}`。
+- candidate 派发时，有 `media_in` 就调用 `/api/v1/download/`；只有 `torrent_in` 时调用 `/api/v1/download/add`。
+- dispatch 成功后的 `source_path` 主来源是 `/api/v1/history/download`。
+- 历史重放或补充查询时，`source_path` 补充来源才是 `/api/v1/history/transfer`。
+- organize preview 只走 `/api/v1/transfer/name`。
+- organize apply 只走 `/api/v1/transfer/manual`。
 
-- 用 `prefer_host` 保留真实宿主优先
-- 用验证矩阵解释当前路径的稳定性
-- 对已知 blocked 组合直接阻断或提示
+这意味着当前系统不再做“推荐路径计算”：
+
+- 一个场景对应一个确定调用语义
+- 一个关键字段对应一个权威来源
+- 失败就是失败，不再偷偷切到其他业务接口
+- 验证矩阵只保留为验证产物，不再作为运行时决策器
 
 本仓库还提供本地验证 stub：
 
@@ -158,7 +160,7 @@ export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backe
 python3 scripts/host_integration_stub.py
 ```
 
-它只用于验证 resolver、payload 和 fallback，不代表真实 MoviePilot 宿主已经联通。
+它只用于验证 mock / host 适配器边界与 payload 语义，不代表真实 MoviePilot 宿主已经联通。
 
 更细的真实宿主联调结论见：
 
@@ -167,6 +169,7 @@ python3 scripts/host_integration_stub.py
 - [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)
 - [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)
 - [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)
+- [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)
 
 ## 如何复跑 Phase 8 成功样例矩阵
 
@@ -195,14 +198,12 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 
 - `/health`：查看 `data.host_integration.active_search_adapter`、`active_dispatch_adapter` 和 `active_organize_adapter`
 - `/health`：查看 `data.validation_matrix`
-- `/health`：查看 `data.host_integration.strategy_summary`
 - `/api/probe/health`：查看 `data.runtime_state`
 - `/api/probe/validation-matrix`：查看最新真实宿主验证矩阵
 - `/api/v1/plugin/musicpilot/jobs/{id}` 与 `/results`：查看 `adapter_resolution`
-- `/api/v1/plugin/musicpilot/jobs/{id}` 与 `/results`：查看 `strategy_summary` 与 `strategy_decision`
 - `/api/v1/plugin/musicpilot/downloads/dispatch`：查看 `dispatch_backend`、`fallback_reason`
-- `/api/v1/plugin/musicpilot/downloads/dispatch`：查看 `host_response_summary`、`path_handoff` 与 `strategy_decision`
-- `/api/v1/plugin/musicpilot/organize/preview`、`/apply` 与 `/organize/jobs/{id}`：查看 `organize_backend`、`organize_status`、`verification_state`、`fallback_reason`、`path_handoff` 与 `strategy_decision`
+- `/api/v1/plugin/musicpilot/downloads/dispatch`：查看 `host_response_summary` 与 `path_handoff`
+- `/api/v1/plugin/musicpilot/organize/preview`、`/apply` 与 `/organize/jobs/{id}`：查看 `organize_backend`、`organize_status`、`verification_state`、`fallback_reason` 与 `path_handoff`
 
 ## plugin_runtime 打包说明
 
@@ -232,6 +233,7 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - Phase 7B / 真实成功样例闭环打通
 - Phase 8 / 真实成功率扩展与稳定性收敛
 - Phase 9 / 基于真实成功率矩阵的策略收敛与可交付化
+- 架构收缩与语义归一 / 固定调用规则、单一权威数据来源、去策略化收口
 - 宿主能力探针 API 骨架
 - MVP 路由骨架与统一响应结构
 - metadata 搜索服务最小可用版
@@ -239,11 +241,11 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - 前端搜索页最小闭环与详情视图
 - QueryBuilder、SearchJob、候选评分与 mock dispatch 最小闭环
 - 订阅模型与 API、mock charts/discovery、subscription run 记录与 host-aware organize preview/apply
-- host-aware search / dispatch / organize adapter resolver、配置映射、fallback 机制与联调说明
+- host-aware search / dispatch / organize adapter resolver、必要的 mock/real 环境切换与联调说明
 - 真实 MoviePilot search / download / transfer 语义验证与字段映射收敛
 - 真实 download success -> history path handoff -> transfer/name -> transfer/manual 的最小成功闭环
 - 真实宿主验证矩阵、多样例稳定性分类与手动回归脚本
-- 基于真实矩阵的默认策略收敛、blocked 显式阻断与交付说明
+- 验证矩阵作为验证产物保留，但不再驱动运行时策略决策
 
 ## 当前阶段未完成范围
 
@@ -261,11 +263,11 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 
 ## 推荐演示路径
 
-1. 先访问 `/health` 与 `/api/probe/validation-matrix`，确认当前 active adapter、strategy summary、matrix summary。
-2. 优先演示 `history/transfer` replay 这条 stable organize 成功路径。
-3. 如需演示从搜索到派发，再补一条 `search/title -> download_add` 的单样例路径，并明确它当前仍是 `single_sample`。
+1. 先访问 `/health` 与 `/api/probe/validation-matrix`，确认当前 active adapter、verification state 和最新验证产物摘要。
+2. 优先演示 `history/transfer` 历史重放语义下的 organize 成功路径。
+3. 如需演示从搜索到派发，再补一条 `search/title -> download_add -> history/download -> transfer/manual` 的单样例路径，并明确它当前仍是 `single_sample`。
 
-更完整的策略收敛与交付说明见 [docs/13_Phase9_策略收敛与交付说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/13_Phase9_策略收敛与交付说明.md)。
+更完整的说明见 [docs/13_Phase9_策略收敛与交付说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/13_Phase9_策略收敛与交付说明.md) 与 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
 
 ## 下一阶段建议推进方式
 

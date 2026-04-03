@@ -3,6 +3,8 @@
 > 用途：沉淀 MusicPilot 在 Phase 7A 对真实 MoviePilot 宿主完成的源码核对、运行时联调、字段映射修正和 stub 差异记录。  
 > 约束：本文档不会写入真实 token；所有鉴权均通过本地环境变量注入。
 
+> 当前说明：本文保留真实宿主验证成果，但不再代表当前运行时架构抽象。当前实现以固定接口语义、固定场景调用规则和单一权威数据来源为准，见 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
+
 > 更新说明：Phase 7B 已在真实宿主上拿到第一条成功下载与 organize 闭环样例，Phase 8 又把它扩展为真实样例矩阵。  
 > 最新 verified 与稳定性结论请同时参考 [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md) 和 [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)。
 
