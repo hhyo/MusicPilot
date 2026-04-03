@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ..adapters.host_probe import HostProbeAdapter
+from ..services.host_integration import HostIntegrationService
 from ..schemas.probe import (
     ProbeConfigRequest,
     ProbeDispatchRequest,
@@ -12,11 +13,14 @@ from ..schemas.probe import (
 
 
 class HostCapabilitiesService:
-    def __init__(self, adapter: HostProbeAdapter) -> None:
+    def __init__(self, adapter: HostProbeAdapter, integration_service: HostIntegrationService) -> None:
         self.adapter = adapter
+        self.integration_service = integration_service
 
     def probe_health(self) -> dict:
-        return self.adapter.probe_health().model_dump(mode="json")
+        payload = self.adapter.probe_health()
+        payload.runtime_state = self.integration_service.runtime_state()
+        return payload.model_dump(mode="json")
 
     def list_sites(self) -> dict:
         return self.adapter.list_sites().model_dump(mode="json")
@@ -42,3 +46,5 @@ class HostCapabilitiesService:
     def probe_config(self, payload: ProbeConfigRequest) -> dict:
         return self.adapter.probe_config(payload).model_dump(mode="json")
 
+    def runtime_state(self) -> dict:
+        return self.integration_service.runtime_state().model_dump(mode="json")

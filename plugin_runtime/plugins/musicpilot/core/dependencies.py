@@ -7,16 +7,27 @@ from functools import lru_cache
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from ..adapters.download_dispatch import (
+    DownloadDispatchAdapter,
+    MockDownloadDispatchAdapter,
+    RealDownloadDispatchAdapter,
+)
+from ..adapters.host_http import HostHttpClient, HostHttpClientConfig
 from ..adapters.chart_provider import ChartProviderAdapter, MockChartProviderAdapter
-from ..adapters.download_dispatch import DownloadDispatchAdapter, MockDownloadDispatchAdapter
-from ..adapters.host_probe import MockHostProbeAdapter
-from ..adapters.host_search import HostSearchAdapter, MockHostSearchAdapter
+from ..adapters.host_probe import HostProbeAdapter, MockHostProbeAdapter, RealHostProbeAdapter
+from ..adapters.host_search import HostSearchAdapter, MockHostSearchAdapter, RealHostSearchAdapter
 from ..adapters.metadata_provider import MetadataProviderAdapter, MockMetadataProviderAdapter
 from ..adapters.organize import MockOrganizeAdapter, OrganizeAdapter
 from ..core.db import get_db_session
+from ..core.config import settings
 from ..services.charts import ChartService
 from ..services.host_capabilities import HostCapabilitiesService
 from ..services.dispatch import DispatchService
+from ..services.host_integration import (
+    DispatchAdapterResolver,
+    HostIntegrationService,
+    HostSearchAdapterResolver,
+)
 from ..services.metadata import MetadataService
 from ..services.mvp_placeholder import MvpPlaceholderService
 from ..services.organize import OrganizeService
@@ -29,7 +40,10 @@ from ..services.subscriptions import SubscriptionService
 
 @lru_cache
 def get_host_capabilities_service() -> HostCapabilitiesService:
-    return HostCapabilitiesService(adapter=MockHostProbeAdapter())
+    return HostCapabilitiesService(
+        adapter=get_host_probe_adapter(),
+        integration_service=get_host_integration_service(),
+    )
 
 
 @lru_cache
@@ -46,6 +60,30 @@ def get_metadata_provider_adapter() -> MetadataProviderAdapter:
 def get_chart_provider_adapter() -> ChartProviderAdapter:
     metadata_adapter = MockMetadataProviderAdapter()
     return MockChartProviderAdapter(metadata_adapter.load_seed_catalog())
+
+
+@lru_cache
+def get_host_http_client() -> HostHttpClient:
+    return HostHttpClient(
+        HostHttpClientConfig(
+            base_url=settings.host_base_url,
+            timeout_seconds=settings.host_timeout_seconds,
+            verify_tls=settings.host_verify_tls,
+            auth_token=settings.host_auth_token,
+        )
+    )
+
+
+@lru_cache
+def get_host_probe_adapter() -> HostProbeAdapter:
+    if settings.host_integration_enabled:
+        return RealHostProbeAdapter(settings=settings, client=get_host_http_client())
+    return MockHostProbeAdapter()
+
+
+@lru_cache
+def get_host_integration_service() -> HostIntegrationService:
+    return HostIntegrationService(settings=settings, probe_adapter=get_host_probe_adapter())
 
 
 def get_metadata_service(
@@ -72,22 +110,36 @@ def get_host_search_adapter() -> HostSearchAdapter:
     return MockHostSearchAdapter()
 
 
+@lru_cache
+def get_real_host_search_adapter() -> HostSearchAdapter:
+    return RealHostSearchAdapter(settings=settings, client=get_host_http_client())
+
+
 def get_candidate_scorer() -> MusicCandidateScorer:
     return MusicCandidateScorer()
+
+
+@lru_cache
+def get_host_search_adapter_resolver() -> HostSearchAdapterResolver:
+    return HostSearchAdapterResolver(
+        integration_service=get_host_integration_service(),
+        mock_adapter=get_host_search_adapter(),
+        host_adapter=get_real_host_search_adapter(),
+    )
 
 
 def get_search_job_service(
     session: Session = Depends(get_db_session),
     metadata_service: MetadataService = Depends(get_metadata_service),
     query_builder: QueryBuilderService = Depends(get_query_builder_service),
-    host_search_adapter: HostSearchAdapter = Depends(get_host_search_adapter),
+    host_search_resolver: HostSearchAdapterResolver = Depends(get_host_search_adapter_resolver),
     scorer: MusicCandidateScorer = Depends(get_candidate_scorer),
 ) -> SearchJobService:
     return SearchJobService(
         session,
         metadata_service=metadata_service,
         query_builder=query_builder,
-        host_search_adapter=host_search_adapter,
+        host_search_resolver=host_search_resolver,
         scorer=scorer,
     )
 
@@ -98,15 +150,29 @@ def get_download_dispatch_adapter() -> DownloadDispatchAdapter:
 
 
 @lru_cache
+def get_real_download_dispatch_adapter() -> DownloadDispatchAdapter:
+    return RealDownloadDispatchAdapter(settings=settings, client=get_host_http_client())
+
+
+@lru_cache
 def get_organize_adapter() -> OrganizeAdapter:
     return MockOrganizeAdapter()
 
 
+@lru_cache
+def get_dispatch_adapter_resolver() -> DispatchAdapterResolver:
+    return DispatchAdapterResolver(
+        integration_service=get_host_integration_service(),
+        mock_adapter=get_download_dispatch_adapter(),
+        host_adapter=get_real_download_dispatch_adapter(),
+    )
+
+
 def get_dispatch_service(
     session: Session = Depends(get_db_session),
-    adapter: DownloadDispatchAdapter = Depends(get_download_dispatch_adapter),
+    resolver: DispatchAdapterResolver = Depends(get_dispatch_adapter_resolver),
 ) -> DispatchService:
-    return DispatchService(session=session, adapter=adapter)
+    return DispatchService(session=session, resolver=resolver)
 
 
 def get_subscription_service(

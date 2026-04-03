@@ -1,4 +1,4 @@
-"""Host probe route skeletons for Phase 1."""
+"""Host probe routes with host-aware capability summaries."""
 
 from __future__ import annotations
 
@@ -17,11 +17,16 @@ from ...services.host_capabilities import HostCapabilitiesService
 
 router = APIRouter(tags=["Probe"])
 
-PROBE_NOTE = "当前返回的是 mock / placeholder 骨架，待后续通过 HostProbeAdapter 接入真实宿主能力。"
+PROBE_NOTE = "当前探针会根据配置选择 mock probe 或 host-backed probe，并明确展示 capability source 与 fallback 信息。"
 PROBE_TODO = [
-    "确认宿主真实接口路径、参数和返回结构。",
-    "用真实宿主返回样例替换当前 mock 数据。",
+    "在真实 MoviePilot 宿主联调后补 verified 结论与样例响应。",
+    "继续收敛 host endpoints 的最终字段映射。",
 ]
+
+
+def _is_mock(payload: dict) -> bool:
+    summary = payload.get("summary", {})
+    return summary.get("adapter_mode") == "mock"
 
 
 @router.get("/health", summary="Probe host health capability")
@@ -29,12 +34,13 @@ async def probe_health(
     request: Request,
     service: HostCapabilitiesService = Depends(get_host_capabilities_service),
 ) -> ApiResponse:
+    payload = service.probe_health()
     return success_response(
         request,
-        data=service.probe_health(),
-        message="Probe health placeholder is callable.",
-        code="PROBE_HEALTH_PLACEHOLDER",
-        mock=True,
+        data=payload,
+        message="Probe health is callable.",
+        code="PROBE_HEALTH_OK",
+        mock=_is_mock(payload),
         note=PROBE_NOTE,
         todo=PROBE_TODO,
     )
@@ -45,12 +51,13 @@ async def probe_sites(
     request: Request,
     service: HostCapabilitiesService = Depends(get_host_capabilities_service),
 ) -> ApiResponse:
+    payload = service.list_sites()
     return success_response(
         request,
-        data=service.list_sites(),
-        message="Probe sites placeholder is callable.",
-        code="PROBE_SITES_PLACEHOLDER",
-        mock=True,
+        data=payload,
+        message="Probe sites is callable.",
+        code="PROBE_SITES_OK",
+        mock=_is_mock(payload),
         note=PROBE_NOTE,
         todo=PROBE_TODO,
     )
@@ -61,12 +68,13 @@ async def probe_search_summary(
     request: Request,
     service: HostCapabilitiesService = Depends(get_host_capabilities_service),
 ) -> ApiResponse:
+    payload = service.search_summary()
     return success_response(
         request,
-        data=service.search_summary(),
-        message="Probe search summary placeholder is callable.",
-        code="PROBE_SEARCH_SUMMARY_PLACEHOLDER",
-        mock=True,
+        data=payload,
+        message="Probe search summary is callable.",
+        code="PROBE_SEARCH_SUMMARY_OK",
+        mock=_is_mock(payload),
         note=PROBE_NOTE,
         todo=PROBE_TODO,
     )
@@ -78,12 +86,13 @@ async def probe_search(
     request: Request,
     service: HostCapabilitiesService = Depends(get_host_capabilities_service),
 ) -> ApiResponse:
+    response_payload = service.probe_search(payload)
     return success_response(
         request,
-        data=service.probe_search(payload),
-        message="Probe search placeholder accepted the payload.",
-        code="PROBE_SEARCH_PLACEHOLDER",
-        mock=True,
+        data=response_payload,
+        message="Probe search accepted the payload.",
+        code="PROBE_SEARCH_OK",
+        mock=_is_mock(response_payload),
         note=PROBE_NOTE,
         todo=PROBE_TODO,
     )
@@ -94,12 +103,13 @@ async def probe_downloaders(
     request: Request,
     service: HostCapabilitiesService = Depends(get_host_capabilities_service),
 ) -> ApiResponse:
+    payload = service.list_downloaders()
     return success_response(
         request,
-        data=service.list_downloaders(),
-        message="Probe downloaders placeholder is callable.",
-        code="PROBE_DOWNLOADERS_PLACEHOLDER",
-        mock=True,
+        data=payload,
+        message="Probe downloaders is callable.",
+        code="PROBE_DOWNLOADERS_OK",
+        mock=_is_mock(payload),
         note=PROBE_NOTE,
         todo=PROBE_TODO,
     )
@@ -111,12 +121,13 @@ async def probe_dispatch(
     request: Request,
     service: HostCapabilitiesService = Depends(get_host_capabilities_service),
 ) -> ApiResponse:
+    response_payload = service.probe_dispatch(payload)
     return success_response(
         request,
-        data=service.probe_dispatch(payload),
-        message="Probe dispatch placeholder accepted the payload.",
-        code="PROBE_DISPATCH_PLACEHOLDER",
-        mock=True,
+        data=response_payload,
+        message="Probe dispatch accepted the payload.",
+        code="PROBE_DISPATCH_OK",
+        mock=_is_mock(response_payload),
         note=PROBE_NOTE,
         todo=PROBE_TODO,
     )
@@ -128,12 +139,13 @@ async def probe_notify(
     request: Request,
     service: HostCapabilitiesService = Depends(get_host_capabilities_service),
 ) -> ApiResponse:
+    response_payload = service.probe_notify(payload)
     return success_response(
         request,
-        data=service.probe_notify(payload),
-        message="Probe notify placeholder accepted the payload.",
-        code="PROBE_NOTIFY_PLACEHOLDER",
-        mock=True,
+        data=response_payload,
+        message="Probe notify accepted the payload.",
+        code="PROBE_NOTIFY_OK",
+        mock=_is_mock(response_payload),
         note=PROBE_NOTE,
         todo=PROBE_TODO,
     )
@@ -144,12 +156,13 @@ async def probe_config_summary(
     request: Request,
     service: HostCapabilitiesService = Depends(get_host_capabilities_service),
 ) -> ApiResponse:
+    payload = service.config_summary()
     return success_response(
         request,
-        data=service.config_summary(),
-        message="Probe config summary placeholder is callable.",
-        code="PROBE_CONFIG_SUMMARY_PLACEHOLDER",
-        mock=True,
+        data=payload,
+        message="Probe config summary is callable.",
+        code="PROBE_CONFIG_SUMMARY_OK",
+        mock=_is_mock(payload),
         note=PROBE_NOTE,
         todo=PROBE_TODO,
     )
@@ -161,13 +174,13 @@ async def probe_config(
     request: Request,
     service: HostCapabilitiesService = Depends(get_host_capabilities_service),
 ) -> ApiResponse:
+    response_payload = service.probe_config(payload)
     return success_response(
         request,
-        data=service.probe_config(payload),
-        message="Probe config placeholder accepted the payload.",
-        code="PROBE_CONFIG_PLACEHOLDER",
-        mock=True,
+        data=response_payload,
+        message="Probe config accepted the payload.",
+        code="PROBE_CONFIG_OK",
+        mock=_is_mock(response_payload),
         note=PROBE_NOTE,
         todo=PROBE_TODO,
     )
-

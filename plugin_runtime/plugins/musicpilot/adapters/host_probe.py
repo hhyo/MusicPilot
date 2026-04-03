@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
+from .host_http import HostHttpClient, HostTransportError
+from ..core.config import Settings
+from ..schemas.integration import AdapterMode, AdapterStrategy, VerificationState
 from ..schemas.probe import (
+    ProbeCapabilitySummary,
     ProbeConfigPayload,
     ProbeConfigRequest,
     ProbeDispatchPayload,
@@ -76,7 +81,12 @@ class MockHostProbeAdapter(HostProbeAdapter):
             "status": "mock",
             "host_online": None,
             "capability_available": None,
-            "adapter_mode": "mock",
+            "adapter_mode": AdapterMode.MOCK,
+            "active_strategy": AdapterStrategy.MOCK,
+            "host_integration_enabled": False,
+            "capability_source": "mock.probe",
+            "verification_state": VerificationState.PLACEHOLDER,
+            "fallback_reason": None,
             "integration_point": integration_point,
             "note": note,
             "todo": [
@@ -212,7 +222,7 @@ class MockHostProbeAdapter(HostProbeAdapter):
             summary=self._summary(
                 "config",
                 "HostProbeAdapter.probe_config",
-                "Config probe echoes the intended operation only. No real config persistence happens in Phase 1.",
+                "Config probe echoes the intended operation only. No real config persistence happens in the mock adapter.",
             ),
             operation=payload.operation,
             request_echo=payload.model_dump(mode="json"),
@@ -223,3 +233,382 @@ class MockHostProbeAdapter(HostProbeAdapter):
             },
         )
 
+
+class RealHostProbeAdapter(HostProbeAdapter):
+    """Host-backed probe skeleton.
+
+    This adapter is intentionally conservative:
+    - it only calls configured endpoints;
+    - it never claims full host compatibility automatically;
+    - when the host contract is incomplete, it returns unverified/degraded summaries instead of faking success.
+    """
+
+    def __init__(self, *, settings: Settings, client: HostHttpClient):
+        self.settings = settings
+        self.client = client
+
+    def probe_health(self) -> ProbeHealthPayload:
+        try:
+            payload = self.client.get_json(self.settings.host_health_path)
+            checks = self._extract_health_checks(payload)
+            summary = self._summary(
+                capability="health",
+                capability_available=checks.get("host_online"),
+                status=self._status_from_availability(checks.get("host_online")),
+                integration_point="RealHostProbeAdapter.probe_health",
+                note=(
+                    "Host health endpoint was called through the configured integration path. "
+                    "Actual MoviePilot compatibility remains unverified until host validation is recorded."
+                ),
+            )
+        except HostTransportError as exc:
+            checks = {
+                "host_online": False,
+                "plugin_api_registered": None,
+                "note": "Host health probe could not be completed through the configured endpoint.",
+            }
+            summary = self._degraded_summary(
+                capability="health",
+                integration_point="RealHostProbeAdapter.probe_health",
+                note=str(exc),
+                fallback_reason=exc.reason_code,
+            )
+
+        return ProbeHealthPayload(summary=summary, checks=checks)
+
+    def list_sites(self) -> ProbeSitesPayload:
+        try:
+            payload = self.client.get_json(self.settings.host_sites_path)
+            raw_items = self._extract_items(payload)
+            items = [
+                {
+                    "id": str(item.get("id") or item.get("site_id") or f"site-{index}"),
+                    "name": str(item.get("name") or item.get("site_name") or "Unknown Site"),
+                    "enabled": bool(item.get("enabled", True)),
+                    "visibility": "unverified",
+                    "note": "Loaded from configured host site endpoint; field mapping remains unverified.",
+                }
+                for index, item in enumerate(raw_items, start=1)
+            ]
+            summary = self._summary(
+                capability="sites",
+                capability_available=bool(items),
+                status=self._status_from_availability(bool(items)),
+                integration_point="RealHostProbeAdapter.list_sites",
+                note="Sites were loaded through the configured host endpoint. Sensitive field stripping still needs real host verification.",
+            )
+        except HostTransportError as exc:
+            items = []
+            summary = self._degraded_summary(
+                capability="sites",
+                integration_point="RealHostProbeAdapter.list_sites",
+                note=str(exc),
+                fallback_reason=exc.reason_code,
+            )
+        return ProbeSitesPayload(summary=summary, items=items)
+
+    def search_summary(self) -> ProbeSearchPayload:
+        available = bool(self.settings.host_search_path and self.settings.host_base_url)
+        summary = self._summary(
+            capability="search",
+            capability_available=available,
+            status=self._status_from_availability(available),
+            integration_point="RealHostProbeAdapter.probe_search",
+            note=(
+                "Search summary is derived from configured host search endpoint availability. "
+                "Use POST /probe/search to validate request/response compatibility."
+            ),
+        )
+        return ProbeSearchPayload(
+            summary=summary,
+            query_echo=ProbeSearchRequest().model_dump(mode="json"),
+            sample_result_fields=["site_id", "title", "size_bytes", "seeders"],
+            sample_result_count=0,
+        )
+
+    def probe_search(self, payload: ProbeSearchRequest) -> ProbeSearchPayload:
+        try:
+            data = self.client.post_json(
+                self.settings.host_search_path,
+                {
+                    "keyword": payload.keyword,
+                    "site_scope": payload.site_scope,
+                    "dry_run": payload.dry_run,
+                },
+            )
+            items = self._extract_items(data)
+            summary = self._summary(
+                capability="search",
+                capability_available=True,
+                status=self._status_from_availability(True),
+                integration_point="RealHostProbeAdapter.probe_search",
+                note="Host search endpoint accepted the probe payload. Response field mapping is still inferred and unverified.",
+            )
+            return ProbeSearchPayload(
+                summary=summary,
+                query_echo=payload.model_dump(mode="json"),
+                sample_result_fields=list(items[0].keys())[:6] if items else ["site_id", "title", "size_bytes", "seeders"],
+                sample_result_count=len(items),
+            )
+        except HostTransportError as exc:
+            return ProbeSearchPayload(
+                summary=self._degraded_summary(
+                    capability="search",
+                    integration_point="RealHostProbeAdapter.probe_search",
+                    note=str(exc),
+                    fallback_reason=exc.reason_code,
+                ),
+                query_echo=payload.model_dump(mode="json"),
+                sample_result_fields=["site_id", "title", "size_bytes", "seeders"],
+                sample_result_count=0,
+            )
+
+    def list_downloaders(self) -> ProbeDownloadersPayload:
+        try:
+            payload = self.client.get_json(self.settings.host_downloaders_path)
+            raw_items = self._extract_items(payload)
+            items = [
+                {
+                    "id": str(item.get("id") or item.get("downloader_id") or f"downloader-{index}"),
+                    "name": str(item.get("name") or item.get("display_name") or "Unknown Downloader"),
+                    "is_default": bool(item.get("is_default", index == 1)),
+                    "status": "unverified",
+                    "note": "Loaded from configured host downloader endpoint; mapping is inferred.",
+                }
+                for index, item in enumerate(raw_items, start=1)
+            ]
+            summary = self._summary(
+                capability="downloaders",
+                capability_available=bool(items),
+                status=self._status_from_availability(bool(items)),
+                integration_point="RealHostProbeAdapter.list_downloaders",
+                note="Downloader list was loaded through the configured host endpoint.",
+            )
+        except HostTransportError as exc:
+            items = []
+            summary = self._degraded_summary(
+                capability="downloaders",
+                integration_point="RealHostProbeAdapter.list_downloaders",
+                note=str(exc),
+                fallback_reason=exc.reason_code,
+            )
+        return ProbeDownloadersPayload(summary=summary, items=items)
+
+    def probe_dispatch(self, payload: ProbeDispatchRequest) -> ProbeDispatchPayload:
+        try:
+            data = self.client.post_json(
+                self.settings.host_dispatch_path,
+                payload.model_dump(mode="json"),
+            )
+            preview = {
+                "accepted": bool(data.get("accepted", data.get("dispatchable", False))),
+                "downloader_task_id": data.get("downloader_task_id"),
+                "mode": "host-backed",
+            }
+            summary = self._summary(
+                capability="dispatch",
+                capability_available=True,
+                status=self._status_from_availability(True),
+                integration_point="RealHostProbeAdapter.probe_dispatch",
+                note="Dispatch probe hit the configured host endpoint. Actual downloader semantics still need host validation.",
+            )
+        except HostTransportError as exc:
+            preview = {
+                "accepted": False,
+                "downloader_task_id": None,
+                "mode": "host-unavailable",
+            }
+            summary = self._degraded_summary(
+                capability="dispatch",
+                integration_point="RealHostProbeAdapter.probe_dispatch",
+                note=str(exc),
+                fallback_reason=exc.reason_code,
+            )
+
+        return ProbeDispatchPayload(
+            summary=summary,
+            request_echo=payload.model_dump(mode="json"),
+            dispatch_preview=preview,
+        )
+
+    def probe_notify(self, payload: ProbeNotifyRequest) -> ProbeNotifyPayload:
+        if not self.settings.host_notify_path:
+            return ProbeNotifyPayload(
+                summary=self._summary(
+                    capability="notify",
+                    capability_available=False,
+                    status="placeholder",
+                    integration_point="RealHostProbeAdapter.probe_notify",
+                    note="Notify endpoint is not configured yet; keep this capability as placeholder until host contract is confirmed.",
+                    fallback_reason="host_notify_path_missing",
+                ),
+                request_echo=payload.model_dump(mode="json"),
+                notification_preview={"title": payload.title, "body": payload.body, "channel": payload.channel, "sent": False},
+            )
+
+        try:
+            data = self.client.post_json(self.settings.host_notify_path, payload.model_dump(mode="json"))
+            preview = {
+                "title": payload.title,
+                "body": payload.body,
+                "channel": payload.channel,
+                "sent": bool(data.get("sent", data.get("accepted", False))),
+            }
+            summary = self._summary(
+                capability="notify",
+                capability_available=True,
+                status=self._status_from_availability(True),
+                integration_point="RealHostProbeAdapter.probe_notify",
+                note="Notify endpoint was called through configured host settings.",
+            )
+        except HostTransportError as exc:
+            summary = self._degraded_summary(
+                capability="notify",
+                integration_point="RealHostProbeAdapter.probe_notify",
+                note=str(exc),
+                fallback_reason=exc.reason_code,
+            )
+            preview = {"title": payload.title, "body": payload.body, "channel": payload.channel, "sent": False}
+        return ProbeNotifyPayload(summary=summary, request_echo=payload.model_dump(mode="json"), notification_preview=preview)
+
+    def config_summary(self) -> ProbeConfigPayload:
+        supported = bool(self.settings.host_config_path)
+        return ProbeConfigPayload(
+            summary=self._summary(
+                capability="config",
+                capability_available=supported,
+                status=self._status_from_availability(supported),
+                integration_point="RealHostProbeAdapter.probe_config",
+                note="Config capability summary is derived from configured host config endpoint availability.",
+                fallback_reason=None if supported else "host_config_path_missing",
+            ),
+            operation="summary",
+            request_echo=ProbeConfigRequest().model_dump(mode="json"),
+            config_preview={
+                "supported_operations": ["read", "write"],
+                "storage_connected": supported,
+            },
+        )
+
+    def probe_config(self, payload: ProbeConfigRequest) -> ProbeConfigPayload:
+        if not self.settings.host_config_path:
+            return ProbeConfigPayload(
+                summary=self._summary(
+                    capability="config",
+                    capability_available=False,
+                    status="placeholder",
+                    integration_point="RealHostProbeAdapter.probe_config",
+                    note="Config endpoint is not configured yet.",
+                    fallback_reason="host_config_path_missing",
+                ),
+                operation=payload.operation,
+                request_echo=payload.model_dump(mode="json"),
+                config_preview={"key": payload.key, "value": payload.value, "persisted": False},
+            )
+
+        try:
+            data = self.client.post_json(self.settings.host_config_path, payload.model_dump(mode="json"))
+            preview = {
+                "key": payload.key,
+                "value": data.get("value", payload.value),
+                "persisted": bool(data.get("persisted", payload.operation == "read")),
+            }
+            summary = self._summary(
+                capability="config",
+                capability_available=True,
+                status=self._status_from_availability(True),
+                integration_point="RealHostProbeAdapter.probe_config",
+                note="Config endpoint was called through configured host settings.",
+            )
+        except HostTransportError as exc:
+            preview = {"key": payload.key, "value": payload.value, "persisted": False}
+            summary = self._degraded_summary(
+                capability="config",
+                integration_point="RealHostProbeAdapter.probe_config",
+                note=str(exc),
+                fallback_reason=exc.reason_code,
+            )
+        return ProbeConfigPayload(
+            summary=summary,
+            operation=payload.operation,
+            request_echo=payload.model_dump(mode="json"),
+            config_preview=preview,
+        )
+
+    def _summary(
+        self,
+        *,
+        capability: str,
+        capability_available: bool | None,
+        status: str,
+        integration_point: str,
+        note: str,
+        fallback_reason: str | None = None,
+    ) -> ProbeCapabilitySummary:
+        return ProbeCapabilitySummary(
+            capability=capability,
+            status=status,
+            host_online=None if capability != "health" else capability_available,
+            capability_available=capability_available,
+            adapter_mode=AdapterMode.HOST,
+            active_strategy=AdapterStrategy.PREFER_HOST,
+            host_integration_enabled=self.settings.host_integration_enabled,
+            capability_source="host.probe",
+            verification_state=VerificationState(self.settings.host_verification_state),
+            fallback_reason=fallback_reason,
+            integration_point=integration_point,
+            note=note,
+            todo=[
+                "Capture real MoviePilot request/response samples before marking this capability verified.",
+                "Confirm field mapping against the host's real contract.",
+            ],
+        )
+
+    def _degraded_summary(
+        self,
+        *,
+        capability: str,
+        integration_point: str,
+        note: str,
+        fallback_reason: str,
+    ) -> ProbeCapabilitySummary:
+        return self._summary(
+            capability=capability,
+            capability_available=False,
+            status="degraded",
+            integration_point=integration_point,
+            note=note,
+            fallback_reason=fallback_reason,
+        )
+
+    def _status_from_availability(self, available: bool | None) -> str:
+        if available is None:
+            return "placeholder"
+        if available:
+            return "verified" if self.settings.host_verification_state == "verified" else "unverified"
+        return "degraded"
+
+    def _extract_items(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
+        data = payload.get("data", payload)
+        if isinstance(data, dict) and "items" in data and isinstance(data["items"], list):
+            return [item for item in data["items"] if isinstance(item, dict)]
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+        if isinstance(payload.get("items"), list):
+            return [item for item in payload["items"] if isinstance(item, dict)]
+        return []
+
+    def _extract_health_checks(self, payload: dict[str, Any]) -> dict[str, str | bool | None]:
+        data = payload.get("data", payload)
+        if isinstance(data, dict):
+            status = data.get("status")
+            return {
+                "host_online": status in {"ok", "healthy", True},
+                "plugin_api_registered": data.get("plugin_api_registered"),
+                "note": str(data.get("note", "Host health probe completed through configured endpoint.")),
+            }
+        return {
+            "host_online": False,
+            "plugin_api_registered": None,
+            "note": "Host health response shape was not recognized.",
+        }

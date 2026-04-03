@@ -3,15 +3,15 @@
     <section class="search-hero">
       <div>
         <p class="search-hero__eyebrow">Metadata Search</p>
-        <h2>Metadata -> Query -> Job -> Candidate 最小闭环</h2>
+        <h2>Metadata -> Query -> Job -> Candidate -> Host Adapter 收口闭环</h2>
         <p class="search-hero__description">
-          当前基于本地 seed metadata 打通 Phase 4 的搜索与订阅入口。
-          任务执行、候选评分、订阅执行与 organize preview 仍是 mock boundary，不包含真实 PT 站点、
-          真实 scheduler、真实下载器和真实文件整理。
+          当前基于本地 seed metadata 打通 Phase 5 的搜索与订阅入口。
+          host search / dispatch 已升级为 host-aware resolver：当宿主能力可用时优先走 host-backed skeleton，
+          当能力缺失或配置不完整时自动降级回 mock，并在结果中明确标识 adapter mode 与 fallback。
         </p>
       </div>
       <el-tag type="warning" effect="plain">
-        metadata seed + mock host search + mock dispatch + mock organize
+        metadata seed + host-aware search/dispatch + mock organize
       </el-tag>
     </section>
 

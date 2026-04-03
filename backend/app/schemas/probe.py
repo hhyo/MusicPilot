@@ -6,10 +6,14 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from .integration import AdapterMode, AdapterStrategy, HostIntegrationRuntimeState, VerificationState
+
 
 class ProbeCapabilitySummary(BaseModel):
     capability: str = Field(..., description="Capability name under probe.")
-    status: Literal["mock", "placeholder", "unverified"] = Field(default="mock")
+    status: Literal["mock", "placeholder", "unverified", "verified", "degraded", "disabled"] = Field(
+        default="mock"
+    )
     host_online: bool | None = Field(
         default=None,
         description="Whether the host is confirmed online. None means not checked in mock mode.",
@@ -18,7 +22,12 @@ class ProbeCapabilitySummary(BaseModel):
         default=None,
         description="Whether the capability is confirmed available. None means not checked in mock mode.",
     )
-    adapter_mode: Literal["mock"] = Field(default="mock")
+    adapter_mode: AdapterMode = Field(default=AdapterMode.MOCK)
+    active_strategy: AdapterStrategy = Field(default=AdapterStrategy.MOCK)
+    host_integration_enabled: bool = False
+    capability_source: str = "mock.probe"
+    verification_state: VerificationState = VerificationState.PLACEHOLDER
+    fallback_reason: str | None = None
     integration_point: str = Field(..., description="Future adapter or service handoff point.")
     note: str = Field(..., description="Current placeholder description.")
     todo: list[str] = Field(default_factory=list, description="Integration follow-up items.")
@@ -67,6 +76,7 @@ class ProbeConfigRequest(BaseModel):
 class ProbeHealthPayload(BaseModel):
     summary: ProbeCapabilitySummary
     checks: dict[str, str | bool | None]
+    runtime_state: HostIntegrationRuntimeState | None = None
 
 
 class ProbeSitesPayload(BaseModel):
@@ -103,4 +113,3 @@ class ProbeConfigPayload(BaseModel):
     operation: str
     request_echo: dict[str, Any]
     config_preview: dict[str, Any]
-

@@ -2,15 +2,17 @@
   <section class="job-panel">
     <header class="job-panel__header">
       <div>
-        <p class="job-panel__eyebrow">Phase 3 Acquisition Loop</p>
-        <h3>搜索任务、候选评分与派发边界</h3>
+        <p class="job-panel__eyebrow">Phase 5 Host-Aware Acquisition Loop</p>
+        <h3>搜索任务、候选评分与宿主派发边界</h3>
       </div>
-      <el-tag v-if="job" type="warning" effect="plain">mock host search / mock dispatch</el-tag>
+      <el-tag v-if="job" :type="jobAdapterMode === 'host' ? 'success' : 'warning'" effect="plain">
+        {{ adapterBadgeLabel }}
+      </el-tag>
     </header>
 
     <el-alert
-      title="当前页面展示的是 Phase 3 mock host search / mock dispatch，尚未真实接入 PT 站点与下载器。"
-      type="warning"
+      title="当前页面展示的是 Phase 5 host-aware acquisition loop。若宿主能力可用会优先走 host-backed skeleton；若能力缺失或配置不完整，会自动回退到 mock，并显式展示 fallback 信息。"
+      :type="jobAdapterMode === 'host' ? 'success' : 'warning'"
       :closable="false"
       show-icon
     />
@@ -48,9 +50,9 @@
           <p>best_score: {{ bestScore }}</p>
         </article>
         <article class="job-card">
-          <span>Candidates</span>
-          <strong>{{ candidates.length }}</strong>
-          <p>{{ job.note }}</p>
+          <span>Active Search Adapter</span>
+          <strong>{{ activeSearchAdapter }}</strong>
+          <p>{{ activeFallbackReason }}</p>
         </article>
       </section>
 
@@ -101,7 +103,7 @@
       <section class="candidate-section">
         <header class="candidate-section__header">
           <h4>候选列表</h4>
-          <p>{{ candidatesNote || '当前候选列表由 mock PT 搜索链路生成。' }}</p>
+          <p>{{ candidatesNote || '当前候选列表会显示 search adapter mode、dispatch backend 与 fallback 信息。' }}</p>
         </header>
 
         <el-empty v-if="candidates.length === 0" description="当前 job 暂无候选结果。" />
@@ -131,9 +133,18 @@
               <el-tag v-for="tag in candidate.source_tags" :key="tag" size="small" effect="plain">
                 {{ tag }}
               </el-tag>
+              <el-tag size="small" effect="plain" :type="candidate.adapter_resolution?.adapter_mode === 'host' ? 'success' : 'warning'">
+                search_backend: {{ candidate.adapter_resolution?.adapter_mode ?? 'mock' }}
+              </el-tag>
+              <el-tag size="small" effect="plain" type="info">
+                verification: {{ candidate.adapter_resolution?.verification_state ?? 'placeholder' }}
+              </el-tag>
             </div>
 
             <p class="candidate-card__note">{{ candidate.note }}</p>
+            <p v-if="candidate.adapter_resolution?.fallback_reason" class="candidate-card__runtime">
+              fallback: {{ candidate.adapter_resolution.fallback_reason }}
+            </p>
 
             <div class="candidate-card__breakdown">
               <div
@@ -150,6 +161,13 @@
             <footer class="candidate-card__footer">
               <div>
                 <p>dispatch_status: {{ candidate.dispatch_status }}</p>
+                <p>search_adapter: {{ candidate.adapter_resolution?.adapter_key ?? 'pending' }}</p>
+                <p v-if="dispatchResults[candidate.id]">
+                  dispatch_backend: {{ dispatchResults[candidate.id].dispatch_backend }} / {{ dispatchResults[candidate.id].target_downloader }}
+                </p>
+                <p v-if="dispatchResults[candidate.id]?.fallback_reason">
+                  dispatch fallback: {{ dispatchResults[candidate.id]?.fallback_reason }}
+                </p>
                 <p v-if="dispatchResults[candidate.id]">{{ dispatchResults[candidate.id].note }}</p>
               </div>
               <el-button
@@ -190,6 +208,14 @@ defineEmits<{
 
 const dispatchRecommendation = computed(() => props.job?.summary.dispatch_recommendation ?? 'pending');
 const bestScore = computed(() => props.job?.summary.best_score ?? '-');
+const jobAdapterMode = computed(() => props.job?.adapter_resolution?.adapter_mode ?? 'mock');
+const activeSearchAdapter = computed(() => props.job?.adapter_resolution?.adapter_key ?? 'pending');
+const activeFallbackReason = computed(() => props.job?.adapter_resolution?.fallback_reason ?? 'fallback: none');
+const adapterBadgeLabel = computed(() => {
+  const adapterMode = props.job?.adapter_resolution?.adapter_mode ?? 'mock';
+  const adapterKey = props.job?.adapter_resolution?.adapter_key ?? 'mock_host_search';
+  return `${adapterMode} / ${adapterKey}`;
+});
 
 function decisionTagType(decision: SearchCandidateDetail['decision']) {
   if (decision === 'auto_download') {
@@ -229,7 +255,8 @@ function decisionTagType(decision: SearchCandidateDetail['decision']) {
 .candidate-section__header p,
 .candidate-card__header h5,
 .candidate-card__site,
-.candidate-card__note {
+.candidate-card__note,
+.candidate-card__runtime {
   margin: 0;
 }
 
@@ -344,6 +371,11 @@ function decisionTagType(decision: SearchCandidateDetail['decision']) {
 .candidate-card__meta span {
   font-size: 0.9rem;
   color: var(--mp-text);
+}
+
+.candidate-card__runtime {
+  color: var(--mp-accent);
+  font-size: 0.82rem;
 }
 
 .candidate-card__breakdown {

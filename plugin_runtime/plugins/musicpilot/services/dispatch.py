@@ -5,16 +5,16 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from ..adapters.download_dispatch import DownloadDispatchAdapter
 from ..repositories.acquisition import AcquisitionRepository
-from ..schemas.acquisition import DispatchRequest, DispatchResult, SearchCandidateDetail
+from ..schemas.acquisition import DispatchRequest, DispatchResult
+from .host_integration import DispatchAdapterResolver
 from .search_job import serialize_candidate
 
 
 class DispatchService:
-    def __init__(self, session: Session, adapter: DownloadDispatchAdapter):
+    def __init__(self, session: Session, resolver: DispatchAdapterResolver):
         self.session = session
-        self.adapter = adapter
+        self.resolver = resolver
         self.repository = AcquisitionRepository(session)
 
     def dispatch(self, payload: DispatchRequest) -> DispatchResult:
@@ -23,11 +23,12 @@ class DispatchService:
             raise HTTPException(status_code=404, detail=f"Candidate {payload.result_id} was not found.")
 
         candidate = serialize_candidate(candidate_model)
-        adapter_result = self.adapter.dispatch(
+        dispatch_execution = self.resolver.dispatch(
             candidate=candidate,
             downloader_id=payload.downloader_id,
             manual_confirm=payload.manual_confirm,
         )
+        adapter_result = dispatch_execution.result
 
         binding_id = None
         if adapter_result.dispatchable:
@@ -38,8 +39,11 @@ class DispatchService:
             candidate_model.job.status = "dispatched"
             candidate_model.job.summary_json = {
                 **(candidate_model.job.summary_json or {}),
-                "dispatch_recommendation": "mock_submitted",
+                "dispatch_recommendation": adapter_result.dispatch_status,
                 "last_dispatched_candidate_id": candidate_model.id,
+                "active_dispatch_adapter": adapter_result.adapter_resolution.adapter_key
+                if adapter_result.adapter_resolution
+                else None,
             }
             binding_id = binding.id
 
@@ -56,4 +60,9 @@ class DispatchService:
             integration_point=adapter_result.integration_point,
             mock=adapter_result.mock,
             binding_id=binding_id,
+            dispatch_backend=adapter_result.dispatch_backend,
+            capability_source=adapter_result.capability_source,
+            fallback_reason=adapter_result.fallback_reason,
+            verification_state=adapter_result.verification_state,
+            adapter_resolution=adapter_result.adapter_resolution,
         )

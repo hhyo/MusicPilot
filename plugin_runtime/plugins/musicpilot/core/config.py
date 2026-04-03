@@ -1,5 +1,7 @@
 """Application settings for the MusicPilot backend skeleton."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from functools import lru_cache
@@ -19,6 +21,28 @@ class Settings(BaseSettings):
     allowed_origins: list[str] = Field(default_factory=lambda: ["*"])
     database_url: str = Field(default=f"sqlite:///{DEFAULT_DATABASE_PATH}")
     metadata_seed_enabled: bool = Field(default=True)
+    host_integration_enabled: bool = Field(default=False)
+    host_base_url: str | None = Field(default=None)
+    host_auth_token: str | None = Field(default=None)
+    host_timeout_seconds: float = Field(default=8.0, ge=0.5, le=60.0)
+    host_verify_tls: bool = Field(default=True)
+    host_verification_state: str = Field(default="placeholder")
+    host_health_path: str | None = Field(default=None)
+    host_sites_path: str | None = Field(default=None)
+    host_search_path: str | None = Field(default=None)
+    host_downloaders_path: str | None = Field(default=None)
+    host_dispatch_path: str | None = Field(default=None)
+    host_notify_path: str | None = Field(default=None)
+    host_config_path: str | None = Field(default=None)
+    host_search_strategy: str = Field(default="mock")
+    host_dispatch_strategy: str = Field(default="mock")
+    host_fallback_to_mock: bool = Field(default=True)
+    host_strict_empty_as_error: bool = Field(default=False)
+    host_assume_healthy: bool | None = Field(default=None)
+    host_assume_search_available: bool | None = Field(default=None)
+    host_assume_dispatch_available: bool | None = Field(default=None)
+    host_assume_downloaders_available: bool | None = Field(default=None)
+    host_assume_sites_visible: bool | None = Field(default=None)
 
     model_config = SettingsConfigDict(
         env_prefix="MUSICPILOT_",

@@ -1,4 +1,4 @@
-"""Search job routes for the Phase 3 minimum acquisition loop."""
+"""Search job routes for the Phase 5 host-aware acquisition loop."""
 
 from __future__ import annotations
 
@@ -35,13 +35,14 @@ async def list_jobs(
     request: Request,
     service: SearchJobService = Depends(get_search_job_service),
 ) -> ApiResponse:
+    jobs = service.list_jobs()
     return success_response(
         request,
-        data=service.list_jobs(),
+        data=jobs,
         message="Search jobs loaded.",
         code="SEARCH_JOBS_OK",
-        mock=True,
-        note="当前任务列表基于 Phase 3 mock acquisition 链路。",
+        mock=all(job.mock for job in jobs),
+        note="当前任务列表会显示每个 job 最后一次执行所选中的 search adapter。",
     )
 
 
@@ -51,13 +52,14 @@ async def create_job(
     request: Request,
     service: SearchJobService = Depends(get_search_job_service),
 ) -> ApiResponse:
+    job = service.create_job(payload)
     return success_response(
         request,
-        data=service.create_job(payload),
+        data=job,
         message="Search job created.",
         code="SEARCH_JOB_CREATED",
-        mock=True,
-        note="当前只创建 mock SearchJob，并保存 QueryBuilder 结果与 metadata 快照。",
+        mock=job.mock,
+        note="创建阶段只生成 metadata 快照与 QueryBuilder 输出；真正的 host/mock adapter 选择在执行阶段完成。",
     )
 
 
@@ -67,13 +69,14 @@ async def get_job(
     request: Request,
     service: SearchJobService = Depends(get_search_job_service),
 ) -> ApiResponse:
+    job = service.get_job(job_id)
     return success_response(
         request,
-        data=service.get_job(job_id),
+        data=job,
         message="Search job detail loaded.",
         code="SEARCH_JOB_DETAIL_OK",
-        mock=True,
-        note="当前 job detail 反映的是 Phase 3 mock 执行链路状态。",
+        mock=job.mock,
+        note="当前 job detail 会暴露 active search adapter、capability source 与 fallback 信息。",
     )
 
 
@@ -83,13 +86,14 @@ async def run_job(
     request: Request,
     service: SearchJobService = Depends(get_search_job_service),
 ) -> ApiResponse:
+    job = service.execute_job(job_id)
     return success_response(
         request,
-        data=service.execute_job(job_id),
-        message="Search job executed with the mock host search adapter.",
+        data=job,
+        message="Search job executed through the host-aware search resolver.",
         code="SEARCH_JOB_EXECUTED",
-        mock=True,
-        note="当前执行链路使用 mock host search adapter 和 mock scorer，不代表真实 PT 搜索。",
+        mock=job.mock,
+        note="当前执行链路会按 strategy 与 capability 在 host-backed skeleton 和 mock adapter 之间选择，并在需要时回退。",
     )
 
 
@@ -99,11 +103,12 @@ async def job_results(
     request: Request,
     service: SearchJobService = Depends(get_search_job_service),
 ) -> ApiResponse:
+    results = service.list_candidates(job_id)
     return success_response(
         request,
-        data=service.list_candidates(job_id),
+        data=results,
         message="Job candidates loaded.",
         code="SEARCH_CANDIDATES_OK",
-        mock=True,
-        note="当前候选结果来自 mock host search adapter，评分与决策仅用于 Phase 3 最小闭环验证。",
+        mock=results.mock,
+        note="当前候选结果会显示 search adapter mode、verification state 与 fallback reason。",
     )

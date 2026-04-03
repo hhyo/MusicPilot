@@ -1,11 +1,10 @@
-"""Search job orchestration for Phase 3."""
+"""Search job orchestration for Phase 5 host-aware acquisition."""
 
 from __future__ import annotations
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from ..adapters.host_search import HostSearchAdapter
 from ..models.acquisition import SearchCandidateModel, SearchJobModel
 from ..repositories.acquisition import AcquisitionRepository
 from ..schemas.acquisition import (
@@ -16,14 +15,19 @@ from ..schemas.acquisition import (
     SearchJobCreateRequest,
     SearchJobSummary,
 )
+from ..schemas.integration import AdapterMode, AdapterResolution
 from ..schemas.metadata import MetadataDetail
 from ..schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
+from .host_integration import HostSearchAdapterResolver
 from .metadata import MetadataService
 from .query_builder import QueryBuilderService
 from .scoring import MusicCandidateScorer
 
 
-JOB_NOTE = "当前 SearchJob 调用 mock host search adapter，同步执行一次最小链路，不代表已接入真实 PT 搜索。"
+JOB_NOTE = (
+    "SearchJob 现在通过 host-aware resolver 选择 search adapter。"
+    "当宿主能力存在时可走 host-backed 骨架；当能力缺失或不稳定时会按策略降级回 mock。"
+)
 
 
 class SearchJobService:
@@ -33,13 +37,13 @@ class SearchJobService:
         *,
         metadata_service: MetadataService,
         query_builder: QueryBuilderService,
-        host_search_adapter: HostSearchAdapter,
+        host_search_resolver: HostSearchAdapterResolver,
         scorer: MusicCandidateScorer,
     ):
         self.session = session
         self.metadata_service = metadata_service
         self.query_builder = query_builder
-        self.host_search_adapter = host_search_adapter
+        self.host_search_resolver = host_search_resolver
         self.scorer = scorer
         self.repository = AcquisitionRepository(session)
 
@@ -85,7 +89,8 @@ class SearchJobService:
         self.session.flush()
 
         try:
-            raw_candidates = self.host_search_adapter.search(query_build=query_build, detail=metadata_detail)
+            search_execution = self.host_search_resolver.search(query_build=query_build, detail=metadata_detail)
+            raw_candidates = search_execution.candidates
             persisted_candidates: list[SearchCandidateModel] = []
 
             for raw_candidate in raw_candidates:
@@ -120,8 +125,11 @@ class SearchJobService:
                 "candidate_count": len(persisted_candidates),
                 "dispatch_recommendation": recommendation,
                 "best_score": max((candidate.score_total for candidate in persisted_candidates), default=0.0),
-                "mock_host_search": True,
+                "mock_host_search": search_execution.resolution.adapter_mode == AdapterMode.MOCK,
+                "adapter_resolution": search_execution.resolution.model_dump(mode="json"),
+                "active_search_adapter": search_execution.resolution.adapter_key,
             }
+            job.mock = search_execution.resolution.adapter_mode == AdapterMode.MOCK
             self.repository.mark_job_finished(job, status=status, summary_json=summary)
             self.session.commit()
         except Exception as exc:
@@ -150,8 +158,9 @@ class SearchJobService:
             job_id=job_id,
             items=items,
             total=len(items),
-            mock=True,
-            note="当前候选列表来自 mock host search + mock scorer，用于验证人工确认与派发边界。",
+            mock=_is_mock_resolution(_extract_resolution(job.summary_json or {})),
+            note="当前候选列表会显示 search adapter mode、capability source 和 fallback reason。",
+            adapter_resolution=_extract_resolution(job.summary_json or {}),
         )
 
 
@@ -175,10 +184,12 @@ def serialize_job(job: SearchJobModel) -> SearchJobSummary:
         metadata_snapshot=MetadataDetail.model_validate(job.metadata_snapshot) if job.metadata_snapshot else None,
         summary=job.summary_json or {},
         error_message=job.error_message,
+        adapter_resolution=_extract_resolution(job.summary_json or {}),
     )
 
 
 def serialize_candidate(candidate: SearchCandidateModel) -> SearchCandidateDetail:
+    raw_payload = candidate.raw_payload or {}
     return SearchCandidateDetail(
         id=candidate.id,
         job_id=candidate.job_id,
@@ -202,4 +213,18 @@ def serialize_candidate(candidate: SearchCandidateModel) -> SearchCandidateDetai
         mock=candidate.mock,
         note=candidate.note,
         created_at=candidate.created_at,
+        adapter_resolution=_extract_resolution(raw_payload),
     )
+
+
+def _extract_resolution(payload: dict) -> AdapterResolution | None:
+    resolution = payload.get("adapter_resolution")
+    if not resolution:
+        return None
+    return AdapterResolution.model_validate(resolution)
+
+
+def _is_mock_resolution(resolution: AdapterResolution | None) -> bool:
+    if resolution is None:
+        return True
+    return resolution.adapter_mode == AdapterMode.MOCK

@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from .integration import AdapterMode, AdapterResolution, VerificationState
 from .metadata import MetadataDetail
 from .mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 
@@ -86,6 +87,7 @@ class HostSearchCandidate(BaseModel):
     source_tags: list[str] = Field(default_factory=list)
     mock: bool = True
     note: str
+    adapter_resolution: AdapterResolution | None = None
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -132,6 +134,7 @@ class SearchJobSummary(BaseModel):
     metadata_snapshot: MetadataDetail | None = None
     summary: dict[str, Any] = Field(default_factory=dict)
     error_message: str | None = None
+    adapter_resolution: AdapterResolution | None = None
 
 
 class SearchCandidateDetail(BaseModel):
@@ -157,6 +160,7 @@ class SearchCandidateDetail(BaseModel):
     mock: bool = True
     note: str | None = None
     created_at: datetime
+    adapter_resolution: AdapterResolution | None = None
 
 
 class SearchCandidateListData(BaseModel):
@@ -165,6 +169,7 @@ class SearchCandidateListData(BaseModel):
     total: int = 0
     mock: bool = True
     note: str
+    adapter_resolution: AdapterResolution | None = None
 
 
 class DispatchRequest(BaseModel):
@@ -185,6 +190,11 @@ class DispatchResult(BaseModel):
     integration_point: str
     mock: bool = True
     binding_id: str | None = None
+    dispatch_backend: AdapterMode = AdapterMode.MOCK
+    capability_source: str = "mock.adapter"
+    fallback_reason: str | None = None
+    verification_state: VerificationState = VerificationState.PLACEHOLDER
+    adapter_resolution: AdapterResolution | None = None
 
 
 class DispatchAdapterResult(BaseModel):
@@ -195,3 +205,8 @@ class DispatchAdapterResult(BaseModel):
     note: str
     integration_point: str
     mock: bool = True
+    dispatch_backend: AdapterMode = AdapterMode.MOCK
+    capability_source: str = "mock.adapter"
+    fallback_reason: str | None = None
+    verification_state: VerificationState = VerificationState.PLACEHOLDER
+    adapter_resolution: AdapterResolution | None = None

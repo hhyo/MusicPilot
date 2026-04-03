@@ -1,19 +1,21 @@
-"""FastAPI application entrypoint for MusicPilot Phase 4."""
+"""FastAPI application entrypoint for MusicPilot Phase 5."""
 
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
 from .api.health import build_health_payload
 from .api.router import plugin_api_router, probe_api_router
 from .core.config import settings
+from .core.dependencies import get_host_integration_service
 from .core.http import configure_logging, register_exception_handlers, register_http_middleware
 from .core.responses import success_response
 from .schemas.common import ApiResponse
+from .services.host_integration import HostIntegrationService
 from .services.metadata import bootstrap_metadata_storage
 
 
@@ -46,30 +48,37 @@ def build_application() -> FastAPI:
     register_exception_handlers(app)
 
     @app.get("/", summary="Root information", include_in_schema=False)
-    async def root(request: Request) -> ApiResponse:
+    async def root(
+        request: Request,
+        integration_service: HostIntegrationService = Depends(get_host_integration_service),
+    ) -> ApiResponse:
         return success_response(
             request,
             data={
                 "service": settings.app_name,
                 "version": __version__,
-                "phase": "Phase 4",
-                "status": "subscription-minimum-loop-ready",
+                "phase": "Phase 5",
+                "status": "host-aware-adapter-resolution-ready",
+                "host_integration": integration_service.runtime_state().model_dump(mode="json"),
             },
-            message="MusicPilot backend Phase 4 minimum subscription loop is running.",
+            message="MusicPilot backend Phase 5 host-aware adapter loop is running.",
             code="ROOT_OK",
             mock=False,
-            note="This root endpoint confirms metadata, search job, subscriptions, chart discovery, and organize preview boundaries are alive. Real scheduler, chart crawling, downloader depth integration, and file organize pipeline are still out of scope.",
+            note="This root endpoint confirms host-aware search/dispatch resolution, subscriptions, and organize preview boundaries are alive. Real MoviePilot host verification remains separate from this runtime status.",
         )
 
     @app.get("/health", summary="Health check", tags=["Health"])
-    async def health(request: Request) -> ApiResponse:
+    async def health(
+        request: Request,
+        integration_service: HostIntegrationService = Depends(get_host_integration_service),
+    ) -> ApiResponse:
         return success_response(
             request,
-            data=build_health_payload(),
+            data=build_health_payload(integration_service.runtime_state().model_dump(mode="json")),
             message="Health check passed.",
             code="HEALTH_OK",
             mock=False,
-            note="This is application health only, not a real MoviePilot host capability probe.",
+            note="This is application health plus current host integration wiring summary; it is not a proof that every MoviePilot host capability has been verified.",
         )
 
     app.include_router(plugin_api_router, prefix=settings.api_prefix)

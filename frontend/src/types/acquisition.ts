@@ -11,6 +11,20 @@ export type JobStatus =
   | 'no_result'
   | 'failed';
 export type DecisionStatus = 'auto_download' | 'manual_confirm' | 'reject' | 'pending';
+export type AdapterMode = 'mock' | 'host';
+export type AdapterStrategy = 'mock' | 'prefer_host' | 'strict_host';
+export type VerificationState = 'verified' | 'unverified' | 'placeholder';
+
+export interface AdapterResolution {
+  adapter_key: string;
+  adapter_mode: AdapterMode;
+  strategy: AdapterStrategy;
+  capability_source: string;
+  verification_state: VerificationState;
+  fallback_reason?: string | null;
+  integration_point: string;
+  host_integration_enabled: boolean;
+}
 
 export interface QueryPreferences {
   preferred_formats: string[];
@@ -87,6 +101,7 @@ export interface SearchJobSummary {
   metadata_snapshot?: MetadataDetail | null;
   summary: Record<string, unknown>;
   error_message?: string | null;
+  adapter_resolution?: AdapterResolution | null;
 }
 
 export interface ScoreBreakdownItem {
@@ -117,6 +132,7 @@ export interface SearchCandidateDetail {
   mock: boolean;
   note?: string | null;
   created_at: string;
+  adapter_resolution?: AdapterResolution | null;
 }
 
 export interface SearchCandidateListData {
@@ -125,6 +141,7 @@ export interface SearchCandidateListData {
   total: number;
   mock: boolean;
   note: string;
+  adapter_resolution?: AdapterResolution | null;
 }
 
 export interface SearchJobCreatePayload {
@@ -155,6 +172,11 @@ export interface DispatchResult {
   integration_point: string;
   mock: boolean;
   binding_id?: string | null;
+  dispatch_backend: AdapterMode;
+  capability_source: string;
+  fallback_reason?: string | null;
+  verification_state: VerificationState;
+  adapter_resolution?: AdapterResolution | null;
 }
 
 export type ApiQueryBuildResponse = ApiResponse<QueryBuildResult>;

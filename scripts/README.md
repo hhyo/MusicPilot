@@ -8,6 +8,7 @@ Phase 0 提供的脚本：
 - `package_plugin.sh`：构建前端并装配 `plugin_runtime/`
 - `package_plugin.py`：执行实际装配逻辑
 - `sync_version.py`：同步版本号到前端、后端与运行时占位产物
+- `host_integration_stub.py`：本地宿主联调 stub，用于验证 host-preferred / strict / fallback 行为
 
 脚本目标是保证：
 
@@ -15,3 +16,10 @@ Phase 0 提供的脚本：
 - 装配边界清晰
 - 可以继续演进到后续阶段，而不是一次性写死宿主实现
 
+本地 stub 用法：
+
+```bash
+python3 scripts/host_integration_stub.py
+```
+
+默认监听 `http://127.0.0.1:19090`，仅用于验证 Phase 5 的 host-aware resolver，不代表真实 MoviePilot 宿主。

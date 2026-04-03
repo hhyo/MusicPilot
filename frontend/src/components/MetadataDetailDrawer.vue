@@ -7,7 +7,7 @@
   >
     <div class="detail-drawer">
       <el-alert
-        title="当前已进入 Phase 4：可基于 metadata 创建订阅与 mock 搜索任务，但仍未接入真实 PT 站点、真实 scheduler 与真实下载后整理。"
+        title="当前已进入 Phase 5：可基于 metadata 创建订阅与搜索任务，并通过 host-aware resolver 选择 host-backed skeleton 或 mock fallback。真实 PT 站点、真实下载器与真实整理仍待宿主联调确认。"
         type="info"
         :closable="false"
         show-icon
@@ -118,7 +118,7 @@
         </section>
 
         <section class="detail-section">
-          <h4>Phase 4 操作</h4>
+          <h4>Phase 5 操作</h4>
           <div class="detail-actions">
             <el-button type="success" plain @click="$emit('create-subscription', detail)">
               创建订阅

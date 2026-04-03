@@ -1,4 +1,4 @@
-"""Dispatch routes for the Phase 3 minimum acquisition loop."""
+"""Dispatch routes for the Phase 5 host-aware dispatch boundary."""
 
 from __future__ import annotations
 
@@ -19,12 +19,13 @@ async def dispatch_download(
     request: Request,
     service: DispatchService = Depends(get_dispatch_service),
 ) -> ApiResponse:
+    result = service.dispatch(payload)
     return success_response(
         request,
-        data=service.dispatch(payload),
+        data=result,
         message="Dispatch boundary handled the candidate.",
         code="DISPATCH_BOUNDARY_OK",
-        mock=True,
-        note="当前为 mock dispatch，已保留真实下载器接入边界，但不会真正下发到宿主下载器。",
-        todo=["Replace MockDownloadDispatchAdapter with a verified downloader integration in a later phase."],
+        mock=result.dispatch_backend == "mock",
+        note="当前 dispatch 会优先尝试 host-backed adapter skeleton；若能力缺失、配置不完整或运行失败，会按策略回退到 mock。",
+        todo=["Replace the host dispatch skeleton with a verified MoviePilot downloader integration after joint validation."],
     )
