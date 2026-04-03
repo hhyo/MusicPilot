@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
-from .acquisition import SearchCandidateDetail, SearchJobSummary
+from .acquisition import PathHandoffInfo, SearchCandidateDetail, SearchJobSummary
 from .integration import AdapterMode, AdapterResolution, VerificationState
 from .metadata import MetadataDetail
 from .mvp import EntityType
@@ -200,6 +200,7 @@ class OrganizePreviewResult(BaseModel):
     capability_source: str = "mock.adapter"
     fallback_reason: str | None = None
     failure_reason: str | None = None
+    path_handoff: PathHandoffInfo | None = None
     verification_state: VerificationState = VerificationState.PLACEHOLDER
     adapter_resolution: AdapterResolution | None = None
     mock: bool = True
@@ -289,6 +290,7 @@ class OrganizeAdapterResult(BaseModel):
     capability_source: str = "mock.adapter"
     fallback_reason: str | None = None
     failure_reason: str | None = None
+    path_handoff: PathHandoffInfo | None = None
     verification_state: VerificationState = VerificationState.PLACEHOLDER
     adapter_resolution: AdapterResolution | None = None
     mock: bool = True

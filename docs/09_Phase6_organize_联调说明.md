@@ -18,8 +18,8 @@ Phase 6 的目标不是宣称“已经真实完成文件移动、硬链接、刮
 |---|---|---|
 | Mock organize preview | verified | 已在本仓库内完成可重复验证。 |
 | Mock organize apply | verified | 已在本仓库内完成可重复验证，但不会真实处理文件。 |
-| Real organize preview skeleton | unverified | 已对真实 MoviePilot `/api/v1/transfer/name` 完成源码核对与负向样例验证；真实正向命名样例仍缺失。 |
-| Real organize apply skeleton | unverified | 已对真实 MoviePilot `/api/v1/transfer/manual` 完成源码核对与负向样例验证；真实成功整理样例仍缺失。 |
+| Real organize preview skeleton | verified | Phase 7B 已通过真实 MoviePilot `/api/v1/transfer/name` 拿到正向命名样例，并能在 MusicPilot preview 记录中回看。 |
+| Real organize apply skeleton | verified | Phase 7B 已通过真实 MoviePilot `/api/v1/transfer/manual` 拿到 `success=true` 的最小成功样例，并在 MusicPilot organize record 中落库。 |
 | Organize strategy mapping | verified | 已可通过 settings / env 配置库路径、命名模板与 conflict policy。 |
 | 真实文件移动 / 硬链接 / 刮削 / 媒体库刷新 | placeholder | 仅保留 host-backed apply 骨架与结果记录，不宣称真实完成。 |
 | 真实 MoviePilot organize 语义 | unverified | Phase 7A 已明确它本质上映射的是 MoviePilot transfer 语义，而不是独立 organize preview/apply 接口。 |
@@ -38,6 +38,8 @@ MUSICPILOT_HOST_TRANSFER_NAME_PATH=/api/v1/transfer/name
 MUSICPILOT_HOST_TRANSFER_QUEUE_PATH=/api/v1/transfer/queue
 MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual
 MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
+MUSICPILOT_HOST_HISTORY_DOWNLOAD_PATH=/api/v1/history/download
+MUSICPILOT_HOST_HISTORY_TRANSFER_PATH=/api/v1/history/transfer
 MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
 MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
 
@@ -73,9 +75,10 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
     - `strategy_snapshot`
     - `fallback_reason`
     - `verification_state`
+    - `path_handoff`
 - `POST /api/v1/plugin/musicpilot/organize/apply`
   - 当前可能走 mock apply，也可能映射到真实 MoviePilot `transfer/manual`。
-  - 即使返回 `applied`，也不等价于“真实文件移动 / 硬链接 / 刮削 / 媒体库刷新已全部验证完成”。
+  - Phase 7B 已拿到一条真实 `success=true` 样例，但这仍不等价于“真实文件移动 / 硬链接 / 刮削 / 媒体库刷新已全部验证完成”。
 - `GET /api/v1/plugin/musicpilot/organize/jobs`
   - 可回看 organize records 列表。
 - `GET /api/v1/plugin/musicpilot/organize/jobs/{id}`
@@ -96,17 +99,29 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
    - preview 为 `preview_ready`
    - apply 为 `applied`
 
-### B. prefer_host + 真实宿主但 organize 输入不足
+### B. prefer_host + 真实宿主成功样例
 
 1. 开启：
    - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
    - `MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host`
-2. SearchJob 候选只有远端 torrent context，尚无真实本地下载文件路径
+2. 先让 dispatch 走真实宿主成功样例，并确保 MusicPilot 已从 `history/download` 回读到 `path_handoff`
+3. 预期：
+   - preview 返回 `organize_backend=host`
+   - apply 返回 `organize_backend=host`
+   - `verification_state=verified`
+   - `path_handoff.handoff_status=resolved_from_history_download`
+
+### C. prefer_host + 真实宿主但 organize 输入不足
+
+1. 开启：
+   - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
+   - `MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host`
+2. SearchJob 候选只有远端 torrent context，且 dispatch 还没有成功写回本地路径
 3. 预期：
    - organize 会自动回退到 mock
    - `fallback_reason` 会体现 `moviepilot_transfer_source_path_missing`
 
-### C. prefer_host 但 capability 不足
+### D. prefer_host 但 capability 不足
 
 1. 开启：
    - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
@@ -116,7 +131,7 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
    - organize 会自动回退到 mock
    - 返回中出现 `fallback_reason=host_capability_unavailable` 或同类原因
 
-### D. 本地 host stub + prefer_host
+### E. 本地 host stub + prefer_host
 
 1. 启动 stub：
 
@@ -133,9 +148,10 @@ python3 scripts/host_integration_stub.py
 3. 预期：
    - `/health` 中 `active_organize_adapter=real_organize`
    - preview/apply 返回 `organize_backend=host`
-   - `verification_state` 仍为 `unverified`，因为 stub 不能替代真实宿主正向样例
+   - stub 也会写入 `history/download` 与 `history/transfer`
+   - `verification_state` 仍不能替代真实宿主样例
 
-### E. strict_host 失败验证
+### F. strict_host 失败验证
 
 1. 开启：
    - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
@@ -154,10 +170,12 @@ python3 scripts/host_integration_stub.py
   - 查看 `data.runtime_state.organize_capability` 与 `organize_fallback_reason`
 - `POST /api/v1/plugin/musicpilot/organize/preview`
   - 查看 `data.organize_backend`、`data.organize_status`、`data.fallback_reason`
+  - 查看 `data.path_handoff`
 - `POST /api/v1/plugin/musicpilot/organize/apply`
   - 查看 `data.organize_backend`、`data.organize_status`、`data.failure_reason`
+  - 查看 `data.path_handoff`
 - `GET /api/v1/plugin/musicpilot/organize/jobs/{id}`
-  - 查看持久化后的 organize record detail
+  - 查看持久化后的 organize record detail 与 `path_handoff`
 
 ## 9.7 与真实 MoviePilot organize 的边界声明
 
@@ -171,4 +189,5 @@ python3 scripts/host_integration_stub.py
 当前仓库**没有**宣称“已真实完成文件移动、硬链接、刮削入库或媒体库刷新”。  
 真实 organize 联调结果，请继续记录到 [docs/07_宿主能力验证记录模板.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/07_宿主能力验证记录模板.md)。
 
-Phase 7A 对真实 MoviePilot transfer 语义的差异说明，见 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)。
+Phase 7A 对真实 MoviePilot transfer 语义的差异说明，见 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)。  
+Phase 7B 的真实成功样例闭环，见 [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)。

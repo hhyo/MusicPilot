@@ -91,6 +91,20 @@ class HostSearchCandidate(BaseModel):
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
+class PathHandoffInfo(BaseModel):
+    download_hash: str | None = None
+    source_path: str | None = None
+    source_filetype: str | None = None
+    source_name: str | None = None
+    source_basename: str | None = None
+    source_extension: str | None = None
+    handoff_source: str
+    handoff_status: str
+    verification_state: VerificationState = VerificationState.UNVERIFIED
+    note: str
+    raw_summary: dict[str, Any] = Field(default_factory=dict)
+
+
 class ScoreBreakdownItem(BaseModel):
     score: float
     reason: str
@@ -161,6 +175,7 @@ class SearchCandidateDetail(BaseModel):
     note: str | None = None
     created_at: datetime
     adapter_resolution: AdapterResolution | None = None
+    path_handoff: PathHandoffInfo | None = None
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -196,6 +211,8 @@ class DispatchResult(BaseModel):
     fallback_reason: str | None = None
     failure_reason: str | None = None
     verification_state: VerificationState = VerificationState.PLACEHOLDER
+    path_handoff: PathHandoffInfo | None = None
+    host_response_summary: dict[str, Any] = Field(default_factory=dict)
     adapter_resolution: AdapterResolution | None = None
 
 
@@ -212,4 +229,6 @@ class DispatchAdapterResult(BaseModel):
     fallback_reason: str | None = None
     failure_reason: str | None = None
     verification_state: VerificationState = VerificationState.PLACEHOLDER
+    path_handoff: PathHandoffInfo | None = None
+    host_response_summary: dict[str, Any] = Field(default_factory=dict)
     adapter_resolution: AdapterResolution | None = None

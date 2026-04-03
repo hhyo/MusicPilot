@@ -32,6 +32,11 @@ class DispatchService:
 
         binding_id = None
         if adapter_result.dispatchable:
+            if adapter_result.path_handoff is not None:
+                candidate_model.raw_payload = self._merge_path_handoff_payload(
+                    candidate_model.raw_payload or {},
+                    adapter_result.path_handoff.model_dump(mode="json"),
+                )
             binding = self.repository.create_binding(
                 candidate=candidate_model,
                 dispatch_result=adapter_result,
@@ -65,5 +70,33 @@ class DispatchService:
             fallback_reason=adapter_result.fallback_reason,
             failure_reason=adapter_result.failure_reason,
             verification_state=adapter_result.verification_state,
+            path_handoff=adapter_result.path_handoff,
+            host_response_summary=adapter_result.host_response_summary,
             adapter_resolution=adapter_result.adapter_resolution,
         )
+
+    def _merge_path_handoff_payload(
+        self,
+        raw_payload: dict,
+        handoff: dict,
+    ) -> dict:
+        merged = {**raw_payload, "path_handoff": handoff}
+        source_path = handoff.get("source_path")
+        source_filetype = handoff.get("source_filetype")
+        if source_path:
+            source_name = handoff.get("source_name") or source_path.rsplit("/", 1)[-1]
+            source_basename = handoff.get("source_basename") or source_name.rsplit(".", 1)[0]
+            source_extension = handoff.get("source_extension") or (
+                f".{source_name.rsplit('.', 1)[-1]}" if "." in source_name else ""
+            )
+            merged["host_transfer_source_path"] = source_path
+            merged["host_transfer_filetype"] = source_filetype or "file"
+            merged["host_transfer_source"] = {
+                "storage": "local",
+                "path": source_path,
+                "type": source_filetype or "file",
+                "name": source_name,
+                "basename": source_basename,
+                "extension": source_extension,
+            }
+        return merged

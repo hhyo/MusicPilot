@@ -8,7 +8,7 @@ Phase 0 提供的脚本：
 - `package_plugin.sh`：构建前端并装配 `plugin_runtime/`
 - `package_plugin.py`：执行实际装配逻辑
 - `sync_version.py`：同步版本号到前端、后端与运行时占位产物
-- `host_integration_stub.py`：本地宿主联调 stub，用于验证 host-preferred / strict / fallback 行为，尽量模拟 MoviePilot 的 `search / download / transfer` 语义
+- `host_integration_stub.py`：本地宿主联调 stub，用于验证 host-preferred / strict / fallback 行为，尽量模拟 MoviePilot 的 `search / download / history / transfer` 语义
 
 脚本目标是保证：
 
@@ -24,10 +24,11 @@ python3 scripts/host_integration_stub.py
 
 默认监听 `http://127.0.0.1:19090`，仅用于验证 resolver、payload 和 fallback，不代表真实 MoviePilot 宿主。
 
-Phase 7A 后，stub 与真实宿主仍有这些边界差异需要注意：
+Phase 7B 后，stub 与真实宿主仍有这些边界差异需要注意：
 
 - stub 只是“语义逼近”，不能替代真实宿主样例
-- 真实宿主 `search/title`、`download/clients`、`transfer/name`、`transfer/manual` 已在 docs 中记录到实测差异
+- stub 已模拟 `history/download` 与 `history/transfer`，可用于回归 `path_handoff`
+- 真实宿主 `search/title`、`download/clients`、`download/`、`transfer/name`、`transfer/manual` 已在 docs 中记录到实测差异
 - 真实宿主 `transfer/now` 需要 `?token=`，这一点已经被 stub 同步模拟
 
-详细差异见 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)。
+详细差异见 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md) 和 [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)。

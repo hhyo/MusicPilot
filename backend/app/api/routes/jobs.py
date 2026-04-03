@@ -1,4 +1,4 @@
-"""Search job routes for the Phase 7A host-aware acquisition loop."""
+"""Search job routes for the Phase 7B host-aware acquisition loop."""
 
 from __future__ import annotations
 
@@ -6,20 +6,30 @@ from fastapi import APIRouter, Depends, Request
 
 from ...core.dependencies import get_query_builder_service, get_search_job_service
 from ...core.responses import success_response
-from ...schemas.acquisition import QueryBuildRequest, SearchJobCreateRequest
-from ...schemas.common import ApiResponse
+from ...schemas.acquisition import (
+    QueryBuildRequest,
+    QueryBuildResult,
+    SearchCandidateListData,
+    SearchJobCreateRequest,
+    SearchJobSummary,
+)
+from ...schemas.common import TypedApiResponse
 from ...services.query_builder import QueryBuilderService
 from ...services.search_job import SearchJobService
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
-@router.post("/query-preview", summary="Preview query builder output")
+@router.post(
+    "/query-preview",
+    summary="Preview query builder output",
+    response_model=TypedApiResponse[QueryBuildResult],
+)
 async def preview_query(
     payload: QueryBuildRequest,
     request: Request,
     service: QueryBuilderService = Depends(get_query_builder_service),
-) -> ApiResponse:
+) -> TypedApiResponse[QueryBuildResult]:
     return success_response(
         request,
         data=service.build(payload),
@@ -30,11 +40,15 @@ async def preview_query(
     )
 
 
-@router.get("", summary="List search jobs")
+@router.get(
+    "",
+    summary="List search jobs",
+    response_model=TypedApiResponse[list[SearchJobSummary]],
+)
 async def list_jobs(
     request: Request,
     service: SearchJobService = Depends(get_search_job_service),
-) -> ApiResponse:
+) -> TypedApiResponse[list[SearchJobSummary]]:
     jobs = service.list_jobs()
     return success_response(
         request,
@@ -46,12 +60,16 @@ async def list_jobs(
     )
 
 
-@router.post("", summary="Create search job")
+@router.post(
+    "",
+    summary="Create search job",
+    response_model=TypedApiResponse[SearchJobSummary],
+)
 async def create_job(
     payload: SearchJobCreateRequest,
     request: Request,
     service: SearchJobService = Depends(get_search_job_service),
-) -> ApiResponse:
+) -> TypedApiResponse[SearchJobSummary]:
     job = service.create_job(payload)
     return success_response(
         request,
@@ -63,12 +81,16 @@ async def create_job(
     )
 
 
-@router.get("/{job_id}", summary="Get search job detail")
+@router.get(
+    "/{job_id}",
+    summary="Get search job detail",
+    response_model=TypedApiResponse[SearchJobSummary],
+)
 async def get_job(
     job_id: str,
     request: Request,
     service: SearchJobService = Depends(get_search_job_service),
-) -> ApiResponse:
+) -> TypedApiResponse[SearchJobSummary]:
     job = service.get_job(job_id)
     return success_response(
         request,
@@ -80,12 +102,16 @@ async def get_job(
     )
 
 
-@router.post("/{job_id}/run", summary="Execute search job synchronously")
+@router.post(
+    "/{job_id}/run",
+    summary="Execute search job synchronously",
+    response_model=TypedApiResponse[SearchJobSummary],
+)
 async def run_job(
     job_id: str,
     request: Request,
     service: SearchJobService = Depends(get_search_job_service),
-) -> ApiResponse:
+) -> TypedApiResponse[SearchJobSummary]:
     job = service.execute_job(job_id)
     return success_response(
         request,
@@ -97,12 +123,16 @@ async def run_job(
     )
 
 
-@router.get("/{job_id}/results", summary="List job candidates")
+@router.get(
+    "/{job_id}/results",
+    summary="List job candidates",
+    response_model=TypedApiResponse[SearchCandidateListData],
+)
 async def job_results(
     job_id: str,
     request: Request,
     service: SearchJobService = Depends(get_search_job_service),
-) -> ApiResponse:
+) -> TypedApiResponse[SearchCandidateListData]:
     results = service.list_candidates(job_id)
     return success_response(
         request,

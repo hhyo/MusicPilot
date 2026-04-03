@@ -1,32 +1,6 @@
-"""Service layer placeholders.
+"""Backend service package.
 
-TODO(Phase 1+):
-- ChartService
-- MetadataService
-- SubscriptionService
-- AcquisitionService
-- OrganizerService
+The package intentionally avoids eager re-exports so host-aware adapters can import
+individual service modules without triggering circular imports during startup.
 """
-"""Service exports for backend business modules."""
 
-from .charts import ChartService
-from .dispatch import DispatchService
-from .query_builder import QueryBuilderService
-from .scoring import MusicCandidateScorer
-from .search_job import SearchJobService
-from .metadata import MetadataService
-from .organize import OrganizeService
-from .subscription_execution import SubscriptionExecutionService
-from .subscriptions import SubscriptionService
-
-__all__ = [
-    "ChartService",
-    "DispatchService",
-    "MetadataService",
-    "MusicCandidateScorer",
-    "OrganizeService",
-    "QueryBuilderService",
-    "SearchJobService",
-    "SubscriptionExecutionService",
-    "SubscriptionService",
-]

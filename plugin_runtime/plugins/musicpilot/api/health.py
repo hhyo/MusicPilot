@@ -20,7 +20,7 @@ def build_health_payload(runtime_state: dict) -> dict:
         "service": settings.app_name,
         "version": __version__,
         "api_prefix": settings.api_prefix,
-        "phase": "Phase 7A",
+        "phase": "Phase 7B",
         "host_integration": runtime_state,
     }
 

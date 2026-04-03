@@ -9,6 +9,7 @@ from .host_http import HostHttpClient
 from ..core.config import Settings
 from ..schemas.acquisition import DispatchAdapterResult, SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, VerificationState
+from ..services.host_path_handoff import HostPathHandoffService
 
 
 class DownloadDispatchAdapter(ABC):
@@ -100,9 +101,16 @@ class MockDownloadDispatchAdapter(DownloadDispatchAdapter):
 class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
     """MoviePilot-backed download dispatch adapter."""
 
-    def __init__(self, *, settings: Settings, client: HostHttpClient):
+    def __init__(
+        self,
+        *,
+        settings: Settings,
+        client: HostHttpClient,
+        path_handoff_service: HostPathHandoffService,
+    ):
         self.settings = settings
         self.client = client
+        self.path_handoff_service = path_handoff_service
 
     def dispatch(
         self,
@@ -135,15 +143,25 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
         message = self._optional_text(data.get("message"))
         response_data = data.get("data") if isinstance(data.get("data"), dict) else {}
         dispatch_status = "host_submitted" if success else "host_rejected"
+        download_id = self._optional_text(response_data.get("download_id") if isinstance(response_data, dict) else None)
+        path_handoff = None
+        if success:
+            path_handoff = self.path_handoff_service.resolve(download_id)
+            if path_handoff is None:
+                path_handoff = self.path_handoff_service.build_pending(
+                    download_hash=download_id,
+                    handoff_source="moviepilot.runtime.history.download",
+                )
 
         return DispatchAdapterResult(
             dispatchable=success,
             dispatch_status=dispatch_status,
             target_downloader=target_downloader,
-            downloader_task_id=self._optional_text(response_data.get("download_id") if isinstance(response_data, dict) else None),
+            downloader_task_id=download_id,
             note=(
                 "当前派发结果来自真实 MoviePilot `/api/v1/download/add` 或 `/api/v1/download/` 语义。"
                 "如果宿主返回 `success=false`，这表示 payload 已被宿主接受并给出明确拒绝原因，而不是本地 mock。"
+                "Phase 7B 已拿到真实 `success=true` 的最小下载样例。"
             ),
             integration_point="RealDownloadDispatchAdapter.dispatch.moviepilot",
             mock=False,
@@ -151,13 +169,20 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
             capability_source="moviepilot.runtime.download.add",
             fallback_reason=downloader_fallback,
             failure_reason=message if not success else None,
-            verification_state=VerificationState.UNVERIFIED,
+            verification_state=VerificationState.VERIFIED,
+            path_handoff=path_handoff,
+            host_response_summary={
+                "path": path,
+                "success": success,
+                "message": message,
+                "download_id": download_id,
+            },
             adapter_resolution=AdapterResolution(
                 adapter_key="real_download_dispatch",
                 adapter_mode=AdapterMode.HOST,
                 strategy=AdapterStrategy.PREFER_HOST,
                 capability_source="moviepilot.runtime.download.add",
-                verification_state=VerificationState.UNVERIFIED,
+                verification_state=VerificationState.VERIFIED,
                 fallback_reason=downloader_fallback,
                 integration_point="RealDownloadDispatchAdapter.dispatch.moviepilot",
                 host_integration_enabled=self.settings.host_integration_enabled,

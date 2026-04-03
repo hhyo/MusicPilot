@@ -17,6 +17,7 @@ from app.schemas.orchestration import (
     OrganizeStatus,
     OrganizeStrategySnapshot,
 )
+from app.services.host_path_handoff import HostPathHandoffService
 from app.services.query_builder import QueryBuilderService
 
 from test_query_builder import build_album_detail
@@ -54,6 +55,12 @@ def build_settings(**overrides) -> Settings:  # noqa: ANN003
         "host_download_add_path": "/api/v1/download/add",
         "host_transfer_name_path": "/api/v1/transfer/name",
         "host_transfer_manual_path": "/api/v1/transfer/manual",
+        "host_history_download_path": "/api/v1/history/download",
+        "host_history_transfer_path": "/api/v1/history/transfer",
+        "host_history_download_page_size": 50,
+        "host_history_download_max_pages": 2,
+        "host_history_transfer_page_size": 50,
+        "host_history_transfer_max_pages": 2,
         "host_verification_state": "unverified",
     }
     base.update(overrides)
@@ -177,7 +184,11 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
                 }
             },
         )
-        adapter = RealDownloadDispatchAdapter(settings=build_settings(), client=client)  # type: ignore[arg-type]
+        adapter = RealDownloadDispatchAdapter(
+            settings=build_settings(),
+            client=client,  # type: ignore[arg-type]
+            path_handoff_service=HostPathHandoffService(settings=build_settings(), client=client),  # type: ignore[arg-type]
+        )
 
         result = adapter.dispatch(candidate=candidate, downloader_id="mock-downloader", manual_confirm=True)
 
@@ -186,6 +197,69 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
         self.assertEqual(result.target_downloader, "QB")
         self.assertEqual(result.failure_reason, "无法识别媒体信息")
         self.assertIn("downloader_name_remapped", result.fallback_reason or "")
+
+    def test_dispatch_success_resolves_history_download_path(self) -> None:
+        candidate = build_candidate(
+            raw_payload={
+                "host_context": {
+                    "torrent_info": {
+                        "site": 1,
+                        "site_name": "Stub Site",
+                        "title": "It Was Just an Accident 2025 BluRay",
+                        "description": "validation",
+                        "enclosure": "magnet:?xt=urn:btih:1",
+                    },
+                    "media_info": {
+                        "type": "电影",
+                        "title": "普通事故",
+                        "year": "2025",
+                        "tmdb_id": 1456349,
+                    },
+                }
+            }
+        )
+        client = FakeHostClient(
+            get_responses={
+                "/api/v1/download/clients": {"items": [{"name": "QB", "type": "qbittorrent"}]},
+                "/api/v1/history/download": {
+                    "items": [
+                        {
+                            "download_hash": "stub-download-001",
+                            "title": "普通事故",
+                            "path": "/downloads/movie/Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC",
+                            "torrent_name": "Yek tasadof-e sadeh 2025 1080p ITA Blu-ray AVC DTS-HD MA 5.1-FHC",
+                            "date": "2026-04-03 22:36:41",
+                        }
+                    ]
+                },
+            },
+            post_responses={
+                "/api/v1/download/": {
+                    "success": True,
+                    "message": None,
+                    "data": {"download_id": "stub-download-001"},
+                }
+            },
+        )
+        settings = build_settings()
+        adapter = RealDownloadDispatchAdapter(
+            settings=settings,
+            client=client,  # type: ignore[arg-type]
+            path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
+        )
+
+        result = adapter.dispatch(candidate=candidate, downloader_id="QB", manual_confirm=True)
+
+        self.assertTrue(result.dispatchable)
+        self.assertEqual(result.dispatch_status, "host_submitted")
+        self.assertEqual(result.verification_state, VerificationState.VERIFIED)
+        self.assertIsNotNone(result.path_handoff)
+        self.assertEqual(result.path_handoff.source_filetype, "dir")
+        self.assertEqual(
+            result.path_handoff.handoff_status,
+            "resolved_from_history_download",
+        )
+        self.assertEqual(result.host_response_summary["download_id"], "stub-download-001")
 
 
 class RealOrganizeAdapterTest(unittest.TestCase):
@@ -225,7 +299,7 @@ class RealOrganizeAdapterTest(unittest.TestCase):
 
         self.assertEqual(result.organize_backend, AdapterMode.HOST)
         self.assertEqual(result.organize_status, OrganizeStatus.PREVIEW_READY)
-        self.assertEqual(result.verification_state, VerificationState.UNVERIFIED)
+        self.assertEqual(result.verification_state, VerificationState.VERIFIED)
         self.assertTrue(result.target_relative_path.endswith("Organized-Adele-25.flac"))
         self.assertEqual(client.calls[0][2], {"path": "/downloads/Adele-25.flac", "filetype": "file"})
 
@@ -254,7 +328,7 @@ class RealOrganizeAdapterTest(unittest.TestCase):
 
         self.assertEqual(result.organize_backend, AdapterMode.HOST)
         self.assertEqual(result.organize_status, OrganizeStatus.FAILED)
-        self.assertEqual(result.verification_state, VerificationState.UNVERIFIED)
+        self.assertEqual(result.verification_state, VerificationState.VERIFIED)
         self.assertIn("没有找到可整理的媒体文件", result.failure_reason or "")
         payload = client.calls[0][3]["payload"]
         self.assertEqual(payload["fileitem"]["path"], "/downloads/nonexistent-file.flac")

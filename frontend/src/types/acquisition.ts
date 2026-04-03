@@ -26,6 +26,20 @@ export interface AdapterResolution {
   host_integration_enabled: boolean;
 }
 
+export interface PathHandoffInfo {
+  download_hash?: string | null;
+  source_path?: string | null;
+  source_filetype?: string | null;
+  source_name?: string | null;
+  source_basename?: string | null;
+  source_extension?: string | null;
+  handoff_source: string;
+  handoff_status: string;
+  verification_state: VerificationState;
+  note: string;
+  raw_summary: Record<string, unknown>;
+}
+
 export interface QueryPreferences {
   preferred_formats: string[];
   prefer_lossless: boolean;
@@ -133,6 +147,7 @@ export interface SearchCandidateDetail {
   note?: string | null;
   created_at: string;
   adapter_resolution?: AdapterResolution | null;
+  path_handoff?: PathHandoffInfo | null;
   raw_payload?: Record<string, unknown>;
 }
 
@@ -178,6 +193,8 @@ export interface DispatchResult {
   fallback_reason?: string | null;
   failure_reason?: string | null;
   verification_state: VerificationState;
+  path_handoff?: PathHandoffInfo | null;
+  host_response_summary: Record<string, unknown>;
   adapter_resolution?: AdapterResolution | null;
 }
 

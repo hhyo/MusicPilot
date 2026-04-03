@@ -20,6 +20,7 @@ from ..schemas.orchestration import (
     OrganizeStrategySnapshot,
 )
 from .host_integration import OrganizeAdapterResolver
+from .host_path_handoff import HostPathHandoffService
 from .organize_strategy import OrganizeStrategyService
 from .search_job import serialize_candidate
 
@@ -31,10 +32,12 @@ class OrganizeService:
         *,
         resolver: OrganizeAdapterResolver,
         strategy_service: OrganizeStrategyService,
+        path_handoff_service: HostPathHandoffService,
     ):
         self.session = session
         self.resolver = resolver
         self.strategy_service = strategy_service
+        self.path_handoff_service = path_handoff_service
         self.acquisition_repository = AcquisitionRepository(session)
         self.repository = OrchestrationRepository(session)
 
@@ -153,11 +156,31 @@ class OrganizeService:
         if candidate_model.job and candidate_model.job.metadata_snapshot:
             metadata_detail = MetadataDetail.model_validate(candidate_model.job.metadata_snapshot)
 
+        candidate_payload = dict(candidate_model.raw_payload or {})
+        binding_payload = dict(binding_model.raw_payload or {}) if binding_model else {}
+        if not self._has_source_payload(candidate_payload):
+            resolved_payload = self._hydrate_path_handoff_payload(
+                candidate_payload=candidate_payload,
+                binding_payload=binding_payload,
+                binding_model=binding_model,
+            )
+            if resolved_payload is not None:
+                candidate_payload = resolved_payload
+                candidate_model.raw_payload = candidate_payload
+                if binding_model is not None:
+                    binding_model.raw_payload = {
+                        **binding_payload,
+                        **self._binding_payload_patch_from_candidate(candidate_payload),
+                    }
+        candidate = serialize_candidate(candidate_model)
+        if candidate_payload:
+            candidate.raw_payload = candidate_payload
+
         return {
             "candidate_model": candidate_model,
             "binding_model": binding_model,
             "binding_id": binding_model.id if binding_model else None,
-            "candidate": serialize_candidate(candidate_model),
+            "candidate": candidate,
             "metadata_detail": metadata_detail,
         }
 
@@ -195,11 +218,73 @@ class OrganizeService:
             capability_source=current.capability_source,
             fallback_reason=current.fallback_reason,
             failure_reason=failure_reason,
+            path_handoff=current.path_handoff,
             verification_state=current.verification_state,
             adapter_resolution=current.adapter_resolution,
             mock=current.mock,
             note="Organize apply failed before a verified result could be recorded.",
         )
+
+    def _has_source_payload(self, payload: dict) -> bool:
+        return bool(
+            payload.get("host_transfer_source_path")
+            or payload.get("host_transfer_source")
+            or payload.get("source_fileitem")
+        )
+
+    def _hydrate_path_handoff_payload(
+        self,
+        *,
+        candidate_payload: dict,
+        binding_payload: dict,
+        binding_model,
+    ) -> dict | None:
+        payload = {**candidate_payload}
+        if isinstance(binding_payload.get("path_handoff"), dict):
+            payload["path_handoff"] = binding_payload["path_handoff"]
+        if self._has_source_payload(payload):
+            return payload
+
+        download_hash = None
+        path_handoff = payload.get("path_handoff")
+        if isinstance(path_handoff, dict):
+            download_hash = path_handoff.get("download_hash")
+        if not download_hash and isinstance(binding_payload.get("path_handoff"), dict):
+            download_hash = binding_payload["path_handoff"].get("download_hash")
+        if not download_hash and binding_model is not None:
+            download_hash = binding_model.downloader_task_id
+        if not download_hash:
+            return payload
+
+        resolved = self.path_handoff_service.resolve(str(download_hash))
+        if resolved is None:
+            return payload
+
+        payload["path_handoff"] = resolved.model_dump(mode="json")
+        if resolved.source_path:
+            payload["host_transfer_source_path"] = resolved.source_path
+            payload["host_transfer_filetype"] = resolved.source_filetype or "file"
+            payload["host_transfer_source"] = {
+                "storage": "local",
+                "path": resolved.source_path,
+                "type": resolved.source_filetype or "file",
+                "name": resolved.source_name,
+                "basename": resolved.source_basename,
+                "extension": resolved.source_extension,
+            }
+        return payload
+
+    def _binding_payload_patch_from_candidate(self, candidate_payload: dict) -> dict:
+        patch: dict = {}
+        if candidate_payload.get("path_handoff"):
+            patch["path_handoff"] = candidate_payload["path_handoff"]
+        if candidate_payload.get("host_transfer_source"):
+            patch["host_transfer_source"] = candidate_payload["host_transfer_source"]
+        if candidate_payload.get("host_transfer_source_path"):
+            patch["host_transfer_source_path"] = candidate_payload["host_transfer_source_path"]
+        if candidate_payload.get("host_transfer_filetype"):
+            patch["host_transfer_filetype"] = candidate_payload["host_transfer_filetype"]
+        return patch
 
 
 def serialize_organize_record(record) -> OrganizePreviewResult:
@@ -238,6 +323,7 @@ def serialize_organize_record(record) -> OrganizePreviewResult:
         capability_source=record.capability_source or raw_payload.get("capability_source") or "mock.adapter",
         fallback_reason=record.fallback_reason or raw_payload.get("fallback_reason"),
         failure_reason=record.failure_reason or raw_payload.get("failure_reason"),
+        path_handoff=raw_payload.get("path_handoff"),
         verification_state=VerificationState(verification_state),
         adapter_resolution=AdapterResolution.model_validate(resolution_payload) if resolution_payload else None,
         mock=record.mock,

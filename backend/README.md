@@ -11,6 +11,7 @@ FastAPI 工程目录。当前已完成：
 - host-aware organize preview/apply 与 organize 状态记录
 - host-aware search / dispatch / organize adapter resolver 与 fallback 机制
 - 真实 MoviePilot search / download / transfer 语义收敛与差异记录
+- 真实 download success -> history path handoff -> transfer/name -> transfer/manual 成功样例
 
 当前仍不包含：
 
@@ -18,9 +19,9 @@ FastAPI 工程目录。当前已完成：
 - 真实榜单抓取与增量监控
 - 真实 PT 搜索与下载器派发
 - 生产级订阅调度器与真实整理规则
-- 真实 MoviePilot download 成功派发样例
-- 真实 MoviePilot transfer/name 正向命名样例
-- 真实 MoviePilot transfer/manual 成功整理样例
+- 真实 MoviePilot `download/add` 单独成功样例
+- 真实 MoviePilot `search/media` 正向样例
+- 生产级下载完成回调、自动整理与媒体库刷新
 
 手动初始化本地数据库：
 
@@ -52,6 +53,8 @@ export MUSICPILOT_HOST_SEARCH_LAST_PATH=/api/v1/search/last
 export MUSICPILOT_HOST_DOWNLOADERS_PATH=/api/v1/download/clients
 export MUSICPILOT_HOST_DOWNLOAD_ADD_PATH=/api/v1/download/add
 export MUSICPILOT_HOST_DOWNLOAD_MEDIA_PATH=/api/v1/download/
+export MUSICPILOT_HOST_HISTORY_DOWNLOAD_PATH=/api/v1/history/download
+export MUSICPILOT_HOST_HISTORY_TRANSFER_PATH=/api/v1/history/transfer
 export MUSICPILOT_HOST_TRANSFER_NAME_PATH=/api/v1/transfer/name
 export MUSICPILOT_HOST_TRANSFER_QUEUE_PATH=/api/v1/transfer/queue
 export MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual
@@ -67,6 +70,6 @@ export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
 python3 ../scripts/host_integration_stub.py
 ```
 
-然后通过 `/health`、`/api/probe/health`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend、verification state 与 fallback 信息。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)、[docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md) 和 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)。
+然后通过 `/health`、`/api/probe/health`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend、verification state、fallback 与 `path_handoff` 信息。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)、[docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)、[docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md) 和 [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)。
 
 启动方式见仓库根目录 [README.md](../README.md)。

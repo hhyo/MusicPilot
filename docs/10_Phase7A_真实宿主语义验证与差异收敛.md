@@ -3,6 +3,9 @@
 > 用途：沉淀 MusicPilot 在 Phase 7A 对真实 MoviePilot 宿主完成的源码核对、运行时联调、字段映射修正和 stub 差异记录。  
 > 约束：本文档不会写入真实 token；所有鉴权均通过本地环境变量注入。
 
+> 更新说明：Phase 7B 已在真实宿主上拿到第一条成功下载与 organize 闭环样例。  
+> 最新 verified 状态请同时参考 [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)。
+
 ## 10.1 联调范围
 
 - 主仓库：`./MusicPilot`

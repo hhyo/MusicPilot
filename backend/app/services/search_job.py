@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..models.acquisition import SearchCandidateModel, SearchJobModel
 from ..repositories.acquisition import AcquisitionRepository
 from ..schemas.acquisition import (
+    PathHandoffInfo,
     QueryBuildRequest,
     QueryBuildResult,
     SearchCandidateDetail,
@@ -219,6 +220,7 @@ def serialize_candidate(candidate: SearchCandidateModel) -> SearchCandidateDetai
         note=candidate.note,
         created_at=candidate.created_at,
         adapter_resolution=_extract_resolution(raw_payload),
+        path_handoff=_extract_path_handoff(raw_payload),
         raw_payload=raw_payload,
     )
 
@@ -234,3 +236,10 @@ def _is_mock_resolution(resolution: AdapterResolution | None) -> bool:
     if resolution is None:
         return True
     return resolution.adapter_mode == AdapterMode.MOCK
+
+
+def _extract_path_handoff(payload: dict) -> PathHandoffInfo | None:
+    handoff = payload.get("path_handoff")
+    if not handoff:
+        return None
+    return PathHandoffInfo.model_validate(handoff)

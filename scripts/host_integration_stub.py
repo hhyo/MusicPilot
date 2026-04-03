@@ -68,9 +68,33 @@ DOWNLOADER_CLIENTS = [{"name": "QB", "type": "qbittorrent"}]
 
 SITES = [{"id": 1, "name": "Local Stub PT", "enabled": True}]
 
+DOWNLOAD_HISTORY = [
+    {
+        "id": 1,
+        "title": "普通事故",
+        "path": "/downloads/movie/Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC",
+        "download_hash": "stub-download-002",
+        "torrent_name": "Yek tasadof-e sadeh 2025 1080p ITA Blu-ray AVC DTS-HD MA 5.1-FHC",
+        "date": "2026-04-03 22:36:41",
+    }
+]
+
+TRANSFER_HISTORY = [
+    {
+        "id": 1,
+        "title": "普通事故",
+        "src": "/downloads/movie/It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+        "dest": "/downloads/media/movie/外语电影/普通事故 (2025) {tmdbid=1456349}/普通事故.It Was Just an Accident.2025.BluRay.1080p.x264.DDP 5.1.mkv",
+        "download_hash": "stub-download-002",
+        "status": True,
+        "errmsg": None,
+        "date": "2026-04-03 22:40:41",
+    }
+]
+
 
 class HostIntegrationStubHandler(BaseHTTPRequestHandler):
-    server_version = "MusicPilotMoviePilotStub/0.2"
+    server_version = "MusicPilotMoviePilotStub/0.3"
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -98,6 +122,14 @@ class HostIntegrationStubHandler(BaseHTTPRequestHandler):
         if path in {"/downloaders", "/api/v1/download/clients"}:
             payload = {"items": DOWNLOADER_CLIENTS} if path == "/downloaders" else DOWNLOADER_CLIENTS
             self._write_json(payload)
+            return
+
+        if path == "/api/v1/history/download":
+            self._write_json(DOWNLOAD_HISTORY)
+            return
+
+        if path == "/api/v1/history/transfer":
+            self._write_json({"success": True, "data": {"list": TRANSFER_HISTORY, "total": len(TRANSFER_HISTORY)}})
             return
 
         if path == "/api/v1/search/title":
@@ -192,11 +224,37 @@ class HostIntegrationStubHandler(BaseHTTPRequestHandler):
             if "Nonexistent" in title or "Validation" in title:
                 self._write_json({"success": False, "message": "无法识别媒体信息", "data": {}})
                 return
-            self._write_json({"success": True, "message": None, "data": {"download_id": "stub-download-001"}})
+            download_id = "stub-download-001"
+            DOWNLOAD_HISTORY.insert(
+                0,
+                {
+                    "id": len(DOWNLOAD_HISTORY) + 1,
+                    "title": "Stub Download",
+                    "path": "/downloads/movie/Stub.Download.2026.COMPLETE.BLURAY-GRP",
+                    "download_hash": download_id,
+                    "torrent_name": title,
+                    "date": "2026-04-03 23:00:00",
+                },
+            )
+            self._write_json({"success": True, "message": None, "data": {"download_id": download_id}})
             return
 
         if path == "/api/v1/download/":
-            self._write_json({"success": True, "message": None, "data": {"download_id": "stub-download-002"}})
+            torrent = payload.get("torrent_in") or {}
+            media = payload.get("media_in") or {}
+            download_id = "stub-download-002"
+            DOWNLOAD_HISTORY.insert(
+                0,
+                {
+                    "id": len(DOWNLOAD_HISTORY) + 1,
+                    "title": media.get("title") or "Stub Download",
+                    "path": "/downloads/movie/Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC",
+                    "download_hash": download_id,
+                    "torrent_name": torrent.get("title"),
+                    "date": "2026-04-03 23:05:00",
+                },
+            )
+            self._write_json({"success": True, "message": None, "data": {"download_id": download_id}})
             return
 
         if path in {"/organize/preview", "/organize/apply"}:
@@ -225,6 +283,19 @@ class HostIntegrationStubHandler(BaseHTTPRequestHandler):
                     }
                 )
                 return
+            TRANSFER_HISTORY.insert(
+                0,
+                {
+                    "id": len(TRANSFER_HISTORY) + 1,
+                    "title": "Stub Transfer",
+                    "src": source_path,
+                    "dest": f"{payload.get('target_path') or '/library/musicpilot/library'}/{fileitem.get('name')}",
+                    "download_hash": payload.get("download_hash") or "stub-download-002",
+                    "status": True,
+                    "errmsg": None,
+                    "date": "2026-04-03 23:10:00",
+                },
+            )
             self._write_json({"success": True, "message": None, "data": {}})
             return
 

@@ -21,7 +21,7 @@ Phase 5 的目标不是宣称“已经真实接通宿主全部能力”，而是
 | Host search mock adapter | verified | 已在 SearchJob 链路中跑通。 |
 | Host search real adapter skeleton | verified | `search/title` 与 `search/last` 已在真实 MoviePilot 宿主完成语义验证；`search/media` 仍是 `unverified`。 |
 | Download dispatch mock adapter | verified | 已在 `/downloads/dispatch` 路由中跑通。 |
-| Download dispatch real adapter skeleton | unverified | 已在真实 MoviePilot 宿主确认 `download/clients` 与 `download/add` 负向语义；真实成功派发样例仍缺失。 |
+| Download dispatch real adapter skeleton | verified | Phase 7B 已通过真实 MoviePilot `/api/v1/download/` 拿到 `success=true` 样例，并能通过 `history/download` 回读本地路径。`download/add` 单独成功样例仍待补充。 |
 | Notify real adapter | placeholder | 仅保留 endpoint 骨架与配置入口。 |
 | Config real adapter | placeholder | 仅保留 endpoint 骨架与配置入口。 |
 | 真实 MoviePilot 宿主接口语义 | unverified | Phase 7A 已完成首轮真实宿主差异收敛，详见 `docs/10_Phase7A_真实宿主语义验证与差异收敛.md`。 |
@@ -45,6 +45,8 @@ MUSICPILOT_HOST_SEARCH_LAST_PATH=/api/v1/search/last
 MUSICPILOT_HOST_DOWNLOADERS_PATH=/api/v1/download/clients
 MUSICPILOT_HOST_DOWNLOAD_ADD_PATH=/api/v1/download/add
 MUSICPILOT_HOST_DOWNLOAD_MEDIA_PATH=/api/v1/download/
+MUSICPILOT_HOST_HISTORY_DOWNLOAD_PATH=/api/v1/history/download
+MUSICPILOT_HOST_HISTORY_TRANSFER_PATH=/api/v1/history/transfer
 MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
 MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
 MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
@@ -84,6 +86,7 @@ MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
    - `/health` 与 `/api/probe/health` 中出现 `real_host_search / real_download_dispatch`
    - SearchJob candidates 中 `adapter_mode=host`
    - dispatch result 中 `dispatch_backend=host`
+   - 若宿主返回 `success=true`，还能看到 `path_handoff`
    - 若宿主拒绝 payload，仍会保留 `dispatch_backend=host`，并给出真实 `failure_reason`
 
 ### C. 本地 host stub + prefer_host
@@ -124,6 +127,7 @@ python3 scripts/host_integration_stub.py
   - 查看 `data.adapter_resolution` 与每个 candidate 的 `adapter_resolution`
 - `POST /api/v1/plugin/musicpilot/downloads/dispatch`
   - 查看 `data.dispatch_backend`、`data.fallback_reason`、`data.adapter_resolution`
+  - 查看 `data.path_handoff` 与 `data.host_response_summary`
 
 ## 8.6 与真实 MoviePilot 宿主的边界声明
 
@@ -137,4 +141,5 @@ python3 scripts/host_integration_stub.py
 当前仓库**没有**宣称“已真实接通宿主全部能力”。  
 真实 MoviePilot 宿主联调结果，请继续记录到 [docs/07_宿主能力验证记录模板.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/07_宿主能力验证记录模板.md)。
 
-Phase 7A 的真实宿主差异与验证结论，见 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)。
+Phase 7A 的真实宿主差异与验证结论，见 [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)。  
+Phase 7B 的真实成功样例闭环，见 [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)。

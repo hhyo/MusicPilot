@@ -1,6 +1,7 @@
 import type {
   AdapterMode,
   AdapterResolution,
+  PathHandoffInfo,
   SearchCandidateDetail,
   SearchJobSummary,
   VerificationState,
@@ -156,6 +157,7 @@ export interface OrganizePreviewResult {
   capability_source: string;
   fallback_reason?: string | null;
   failure_reason?: string | null;
+  path_handoff?: PathHandoffInfo | null;
   verification_state: VerificationState;
   adapter_resolution?: AdapterResolution | null;
   mock: boolean;

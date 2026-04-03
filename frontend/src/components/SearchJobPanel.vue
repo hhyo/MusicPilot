@@ -2,7 +2,7 @@
   <section class="job-panel">
     <header class="job-panel__header">
       <div>
-        <p class="job-panel__eyebrow">Phase 7A Real Host Semantic Alignment</p>
+        <p class="job-panel__eyebrow">Phase 7B Real Success Loop</p>
         <h3>搜索任务、候选评分与宿主派发边界</h3>
       </div>
       <el-tag v-if="job" :type="jobAdapterMode === 'host' ? 'success' : 'warning'" effect="plain">
@@ -11,7 +11,7 @@
     </header>
 
     <el-alert
-      title="当前页面展示的是 Phase 7A host-aware acquisition loop。search / dispatch 已按真实 MoviePilot 宿主语义收敛；若能力缺失、语义不匹配或请求失败，会自动回退到 mock，并显式展示 fallback 信息。"
+      title="当前页面展示的是 Phase 7B host-aware acquisition loop。search / dispatch 已按真实 MoviePilot 宿主语义收敛；成功派发后会尽量回读 host history 形成 path handoff，并继续暴露 fallback 信息。"
       :type="jobAdapterMode === 'host' ? 'success' : 'warning'"
       :closable="false"
       show-icon
@@ -173,6 +173,18 @@
                 </p>
                 <p v-if="dispatchResults[candidate.id]?.failure_reason">
                   dispatch failure: {{ dispatchResults[candidate.id]?.failure_reason }}
+                </p>
+                <p v-if="candidate.path_handoff?.source_path">
+                  candidate source: {{ candidate.path_handoff.source_path }}
+                </p>
+                <p v-if="candidate.path_handoff">
+                  candidate handoff: {{ candidate.path_handoff.handoff_status }} / {{ candidate.path_handoff.handoff_source }}
+                </p>
+                <p v-if="dispatchResults[candidate.id]?.path_handoff?.source_path">
+                  dispatch source: {{ dispatchResults[candidate.id]?.path_handoff?.source_path }}
+                </p>
+                <p v-if="dispatchResults[candidate.id]?.path_handoff">
+                  dispatch handoff: {{ dispatchResults[candidate.id]?.path_handoff?.handoff_status }} / {{ dispatchResults[candidate.id]?.path_handoff?.verification_state }}
                 </p>
                 <p v-if="dispatchResults[candidate.id]">{{ dispatchResults[candidate.id].note }}</p>
               </div>

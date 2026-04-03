@@ -5,16 +5,16 @@
         <p class="hero-panel__eyebrow">Subscriptions</p>
         <h2>订阅与执行记录最小闭环</h2>
         <p class="hero-panel__description">
-          当前页面展示的是 Phase 7A 最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
+          当前页面展示的是 Phase 7B 最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
           回看 SearchJob 摘要与 organize preview/apply。search / dispatch / organize 已开始对齐真实 MoviePilot 宿主语义，
-          但真实 scheduler、真实榜单增量与真实文件整理链路仍未完成验证。
+          且 organize 现在会显式展示 path handoff 来源；但真实 scheduler、真实榜单增量与完整文件整理链路仍未完成验证。
         </p>
       </div>
       <el-tag type="warning" effect="plain">host-aware organize / sync subscription executor</el-tag>
     </section>
 
     <el-alert
-      title="Phase 7A 订阅执行器仍为同步最小骨架：不会自动定时执行；organize 已按真实 MoviePilot transfer 语义收敛，但真实文件移动、硬链接、刮削与媒体库刷新仍待宿主进一步验证。"
+      title="Phase 7B 订阅执行器仍为同步最小骨架：不会自动定时执行；organize 已按真实 MoviePilot transfer 语义收敛，并开始消费下载后的 path handoff，但真实文件移动、硬链接、刮削与媒体库刷新仍待宿主进一步验证。"
       type="warning"
       :closable="false"
       show-icon
@@ -322,6 +322,13 @@
                     <p>relative_path: {{ selectedRunDetail.organize_preview.target_relative_path }}</p>
                     <p>strategy: {{ selectedRunDetail.organize_preview.strategy }}</p>
                     <p>conflict_policy: {{ selectedRunDetail.organize_preview.strategy_snapshot.conflict_policy }}</p>
+                    <p v-if="selectedRunDetail.organize_preview.path_handoff?.source_path">
+                      source_path: {{ selectedRunDetail.organize_preview.path_handoff.source_path }}
+                    </p>
+                    <p v-if="selectedRunDetail.organize_preview.path_handoff">
+                      path_handoff: {{ selectedRunDetail.organize_preview.path_handoff.handoff_status }}
+                      / {{ selectedRunDetail.organize_preview.path_handoff.handoff_source }}
+                    </p>
                     <p v-if="selectedRunDetail.organize_preview.fallback_reason">
                       fallback: {{ selectedRunDetail.organize_preview.fallback_reason }}
                     </p>

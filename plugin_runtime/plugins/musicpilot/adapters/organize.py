@@ -7,7 +7,7 @@ from typing import Any
 
 from .host_http import HostHttpClient, HostTransportError
 from ..core.config import Settings
-from ..schemas.acquisition import SearchCandidateDetail
+from ..schemas.acquisition import PathHandoffInfo, SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, VerificationState
 from ..schemas.metadata import MetadataDetail
 from ..schemas.orchestration import OrganizeAdapterResult, OrganizePlan, OrganizeStatus
@@ -71,6 +71,7 @@ class MockOrganizeAdapter(OrganizeAdapter):
                 "当前为 mock organize preview。它只验证命名与目录映射，不执行真实文件移动、硬链接、"
                 "刮削入库或媒体库刷新。"
             ),
+            path_handoff=self._extract_path_handoff(candidate),
             adapter_resolution=AdapterResolution(
                 adapter_key="mock_organize",
                 adapter_mode=AdapterMode.MOCK,
@@ -114,6 +115,7 @@ class MockOrganizeAdapter(OrganizeAdapter):
             note=(
                 "当前为 mock organize apply。它只更新状态记录，不会真实执行文件移动、硬链接、刮削或媒体库刷新。"
             ),
+            path_handoff=self._extract_path_handoff(candidate),
             adapter_resolution=AdapterResolution(
                 adapter_key="mock_organize",
                 adapter_mode=AdapterMode.MOCK,
@@ -168,14 +170,15 @@ class RealOrganizeAdapter(OrganizeAdapter):
             default_note=(
                 "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。"
                 "MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。"
-                "Phase 7A 已验证请求契约与负向返回语义，但真实正向命名样例仍待补充。"
+                "Phase 7B 已拿到真实正向命名样例。"
             ),
             integration_point="RealOrganizeAdapter.preview.moviepilot_transfer_name",
             plan=plan,
             capability_source="moviepilot.runtime.transfer.name",
-            verification_state=VerificationState.UNVERIFIED,
+            verification_state=VerificationState.VERIFIED,
             organizeable=success,
             target_relative_path=relative_path,
+            path_handoff=self._extract_path_handoff(candidate),
         )
 
     def apply(
@@ -212,13 +215,15 @@ class RealOrganizeAdapter(OrganizeAdapter):
             default_status=default_status,
             default_note=(
                 "当前 organize apply 映射到了真实 MoviePilot `/api/v1/transfer/manual`。"
-                "请求/失败语义已完成宿主验证，但真实文件移动、硬链接、刮削入库和媒体库刷新仍未被本仓库宣称为已验证。"
+                "Phase 7B 已拿到真实 `success=true` 的最小手动整理样例。"
+                "但真实文件移动、硬链接、刮削入库和媒体库刷新仍未被本仓库宣称为全部已验证。"
             ),
             integration_point="RealOrganizeAdapter.apply.moviepilot_transfer_manual",
             plan=plan,
             capability_source="moviepilot.runtime.transfer.manual",
-            verification_state=VerificationState.UNVERIFIED,
+            verification_state=VerificationState.VERIFIED,
             organizeable=success,
+            path_handoff=self._extract_path_handoff(candidate),
         )
 
     def _build_manual_payload(
@@ -256,6 +261,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
         verification_state: VerificationState,
         organizeable: bool,
         target_relative_path: str | None = None,
+        path_handoff: PathHandoffInfo | None = None,
     ) -> OrganizeAdapterResult:
         raw_status = payload.get("organize_status")
         organize_status = default_status
@@ -278,6 +284,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
             integration_point=integration_point,
             capability_source=capability_source,
             failure_reason=self._optional_text(payload.get("failure_reason") or payload.get("message")),
+            path_handoff=path_handoff,
             verification_state=verification_state,
             mock=False,
             note=str(payload.get("note") or default_note),
@@ -319,6 +326,18 @@ class RealOrganizeAdapter(OrganizeAdapter):
                 "basename": name.rsplit(".", 1)[0],
                 "extension": self._detect_extension(path),
             }
+        handoff = raw_payload.get("path_handoff")
+        if isinstance(handoff, dict) and handoff.get("source_path"):
+            path = str(handoff["source_path"])
+            name = str(handoff.get("source_name") or path.rsplit("/", 1)[-1])
+            return {
+                "storage": "local",
+                "path": path,
+                "filetype": str(handoff.get("source_filetype") or "file"),
+                "name": name,
+                "basename": str(handoff.get("source_basename") or name.rsplit(".", 1)[0]),
+                "extension": str(handoff.get("source_extension") or self._detect_extension(path)),
+            }
         return None
 
     def _extract_preview_name(self, payload: dict[str, Any]) -> str | None:
@@ -326,6 +345,13 @@ class RealOrganizeAdapter(OrganizeAdapter):
         if isinstance(data, dict) and data.get("name"):
             return str(data["name"])
         return None
+
+    def _extract_path_handoff(self, candidate: SearchCandidateDetail) -> PathHandoffInfo | None:
+        raw_payload = candidate.raw_payload or {}
+        handoff = raw_payload.get("path_handoff")
+        if not handoff:
+            return None
+        return PathHandoffInfo.model_validate(handoff)
 
     def _merge_preview_name(self, target_relative_path: str, preview_name: str) -> str:
         if not target_relative_path or "/" not in target_relative_path:

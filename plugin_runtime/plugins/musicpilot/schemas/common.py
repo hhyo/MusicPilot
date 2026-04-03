@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -31,3 +31,9 @@ class Pagination(BaseModel):
     page_size: int = Field(default=20, ge=1)
     total: int = Field(default=0, ge=0)
 
+
+DataT = TypeVar("DataT")
+
+
+class TypedApiResponse(ApiResponse, Generic[DataT]):
+    data: DataT | None = Field(default=None, description="Typed payload data for the current route.")

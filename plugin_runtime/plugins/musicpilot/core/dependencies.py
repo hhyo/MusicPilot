@@ -29,6 +29,7 @@ from ..services.host_integration import (
     OrganizeAdapterResolver,
     HostSearchAdapterResolver,
 )
+from ..services.host_path_handoff import HostPathHandoffService
 from ..services.metadata import MetadataService
 from ..services.mvp_placeholder import MvpPlaceholderService
 from ..services.organize import OrganizeService
@@ -88,6 +89,11 @@ def get_host_probe_adapter() -> HostProbeAdapter:
 @lru_cache
 def get_host_integration_service() -> HostIntegrationService:
     return HostIntegrationService(settings=settings, probe_adapter=get_host_probe_adapter())
+
+
+@lru_cache
+def get_host_path_handoff_service() -> HostPathHandoffService:
+    return HostPathHandoffService(settings=settings, client=get_host_http_client())
 
 
 def get_metadata_service(
@@ -155,7 +161,11 @@ def get_download_dispatch_adapter() -> DownloadDispatchAdapter:
 
 @lru_cache
 def get_real_download_dispatch_adapter() -> DownloadDispatchAdapter:
-    return RealDownloadDispatchAdapter(settings=settings, client=get_host_http_client())
+    return RealDownloadDispatchAdapter(
+        settings=settings,
+        client=get_host_http_client(),
+        path_handoff_service=get_host_path_handoff_service(),
+    )
 
 
 @lru_cache
@@ -209,8 +219,14 @@ def get_organize_service(
     session: Session = Depends(get_db_session),
     resolver: OrganizeAdapterResolver = Depends(get_organize_adapter_resolver),
     strategy_service: OrganizeStrategyService = Depends(get_organize_strategy_service),
+    path_handoff_service: HostPathHandoffService = Depends(get_host_path_handoff_service),
 ) -> OrganizeService:
-    return OrganizeService(session=session, resolver=resolver, strategy_service=strategy_service)
+    return OrganizeService(
+        session=session,
+        resolver=resolver,
+        strategy_service=strategy_service,
+        path_handoff_service=path_handoff_service,
+    )
 
 
 def get_subscription_execution_service(
