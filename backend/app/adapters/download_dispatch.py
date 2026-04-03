@@ -122,6 +122,7 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
         context_payload = self._extract_host_context(candidate)
         torrent_in = self._build_torrent_payload(candidate, context_payload)
         media_in = self._extract_media_payload(context_payload)
+        media_reference = self._extract_media_reference(candidate, context_payload)
         target_downloader, downloader_fallback = self._resolve_target_downloader(downloader_id)
 
         if media_in:
@@ -131,12 +132,22 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
                 "torrent_in": torrent_in,
                 "downloader": target_downloader,
             }
+            endpoint_type = "download_media"
+            capability_source = "moviepilot.runtime.download.media"
+            integration_point = "RealDownloadDispatchAdapter.dispatch.moviepilot_download_media"
         else:
             path = self.settings.host_download_add_path or self.settings.host_dispatch_path
             payload = {
                 "torrent_in": torrent_in,
                 "downloader": target_downloader,
             }
+            if media_reference.get("tmdbid") is not None:
+                payload["tmdbid"] = media_reference["tmdbid"]
+            if media_reference.get("doubanid") is not None:
+                payload["doubanid"] = media_reference["doubanid"]
+            endpoint_type = "download_add"
+            capability_source = "moviepilot.runtime.download.add"
+            integration_point = "RealDownloadDispatchAdapter.dispatch.moviepilot_download_add"
 
         data = self.client.post_json(path, payload, auth_mode="x_api_key")
         success = bool(data.get("success"))
@@ -146,7 +157,7 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
         download_id = self._optional_text(response_data.get("download_id") if isinstance(response_data, dict) else None)
         path_handoff = None
         if success:
-            path_handoff = self.path_handoff_service.resolve(download_id)
+            path_handoff = self.path_handoff_service.resolve_with_retry(download_id)
             if path_handoff is None:
                 path_handoff = self.path_handoff_service.build_pending(
                     download_hash=download_id,
@@ -161,30 +172,32 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
             note=(
                 "当前派发结果来自真实 MoviePilot `/api/v1/download/add` 或 `/api/v1/download/` 语义。"
                 "如果宿主返回 `success=false`，这表示 payload 已被宿主接受并给出明确拒绝原因，而不是本地 mock。"
-                "Phase 7B 已拿到真实 `success=true` 的最小下载样例。"
+                "Phase 8 继续扩展了多样例成功率验证，并补充了 path handoff 稳定性矩阵。"
             ),
-            integration_point="RealDownloadDispatchAdapter.dispatch.moviepilot",
+            integration_point=integration_point,
             mock=False,
             dispatch_backend=AdapterMode.HOST,
-            capability_source="moviepilot.runtime.download.add",
+            capability_source=capability_source,
             fallback_reason=downloader_fallback,
             failure_reason=message if not success else None,
             verification_state=VerificationState.VERIFIED,
             path_handoff=path_handoff,
             host_response_summary={
                 "path": path,
+                "endpoint_type": endpoint_type,
                 "success": success,
                 "message": message,
                 "download_id": download_id,
+                "media_reference": media_reference,
             },
             adapter_resolution=AdapterResolution(
                 adapter_key="real_download_dispatch",
                 adapter_mode=AdapterMode.HOST,
                 strategy=AdapterStrategy.PREFER_HOST,
-                capability_source="moviepilot.runtime.download.add",
+                capability_source=capability_source,
                 verification_state=VerificationState.VERIFIED,
                 fallback_reason=downloader_fallback,
-                integration_point="RealDownloadDispatchAdapter.dispatch.moviepilot",
+                integration_point=integration_point,
                 host_integration_enabled=self.settings.host_integration_enabled,
             ),
         )
@@ -238,6 +251,25 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
         if not any(value not in (None, "", [], {}) for value in media.values()):
             return None
         return media
+
+    def _extract_media_reference(
+        self,
+        candidate: SearchCandidateDetail,
+        context_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        raw_payload = candidate.raw_payload or {}
+        reference = raw_payload.get("host_media_reference")
+        if isinstance(reference, dict):
+            return {
+                "tmdbid": self._to_int_or_none(reference.get("tmdbid") or reference.get("tmdb_id")),
+                "doubanid": self._optional_text(reference.get("doubanid") or reference.get("douban_id")),
+            }
+
+        media = context_payload.get("media_info") if isinstance(context_payload.get("media_info"), dict) else {}
+        return {
+            "tmdbid": self._to_int_or_none(media.get("tmdb_id") or media.get("tmdbid")),
+            "doubanid": self._optional_text(media.get("douban_id") or media.get("doubanid")),
+        }
 
     def _numeric_size(self, raw_size: Any, fallback: int) -> float:
         if raw_size in (None, ""):

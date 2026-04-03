@@ -3,8 +3,8 @@
 > 用途：沉淀 MusicPilot 在 Phase 7A 对真实 MoviePilot 宿主完成的源码核对、运行时联调、字段映射修正和 stub 差异记录。  
 > 约束：本文档不会写入真实 token；所有鉴权均通过本地环境变量注入。
 
-> 更新说明：Phase 7B 已在真实宿主上拿到第一条成功下载与 organize 闭环样例。  
-> 最新 verified 状态请同时参考 [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)。
+> 更新说明：Phase 7B 已在真实宿主上拿到第一条成功下载与 organize 闭环样例，Phase 8 又把它扩展为真实样例矩阵。  
+> 最新 verified 与稳定性结论请同时参考 [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md) 和 [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)。
 
 ## 10.1 联调范围
 
@@ -54,14 +54,14 @@ MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
 | API 主前缀 | `/api/v1` | 源码确认 | `verified` | 由 `app/api/apiv1.py` 与真实宿主运行结果共同确认。 |
 | Plugin 动态路由 | `/api/v1/plugin/{plugin_id}` | 源码确认 | `verified` | 由 `plugin.py`、`routers_initializer.py`、`plugins_initializer.py` 确认。 |
 | Search title | `GET /api/v1/search/title` | `X-API-KEY` | `verified` | 已拿到真实宿主正向样例，返回 `Response{success,data:[Context]}`。 |
-| Search media | `GET /api/v1/search/media/{mediaid}` | `X-API-KEY` | `unverified` | 已确认路径、参数和“未搜索到任何资源”负向返回；正向候选样例仍缺失。 |
+| Search media | `GET /api/v1/search/media/{mediaid}` | `X-API-KEY` | `verified` | Phase 8 已拿到多条真实正向候选样例，并完成字段映射收敛。 |
 | Search last | `GET /api/v1/search/last` | `X-API-KEY` | `verified` | 已拿到真实宿主样例，返回 `List[Context]`，用于低风险连通性与最近搜索读取。 |
 | Download clients | `GET /api/v1/download/clients` | `X-API-KEY` | `verified` | 已拿到真实宿主列表样例，返回裸 `List[DownloaderInfo]`。 |
-| Download add | `POST /api/v1/download/add` | `X-API-KEY` | `unverified` | 已确认 payload 兼容性和负向语义；真实音乐资源成功创建下载任务仍待样例。 |
-| Download media | `POST /api/v1/download/` | `X-API-KEY` | `placeholder` | 宿主源码已确认入口，但本轮未拿到真实成功/失败样例。 |
-| Transfer name | `GET /api/v1/transfer/name` | `X-API-KEY` | `unverified` | 已确认 `path + filetype` 请求契约和负向返回；正向命名样例仍待真实本地媒体路径。 |
+| Download add | `POST /api/v1/download/add` | `X-API-KEY` | `verified` | Phase 8 已拿到 1 条真实成功样例，但稳定性仍只到 `single_sample`。 |
+| Download media | `POST /api/v1/download/` | `X-API-KEY` | `verified` | Phase 7B 起已拿到真实成功样例，Phase 8 已扩展到多条真实成功 dispatch。 |
+| Transfer name | `GET /api/v1/transfer/name` | `X-API-KEY` | `verified` | 已拿到多条真实正向命名样例。 |
 | Transfer queue | `GET /api/v1/transfer/queue` | `X-API-KEY` | `verified` | 已确认返回为裸列表，可作辅助状态读取。 |
-| Transfer manual | `POST /api/v1/transfer/manual` | `X-API-KEY` / 超级用户语义 | `unverified` | 已确认 `ManualTransferItem` 结构和负向返回；真实成功整理样例仍缺失。 |
+| Transfer manual | `POST /api/v1/transfer/manual` | `X-API-KEY` / 超级用户语义 | `verified` | 已拿到真实 `success=true` 成功样例；但不同 handoff 来源的稳定性仍需以 Phase 8 矩阵为准。 |
 | Transfer now | `GET /api/v1/transfer/now` | `?token=` | `verified` | 已确认它不接受单独 `X-API-KEY`，必须走 query token。当前未接入 MusicPilot 主链路。 |
 
 ## 10.4 真实宿主运行时样例摘要
@@ -76,25 +76,23 @@ MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
   - `200`
   - 返回形态是 `Response{success,data:[Context]}`
   - 样例字段：`meta_info`、`torrent_info`、`media_info`、`media_recognize_fail_count`
-- `GET /api/v1/search/media/tmdb:550?area=title`
-  - `200`
-  - `success=false`
-  - `message=未搜索到任何资源`
+- `GET /api/v1/search/media/{mediaid}?area=title`
+  - 已在 Phase 8 拿到多条正向样例
+  - 典型返回仍是 `Response{success,data:[Context]}`
+  - 已确认 `mediaid=tmdb:<id>` 形式可用
 - `GET /api/v1/download/clients`
   - `200`
   - 返回裸列表
   - 样例字段：`name=QB`、`type=qbittorrent`
 - `POST /api/v1/download/add`
-  - `200`
-  - 以最小安全测试 payload 验证后，宿主返回 `success=false`
-  - 失败信息：`无法识别媒体信息`
-- `GET /api/v1/transfer/name?path=...&filetype=file`
-  - `200`
-  - 负向样例：`success=false`、`message=未识别到媒体信息`
+  - 已在 Phase 8 拿到 1 条真实成功样例
+  - 同时也已确认多种真实业务拒绝语义
+- `GET /api/v1/transfer/name?path=...&filetype=file|dir`
+  - 已在 Phase 7B / Phase 8 拿到多条正向命名样例
+  - 同时保留负向语义：`未识别到媒体信息`
 - `POST /api/v1/transfer/manual`
-  - `200`
-  - 负向样例：`success=false`
-  - 失败信息形态：`<filename> 没有找到可整理的媒体文件`
+  - 已在 Phase 7B / Phase 8 拿到真实 `success=true` 样例
+  - 也已确认负向语义：`<filename> 没有找到可整理的媒体文件`
 - `GET /api/v1/transfer/now`
   - 仅用 `X-API-KEY`：`401`、`detail=token 校验不通过`
   - 改为 `?token=`：`200`、`success=true`
@@ -160,11 +158,9 @@ MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
 
 ## 10.8 后续仍需补充的真实样例
 
-- `search/media` 的真实正向候选样例
-- `/api/v1/download/add` 或 `/api/v1/download/` 的真实成功样例
-- `transfer/name` 的真实正向命名样例
-- `transfer/manual` 的真实成功整理样例
-- 真实下载完成后，如何把本地文件路径回灌到 MusicPilot organize 链路
+- `download/add` 从单样例成功提升到多样例稳定成功
+- `download_media + history/download` 在真实宿主下为何经常被 `transfer/manual` 拒绝
+- 哪些 handoff 来源可视作当前 organize 的优先稳定路径
 
 ## 10.9 结论
 
@@ -172,10 +168,13 @@ Phase 7A 的收口重点是“让 stub 假设服从真实宿主语义”，而�
 当前状态可概括为：
 
 - search title：`verified`
-- search media：`unverified`
+- search media：`verified`
 - download clients：`verified`
-- download add：`unverified`
-- transfer name/manual：`unverified`
+- download add：`verified`，但当前只有 `single_sample`
+- download media：`verified`
+- transfer name/manual：`verified`
 - transfer now：`verified`，但不在主链路中使用
+
+更细的“单样例 / 多样例 / blocked”判断，请以 Phase 8 矩阵为准，不要只看这里的接口级 `verified`。
 
 更细的逐项记录，请继续补到 [docs/07_宿主能力验证记录模板.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/07_宿主能力验证记录模板.md)。

@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     host_history_download_max_pages: int = Field(default=20, ge=1, le=100)
     host_history_transfer_page_size: int = Field(default=200, ge=10, le=2000)
     host_history_transfer_max_pages: int = Field(default=10, ge=1, le=100)
+    host_history_sync_retry_attempts: int = Field(default=3, ge=1, le=20)
+    host_history_sync_retry_interval_seconds: float = Field(default=1.0, ge=0.0, le=30.0)
+    host_handoff_pending_ttl_seconds: int = Field(default=120, ge=1, le=86400)
     host_organize_preview_path: str | None = Field(default="/api/v1/transfer/name")
     host_organize_apply_path: str | None = Field(default="/api/v1/transfer/manual")
     host_transfer_name_path: str | None = Field(default="/api/v1/transfer/name")
@@ -73,6 +76,9 @@ class Settings(BaseSettings):
     organize_track_file_template: str = Field(default="{track_title}.{format_ext}")
     organize_conflict_policy: str = Field(default="skip_existing")
     organize_transfer_type: str = Field(default="copy")
+    host_validation_matrix_path: str = Field(
+        default=str(BACKEND_ROOT / "data" / "host_validation_matrix.latest.json")
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="MUSICPILOT_",

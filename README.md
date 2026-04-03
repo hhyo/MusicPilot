@@ -1,6 +1,6 @@
 # MusicPilot
 
-MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已完成 Phase 0、Phase 1、Phase 2、Phase 3、Phase 4、Phase 5、Phase 6、Phase 7A 与 Phase 7B，重点先交付可启动、可构建、可装配、可联调的工程骨架，以及从 metadata 到 QueryBuilder、SearchJob、候选评分、mock dispatch，再到 subscriptions、mock chart discovery、subscription run、host-aware organize preview/apply，并在 Phase 7B 收口到“真实 MoviePilot 宿主至少一条成功下载与 organize 闭环样例已可回看、可验证、可降级、可解释”的层级，而不是提前实现生产级自动化。
+MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已完成 Phase 0、Phase 1、Phase 2、Phase 3、Phase 4、Phase 5、Phase 6、Phase 7A、Phase 7B 与 Phase 8，重点先交付可启动、可构建、可装配、可联调的工程骨架，以及从 metadata 到 QueryBuilder、SearchJob、候选评分、mock dispatch，再到 subscriptions、mock chart discovery、subscription run、host-aware organize preview/apply，并在 Phase 8 收口到“真实 MoviePilot 宿主多样例成功率矩阵、path handoff 稳定性结论、可手动复跑的真实回归脚本都已具备”的层级，而不是提前实现生产级自动化。
 
 ## 项目简介
 
@@ -93,9 +93,9 @@ python -m app.db_init --reseed
 
 - Subscription 执行模式：当前仅支持手动触发一次同步 run，不启用生产级 cron、消息队列或分布式 scheduler。
 - Chart discovery：当前为 local seed / mock chart source，只验证发现入口与从 chart item 创建订阅的动作。
-- Host search：当前已升级为 `mock + host-backed selectable`。真实 MoviePilot `/api/v1/search/title` 与 `/api/v1/search/last` 已完成语义验证；`search/media` 仍待正向样例补充。
-- Dispatch：当前已升级为 `mock + host-backed selectable`。Phase 7B 已对真实 `/api/v1/download/` 拿到 `success=true` 样例，并通过 `/api/v1/history/download` 回读本地路径；`download/add` 单独成功样例仍是 `unverified`。
-- Organize：当前已升级为 `mock + host-backed selectable` 的 preview/apply 双阶段边界。Phase 7B 已把它映射到真实 MoviePilot `transfer/name` / `transfer/manual` 并拿到正向成功样例，同时把 `path_handoff` 写回 MusicPilot organize 链路。
+- Host search：当前已升级为 `mock + host-backed selectable`。真实 MoviePilot `/api/v1/search/title`、`/api/v1/search/last`、`/api/v1/search/media` 都已完成语义验证。
+- Dispatch：当前已升级为 `mock + host-backed selectable`。Phase 8 已拿到多条真实 `/api/v1/download/` 成功样例，以及 1 条真实 `/api/v1/download/add` 成功样例；但不同组合的 organize 成功率仍需结合验证矩阵判断。
+- Organize：当前已升级为 `mock + host-backed selectable` 的 preview/apply 双阶段边界。Phase 8 已确认 `history/transfer` 是更稳定的 host organize replay / fallback 来源，而 `history/download` 命中的路径并不总能被 `transfer/manual` 接受。
 
 ## 如何启用 host integration
 
@@ -117,6 +117,9 @@ export MUSICPILOT_HOST_DOWNLOAD_ADD_PATH=/api/v1/download/add
 export MUSICPILOT_HOST_DOWNLOAD_MEDIA_PATH=/api/v1/download/
 export MUSICPILOT_HOST_HISTORY_DOWNLOAD_PATH=/api/v1/history/download
 export MUSICPILOT_HOST_HISTORY_TRANSFER_PATH=/api/v1/history/transfer
+export MUSICPILOT_HOST_HISTORY_SYNC_RETRY_ATTEMPTS=3
+export MUSICPILOT_HOST_HISTORY_SYNC_RETRY_INTERVAL_SECONDS=1
+export MUSICPILOT_HOST_HANDOFF_PENDING_TTL_SECONDS=120
 export MUSICPILOT_HOST_TRANSFER_NAME_PATH=/api/v1/transfer/name
 export MUSICPILOT_HOST_TRANSFER_QUEUE_PATH=/api/v1/transfer/queue
 export MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual
@@ -125,6 +128,7 @@ export MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
 export MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
+export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backend/data/host_validation_matrix.latest.json
 ```
 
 可选策略：
@@ -147,11 +151,37 @@ python3 scripts/host_integration_stub.py
 - [docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)
 - [docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)
 - [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)
+- [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)
+
+## 如何复跑 Phase 8 成功样例矩阵
+
+在本地私有环境准备好真实宿主 Base URL 和 token 后，可以手动执行：
+
+```bash
+cd /Users/lihuanhuan/PycharmProjects/MusicPilot
+backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py --allow-side-effects
+```
+
+建议输出到默认矩阵文件：
+
+```bash
+backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
+  --allow-side-effects \
+  --output backend/data/host_validation_matrix.latest.json
+```
+
+它不会默认纳入自动测试；目的是让维护者在需要时手动验证：
+
+- 哪些组合已经是 `stable`
+- 哪些组合只有 `single_sample`
+- 哪些组合被真实宿主明确阻断为 `blocked`
 
 ## 如何查看当前 active adapter
 
 - `/health`：查看 `data.host_integration.active_search_adapter`、`active_dispatch_adapter` 和 `active_organize_adapter`
+- `/health`：查看 `data.validation_matrix`
 - `/api/probe/health`：查看 `data.runtime_state`
+- `/api/probe/validation-matrix`：查看最新真实宿主验证矩阵
 - `/api/v1/plugin/musicpilot/jobs/{id}` 与 `/results`：查看 `adapter_resolution`
 - `/api/v1/plugin/musicpilot/downloads/dispatch`：查看 `dispatch_backend`、`fallback_reason`
 - `/api/v1/plugin/musicpilot/downloads/dispatch`：查看 `host_response_summary` 与 `path_handoff`
@@ -183,6 +213,7 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - Phase 6 / 真实 organize 接入优先阶段
 - Phase 7A / 真实 MoviePilot 宿主语义验证与差异收敛
 - Phase 7B / 真实成功样例闭环打通
+- Phase 8 / 真实成功率扩展与稳定性收敛
 - 宿主能力探针 API 骨架
 - MVP 路由骨架与统一响应结构
 - metadata 搜索服务最小可用版
@@ -193,6 +224,7 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - host-aware search / dispatch / organize adapter resolver、配置映射、fallback 机制与联调说明
 - 真实 MoviePilot search / download / transfer 语义验证与字段映射收敛
 - 真实 download success -> history path handoff -> transfer/name -> transfer/manual 的最小成功闭环
+- 真实宿主验证矩阵、多样例稳定性分类与手动回归脚本
 
 ## 当前阶段未完成范围
 
@@ -202,8 +234,8 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - 真实 PT 搜索、匹配、下载派发
 - 真实 organize 文件处理、标签、媒体库刷新
 - 真实 MoviePilot 宿主安装与挂载逻辑
-- 真实 MoviePilot `download/add` 单独成功样例
-- 真实 MoviePilot `search/media` 正向样例
+- 真实 MoviePilot `download/add` 多样例稳定成功
+- 真实 MoviePilot `download_media` 到 organize 的稳定成功映射
 - 下载完成后的生产级自动整理、刮削与媒体库刷新
 
 以上能力本轮均只保留目录、接口、注释或说明性占位，不提前实现。
@@ -211,6 +243,6 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 ## 下一阶段建议推进方式
 
 1. 在保留现有 response envelope 的前提下，引入真实 metadata provider adapter。
-2. 在当前已验证的真实成功样例基础上，继续补 `search/media`、`download/add` 和更丰富的 download history / transfer history 样例。
+2. 在当前已验证的真实成功样例基础上，把 `download/add` 从 `single_sample` 推进到 `stable`，并继续解释 `download_media` 被宿主业务阻断的最后条件。
 3. 在当前 SubscriptionExecutionService 骨架上补完整调度、重试、下载完成回调与 organize job 状态机。
 4. 保持 `plugin_runtime/` 只作为构建产物边界，不把开发源码和宿主产物混放。

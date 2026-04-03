@@ -1,0 +1,1297 @@
+{
+  "phase": "Phase 8",
+  "generated_at": "2026-04-03T17:36:26.414840Z",
+  "samples": [
+    {
+      "sample_id": "ordinary_accident_media",
+      "sample_name": "普通事故 media/download 闭环",
+      "search_input_type": "search/media",
+      "dispatch_endpoint_type": "download_media",
+      "path_handoff_source": "moviepilot.runtime.history.download",
+      "path_handoff_status": "resolved_from_history_download",
+      "transfer_name_result": "preview_ready",
+      "transfer_manual_result": "failed",
+      "organize_result": "failed",
+      "verification_state": "unverified",
+      "stability_state": "blocked",
+      "attempt_count": 1,
+      "success_count": 0,
+      "blocker": "It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU.mkv 没有找到可整理的媒体文件",
+      "note": "Phase 8 sample hit a real-host blocker and should be treated as non-stable.",
+      "last_verified_at": "2026-04-03T17:35:43.479086Z",
+      "raw_summary": {
+        "search": {
+          "endpoint_type": "search_media",
+          "candidate_count": 7,
+          "message": null
+        },
+        "dispatch": {
+          "dispatchable": true,
+          "dispatch_status": "host_submitted",
+          "target_downloader": "QB",
+          "downloader_task_id": "e927965cfb5a77e04f9f1b4f6f138279b156aea5",
+          "note": "当前派发结果来自真实 MoviePilot `/api/v1/download/add` 或 `/api/v1/download/` 语义。如果宿主返回 `success=false`，这表示 payload 已被宿主接受并给出明确拒绝原因，而不是本地 mock。Phase 8 继续扩展了多样例成功率验证，并补充了 path handoff 稳定性矩阵。",
+          "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_media",
+          "mock": false,
+          "dispatch_backend": "host",
+          "capability_source": "moviepilot.runtime.download.media",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "verification_state": "verified",
+          "path_handoff": {
+            "download_hash": "e927965cfb5a77e04f9f1b4f6f138279b156aea5",
+            "source_path": "/downloads/movie/It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU.mkv",
+            "source_filetype": "file",
+            "source_name": "It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU.mkv",
+            "source_basename": "It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU",
+            "source_extension": ".mkv",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "普通事故",
+              "torrent_name": "It Was Just an Accident AKA Yek tasadef sadeh 2025 2160p AMZN WEB-DL H.265 DDP 5.1-WADU",
+              "date": "2026-04-04 01:11:43"
+            }
+          },
+          "host_response_summary": {
+            "path": "/api/v1/download/",
+            "endpoint_type": "download_media",
+            "success": true,
+            "message": null,
+            "download_id": "e927965cfb5a77e04f9f1b4f6f138279b156aea5",
+            "media_reference": {
+              "tmdbid": 1456349,
+              "doubanid": null
+            }
+          },
+          "adapter_resolution": {
+            "adapter_key": "real_download_dispatch",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.download.media",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_media",
+            "host_integration_enabled": true
+          }
+        },
+        "preview": {
+          "organizeable": true,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "preview_ready",
+          "target_library_path": "/downloads/media/movie/phase8-validation/ordinary-accident-media",
+          "target_relative_path": "phase8-validation/ordinary-accident-media/普通事故.It Was Just an Accident.2025.Amazon.WEB-DL.2160p.H265.DDP 5.1-Amazon.mkv",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+          "capability_source": "moviepilot.runtime.transfer.name",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "path_handoff": {
+            "download_hash": "e927965cfb5a77e04f9f1b4f6f138279b156aea5",
+            "source_path": "/downloads/movie/It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU.mkv",
+            "source_filetype": "file",
+            "source_name": "It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU.mkv",
+            "source_basename": "It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU",
+            "source_extension": ".mkv",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "普通事故",
+              "torrent_name": "It Was Just an Accident AKA Yek tasadef sadeh 2025 2160p AMZN WEB-DL H.265 DDP 5.1-WADU",
+              "date": "2026-04-04 01:11:43"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.name",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+        },
+        "apply": {
+          "organizeable": false,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "failed",
+          "target_library_path": "/downloads/media/movie/phase8-validation/ordinary-accident-media",
+          "target_relative_path": "phase8-validation/ordinary-accident-media/It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU.mkv",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+          "capability_source": "moviepilot.runtime.transfer.manual",
+          "fallback_reason": null,
+          "failure_reason": "It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU.mkv 没有找到可整理的媒体文件",
+          "path_handoff": {
+            "download_hash": "e927965cfb5a77e04f9f1b4f6f138279b156aea5",
+            "source_path": "/downloads/movie/It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU.mkv",
+            "source_filetype": "file",
+            "source_name": "It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU.mkv",
+            "source_basename": "It.Was.Just.An.Accident.2025.2160p.AMZN.WEB-DL.DDP5.1.H.265-WADU",
+            "source_extension": ".mkv",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "普通事故",
+              "torrent_name": "It Was Just an Accident AKA Yek tasadef sadeh 2025 2160p AMZN WEB-DL H.265 DDP 5.1-WADU",
+              "date": "2026-04-04 01:11:43"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.manual",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize apply 映射到了真实 MoviePilot `/api/v1/transfer/manual`。Phase 7B 已拿到真实 `success=true` 的最小手动整理样例。但真实文件移动、硬链接、刮削入库和媒体库刷新仍未被本仓库宣称为全部已验证。"
+        }
+      }
+    },
+    {
+      "sample_id": "snow_white_media",
+      "sample_name": "白雪公主 media/download 闭环",
+      "search_input_type": "search/media",
+      "dispatch_endpoint_type": "download_media",
+      "path_handoff_source": "moviepilot.runtime.history.download",
+      "path_handoff_status": "resolved_from_history_download",
+      "transfer_name_result": "preview_ready",
+      "transfer_manual_result": "failed",
+      "organize_result": "failed",
+      "verification_state": "unverified",
+      "stability_state": "blocked",
+      "attempt_count": 1,
+      "success_count": 0,
+      "blocker": "Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi 没有找到可整理的媒体文件",
+      "note": "Phase 8 sample hit a real-host blocker and should be treated as non-stable.",
+      "last_verified_at": "2026-04-03T17:35:54.238200Z",
+      "raw_summary": {
+        "search": {
+          "endpoint_type": "search_media",
+          "candidate_count": 65,
+          "message": null
+        },
+        "dispatch": {
+          "dispatchable": true,
+          "dispatch_status": "host_submitted",
+          "target_downloader": "QB",
+          "downloader_task_id": "172fd48f926e20c47f54ca5b9f763bf0cc8ee262",
+          "note": "当前派发结果来自真实 MoviePilot `/api/v1/download/add` 或 `/api/v1/download/` 语义。如果宿主返回 `success=false`，这表示 payload 已被宿主接受并给出明确拒绝原因，而不是本地 mock。Phase 8 继续扩展了多样例成功率验证，并补充了 path handoff 稳定性矩阵。",
+          "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_media",
+          "mock": false,
+          "dispatch_backend": "host",
+          "capability_source": "moviepilot.runtime.download.media",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "verification_state": "verified",
+          "path_handoff": {
+            "download_hash": "172fd48f926e20c47f54ca5b9f763bf0cc8ee262",
+            "source_path": "/downloads/movie/Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi",
+            "source_filetype": "dir",
+            "source_name": "Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi",
+            "source_basename": "Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi",
+            "source_extension": "",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "白雪公主",
+              "torrent_name": "Snow White 2025 2160p BluRay DoVi x265 10bit 4Audios TrueHD Atmos 7.1-WiKi",
+              "date": "2026-04-04 01:15:43"
+            }
+          },
+          "host_response_summary": {
+            "path": "/api/v1/download/",
+            "endpoint_type": "download_media",
+            "success": true,
+            "message": null,
+            "download_id": "172fd48f926e20c47f54ca5b9f763bf0cc8ee262",
+            "media_reference": {
+              "tmdbid": 447273,
+              "doubanid": null
+            }
+          },
+          "adapter_resolution": {
+            "adapter_key": "real_download_dispatch",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.download.media",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_media",
+            "host_integration_enabled": true
+          }
+        },
+        "preview": {
+          "organizeable": true,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "preview_ready",
+          "target_library_path": "/downloads/media/movie/phase8-validation/snow-white-media",
+          "target_relative_path": "phase8-validation/snow-white-media/Snövit (2025) {tmdbid=1593082}",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+          "capability_source": "moviepilot.runtime.transfer.name",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "path_handoff": {
+            "download_hash": "172fd48f926e20c47f54ca5b9f763bf0cc8ee262",
+            "source_path": "/downloads/movie/Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi",
+            "source_filetype": "dir",
+            "source_name": "Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi",
+            "source_basename": "Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi",
+            "source_extension": "",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "白雪公主",
+              "torrent_name": "Snow White 2025 2160p BluRay DoVi x265 10bit 4Audios TrueHD Atmos 7.1-WiKi",
+              "date": "2026-04-04 01:15:43"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.name",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+        },
+        "apply": {
+          "organizeable": false,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "failed",
+          "target_library_path": "/downloads/media/movie/phase8-validation/snow-white-media",
+          "target_relative_path": "phase8-validation/snow-white-media/Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+          "capability_source": "moviepilot.runtime.transfer.manual",
+          "fallback_reason": null,
+          "failure_reason": "Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi 没有找到可整理的媒体文件",
+          "path_handoff": {
+            "download_hash": "172fd48f926e20c47f54ca5b9f763bf0cc8ee262",
+            "source_path": "/downloads/movie/Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi",
+            "source_filetype": "dir",
+            "source_name": "Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi",
+            "source_basename": "Snow.White.2025.2160p.BluRay.DoVi.x265.10bit.Atmos.TrueHD7.1-WiKi",
+            "source_extension": "",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "白雪公主",
+              "torrent_name": "Snow White 2025 2160p BluRay DoVi x265 10bit 4Audios TrueHD Atmos 7.1-WiKi",
+              "date": "2026-04-04 01:15:43"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.manual",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize apply 映射到了真实 MoviePilot `/api/v1/transfer/manual`。Phase 7B 已拿到真实 `success=true` 的最小手动整理样例。但真实文件移动、硬链接、刮削入库和媒体库刷新仍未被本仓库宣称为全部已验证。"
+        }
+      }
+    },
+    {
+      "sample_id": "argentina_1985_media",
+      "sample_name": "阿根廷1985 media/download 闭环",
+      "search_input_type": "search/media",
+      "dispatch_endpoint_type": "download_media",
+      "path_handoff_source": null,
+      "path_handoff_status": null,
+      "transfer_name_result": null,
+      "transfer_manual_result": null,
+      "organize_result": null,
+      "verification_state": "unverified",
+      "stability_state": "blocked",
+      "attempt_count": 1,
+      "success_count": 0,
+      "blocker": "任务添加失败",
+      "note": "Phase 8 sample hit a real-host blocker and should be treated as non-stable.",
+      "last_verified_at": "2026-04-03T17:35:58.697670Z",
+      "raw_summary": {
+        "search": {
+          "endpoint_type": "search_media",
+          "candidate_count": 4,
+          "message": null
+        },
+        "dispatch": {
+          "dispatchable": false,
+          "dispatch_status": "host_rejected",
+          "target_downloader": "QB",
+          "downloader_task_id": null,
+          "note": "当前派发结果来自真实 MoviePilot `/api/v1/download/add` 或 `/api/v1/download/` 语义。如果宿主返回 `success=false`，这表示 payload 已被宿主接受并给出明确拒绝原因，而不是本地 mock。Phase 8 继续扩展了多样例成功率验证，并补充了 path handoff 稳定性矩阵。",
+          "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_media",
+          "mock": false,
+          "dispatch_backend": "host",
+          "capability_source": "moviepilot.runtime.download.media",
+          "fallback_reason": null,
+          "failure_reason": "任务添加失败",
+          "verification_state": "verified",
+          "path_handoff": null,
+          "host_response_summary": {
+            "path": "/api/v1/download/",
+            "endpoint_type": "download_media",
+            "success": false,
+            "message": "任务添加失败",
+            "download_id": null,
+            "media_reference": {
+              "tmdbid": 714888,
+              "doubanid": null
+            }
+          },
+          "adapter_resolution": {
+            "adapter_key": "real_download_dispatch",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.download.media",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_media",
+            "host_integration_enabled": true
+          }
+        },
+        "preview": null,
+        "apply": null
+      }
+    },
+    {
+      "sample_id": "ordinary_accident_title_add",
+      "sample_name": "普通事故 title/download_add 闭环",
+      "search_input_type": "search/title",
+      "dispatch_endpoint_type": "download_add",
+      "path_handoff_source": "moviepilot.runtime.history.download",
+      "path_handoff_status": "resolved_from_history_download",
+      "transfer_name_result": "preview_ready",
+      "transfer_manual_result": "applied",
+      "organize_result": "applied",
+      "verification_state": "verified",
+      "stability_state": "single_sample",
+      "attempt_count": 1,
+      "success_count": 1,
+      "blocker": null,
+      "note": "Phase 8 real-host validation sample executed through MusicPilot real adapters.",
+      "last_verified_at": "2026-04-03T17:36:08.071804Z",
+      "raw_summary": {
+        "search": {
+          "endpoint_type": "search_title",
+          "candidate_count": 5,
+          "message": null
+        },
+        "dispatch": {
+          "dispatchable": true,
+          "dispatch_status": "host_submitted",
+          "target_downloader": "QB",
+          "downloader_task_id": "7274b2d63a636420245ec3b56441d9c6ffcca45c",
+          "note": "当前派发结果来自真实 MoviePilot `/api/v1/download/add` 或 `/api/v1/download/` 语义。如果宿主返回 `success=false`，这表示 payload 已被宿主接受并给出明确拒绝原因，而不是本地 mock。Phase 8 继续扩展了多样例成功率验证，并补充了 path handoff 稳定性矩阵。",
+          "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_add",
+          "mock": false,
+          "dispatch_backend": "host",
+          "capability_source": "moviepilot.runtime.download.add",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "verification_state": "verified",
+          "path_handoff": {
+            "download_hash": "7274b2d63a636420245ec3b56441d9c6ffcca45c",
+            "source_path": "/downloads/movie/It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+            "source_filetype": "file",
+            "source_name": "It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+            "source_basename": "It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai",
+            "source_extension": ".mkv",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "普通事故",
+              "torrent_name": "It Was Just an Accident AKA Yek tasadof-e sadeh 2025 Hybrid 1080p BluRay DDP5.1 x264-ZoroSenpai",
+              "date": "2026-04-04 01:12:26"
+            }
+          },
+          "host_response_summary": {
+            "path": "/api/v1/download/add",
+            "endpoint_type": "download_add",
+            "success": true,
+            "message": null,
+            "download_id": "7274b2d63a636420245ec3b56441d9c6ffcca45c",
+            "media_reference": {
+              "tmdbid": 1456349,
+              "doubanid": null
+            }
+          },
+          "adapter_resolution": {
+            "adapter_key": "real_download_dispatch",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.download.add",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_add",
+            "host_integration_enabled": true
+          }
+        },
+        "preview": {
+          "organizeable": true,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "preview_ready",
+          "target_library_path": "/downloads/media/movie/phase8-validation/ordinary-accident-title-add",
+          "target_relative_path": "phase8-validation/ordinary-accident-title-add/普通事故.It Was Just an Accident.2025.BluRay.1080p.x264.DDP 5.1.mkv",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+          "capability_source": "moviepilot.runtime.transfer.name",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "path_handoff": {
+            "download_hash": "7274b2d63a636420245ec3b56441d9c6ffcca45c",
+            "source_path": "/downloads/movie/It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+            "source_filetype": "file",
+            "source_name": "It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+            "source_basename": "It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai",
+            "source_extension": ".mkv",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "普通事故",
+              "torrent_name": "It Was Just an Accident AKA Yek tasadof-e sadeh 2025 Hybrid 1080p BluRay DDP5.1 x264-ZoroSenpai",
+              "date": "2026-04-04 01:12:26"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.name",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+        },
+        "apply": {
+          "organizeable": true,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "applied",
+          "target_library_path": "/downloads/media/movie/phase8-validation/ordinary-accident-title-add",
+          "target_relative_path": "phase8-validation/ordinary-accident-title-add/It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+          "capability_source": "moviepilot.runtime.transfer.manual",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "path_handoff": {
+            "download_hash": "7274b2d63a636420245ec3b56441d9c6ffcca45c",
+            "source_path": "/downloads/movie/It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+            "source_filetype": "file",
+            "source_name": "It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+            "source_basename": "It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai",
+            "source_extension": ".mkv",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "普通事故",
+              "torrent_name": "It Was Just an Accident AKA Yek tasadof-e sadeh 2025 Hybrid 1080p BluRay DDP5.1 x264-ZoroSenpai",
+              "date": "2026-04-04 01:12:26"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.manual",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize apply 映射到了真实 MoviePilot `/api/v1/transfer/manual`。Phase 7B 已拿到真实 `success=true` 的最小手动整理样例。但真实文件移动、硬链接、刮削入库和媒体库刷新仍未被本仓库宣称为全部已验证。"
+        }
+      }
+    },
+    {
+      "sample_id": "snow_white_title_add",
+      "sample_name": "白雪公主 title/download_add 闭环",
+      "search_input_type": "search/title",
+      "dispatch_endpoint_type": "download_add",
+      "path_handoff_source": "moviepilot.runtime.history.download",
+      "path_handoff_status": "resolved_from_history_download",
+      "transfer_name_result": "preview_ready",
+      "transfer_manual_result": "failed",
+      "organize_result": "failed",
+      "verification_state": "unverified",
+      "stability_state": "blocked",
+      "attempt_count": 1,
+      "success_count": 0,
+      "blocker": "白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky 没有找到可整理的媒体文件",
+      "note": "Phase 8 sample hit a real-host blocker and should be treated as non-stable.",
+      "last_verified_at": "2026-04-03T17:36:16.770161Z",
+      "raw_summary": {
+        "search": {
+          "endpoint_type": "search_title",
+          "candidate_count": 72,
+          "message": null
+        },
+        "dispatch": {
+          "dispatchable": true,
+          "dispatch_status": "host_submitted",
+          "target_downloader": "QB",
+          "downloader_task_id": "778014d2e65ac643efa789648a87d01979f58532",
+          "note": "当前派发结果来自真实 MoviePilot `/api/v1/download/add` 或 `/api/v1/download/` 语义。如果宿主返回 `success=false`，这表示 payload 已被宿主接受并给出明确拒绝原因，而不是本地 mock。Phase 8 继续扩展了多样例成功率验证，并补充了 path handoff 稳定性矩阵。",
+          "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_add",
+          "mock": false,
+          "dispatch_backend": "host",
+          "capability_source": "moviepilot.runtime.download.add",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "verification_state": "verified",
+          "path_handoff": {
+            "download_hash": "778014d2e65ac643efa789648a87d01979f58532",
+            "source_path": "/downloads/movie/白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky",
+            "source_filetype": "dir",
+            "source_name": "白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky",
+            "source_basename": "白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky",
+            "source_extension": "",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "白雪公主",
+              "torrent_name": "Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1 6Audio-Thor@HDSky",
+              "date": "2026-04-04 01:17:21"
+            }
+          },
+          "host_response_summary": {
+            "path": "/api/v1/download/add",
+            "endpoint_type": "download_add",
+            "success": true,
+            "message": null,
+            "download_id": "778014d2e65ac643efa789648a87d01979f58532",
+            "media_reference": {
+              "tmdbid": 447273,
+              "doubanid": null
+            }
+          },
+          "adapter_resolution": {
+            "adapter_key": "real_download_dispatch",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.download.add",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_add",
+            "host_integration_enabled": true
+          }
+        },
+        "preview": {
+          "organizeable": true,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "preview_ready",
+          "target_library_path": "/downloads/media/movie/phase8-validation/snow-white-title-add",
+          "target_relative_path": "phase8-validation/snow-white-title-add/白雪公主 (2025) {tmdbid=447273}",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+          "capability_source": "moviepilot.runtime.transfer.name",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "path_handoff": {
+            "download_hash": "778014d2e65ac643efa789648a87d01979f58532",
+            "source_path": "/downloads/movie/白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky",
+            "source_filetype": "dir",
+            "source_name": "白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky",
+            "source_basename": "白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky",
+            "source_extension": "",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "白雪公主",
+              "torrent_name": "Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1 6Audio-Thor@HDSky",
+              "date": "2026-04-04 01:17:21"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.name",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+        },
+        "apply": {
+          "organizeable": false,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "failed",
+          "target_library_path": "/downloads/media/movie/phase8-validation/snow-white-title-add",
+          "target_relative_path": "phase8-validation/snow-white-title-add/白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+          "capability_source": "moviepilot.runtime.transfer.manual",
+          "fallback_reason": null,
+          "failure_reason": "白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky 没有找到可整理的媒体文件",
+          "path_handoff": {
+            "download_hash": "778014d2e65ac643efa789648a87d01979f58532",
+            "source_path": "/downloads/movie/白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky",
+            "source_filetype": "dir",
+            "source_name": "白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky",
+            "source_basename": "白雪公主 Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1-Thor@HDSky",
+            "source_extension": "",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "白雪公主",
+              "torrent_name": "Snow White 2025 1080p Blu-ray AVC DTS-HD MA 7.1 6Audio-Thor@HDSky",
+              "date": "2026-04-04 01:17:21"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.manual",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize apply 映射到了真实 MoviePilot `/api/v1/transfer/manual`。Phase 7B 已拿到真实 `success=true` 的最小手动整理样例。但真实文件移动、硬链接、刮削入库和媒体库刷新仍未被本仓库宣称为全部已验证。"
+        }
+      }
+    },
+    {
+      "sample_id": "argentina_1985_title_add",
+      "sample_name": "阿根廷1985 title/download_add 闭环",
+      "search_input_type": "search/title",
+      "dispatch_endpoint_type": "download_add",
+      "path_handoff_source": "moviepilot.runtime.history.download",
+      "path_handoff_status": "resolved_from_history_download",
+      "transfer_name_result": "failed",
+      "transfer_manual_result": "failed",
+      "organize_result": "failed",
+      "verification_state": "unverified",
+      "stability_state": "blocked",
+      "attempt_count": 1,
+      "success_count": 0,
+      "blocker": "阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb 没有找到可整理的媒体文件",
+      "note": "Phase 8 sample hit a real-host blocker and should be treated as non-stable.",
+      "last_verified_at": "2026-04-03T17:36:23.966908Z",
+      "raw_summary": {
+        "search": {
+          "endpoint_type": "search_title",
+          "candidate_count": 4,
+          "message": null
+        },
+        "dispatch": {
+          "dispatchable": true,
+          "dispatch_status": "host_submitted",
+          "target_downloader": "QB",
+          "downloader_task_id": "32df23e3a2dbb44bbacde90bc5e67ec8df6d97ac",
+          "note": "当前派发结果来自真实 MoviePilot `/api/v1/download/add` 或 `/api/v1/download/` 语义。如果宿主返回 `success=false`，这表示 payload 已被宿主接受并给出明确拒绝原因，而不是本地 mock。Phase 8 继续扩展了多样例成功率验证，并补充了 path handoff 稳定性矩阵。",
+          "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_add",
+          "mock": false,
+          "dispatch_backend": "host",
+          "capability_source": "moviepilot.runtime.download.add",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "verification_state": "verified",
+          "path_handoff": {
+            "download_hash": "32df23e3a2dbb44bbacde90bc5e67ec8df6d97ac",
+            "source_path": "/downloads/movie/阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
+            "source_filetype": "dir",
+            "source_name": "阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
+            "source_basename": "阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
+            "source_extension": "",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "阿根廷1985",
+              "torrent_name": "Argentina 1985 2022 AMZN WEB-DL 1080p AVC DDP5.1-ZmWeb",
+              "date": "2026-04-04 01:18:16"
+            }
+          },
+          "host_response_summary": {
+            "path": "/api/v1/download/add",
+            "endpoint_type": "download_add",
+            "success": true,
+            "message": null,
+            "download_id": "32df23e3a2dbb44bbacde90bc5e67ec8df6d97ac",
+            "media_reference": {
+              "tmdbid": 714888,
+              "doubanid": null
+            }
+          },
+          "adapter_resolution": {
+            "adapter_key": "real_download_dispatch",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.download.add",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealDownloadDispatchAdapter.dispatch.moviepilot_download_add",
+            "host_integration_enabled": true
+          }
+        },
+        "preview": {
+          "organizeable": false,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "failed",
+          "target_library_path": "/downloads/media/movie/phase8-validation/argentina-1985-title-add",
+          "target_relative_path": "phase8-validation/argentina-1985-title-add/阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+          "capability_source": "moviepilot.runtime.transfer.name",
+          "fallback_reason": null,
+          "failure_reason": "未识别到媒体信息",
+          "path_handoff": {
+            "download_hash": "32df23e3a2dbb44bbacde90bc5e67ec8df6d97ac",
+            "source_path": "/downloads/movie/阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
+            "source_filetype": "dir",
+            "source_name": "阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
+            "source_basename": "阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
+            "source_extension": "",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "阿根廷1985",
+              "torrent_name": "Argentina 1985 2022 AMZN WEB-DL 1080p AVC DDP5.1-ZmWeb",
+              "date": "2026-04-04 01:18:16"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.name",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+        },
+        "apply": {
+          "organizeable": false,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "failed",
+          "target_library_path": "/downloads/media/movie/phase8-validation/argentina-1985-title-add",
+          "target_relative_path": "phase8-validation/argentina-1985-title-add/阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+          "capability_source": "moviepilot.runtime.transfer.manual",
+          "fallback_reason": null,
+          "failure_reason": "阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb 没有找到可整理的媒体文件",
+          "path_handoff": {
+            "download_hash": "32df23e3a2dbb44bbacde90bc5e67ec8df6d97ac",
+            "source_path": "/downloads/movie/阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
+            "source_filetype": "dir",
+            "source_name": "阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
+            "source_basename": "阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
+            "source_extension": "",
+            "handoff_source": "moviepilot.runtime.history.download",
+            "handoff_status": "resolved_from_history_download",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/download`。宿主源码显示 `DownloadChain.download_single` 在成功添加下载后会登记该路径。",
+            "raw_summary": {
+              "title": "阿根廷1985",
+              "torrent_name": "Argentina 1985 2022 AMZN WEB-DL 1080p AVC DDP5.1-ZmWeb",
+              "date": "2026-04-04 01:18:16"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.manual",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize apply 映射到了真实 MoviePilot `/api/v1/transfer/manual`。Phase 7B 已拿到真实 `success=true` 的最小手动整理样例。但真实文件移动、硬链接、刮削入库和媒体库刷新仍未被本仓库宣称为全部已验证。"
+        }
+      }
+    },
+    {
+      "sample_id": "transfer_history_fallback",
+      "sample_name": "history/transfer fallback handoff",
+      "search_input_type": "history/transfer",
+      "dispatch_endpoint_type": null,
+      "path_handoff_source": "moviepilot.runtime.history.transfer",
+      "path_handoff_status": "resolved_from_history_transfer",
+      "transfer_name_result": null,
+      "transfer_manual_result": null,
+      "organize_result": null,
+      "verification_state": "verified",
+      "stability_state": "stable",
+      "attempt_count": 1,
+      "success_count": 1,
+      "blocker": null,
+      "note": "history/download 未命中时，真实 MoviePilot history/transfer 仍可回灌 source path。",
+      "last_verified_at": "2026-04-03T17:36:25.876573Z",
+      "raw_summary": {
+        "download_hash": "dc3479ceb0f11c91f4d56cbbbc3495e2b7dbf6d6",
+        "title": "双轨",
+        "src": "/downloads/teleplay/双轨.Speed.and.Love.S01.2025.2160p.IQ.WEB-DL.H265.DDP5.1-HHWEB/双轨.Speed.and.Love.S01E12.2025.2160p.IQ.WEB-DL.H265.DDP5.1-HHWEB.mkv",
+        "dest": "/downloads/media/teleplay/国产剧/双轨 (2025) {tmdbid=279041}/Season 01/双轨 S01E12 2160p.IQ.WEB-DL.H265.DDP 5.1-HHWEB.mkv"
+      }
+    },
+    {
+      "sample_id": "transfer_replay_1",
+      "sample_name": "transfer replay 普通事故",
+      "search_input_type": "history/transfer-replay",
+      "dispatch_endpoint_type": null,
+      "path_handoff_source": "moviepilot.runtime.history.transfer",
+      "path_handoff_status": "resolved_from_history_transfer",
+      "transfer_name_result": "preview_ready",
+      "transfer_manual_result": "applied",
+      "organize_result": "applied",
+      "verification_state": "verified",
+      "stability_state": "stable",
+      "attempt_count": 1,
+      "success_count": 1,
+      "blocker": null,
+      "note": "Phase 8 replayed a real transfer history source path through MoviePilot transfer/name + transfer/manual.",
+      "last_verified_at": "2026-04-03T17:36:26.178020Z",
+      "raw_summary": {
+        "download_hash": "2ceb7e93068d5beee547d0277544a6df3d9a57f2",
+        "src": "/downloads/movie/Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC/",
+        "dest": "/downloads/media/movie/外语电影/普通事故 (2025) {tmdbid=1456349}/",
+        "preview": {
+          "organizeable": true,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "preview_ready",
+          "target_library_path": "/downloads/media/movie/phase8-validation/transfer-replay-1",
+          "target_relative_path": "phase8-validation/transfer-replay-1/普通事故 (2025) {tmdbid=1456349}",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+          "capability_source": "moviepilot.runtime.transfer.name",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "path_handoff": {
+            "download_hash": "2ceb7e93068d5beee547d0277544a6df3d9a57f2",
+            "source_path": "/downloads/movie/Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC/",
+            "source_filetype": "dir",
+            "source_name": "Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC",
+            "source_basename": "Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC",
+            "source_extension": "",
+            "handoff_source": "moviepilot.runtime.history.transfer",
+            "handoff_status": "resolved_from_history_transfer",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/transfer` 的成功整理记录。它被用作 `history/download` 路径不稳定或宿主仍能提供已整理源路径时的稳定回灌来源。",
+            "raw_summary": {
+              "title": "普通事故",
+              "dest": "/downloads/media/movie/外语电影/普通事故 (2025) {tmdbid=1456349}/",
+              "status": true,
+              "date": "2026-04-03 22:41:59"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.name",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+        },
+        "apply": {
+          "organizeable": true,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "applied",
+          "target_library_path": "/downloads/media/movie/phase8-validation/transfer-replay-1",
+          "target_relative_path": "phase8-validation/transfer-replay-1/Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+          "capability_source": "moviepilot.runtime.transfer.manual",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "path_handoff": {
+            "download_hash": "2ceb7e93068d5beee547d0277544a6df3d9a57f2",
+            "source_path": "/downloads/movie/Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC/",
+            "source_filetype": "dir",
+            "source_name": "Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC",
+            "source_basename": "Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC",
+            "source_extension": "",
+            "handoff_source": "moviepilot.runtime.history.transfer",
+            "handoff_status": "resolved_from_history_transfer",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/transfer` 的成功整理记录。它被用作 `history/download` 路径不稳定或宿主仍能提供已整理源路径时的稳定回灌来源。",
+            "raw_summary": {
+              "title": "普通事故",
+              "dest": "/downloads/media/movie/外语电影/普通事故 (2025) {tmdbid=1456349}/",
+              "status": true,
+              "date": "2026-04-03 22:41:59"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.manual",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize apply 映射到了真实 MoviePilot `/api/v1/transfer/manual`。Phase 7B 已拿到真实 `success=true` 的最小手动整理样例。但真实文件移动、硬链接、刮削入库和媒体库刷新仍未被本仓库宣称为全部已验证。"
+        }
+      }
+    },
+    {
+      "sample_id": "transfer_replay_2",
+      "sample_name": "transfer replay 普通事故",
+      "search_input_type": "history/transfer-replay",
+      "dispatch_endpoint_type": null,
+      "path_handoff_source": "moviepilot.runtime.history.transfer",
+      "path_handoff_status": "resolved_from_history_transfer",
+      "transfer_name_result": "preview_ready",
+      "transfer_manual_result": "applied",
+      "organize_result": "applied",
+      "verification_state": "verified",
+      "stability_state": "stable",
+      "attempt_count": 1,
+      "success_count": 1,
+      "blocker": null,
+      "note": "Phase 8 replayed a real transfer history source path through MoviePilot transfer/name + transfer/manual.",
+      "last_verified_at": "2026-04-03T17:36:26.414566Z",
+      "raw_summary": {
+        "download_hash": "c830777eca3972e0ee466eb6af6f5c243d62c90f",
+        "src": "/downloads/movie/It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+        "dest": "/downloads/media/movie/外语电影/普通事故 (2025) {tmdbid=1456349}/普通事故.It Was Just an Accident.2025.BluRay.1080p.x264.DDP 5.1.mkv",
+        "preview": {
+          "organizeable": true,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "preview_ready",
+          "target_library_path": "/downloads/media/movie/phase8-validation/transfer-replay-2",
+          "target_relative_path": "phase8-validation/transfer-replay-2/普通事故.It Was Just an Accident.2025.BluRay.1080p.x264.DDP 5.1.mkv",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+          "capability_source": "moviepilot.runtime.transfer.name",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "path_handoff": {
+            "download_hash": "c830777eca3972e0ee466eb6af6f5c243d62c90f",
+            "source_path": "/downloads/movie/It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+            "source_filetype": "file",
+            "source_name": "It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+            "source_basename": "It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai",
+            "source_extension": ".mkv",
+            "handoff_source": "moviepilot.runtime.history.transfer",
+            "handoff_status": "resolved_from_history_transfer",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/transfer` 的成功整理记录。它被用作 `history/download` 路径不稳定或宿主仍能提供已整理源路径时的稳定回灌来源。",
+            "raw_summary": {
+              "title": "普通事故",
+              "dest": "/downloads/media/movie/外语电影/普通事故 (2025) {tmdbid=1456349}/普通事故.It Was Just an Accident.2025.BluRay.1080p.x264.DDP 5.1.mkv",
+              "status": true,
+              "date": "2026-04-01 03:11:38"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.name",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+        },
+        "apply": {
+          "organizeable": true,
+          "organize_backend": "host",
+          "adapter_mode": "host",
+          "strategy": "phase8_real_host_validation",
+          "strategy_snapshot": {
+            "strategy_name": "phase8_real_host_validation",
+            "library_type": "music",
+            "root_path": "/downloads/media/movie",
+            "artist_dir_template": "{artist_name}",
+            "album_dir_template": "{artist_name}/{year} - {album_title}",
+            "track_file_template": "{track_title}.{format_ext}",
+            "conflict_policy": "skip_existing",
+            "template_note": "Phase 8 uses a dedicated validation folder to minimize side effects while exercising host transfer semantics."
+          },
+          "organize_status": "applied",
+          "target_library_path": "/downloads/media/movie/phase8-validation/transfer-replay-2",
+          "target_relative_path": "phase8-validation/transfer-replay-2/It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+          "strategy_note": "Phase 8 dedicated validation folder under host media root.",
+          "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+          "capability_source": "moviepilot.runtime.transfer.manual",
+          "fallback_reason": null,
+          "failure_reason": null,
+          "path_handoff": {
+            "download_hash": "c830777eca3972e0ee466eb6af6f5c243d62c90f",
+            "source_path": "/downloads/movie/It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+            "source_filetype": "file",
+            "source_name": "It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai.mkv",
+            "source_basename": "It.Was.Just.An.Accident.2025.Hybird.1080p.BluRay.DDP5.1.x264-ZoroSenpai",
+            "source_extension": ".mkv",
+            "handoff_source": "moviepilot.runtime.history.transfer",
+            "handoff_status": "resolved_from_history_transfer",
+            "verification_state": "verified",
+            "note": "当前本地源路径来自真实 MoviePilot `/api/v1/history/transfer` 的成功整理记录。它被用作 `history/download` 路径不稳定或宿主仍能提供已整理源路径时的稳定回灌来源。",
+            "raw_summary": {
+              "title": "普通事故",
+              "dest": "/downloads/media/movie/外语电影/普通事故 (2025) {tmdbid=1456349}/普通事故.It Was Just an Accident.2025.BluRay.1080p.x264.DDP 5.1.mkv",
+              "status": true,
+              "date": "2026-04-01 03:11:38"
+            }
+          },
+          "verification_state": "verified",
+          "adapter_resolution": {
+            "adapter_key": "real_organize",
+            "adapter_mode": "host",
+            "strategy": "prefer_host",
+            "capability_source": "moviepilot.runtime.transfer.manual",
+            "verification_state": "verified",
+            "fallback_reason": null,
+            "integration_point": "RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+            "host_integration_enabled": true
+          },
+          "mock": false,
+          "note": "当前 organize apply 映射到了真实 MoviePilot `/api/v1/transfer/manual`。Phase 7B 已拿到真实 `success=true` 的最小手动整理样例。但真实文件移动、硬链接、刮削入库和媒体库刷新仍未被本仓库宣称为全部已验证。"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "generated_at": "2026-04-03T17:36:26.414925Z",
+    "sample_count": 9,
+    "stable_count": 3,
+    "single_sample_count": 1,
+    "blocked_count": 5,
+    "flaky_count": 0,
+    "verified_count": 4,
+    "unverified_count": 5,
+    "placeholder_count": 0,
+    "note": "Counts reflect the latest manual Phase 8 real-host validation run."
+  },
+  "note": "This report is generated manually in Phase 8 and is intended for real-host regression only. It should not be treated as a default CI artifact."
+}

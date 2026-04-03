@@ -2,6 +2,9 @@
 
 > 用途：说明 Phase 5 当前已经收口到哪一步、如何在 `mock / prefer_host / strict_host` 之间切换、哪些接口已经验证、哪些仍待真实 MoviePilot 宿主确认。
 
+> Phase 8 更新：真实宿主联调已经从“单条成功样例”推进到“多样例验证矩阵”。  
+> 最新稳定性结论请同时参考 [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)。
+
 ## 8.1 当前目标
 
 Phase 5 的目标不是宣称“已经真实接通宿主全部能力”，而是把关键边界升级为：
@@ -19,9 +22,9 @@ Phase 5 的目标不是宣称“已经真实接通宿主全部能力”，而是
 | Host probe mock adapter | verified | 已在本仓库内运行验证，通过 `/api/probe/*` 可见统一结构。 |
 | Host probe real adapter skeleton | verified | 已对真实 MoviePilot 宿主完成 API 前缀、鉴权与低风险连通性验证。 |
 | Host search mock adapter | verified | 已在 SearchJob 链路中跑通。 |
-| Host search real adapter skeleton | verified | `search/title` 与 `search/last` 已在真实 MoviePilot 宿主完成语义验证；`search/media` 仍是 `unverified`。 |
+| Host search real adapter skeleton | verified | `search/title`、`search/last` 与 `search/media` 已拿到真实正向样例；但不同样例的后续 organize 成功率仍需结合 Phase 8 矩阵判断。 |
 | Download dispatch mock adapter | verified | 已在 `/downloads/dispatch` 路由中跑通。 |
-| Download dispatch real adapter skeleton | verified | Phase 7B 已通过真实 MoviePilot `/api/v1/download/` 拿到 `success=true` 样例，并能通过 `history/download` 回读本地路径。`download/add` 单独成功样例仍待补充。 |
+| Download dispatch real adapter skeleton | verified | `/api/v1/download/` 已有多条真实成功样例；`download/add` 已补到 1 条真实成功样例，但稳定性仍未达到多样例级别。 |
 | Notify real adapter | placeholder | 仅保留 endpoint 骨架与配置入口。 |
 | Config real adapter | placeholder | 仅保留 endpoint 骨架与配置入口。 |
 | 真实 MoviePilot 宿主接口语义 | unverified | Phase 7A 已完成首轮真实宿主差异收敛，详见 `docs/10_Phase7A_真实宿主语义验证与差异收敛.md`。 |

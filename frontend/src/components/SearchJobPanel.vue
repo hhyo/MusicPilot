@@ -165,6 +165,9 @@
                 <p v-if="dispatchResults[candidate.id]">
                   dispatch_backend: {{ dispatchResults[candidate.id].dispatch_backend }} / {{ dispatchResults[candidate.id].target_downloader }}
                 </p>
+                <p v-if="dispatchResults[candidate.id]?.host_response_summary?.endpoint_type">
+                  dispatch endpoint: {{ dispatchResults[candidate.id]?.host_response_summary?.endpoint_type }}
+                </p>
                 <p v-if="dispatchResults[candidate.id]">
                   dispatch verification: {{ dispatchResults[candidate.id].verification_state }}
                 </p>

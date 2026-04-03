@@ -158,6 +158,40 @@ class RealHostSearchAdapterTest(unittest.TestCase):
         self.assertEqual(client.calls[0][0], "GET")
         self.assertEqual(client.calls[0][1], "/api/v1/search/title")
 
+    def test_search_media_positive_sample_is_verified(self) -> None:
+        detail = build_album_detail()
+        query_build = QueryBuilderService.build_from_detail(detail)
+        query_build.query_context.external_ids["moviepilot_tmdb_id"] = "447273"
+        client = FakeHostClient(
+            get_responses={
+                "/api/v1/search/media/": {},
+                "/api/v1/search/media/tmdb:447273": {
+                    "success": True,
+                    "data": [
+                        {
+                            "media_info": {"title": "白雪公主", "year": "2025", "tmdb_id": 447273},
+                            "torrent_info": {
+                                "site": 2,
+                                "site_name": "馒头",
+                                "title": "Snow White 2025 2160p BluRay DoVi x265 10bit 4Audios TrueHD Atmos 7.1-WiKi",
+                                "size": 2147483648,
+                                "seeders": 30,
+                                "peers": 5,
+                                "labels": ["movie", "2160p"],
+                            },
+                        }
+                    ],
+                },
+            }
+        )
+        adapter = RealHostSearchAdapter(settings=build_settings(), client=client)  # type: ignore[arg-type]
+
+        results = adapter.search(query_build=query_build, detail=detail)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].adapter_resolution.verification_state, VerificationState.VERIFIED)
+        self.assertEqual(results[0].raw_payload["host_media_reference"]["tmdbid"], 447273)
+
 
 class RealDownloadDispatchAdapterTest(unittest.TestCase):
     def test_dispatch_maps_moviepilot_download_add_failure(self) -> None:
@@ -197,6 +231,45 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
         self.assertEqual(result.target_downloader, "QB")
         self.assertEqual(result.failure_reason, "无法识别媒体信息")
         self.assertIn("downloader_name_remapped", result.fallback_reason or "")
+
+    def test_dispatch_add_includes_tmdb_hint_when_media_payload_missing(self) -> None:
+        candidate = build_candidate(
+            raw_payload={
+                "host_context": {
+                    "torrent_info": {
+                        "site": 1,
+                        "site_name": "Stub Site",
+                        "title": "Snow White 2025 2160p BluRay",
+                        "description": "validation",
+                        "enclosure": "magnet:?xt=urn:btih:1",
+                    },
+                    "media_info": {},
+                },
+                "host_media_reference": {"tmdbid": 447273},
+            }
+        )
+        client = FakeHostClient(
+            get_responses={"/api/v1/download/clients": {"items": [{"name": "QB", "type": "qbittorrent"}]}},
+            post_responses={
+                "/api/v1/download/add": {
+                    "success": False,
+                    "message": "任务添加失败",
+                    "data": {},
+                }
+            },
+        )
+        settings = build_settings()
+        adapter = RealDownloadDispatchAdapter(
+            settings=settings,
+            client=client,  # type: ignore[arg-type]
+            path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
+        )
+
+        adapter.dispatch(candidate=candidate, downloader_id="QB", manual_confirm=True)
+
+        payload = client.calls[-1][3]["payload"]
+        self.assertEqual(client.calls[-1][1], "/api/v1/download/add")
+        self.assertEqual(payload["tmdbid"], 447273)
 
     def test_dispatch_success_resolves_history_download_path(self) -> None:
         candidate = build_candidate(
@@ -260,6 +333,70 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
             "resolved_from_history_download",
         )
         self.assertEqual(result.host_response_summary["download_id"], "stub-download-001")
+
+    def test_dispatch_success_resolves_history_transfer_path_when_download_history_misses(self) -> None:
+        candidate = build_candidate(
+            raw_payload={
+                "host_context": {
+                    "torrent_info": {
+                        "site": 1,
+                        "site_name": "Stub Site",
+                        "title": "Argentina 1985 2022 AMZN WEB-DL 1080p AVC DDP5.1-ZmWeb",
+                        "description": "validation",
+                        "enclosure": "magnet:?xt=urn:btih:1",
+                    },
+                    "media_info": {
+                        "type": "电影",
+                        "title": "阿根廷1985",
+                        "year": "2022",
+                        "tmdb_id": 714888,
+                    },
+                }
+            }
+        )
+        client = FakeHostClient(
+            get_responses={
+                "/api/v1/download/clients": {"items": [{"name": "QB", "type": "qbittorrent"}]},
+                "/api/v1/history/download": {"items": []},
+                "/api/v1/history/transfer": {
+                    "success": True,
+                    "data": {
+                        "list": [
+                            {
+                                "download_hash": "stub-download-002",
+                                "title": "阿根廷1985",
+                                "src": "/downloads/movie/Argentina.1985.2022.WEB-DL.1080p.mkv",
+                                "dest": "/downloads/media/movie/阿根廷1985 (2022)/Argentina.1985.2022.WEB-DL.1080p.mkv",
+                                "status": True,
+                                "date": "2026-04-04 00:00:00",
+                            }
+                        ],
+                        "total": 1,
+                    },
+                },
+            },
+            post_responses={
+                "/api/v1/download/": {
+                    "success": True,
+                    "message": None,
+                    "data": {"download_id": "stub-download-002"},
+                }
+            },
+        )
+        settings = build_settings()
+        adapter = RealDownloadDispatchAdapter(
+            settings=settings,
+            client=client,  # type: ignore[arg-type]
+            path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
+        )
+
+        result = adapter.dispatch(candidate=candidate, downloader_id="QB", manual_confirm=True)
+
+        self.assertTrue(result.dispatchable)
+        self.assertIsNotNone(result.path_handoff)
+        self.assertEqual(result.path_handoff.handoff_status, "resolved_from_history_transfer")
+        self.assertEqual(result.path_handoff.source_filetype, "file")
+        self.assertEqual(result.path_handoff.source_path, "/downloads/movie/Argentina.1985.2022.WEB-DL.1080p.mkv")
 
 
 class RealOrganizeAdapterTest(unittest.TestCase):
@@ -334,6 +471,20 @@ class RealOrganizeAdapterTest(unittest.TestCase):
         self.assertEqual(payload["fileitem"]["path"], "/downloads/nonexistent-file.flac")
         self.assertEqual(payload["fileitem"]["storage"], "local")
         self.assertEqual(payload["fileitem"]["type"], "file")
+
+
+class HostPathHandoffServiceTest(unittest.TestCase):
+    def test_build_unresolved_marks_explicit_unresolved_state(self) -> None:
+        service = HostPathHandoffService(settings=build_settings(), client=FakeHostClient())  # type: ignore[arg-type]
+
+        handoff = service.build_unresolved(
+            download_hash="hash-missing-001",
+            handoff_source="moviepilot.runtime.history.download",
+        )
+
+        self.assertEqual(handoff.handoff_status, "handoff_unresolved")
+        self.assertEqual(handoff.verification_state, VerificationState.UNVERIFIED)
+        self.assertEqual(handoff.download_hash, "hash-missing-001")
 
 
 if __name__ == "__main__":

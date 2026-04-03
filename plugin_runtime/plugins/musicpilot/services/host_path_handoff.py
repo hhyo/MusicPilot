@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
 from typing import Any
 
 from ..adapters.host_http import HostHttpClient
@@ -39,6 +40,49 @@ class HostPathHandoffService:
         if not download_hash:
             return None
 
+        return self._resolve_once(download_hash)
+
+    def resolve_with_retry(self, download_hash: str | None) -> PathHandoffInfo | None:
+        if not download_hash:
+            return None
+
+        attempts = max(1, self.settings.host_history_sync_retry_attempts)
+        interval = max(0.0, self.settings.host_history_sync_retry_interval_seconds)
+        for attempt in range(1, attempts + 1):
+            resolved = self._resolve_once(download_hash)
+            if resolved is not None:
+                return resolved
+            if attempt < attempts and interval > 0:
+                time.sleep(interval)
+        return None
+
+    def resolve_from_transfer(self, download_hash: str | None) -> PathHandoffInfo | None:
+        if not download_hash:
+            return None
+        transfer_record = self._find_transfer_history(download_hash)
+        if transfer_record and transfer_record.get("src"):
+            return self._build_handoff(
+                source_path=str(transfer_record["src"]),
+                download_hash=download_hash,
+                handoff_source="moviepilot.runtime.history.transfer",
+                handoff_status="resolved_from_history_transfer",
+                note=(
+                    "当前本地源路径来自真实 MoviePilot `/api/v1/history/transfer` 的成功整理记录。"
+                    "它被用作 `history/download` 路径不稳定或宿主仍能提供已整理源路径时的稳定回灌来源。"
+                ),
+                raw_summary={
+                    "title": transfer_record.get("title"),
+                    "dest": transfer_record.get("dest"),
+                    "status": transfer_record.get("status"),
+                    "date": transfer_record.get("date"),
+                },
+            )
+        return None
+
+    def _resolve_once(self, download_hash: str) -> PathHandoffInfo | None:
+        if not download_hash:
+            return None
+
         download_record = self._find_download_history(download_hash)
         if download_record and download_record.get("path"):
             return self._build_handoff(
@@ -57,26 +101,7 @@ class HostPathHandoffService:
                 },
             )
 
-        transfer_record = self._find_transfer_history(download_hash)
-        if transfer_record and transfer_record.get("src"):
-            return self._build_handoff(
-                source_path=str(transfer_record["src"]),
-                download_hash=download_hash,
-                handoff_source="moviepilot.runtime.history.transfer",
-                handoff_status="resolved_from_history_transfer",
-                note=(
-                    "当前本地源路径来自真实 MoviePilot `/api/v1/history/transfer` 的成功整理记录。"
-                    "这是 `history/download` 尚未可用时的兼容回灌来源。"
-                ),
-                raw_summary={
-                    "title": transfer_record.get("title"),
-                    "dest": transfer_record.get("dest"),
-                    "status": transfer_record.get("status"),
-                    "date": transfer_record.get("date"),
-                },
-            )
-
-        return None
+        return self.resolve_from_transfer(download_hash)
 
     def build_pending(self, *, download_hash: str | None, handoff_source: str) -> PathHandoffInfo:
         return PathHandoffInfo(
@@ -91,7 +116,25 @@ class HostPathHandoffService:
             verification_state=VerificationState.UNVERIFIED,
             note=(
                 "真实下载任务已经被宿主接受，但 MusicPilot 暂未从宿主 history API 读回本地路径。"
-                "这通常表示宿主下载历史尚未同步到可读取状态。"
+                "这通常表示宿主下载历史尚未同步到可读取状态，或当前重试窗口仍过短。"
+            ),
+            raw_summary={"download_hash": download_hash},
+        )
+
+    def build_unresolved(self, *, download_hash: str | None, handoff_source: str) -> PathHandoffInfo:
+        return PathHandoffInfo(
+            download_hash=download_hash,
+            source_path=None,
+            source_filetype=None,
+            source_name=None,
+            source_basename=None,
+            source_extension=None,
+            handoff_source=handoff_source,
+            handoff_status="handoff_unresolved",
+            verification_state=VerificationState.UNVERIFIED,
+            note=(
+                "MusicPilot 已多次尝试从真实 MoviePilot history API 回读本地路径，但仍未命中 download/transfer 记录。"
+                "这意味着当前 organize host apply 缺少可用的本地文件输入。"
             ),
             raw_summary={"download_hash": download_hash},
         )
@@ -129,7 +172,11 @@ class HostPathHandoffService:
             data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
             items = data.get("list") if isinstance(data.get("list"), list) else []
             for item in items:
-                if isinstance(item, dict) and str(item.get("download_hash") or "") == download_hash:
+                if (
+                    isinstance(item, dict)
+                    and str(item.get("download_hash") or "") == download_hash
+                    and item.get("status", True) is not False
+                ):
                     return item
             if len(items) < self.settings.host_history_transfer_page_size:
                 break

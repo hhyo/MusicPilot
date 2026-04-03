@@ -201,11 +201,11 @@ class RealHostSearchAdapter(HostSearchAdapter):
             endpoint_label="search.media",
             note=(
                 "当前候选来自真实 MoviePilot `/api/v1/search/media/{mediaid}` 返回结构。"
-                "Phase 7A 只完成了该端点的源码核对与真实宿主负向样例验证，正向候选样例仍待补充。"
+                "Phase 8 已补到多条真实正向样例，`search/media` 现在可作为更稳定的 host-backed 候选输入。"
             ),
             query_query=media_id,
             query_type="canonical",
-            verification_state=VerificationState.UNVERIFIED,
+            verification_state=VerificationState.VERIFIED,
         )
 
     def _extract_context_items(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -259,6 +259,7 @@ class RealHostSearchAdapter(HostSearchAdapter):
                 "query_type": query_type,
                 "endpoint": endpoint_label,
                 "page_url": page_url or None,
+                "host_media_reference": self._extract_media_reference(context),
                 "adapter_resolution": resolution.model_dump(mode="json"),
             }
 
@@ -282,6 +283,15 @@ class RealHostSearchAdapter(HostSearchAdapter):
             )
 
         return candidates
+
+    def _extract_media_reference(self, context: dict[str, Any]) -> dict[str, Any]:
+        media = context.get("media_info") if isinstance(context.get("media_info"), dict) else {}
+        return {
+            "tmdbid": media.get("tmdb_id") or media.get("tmdbid"),
+            "doubanid": media.get("douban_id") or media.get("doubanid"),
+            "title": media.get("title") or media.get("original_title"),
+            "year": media.get("year"),
+        }
 
     def _resolve_media_id(self, query_build: QueryBuildResult) -> str | None:
         external_ids = query_build.query_context.external_ids

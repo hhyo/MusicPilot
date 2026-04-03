@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint for MusicPilot Phase 7B."""
+"""FastAPI application entrypoint for MusicPilot Phase 8."""
 
 from __future__ import annotations
 
@@ -11,12 +11,13 @@ from . import __version__
 from .api.health import build_health_payload
 from .api.router import plugin_api_router, probe_api_router
 from .core.config import settings
-from .core.dependencies import get_host_integration_service
+from .core.dependencies import get_host_integration_service, get_validation_matrix_service
 from .core.http import configure_logging, register_exception_handlers, register_http_middleware
 from .core.responses import success_response
 from .schemas.common import ApiResponse
 from .services.host_integration import HostIntegrationService
 from .services.metadata import bootstrap_metadata_storage
+from .services.validation_matrix import HostValidationMatrixService
 
 
 @asynccontextmanager
@@ -57,24 +58,29 @@ def build_application() -> FastAPI:
             data={
                 "service": settings.app_name,
                 "version": __version__,
-                "phase": "Phase 7B",
-                "status": "real-host-success-loop-ready",
+                "phase": "Phase 8",
+                "status": "real-host-validation-matrix-ready",
                 "host_integration": integration_service.runtime_state().model_dump(mode="json"),
             },
-            message="MusicPilot backend Phase 7B real-host success loop is running.",
+            message="MusicPilot backend Phase 8 validation matrix runtime is running.",
             code="ROOT_OK",
             mock=False,
-            note="This root endpoint confirms host-aware search, dispatch, path handoff, and organize resolution are alive. Real MoviePilot host verification remains separate from this runtime status.",
+            note="This root endpoint confirms host-aware search, dispatch, path handoff, organize resolution, and the Phase 8 validation matrix export path are alive.",
         )
 
     @app.get("/health", summary="Health check", tags=["Health"])
     async def health(
         request: Request,
         integration_service: HostIntegrationService = Depends(get_host_integration_service),
+        validation_matrix_service: HostValidationMatrixService = Depends(get_validation_matrix_service),
     ) -> ApiResponse:
+        summary = validation_matrix_service.summary()
         return success_response(
             request,
-            data=build_health_payload(integration_service.runtime_state().model_dump(mode="json")),
+            data=build_health_payload(
+                integration_service.runtime_state().model_dump(mode="json"),
+                summary.model_dump(mode="json") if summary else None,
+            ),
             message="Health check passed.",
             code="HEALTH_OK",
             mock=False,

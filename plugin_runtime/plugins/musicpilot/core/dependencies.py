@@ -39,6 +39,7 @@ from ..services.scoring import MusicCandidateScorer
 from ..services.search_job import SearchJobService
 from ..services.subscription_execution import SubscriptionExecutionService
 from ..services.subscriptions import SubscriptionService
+from ..services.validation_matrix import HostValidationMatrixService
 
 
 @lru_cache
@@ -46,6 +47,7 @@ def get_host_capabilities_service() -> HostCapabilitiesService:
     return HostCapabilitiesService(
         adapter=get_host_probe_adapter(),
         integration_service=get_host_integration_service(),
+        validation_matrix_service=get_validation_matrix_service(),
     )
 
 
@@ -94,6 +96,11 @@ def get_host_integration_service() -> HostIntegrationService:
 @lru_cache
 def get_host_path_handoff_service() -> HostPathHandoffService:
     return HostPathHandoffService(settings=settings, client=get_host_http_client())
+
+
+@lru_cache
+def get_validation_matrix_service() -> HostValidationMatrixService:
+    return HostValidationMatrixService(settings=settings)
 
 
 def get_metadata_service(
@@ -175,7 +182,11 @@ def get_organize_adapter() -> OrganizeAdapter:
 
 @lru_cache
 def get_real_organize_adapter() -> OrganizeAdapter:
-    return RealOrganizeAdapter(settings=settings, client=get_host_http_client())
+    return RealOrganizeAdapter(
+        settings=settings,
+        client=get_host_http_client(),
+        path_handoff_service=get_host_path_handoff_service(),
+    )
 
 
 @lru_cache

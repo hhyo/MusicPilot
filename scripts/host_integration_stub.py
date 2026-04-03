@@ -64,6 +64,66 @@ SEARCH_CONTEXTS = [
     },
 ]
 
+SEARCH_MEDIA_CONTEXTS = {
+    "tmdb:1456349": [
+        {
+            "meta_info": {"title": "普通事故", "year": "2025"},
+            "media_info": {"title": "普通事故", "year": "2025", "tmdb_id": 1456349},
+            "torrent_info": {
+                "site": 11,
+                "site_name": "馒头",
+                "title": "It Was Just an Accident AKA Yek tasadef sadeh 2025 2160p AMZN WEB-DL H.265 DDP 5.1-WADU",
+                "description": "MoviePilot-like positive media search sample",
+                "enclosure": "magnet:?xt=urn:btih:4444444444444444444444444444444444444444",
+                "page_url": "https://stub.example/search/ordinary-accident",
+                "size": 2147483648,
+                "seeders": 24,
+                "peers": 3,
+                "labels": ["movie", "2160p", "stub"],
+                "volume_factor": "free",
+            },
+        }
+    ],
+    "tmdb:447273": [
+        {
+            "meta_info": {"title": "白雪公主", "year": "2025"},
+            "media_info": {"title": "白雪公主", "year": "2025", "tmdb_id": 447273},
+            "torrent_info": {
+                "site": 12,
+                "site_name": "馒头",
+                "title": "Snow White 2025 2160p BluRay DoVi x265 10bit 4Audios TrueHD Atmos 7.1-WiKi",
+                "description": "MoviePilot-like positive media search sample",
+                "enclosure": "magnet:?xt=urn:btih:5555555555555555555555555555555555555555",
+                "page_url": "https://stub.example/search/snow-white",
+                "size": 3221225472,
+                "seeders": 31,
+                "peers": 6,
+                "labels": ["movie", "2160p", "stub"],
+                "volume_factor": "free",
+            },
+        }
+    ],
+    "tmdb:714888": [
+        {
+            "meta_info": {"title": "阿根廷1985", "year": "2022"},
+            "media_info": {"title": "阿根廷1985", "year": "2022", "tmdb_id": 714888},
+            "torrent_info": {
+                "site": 13,
+                "site_name": "PT时间",
+                "title": "Argentina 1985 2022 AMZN WEB-DL 1080p AVC DDP5.1-ZmWeb",
+                "description": "MoviePilot-like positive media search sample",
+                "enclosure": "magnet:?xt=urn:btih:6666666666666666666666666666666666666666",
+                "page_url": "https://stub.example/search/argentina-1985",
+                "size": 1610612736,
+                "seeders": 19,
+                "peers": 2,
+                "labels": ["movie", "1080p", "stub"],
+                "volume_factor": "free",
+            },
+        }
+    ],
+}
+
 DOWNLOADER_CLIENTS = [{"name": "QB", "type": "qbittorrent"}]
 
 SITES = [{"id": 1, "name": "Local Stub PT", "enabled": True}]
@@ -145,6 +205,11 @@ class HostIntegrationStubHandler(BaseHTTPRequestHandler):
             return
 
         if path.startswith("/api/v1/search/media/"):
+            media_id = path.rsplit("/", 1)[-1]
+            items = SEARCH_MEDIA_CONTEXTS.get(media_id)
+            if items:
+                self._write_json({"success": True, "message": None, "data": items})
+                return
             self._write_json({"success": False, "message": "未搜索到任何资源", "data": {}})
             return
 
@@ -221,16 +286,22 @@ class HostIntegrationStubHandler(BaseHTTPRequestHandler):
         if path == "/api/v1/download/add":
             torrent = payload.get("torrent_in") or {}
             title = str(torrent.get("title") or "")
-            if "Nonexistent" in title or "Validation" in title:
+            tmdbid = payload.get("tmdbid")
+            if "Nonexistent" in title or ("Validation" in title and not tmdbid):
                 self._write_json({"success": False, "message": "无法识别媒体信息", "data": {}})
                 return
             download_id = "stub-download-001"
+            sample_path = "/downloads/movie/Stub.Download.2026.COMPLETE.BLURAY-GRP"
+            if tmdbid == 1456349:
+                sample_path = "/downloads/movie/Un.Semplice.Incidente.2025.MULTi.COMPLETE.BLURAY-FHC"
+            elif tmdbid == 447273:
+                sample_path = "/downloads/movie/Snow.White.2025.2160p.BluRay.DoVi.x265.TrueHD.Atmos-WiKi"
             DOWNLOAD_HISTORY.insert(
                 0,
                 {
                     "id": len(DOWNLOAD_HISTORY) + 1,
                     "title": "Stub Download",
-                    "path": "/downloads/movie/Stub.Download.2026.COMPLETE.BLURAY-GRP",
+                    "path": sample_path,
                     "download_hash": download_id,
                     "torrent_name": title,
                     "date": "2026-04-03 23:00:00",

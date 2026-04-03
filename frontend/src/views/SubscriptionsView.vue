@@ -329,6 +329,9 @@
                       path_handoff: {{ selectedRunDetail.organize_preview.path_handoff.handoff_status }}
                       / {{ selectedRunDetail.organize_preview.path_handoff.handoff_source }}
                     </p>
+                    <p v-if="selectedRunDetail.organize_preview.path_handoff">
+                      handoff verification: {{ selectedRunDetail.organize_preview.path_handoff.verification_state }}
+                    </p>
                     <p v-if="selectedRunDetail.organize_preview.fallback_reason">
                       fallback: {{ selectedRunDetail.organize_preview.fallback_reason }}
                     </p>

@@ -6,13 +6,14 @@ from fastapi import APIRouter, Depends, Request
 
 from ...core.dependencies import get_host_capabilities_service
 from ...core.responses import success_response
-from ...schemas.common import ApiResponse
+from ...schemas.common import ApiResponse, TypedApiResponse
 from ...schemas.probe import (
     ProbeConfigRequest,
     ProbeDispatchRequest,
     ProbeNotifyRequest,
     ProbeSearchRequest,
 )
+from ...schemas.validation import HostValidationMatrixReport
 from ...services.host_capabilities import HostCapabilitiesService
 
 router = APIRouter(tags=["Probe"])
@@ -43,6 +44,29 @@ async def probe_health(
         mock=_is_mock(payload),
         note=PROBE_NOTE,
         todo=PROBE_TODO,
+    )
+
+
+@router.get(
+    "/validation-matrix",
+    summary="Load latest real-host validation matrix export",
+    response_model=TypedApiResponse[HostValidationMatrixReport],
+)
+async def probe_validation_matrix(
+    request: Request,
+    service: HostCapabilitiesService = Depends(get_host_capabilities_service),
+) -> TypedApiResponse[HostValidationMatrixReport]:
+    payload = service.validation_matrix()
+    return success_response(
+        request,
+        data=payload,
+        message="Probe validation matrix loaded.",
+        code="PROBE_VALIDATION_MATRIX_OK",
+        mock=False if payload else True,
+        note=(
+            "当前验证矩阵来自手动触发的真实宿主回归脚本导出文件，用于回看多样例 success/failure/handoff 稳定性。"
+        ),
+        todo=["当 matrix 为空时，请先运行 Phase 8 的真实宿主回归脚本生成最新样例集。"],
     )
 
 

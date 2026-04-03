@@ -3,6 +3,9 @@
 > 用途：记录 MusicPilot 在 Phase 7B 针对真实 MoviePilot 宿主拿到的第一条“成功下载 -> 路径回灌 -> transfer/name -> transfer/manual”闭环样例。  
 > 约束：不写入真实 token；所有宿主配置均通过本地环境变量注入。
 
+> Phase 8 更新：当前这条闭环已不再是唯一成功依据。  
+> Phase 8 已补出真实样例矩阵，用于区分 `stable / single_sample / blocked`。最新结论请同时参考 [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)。
+
 ## 11.1 本轮目标
 
 Phase 7B 的重点不是继续扩大接口面，而是把 Phase 7A 里仍是 `unverified` 的关键主链路推进到至少一条真实成功样例：
@@ -122,7 +125,7 @@ MusicPilot 现在会优先从 `/api/v1/history/download` 回读：
 | Search title | `GET /api/v1/search/title` | `verified` | 已作为真实成功下载样例的候选来源。 |
 | Download clients | `GET /api/v1/download/clients` | `verified` | 已用于下载器选择与 remap。 |
 | Download media | `POST /api/v1/download/` | `verified` | 已拿到真实 `success=true` 与 `download_id`。 |
-| Download add | `POST /api/v1/download/add` | `unverified` | 仍只验证到 payload compatibility 与负向语义。 |
+| Download add | `POST /api/v1/download/add` | `verified` | Phase 8 已补到 1 条真实成功样例，但当前仍只是 `single_sample`。 |
 | History download | `GET /api/v1/history/download` | `verified` | 已回读成功样例的真实本地路径。 |
 | History transfer | `GET /api/v1/history/transfer` | `verified` | 已验证结构，可作为兼容回灌来源。 |
 | Transfer name | `GET /api/v1/transfer/name` | `verified` | 已拿到真实正向命名样例。 |
@@ -169,11 +172,12 @@ Phase 7B 已把本地 stub 升级到更接近真实宿主的语义：
 - stub 只是本地回归工具，不是 `verified` 依据
 - `verified` 只能来自真实宿主运行结果
 
-## 11.8 仍未打通的点
+## 11.8 Phase 8 后的补充结论
 
-- `GET /api/v1/search/media/{mediaid}` 正向样例仍缺失。
-- `POST /api/v1/download/add` 的真实成功样例仍缺失。
-- “下载完成后自动进入整理”的生产级调度仍未实现；当前 Phase 7B 只完成最小真实闭环样例。
+- `GET /api/v1/search/media/{mediaid}` 已在 Phase 8 拿到多条正向样例。
+- `POST /api/v1/download/add` 已在 Phase 8 拿到 1 条真实成功样例，但稳定性尚不足以升级为多样例成功。
+- `history/transfer` 现在已经被证明是更稳定的 organize fallback / replay 来源。
+- “下载完成后自动进入整理”的生产级调度仍未实现；Phase 8 关注的是稳定性收敛，而不是自动化扩面。
 
 ## 11.9 如何回看当前状态
 
@@ -200,4 +204,5 @@ Phase 7B 已把 MusicPilot 从“真实宿主语义已核对”推进到“至�
 - 真实 transfer/manual 成功：已验证
 - organize host applied record：已验证
 
-这不等价于“所有下载、整理、媒体库刷新语义都已完整验证”，但已经把最关键的真实成功样例链路沉淀下来，后续可在此基础上继续扩展。
+这不等价于“所有下载、整理、媒体库刷新语义都已完整验证”，但已经把最关键的真实成功样例链路沉淀下来。  
+Phase 8 又在此基础上补出了多样例验证矩阵，用来区分“已稳定”“仅单样例成功”和“真实宿主已阻断”这三类状态。

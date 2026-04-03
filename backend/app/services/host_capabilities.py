@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ..adapters.host_probe import HostProbeAdapter
 from ..services.host_integration import HostIntegrationService
+from ..services.validation_matrix import HostValidationMatrixService
 from ..schemas.probe import (
     ProbeConfigRequest,
     ProbeDispatchRequest,
@@ -13,14 +14,24 @@ from ..schemas.probe import (
 
 
 class HostCapabilitiesService:
-    def __init__(self, adapter: HostProbeAdapter, integration_service: HostIntegrationService) -> None:
+    def __init__(
+        self,
+        adapter: HostProbeAdapter,
+        integration_service: HostIntegrationService,
+        validation_matrix_service: HostValidationMatrixService | None = None,
+    ) -> None:
         self.adapter = adapter
         self.integration_service = integration_service
+        self.validation_matrix_service = validation_matrix_service
 
     def probe_health(self) -> dict:
         payload = self.adapter.probe_health()
         payload.runtime_state = self.integration_service.runtime_state()
-        return payload.model_dump(mode="json")
+        data = payload.model_dump(mode="json")
+        if self.validation_matrix_service is not None:
+            summary = self.validation_matrix_service.summary()
+            data["validation_matrix_summary"] = summary.model_dump(mode="json") if summary else None
+        return data
 
     def list_sites(self) -> dict:
         return self.adapter.list_sites().model_dump(mode="json")
@@ -48,3 +59,9 @@ class HostCapabilitiesService:
 
     def runtime_state(self) -> dict:
         return self.integration_service.runtime_state().model_dump(mode="json")
+
+    def validation_matrix(self) -> dict | None:
+        if self.validation_matrix_service is None:
+            return None
+        report = self.validation_matrix_service.load_report()
+        return report.model_dump(mode="json") if report else None

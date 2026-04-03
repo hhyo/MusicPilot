@@ -2,6 +2,9 @@
 
 > 用途：说明 Phase 6 当前 organize 已收口到哪一步、如何在 `mock / prefer_host / strict_host` 之间切换、preview/apply 的现状，以及哪些点已经验证、哪些仍待真实 MoviePilot 宿主确认。
 
+> Phase 8 更新：当前 organize 已不止一条成功样例，但“history/download -> transfer/manual” 仍存在真实阻断组合。  
+> 最新稳定性结论请同时参考 [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)。
+
 ## 9.1 当前目标
 
 Phase 6 的目标不是宣称“已经真实完成文件移动、硬链接、刮削入库或媒体库刷新”，而是把 organize boundary 升级为：
@@ -18,8 +21,8 @@ Phase 6 的目标不是宣称“已经真实完成文件移动、硬链接、刮
 |---|---|---|
 | Mock organize preview | verified | 已在本仓库内完成可重复验证。 |
 | Mock organize apply | verified | 已在本仓库内完成可重复验证，但不会真实处理文件。 |
-| Real organize preview skeleton | verified | Phase 7B 已通过真实 MoviePilot `/api/v1/transfer/name` 拿到正向命名样例，并能在 MusicPilot preview 记录中回看。 |
-| Real organize apply skeleton | verified | Phase 7B 已通过真实 MoviePilot `/api/v1/transfer/manual` 拿到 `success=true` 的最小成功样例，并在 MusicPilot organize record 中落库。 |
+| Real organize preview skeleton | verified | Phase 8 已通过多条真实样例确认 `/api/v1/transfer/name` 正向可用，并可区分 `history/download` 与 `history/transfer` 两类 handoff 来源。 |
+| Real organize apply skeleton | verified | Phase 8 已拿到多条真实 `success=true` 样例，但不同 handoff 来源的成功率不一致；`history/transfer` 当前比 `history/download` 更稳定。 |
 | Organize strategy mapping | verified | 已可通过 settings / env 配置库路径、命名模板与 conflict policy。 |
 | 真实文件移动 / 硬链接 / 刮削 / 媒体库刷新 | placeholder | 仅保留 host-backed apply 骨架与结果记录，不宣称真实完成。 |
 | 真实 MoviePilot organize 语义 | unverified | Phase 7A 已明确它本质上映射的是 MoviePilot transfer 语义，而不是独立 organize preview/apply 接口。 |

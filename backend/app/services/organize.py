@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -258,6 +260,11 @@ class OrganizeService:
 
         resolved = self.path_handoff_service.resolve(str(download_hash))
         if resolved is None:
+            if binding_model is not None and self._binding_handoff_stale(binding_model):
+                payload["path_handoff"] = self.path_handoff_service.build_unresolved(
+                    download_hash=str(download_hash),
+                    handoff_source="moviepilot.runtime.history.download",
+                ).model_dump(mode="json")
             return payload
 
         payload["path_handoff"] = resolved.model_dump(mode="json")
@@ -285,6 +292,15 @@ class OrganizeService:
         if candidate_payload.get("host_transfer_filetype"):
             patch["host_transfer_filetype"] = candidate_payload["host_transfer_filetype"]
         return patch
+
+    def _binding_handoff_stale(self, binding_model) -> bool:
+        if binding_model is None or binding_model.dispatched_at is None:
+            return False
+        dispatched_at = binding_model.dispatched_at
+        if dispatched_at.tzinfo is None:
+            dispatched_at = dispatched_at.replace(tzinfo=timezone.utc)
+        age_seconds = (datetime.now(timezone.utc) - dispatched_at).total_seconds()
+        return age_seconds >= self.strategy_service.settings.host_handoff_pending_ttl_seconds
 
 
 def serialize_organize_record(record) -> OrganizePreviewResult:

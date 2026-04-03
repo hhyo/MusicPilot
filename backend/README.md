@@ -12,6 +12,7 @@ FastAPI 工程目录。当前已完成：
 - host-aware search / dispatch / organize adapter resolver 与 fallback 机制
 - 真实 MoviePilot search / download / transfer 语义收敛与差异记录
 - 真实 download success -> history path handoff -> transfer/name -> transfer/manual 成功样例
+- Phase 8 多样例真实验证矩阵与 path handoff 稳定性收敛
 
 当前仍不包含：
 
@@ -19,8 +20,7 @@ FastAPI 工程目录。当前已完成：
 - 真实榜单抓取与增量监控
 - 真实 PT 搜索与下载器派发
 - 生产级订阅调度器与真实整理规则
-- 真实 MoviePilot `download/add` 单独成功样例
-- 真实 MoviePilot `search/media` 正向样例
+- 真实 MoviePilot `download/add` 多样例稳定成功
 - 生产级下载完成回调、自动整理与媒体库刷新
 
 手动初始化本地数据库：
@@ -55,6 +55,9 @@ export MUSICPILOT_HOST_DOWNLOAD_ADD_PATH=/api/v1/download/add
 export MUSICPILOT_HOST_DOWNLOAD_MEDIA_PATH=/api/v1/download/
 export MUSICPILOT_HOST_HISTORY_DOWNLOAD_PATH=/api/v1/history/download
 export MUSICPILOT_HOST_HISTORY_TRANSFER_PATH=/api/v1/history/transfer
+export MUSICPILOT_HOST_HISTORY_SYNC_RETRY_ATTEMPTS=3
+export MUSICPILOT_HOST_HISTORY_SYNC_RETRY_INTERVAL_SECONDS=1
+export MUSICPILOT_HOST_HANDOFF_PENDING_TTL_SECONDS=120
 export MUSICPILOT_HOST_TRANSFER_NAME_PATH=/api/v1/transfer/name
 export MUSICPILOT_HOST_TRANSFER_QUEUE_PATH=/api/v1/transfer/queue
 export MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual
@@ -62,6 +65,7 @@ export MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
 export MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
+export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backend/data/host_validation_matrix.latest.json
 ```
 
 若没有真实宿主，可运行：
@@ -70,6 +74,13 @@ export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
 python3 ../scripts/host_integration_stub.py
 ```
 
-然后通过 `/health`、`/api/probe/health`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend、verification state、fallback 与 `path_handoff` 信息。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)、[docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)、[docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md) 和 [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)。
+然后通过 `/health`、`/api/probe/health`、`/api/probe/validation-matrix`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend、verification state、fallback、`path_handoff` 与多样例稳定性矩阵。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)、[docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)、[docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)、[docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md) 和 [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)。
+
+手动回归真实宿主样例矩阵：
+
+```bash
+cd /Users/lihuanhuan/PycharmProjects/MusicPilot
+backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py --allow-side-effects
+```
 
 启动方式见仓库根目录 [README.md](../README.md)。
