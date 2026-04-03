@@ -5,8 +5,8 @@
         <p class="hero-panel__eyebrow">MusicPilot Home</p>
         <h2>你的音乐工作台</h2>
         <p class="hero-panel__description">
-          当前仓库已进入 Phase 2。搜索模块已打通本地 seed metadata 的最小闭环，
-          其余榜单、订阅、下载、整理仍保持占位边界，待后续阶段继续接入。
+          当前仓库已进入 Phase 3。搜索模块已能从 metadata detail 生成查询、执行 mock SearchJob、
+          展示候选评分并进入 mock dispatch 边界，其余订阅调度与整理规则仍待后续阶段接入。
         </p>
         <div class="hero-panel__actions">
           <RouterLink class="hero-panel__action hero-panel__action--primary" to="/search">
@@ -29,10 +29,10 @@
     <section class="section">
       <header class="section__header">
         <div>
-          <p class="section__eyebrow">Phase 2 Scope</p>
+          <p class="section__eyebrow">Phase 3 Scope</p>
           <h3>当前模块状态</h3>
         </div>
-        <el-tag type="success" effect="plain">搜索最小闭环已接通</el-tag>
+        <el-tag type="success" effect="plain">获取链路最小闭环已接通</el-tag>
       </header>
 
       <div class="module-grid">
@@ -47,7 +47,7 @@
     <section class="section section--compact">
       <header class="section__header">
         <div>
-          <p class="section__eyebrow">Phase 2 Notes</p>
+          <p class="section__eyebrow">Phase 3 Notes</p>
           <h3>当前边界说明</h3>
         </div>
       </header>
@@ -58,6 +58,7 @@
           <ul>
             <li>App Shell 与基础路由。</li>
             <li>本地 seed metadata 搜索与详情页最小闭环。</li>
+            <li>QueryBuilder、SearchJob、候选评分与 mock dispatch 边界。</li>
             <li>前端服务、类型、状态管理扩展位。</li>
           </ul>
         </article>
@@ -66,7 +67,7 @@
           <ul>
             <li>真实第三方 metadata provider。</li>
             <li>真实 PT 搜索、下载、整理链路。</li>
-            <li>订阅调度、查询构建与规则决策。</li>
+            <li>完整订阅调度器、生产级执行器与整理规则引擎。</li>
           </ul>
         </article>
       </div>
@@ -84,8 +85,9 @@ import { navigationModules } from '@/types/module';
 const dashboardStats = [
   { label: 'Metadata Provider', value: '1', note: '当前为本地 seed / mock provider。' },
   { label: '可搜索实体', value: '3', note: 'Artist / Album / Track 已接通统一搜索页。' },
+  { label: 'Job 链路', value: '1', note: 'metadata -> query -> job -> candidate 已可同步执行。' },
   { label: '最近订阅', value: '0', note: '占位完成，待接四类订阅模型。' },
-  { label: '待下载决策', value: '0', note: '本轮不实现 PT 搜索与下载派发。' },
+  { label: '真实下载器', value: '0', note: '当前只保留 mock dispatch 边界。' },
 ];
 
 const featureModules = computed(() => navigationModules.filter((item) => item.key !== 'home'));

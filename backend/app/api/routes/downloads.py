@@ -1,31 +1,30 @@
-"""Downloads route placeholders."""
+"""Dispatch routes for the Phase 3 minimum acquisition loop."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 
-from ...core.dependencies import get_mvp_placeholder_service
+from ...core.dependencies import get_dispatch_service
 from ...core.responses import success_response
+from ...schemas.acquisition import DispatchRequest
 from ...schemas.common import ApiResponse
-from ...schemas.mvp import DispatchDownloadRequest
-from ...services.mvp_placeholder import MvpPlaceholderService
+from ...services.dispatch import DispatchService
 
 router = APIRouter(prefix="/downloads", tags=["Downloads"])
 
 
-@router.post("/dispatch", summary="Dispatch download placeholder")
+@router.post("/dispatch", summary="Dispatch a candidate to the downloader boundary")
 async def dispatch_download(
-    payload: DispatchDownloadRequest,
+    payload: DispatchRequest,
     request: Request,
-    service: MvpPlaceholderService = Depends(get_mvp_placeholder_service),
+    service: DispatchService = Depends(get_dispatch_service),
 ) -> ApiResponse:
     return success_response(
         request,
-        data=service.dispatch_download(payload),
-        message="Dispatch placeholder accepted the payload.",
-        code="DISPATCH_PLACEHOLDER",
+        data=service.dispatch(payload),
+        message="Dispatch boundary handled the candidate.",
+        code="DISPATCH_BOUNDARY_OK",
         mock=True,
-        note="当前仅验证下载派发契约，不会调用真实下载器。",
-        todo=["Replace dry-run binding with real downloader dispatch in later phases."],
+        note="当前为 mock dispatch，已保留真实下载器接入边界，但不会真正下发到宿主下载器。",
+        todo=["Replace MockDownloadDispatchAdapter with a verified downloader integration in a later phase."],
     )
-

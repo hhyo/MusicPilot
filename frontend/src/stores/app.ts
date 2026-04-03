@@ -5,7 +5,7 @@ import { navigationModules } from '@/types/module';
 
 export const useAppStore = defineStore('app', () => {
   const appName = ref('MusicPilot');
-  const phaseLabel = ref('Phase 2');
+  const phaseLabel = ref('Phase 3');
 
   const modules = computed(() => navigationModules);
 

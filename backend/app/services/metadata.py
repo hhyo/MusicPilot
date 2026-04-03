@@ -12,6 +12,7 @@ from ..core.config import settings
 from ..core.db import SessionLocal, initialize_database_schema
 from ..models.metadata import AlbumModel, ArtistModel, TrackModel
 from ..repositories.metadata import MetadataRepository
+from ..repositories.acquisition import AcquisitionRepository
 from ..schemas.metadata import (
     MetadataDetail,
     MetadataReference,
@@ -164,6 +165,13 @@ class MetadataService:
             todo=DETAIL_TODO,
         )
 
+    def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+        if entity_type == EntityType.ARTIST:
+            return self.get_artist_detail(entity_id)
+        if entity_type == EntityType.ALBUM:
+            return self.get_album_detail(entity_id)
+        return self.get_track_detail(entity_id)
+
     def _build_summary(
         self,
         item: ArtistModel | AlbumModel | TrackModel,
@@ -225,7 +233,9 @@ def bootstrap_metadata_storage(
 
     with SessionLocal() as session:
         repository = MetadataRepository(session)
+        acquisition_repository = AcquisitionRepository(session)
         if reseed:
+            acquisition_repository.clear_all()
             repository.clear_all()
 
         if settings.metadata_seed_enabled and not repository.has_seed_data():

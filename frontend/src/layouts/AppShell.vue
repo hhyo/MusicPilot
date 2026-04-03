@@ -5,7 +5,7 @@
         <p class="brand-card__phase">{{ app.phaseLabel }}</p>
         <h1>{{ app.appName }}</h1>
         <p class="brand-card__description">
-          独立音乐插件入口壳。当前已接通 metadata 搜索最小闭环，并保留后续扩展位。
+          独立音乐插件入口壳。当前已接通 metadata、SearchJob、候选评分与 mock dispatch 最小闭环。
         </p>
       </div>
 
@@ -15,10 +15,10 @@
     <main class="shell__content">
       <header class="topbar">
         <div>
-          <p class="topbar__eyebrow">MoviePilot Plugin Metadata MVP</p>
-          <h2>MusicPilot Metadata 最小闭环</h2>
+          <p class="topbar__eyebrow">MoviePilot Plugin Acquisition MVP</p>
+          <h2>MusicPilot Phase 3 获取链路</h2>
         </div>
-        <el-tag type="success" effect="plain">搜索链路可联调</el-tag>
+        <el-tag type="success" effect="plain">Query / Job / Dispatch 可联调</el-tag>
       </header>
 
       <RouterView />

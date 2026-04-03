@@ -3,13 +3,13 @@
     <section class="search-hero">
       <div>
         <p class="search-hero__eyebrow">Metadata Search</p>
-        <h2>Artist / Album / Track 搜索最小闭环</h2>
+        <h2>Metadata -> Query -> Job -> Candidate 最小闭环</h2>
         <p class="search-hero__description">
-          当前只联调本地 seed metadata，用于验证搜索链路、结构化字段和详情视图。
-          不包含 PT 搜索、下载派发、订阅执行和整理结果。
+          当前基于本地 seed metadata 打通 Phase 3 的最小获取链路。
+          任务执行、候选评分与派发都仍是 mock boundary，不包含真实 PT 站点和真实下载器。
         </p>
       </div>
-      <el-tag type="warning" effect="plain">当前为 local seed / mock provider</el-tag>
+      <el-tag type="warning" effect="plain">metadata seed + mock host search + mock dispatch</el-tag>
     </section>
 
     <section class="search-panel">
@@ -123,6 +123,18 @@
       :loading="detailLoading"
       :detail="detail"
       :error-message="detailError"
+      @search-resources="createAndRunSearchJob"
+    />
+
+    <SearchJobPanel
+      :job="activeJob"
+      :candidates="candidates"
+      :loading="jobLoading"
+      :error-message="jobError"
+      :dispatching-candidate-id="dispatchingCandidateId"
+      :dispatch-results="dispatchResults"
+      :candidates-note="candidatesNote"
+      @dispatch="handleDispatch"
     />
   </div>
 </template>
@@ -133,7 +145,19 @@ import { computed, reactive, ref } from 'vue';
 
 import MetadataDetailDrawer from '@/components/MetadataDetailDrawer.vue';
 import SearchResultCard from '@/components/SearchResultCard.vue';
+import SearchJobPanel from '@/components/SearchJobPanel.vue';
+import {
+  createSearchJob,
+  dispatchCandidate,
+  executeSearchJob,
+  fetchSearchCandidates,
+} from '@/services/acquisition';
 import { fetchMetadataDetail, searchMetadata } from '@/services/metadata';
+import type {
+  DispatchResult,
+  SearchCandidateDetail,
+  SearchJobSummary,
+} from '@/types/acquisition';
 import type {
   EntityType,
   MetadataDetail,
@@ -167,6 +191,13 @@ const detailVisible = ref(false);
 const detailLoading = ref(false);
 const detailError = ref('');
 const detail = ref<MetadataDetail | null>(null);
+const activeJob = ref<SearchJobSummary | null>(null);
+const candidates = ref<SearchCandidateDetail[]>([]);
+const candidatesNote = ref('');
+const jobLoading = ref(false);
+const jobError = ref('');
+const dispatchingCandidateId = ref('');
+const dispatchResults = ref<Record<string, DispatchResult>>({});
 
 const placeholderText = computed(() => {
   const placeholderMap: Record<EntityType, string> = {
@@ -248,6 +279,85 @@ async function openDetail(item: MetadataSummary) {
     detailError.value = resolveErrorMessage(error, '详情加载失败，请稍后重试。');
   } finally {
     detailLoading.value = false;
+  }
+}
+
+async function createAndRunSearchJob(metadataDetail: MetadataDetail) {
+  jobLoading.value = true;
+  jobError.value = '';
+  candidates.value = [];
+  candidatesNote.value = '';
+  dispatchResults.value = {};
+
+  try {
+    const created = await createSearchJob({
+      query_source_type: metadataDetail.entity_type,
+      query_source_id: metadataDetail.id,
+      trigger_source: 'manual',
+      mode: 'manual',
+      strategy: 'balanced',
+    });
+
+    if (!created.success) {
+      throw new Error(created.message);
+    }
+
+    const executed = await executeSearchJob(created.data.id);
+
+    if (!executed.success) {
+      throw new Error(executed.message);
+    }
+
+    activeJob.value = executed.data;
+
+    const results = await fetchSearchCandidates(executed.data.id);
+
+    if (!results.success) {
+      throw new Error(results.message);
+    }
+
+    candidates.value = results.data.items;
+    candidatesNote.value = results.data.note;
+  } catch (error) {
+    activeJob.value = null;
+    candidates.value = [];
+    jobError.value = resolveErrorMessage(error, '搜索任务执行失败，请确认后端服务已启动。');
+  } finally {
+    jobLoading.value = false;
+  }
+}
+
+async function handleDispatch(candidate: SearchCandidateDetail) {
+  dispatchingCandidateId.value = candidate.id;
+
+  try {
+    const response = await dispatchCandidate({
+      result_id: candidate.id,
+      downloader_id: 'mock-downloader',
+      save_path_policy: 'auto',
+      manual_confirm: true,
+    });
+
+    if (!response.success) {
+      throw new Error(response.message);
+    }
+
+    dispatchResults.value = {
+      ...dispatchResults.value,
+      [candidate.id]: response.data,
+    };
+    candidate.dispatch_status = response.data.dispatch_status;
+    if (activeJob.value) {
+      activeJob.value.status = 'dispatched';
+      activeJob.value.summary = {
+        ...activeJob.value.summary,
+        dispatch_recommendation: response.data.dispatch_status,
+      };
+    }
+  } catch (error) {
+    jobError.value = resolveErrorMessage(error, '派发失败，请稍后重试。');
+  } finally {
+    dispatchingCandidateId.value = '';
   }
 }
 

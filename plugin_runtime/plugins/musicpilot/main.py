@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint for MusicPilot Phase 2."""
+"""FastAPI application entrypoint for MusicPilot Phase 3."""
 
 from __future__ import annotations
 
@@ -52,13 +52,13 @@ def build_application() -> FastAPI:
             data={
                 "service": settings.app_name,
                 "version": __version__,
-                "phase": "Phase 2",
-                "status": "metadata-minimum-loop-ready",
+                "phase": "Phase 3",
+                "status": "acquisition-minimum-loop-ready",
             },
-            message="MusicPilot backend Phase 2 minimum loop is running.",
+            message="MusicPilot backend Phase 3 minimum acquisition loop is running.",
             code="ROOT_OK",
             mock=False,
-            note="This root endpoint confirms the backend and local metadata seed runtime are alive. PT search and download logic are still out of scope.",
+            note="This root endpoint confirms metadata, query builder, search job, scoring, and mock dispatch boundaries are alive. Real PT search and downloader integration are still out of scope.",
         )
 
     @app.get("/health", summary="Health check", tags=["Health"])

@@ -25,8 +25,8 @@ export const navigationModules: NavigationModule[] = [
     key: 'search',
     title: '搜索',
     route: '/search',
-    description: 'Artist / Album / Track metadata 搜索最小闭环',
-    status: '最小闭环',
+    description: 'metadata -> query -> job -> candidate 最小闭环',
+    status: 'Phase 3 可联调',
   },
   {
     key: 'subscriptions',
@@ -39,8 +39,8 @@ export const navigationModules: NavigationModule[] = [
     key: 'downloads',
     title: '下载',
     route: '/downloads',
-    description: '任务与候选确认入口占位',
-    status: '占位完成',
+    description: '候选评分、人工确认与 mock dispatch 边界',
+    status: 'Phase 3 骨架',
   },
   {
     key: 'organize',

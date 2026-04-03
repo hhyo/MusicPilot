@@ -6,6 +6,7 @@ FastAPI 工程目录。当前已完成：
 - 宿主能力探针 API 骨架
 - metadata 搜索与详情最小闭环
 - SQLite 最小落库与本地 seed 初始化
+- QueryBuilder、SearchJob、候选评分与 mock dispatch 边界
 
 当前仍不包含：
 

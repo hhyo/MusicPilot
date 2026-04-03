@@ -1,11 +1,11 @@
 # MusicPilot
 
-MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已完成 Phase 0、Phase 1 与 Phase 2，重点先交付可启动、可构建、可装配、可联调的工程骨架与 metadata 搜索最小闭环，而不是提前实现真实 PT 搜索、下载派发、订阅执行与整理规则。
+MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已完成 Phase 0、Phase 1、Phase 2 与 Phase 3，重点先交付可启动、可构建、可装配、可联调的工程骨架，以及从 metadata 到 QueryBuilder、SearchJob、候选评分、mock dispatch 的最小获取闭环，而不是提前实现真实 PT 搜索、下载派发、订阅执行与整理规则。
 
 ## 项目简介
 
-- `frontend/`：基于 Vue 3 + TypeScript + Vite 的独立前端壳，当前提供 App Shell、首页工作台、metadata 搜索页和详情抽屉最小闭环。
-- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库与本地 seed。
+- `frontend/`：基于 Vue 3 + TypeScript + Vite 的独立前端壳，当前提供 App Shell、首页工作台、metadata 搜索页、搜索任务面板与人工确认入口。
+- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分与 mock dispatch 边界。
 - `plugin_runtime/`：面向未来 MoviePilot 宿主集成的运行时占位产物目录，当前只保留 manifest、静态资源、后端挂载说明和打包边界。
 - `scripts/`：前端开发、后端开发、前端构建、插件装配、版本同步脚本。
 - `docs/`：产品方案、架构方案、规范与任务拆解文档，按要求保持原位不变。
@@ -66,15 +66,16 @@ uvicorn app.main:app --reload
 ./scripts/build_frontend.sh
 ```
 
-后端当前为源码运行形态，Phase 0 不提供 wheel 或容器产物，只保证：
+后端当前为源码运行形态，不提供 wheel 或容器产物，只保证：
 
 - `uvicorn app.main:app --reload` 可启动
 - `GET /health` 返回 200
 - metadata search / detail API 可访问
+- QueryBuilder / SearchJob / candidate / dispatch mock API 可访问
 
 ## 数据初始化与 seed
 
-Phase 2 采用最小可运行方案：`SQLite + SQLAlchemy + local seed metadata`。
+Phase 3 继续采用最小可运行方案：`SQLite + SQLAlchemy + local seed metadata + mock acquisition data`。
 
 - 默认数据库文件：`backend/data/musicpilot.db`
 - 手动初始化或重置 seed：
@@ -85,7 +86,7 @@ python -m app.db_init --reseed
 ```
 
 - 正常启动后端时也会自动建表，并在库为空时导入本地 seed
-- 当前 seed 只用于验证 Artist / Album / Track 搜索链路，不代表已经真实接入第三方音乐源
+- 当前 seed 只用于验证 Artist / Album / Track 搜索链路与 QueryBuilder 输入，不代表已经真实接入第三方音乐源
 
 ## plugin_runtime 打包说明
 
@@ -107,11 +108,13 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - Phase 0 / T01-T04
 - Phase 1 / T05-T07
 - Phase 2 / T08-T10
+- Phase 3 / T11-T14
 - 宿主能力探针 API 骨架
 - MVP 路由骨架与统一响应结构
 - metadata 搜索服务最小可用版
 - SQLite 最小落库与本地 seed
 - 前端搜索页最小闭环与详情视图
+- QueryBuilder、SearchJob、候选评分与 mock dispatch 最小闭环
 
 ## 当前阶段未完成范围
 
@@ -127,6 +130,6 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 ## 下一阶段建议推进方式
 
 1. 在保留现有 response envelope 的前提下，引入真实 metadata provider adapter。
-2. 基于当前结构化 metadata 字段补 QueryBuilder，作为后续 PT 查询输入。
-3. 为订阅、下载、整理继续沿用非侵入式 adapter/service 边界。
+2. 将 mock host search / mock dispatch 分别替换为真实宿主搜索与下载器 adapter。
+3. 在当前 SearchJob 骨架上补完整订阅触发、调度与重试策略。
 4. 保持 `plugin_runtime/` 只作为构建产物边界，不把开发源码和宿主产物混放。

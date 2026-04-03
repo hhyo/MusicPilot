@@ -7,6 +7,7 @@ from collections.abc import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from .. import models as _models  # noqa: F401
 from ..models.base import Base
 from .config import DEFAULT_DATABASE_PATH, settings
 
