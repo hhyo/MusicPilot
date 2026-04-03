@@ -1,4 +1,4 @@
-"""Subscription CRUD service for Phase 4."""
+"""Subscription CRUD service for Phase 6."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from .metadata import MetadataService
 
 
 SUBSCRIPTION_NOTE = (
-    "当前订阅模型已落库，但执行模式仍是 Phase 4 的同步最小闭环；"
+    "当前订阅模型已落库，但执行模式仍是 Phase 6 的同步最小闭环；"
     "scheduled_placeholder 仅保留后续调度器接入点。"
 )
 
@@ -50,7 +50,7 @@ class SubscriptionService:
             items=items,
             total=len(items),
             mock=True,
-            note="当前订阅列表反映的是 Phase 4 最小闭环，未接入真实自动调度。",
+            note="当前订阅列表反映的是 Phase 6 最小闭环，未接入真实自动调度。",
         )
 
     def get_subscription(self, subscription_id: str) -> SubscriptionDetail:

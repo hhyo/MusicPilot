@@ -3,6 +3,8 @@ import type {
   ApiChartDetailResponse,
   ApiChartListResponse,
   ApiChartProvidersResponse,
+  ApiOrganizeJobsResponse,
+  ApiOrganizeRecordResponse,
   ApiOrganizePreviewResponse,
   ApiSubscriptionDetailResponse,
   ApiSubscriptionListResponse,
@@ -11,6 +13,7 @@ import type {
   ApiSubscriptionRunsResponse,
   CreateChartEntrySubscriptionPayload,
   CreateSubscriptionPayload,
+  OrganizeApplyPayload,
   OrganizePreviewPayload,
   SubscriptionState,
   SubscriptionType,
@@ -93,5 +96,20 @@ export async function fetchSubscriptionRun(runId: string): Promise<ApiSubscripti
 
 export async function previewOrganize(payload: OrganizePreviewPayload): Promise<ApiOrganizePreviewResponse> {
   const { data } = await http.post<ApiOrganizePreviewResponse>('/organize/preview', payload);
+  return data;
+}
+
+export async function applyOrganize(payload: OrganizeApplyPayload): Promise<ApiOrganizeRecordResponse> {
+  const { data } = await http.post<ApiOrganizeRecordResponse>('/organize/apply', payload);
+  return data;
+}
+
+export async function fetchOrganizeJobs(): Promise<ApiOrganizeJobsResponse> {
+  const { data } = await http.get<ApiOrganizeJobsResponse>('/organize/jobs');
+  return data;
+}
+
+export async function fetchOrganizeJob(recordId: string): Promise<ApiOrganizeRecordResponse> {
+  const { data } = await http.get<ApiOrganizeRecordResponse>(`/organize/jobs/${recordId}`);
   return data;
 }

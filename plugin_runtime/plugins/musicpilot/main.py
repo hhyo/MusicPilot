@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint for MusicPilot Phase 5."""
+"""FastAPI application entrypoint for MusicPilot Phase 6."""
 
 from __future__ import annotations
 
@@ -57,14 +57,14 @@ def build_application() -> FastAPI:
             data={
                 "service": settings.app_name,
                 "version": __version__,
-                "phase": "Phase 5",
-                "status": "host-aware-adapter-resolution-ready",
+                "phase": "Phase 6",
+                "status": "host-aware-search-dispatch-organize-ready",
                 "host_integration": integration_service.runtime_state().model_dump(mode="json"),
             },
-            message="MusicPilot backend Phase 5 host-aware adapter loop is running.",
+            message="MusicPilot backend Phase 6 host-aware organize loop is running.",
             code="ROOT_OK",
             mock=False,
-            note="This root endpoint confirms host-aware search/dispatch resolution, subscriptions, and organize preview boundaries are alive. Real MoviePilot host verification remains separate from this runtime status.",
+            note="This root endpoint confirms host-aware search, dispatch, and organize resolution are alive. Real MoviePilot host verification remains separate from this runtime status.",
         )
 
     @app.get("/health", summary="Health check", tags=["Health"])

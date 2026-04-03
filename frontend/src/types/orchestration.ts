@@ -1,4 +1,10 @@
-import type { SearchCandidateDetail, SearchJobSummary } from '@/types/acquisition';
+import type {
+  AdapterMode,
+  AdapterResolution,
+  SearchCandidateDetail,
+  SearchJobSummary,
+  VerificationState,
+} from '@/types/acquisition';
 import type { ApiResponse, EntityType, MetadataDetail } from '@/types/metadata';
 
 export type SubscriptionType = 'artist' | 'album' | 'track' | 'chart_entry';
@@ -11,7 +17,15 @@ export type SubscriptionRunStatus =
   | 'manual_pending'
   | 'no_result'
   | 'failed';
-export type OrganizeStatus = 'planned' | 'preview_ready' | 'skipped' | 'failed';
+export type OrganizeStatus =
+  | 'planned'
+  | 'preview_ready'
+  | 'apply_pending'
+  | 'applied'
+  | 'fallback_applied'
+  | 'skipped'
+  | 'failed';
+export type OrganizeConflictPolicy = 'skip_existing' | 'overwrite' | 'append_suffix';
 
 export interface ChartProviderInfo {
   id: string;
@@ -112,6 +126,17 @@ export interface SubscriptionSummary {
   updated_at: string;
 }
 
+export interface OrganizeStrategySnapshot {
+  strategy_name: string;
+  library_type: string;
+  root_path: string;
+  artist_dir_template: string;
+  album_dir_template: string;
+  track_file_template: string;
+  conflict_policy: OrganizeConflictPolicy;
+  template_note: string;
+}
+
 export interface OrganizePreviewResult {
   id: string;
   subscription_run_id?: string | null;
@@ -119,10 +144,20 @@ export interface OrganizePreviewResult {
   candidate_id?: string | null;
   binding_id?: string | null;
   organizeable: boolean;
+  organize_backend: AdapterMode;
+  adapter_mode: AdapterMode;
+  strategy: string;
+  strategy_snapshot: OrganizeStrategySnapshot;
   organize_status: OrganizeStatus;
   target_library_path: string;
+  target_relative_path: string;
   strategy_note: string;
   integration_point: string;
+  capability_source: string;
+  fallback_reason?: string | null;
+  failure_reason?: string | null;
+  verification_state: VerificationState;
+  adapter_resolution?: AdapterResolution | null;
   mock: boolean;
   note?: string | null;
   created_at: string;
@@ -179,6 +214,17 @@ export interface OrganizePreviewPayload {
   binding_id?: string;
 }
 
+export interface OrganizeApplyPayload {
+  organize_job_id: string;
+}
+
+export interface OrganizeRecordListData {
+  items: OrganizePreviewResult[];
+  total: number;
+  mock: boolean;
+  note: string;
+}
+
 export type ApiChartProvidersResponse = ApiResponse<ChartProviderInfo[]>;
 export type ApiChartListResponse = ApiResponse<ChartListData>;
 export type ApiChartDetailResponse = ApiResponse<ChartDetailData>;
@@ -188,3 +234,5 @@ export type ApiSubscriptionListResponse = ApiResponse<SubscriptionListData>;
 export type ApiSubscriptionRunResponse = ApiResponse<SubscriptionRunDetail>;
 export type ApiSubscriptionRunsResponse = ApiResponse<SubscriptionRunListData>;
 export type ApiOrganizePreviewResponse = ApiResponse<OrganizePreviewResult>;
+export type ApiOrganizeRecordResponse = ApiResponse<OrganizePreviewResult>;
+export type ApiOrganizeJobsResponse = ApiResponse<OrganizeRecordListData>;

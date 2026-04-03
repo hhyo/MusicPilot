@@ -5,8 +5,8 @@
         <p class="hero-panel__eyebrow">MusicPilot Home</p>
         <h2>你的音乐工作台</h2>
         <p class="hero-panel__description">
-          当前仓库已进入 Phase 4。搜索页已能创建订阅与 SearchJob，榜单页可从 mock chart item 创建订阅，
-          订阅页可立即执行一次 run 并回看 candidate summary 与 organize preview。
+          当前仓库已进入 Phase 6。搜索页已能创建订阅与 SearchJob，榜单页可从 mock chart item 创建订阅，
+          订阅页可立即执行一次 run 并回看 candidate summary、organize backend、fallback 与 apply 状态。
         </p>
         <div class="hero-panel__actions">
           <RouterLink class="hero-panel__action hero-panel__action--primary" to="/search">
@@ -29,7 +29,7 @@
     <section class="section">
       <header class="section__header">
         <div>
-          <p class="section__eyebrow">Phase 4 Scope</p>
+          <p class="section__eyebrow">Phase 6 Scope</p>
           <h3>当前模块状态</h3>
         </div>
         <el-tag type="success" effect="plain">订阅与执行最小闭环已接通</el-tag>
@@ -47,7 +47,7 @@
     <section class="section section--compact">
       <header class="section__header">
         <div>
-          <p class="section__eyebrow">Phase 4 Notes</p>
+          <p class="section__eyebrow">Phase 6 Notes</p>
           <h3>当前边界说明</h3>
         </div>
       </header>
@@ -59,7 +59,7 @@
             <li>App Shell 与基础路由。</li>
             <li>本地 seed metadata 搜索与详情页最小闭环。</li>
             <li>QueryBuilder、SearchJob、候选评分与 mock dispatch 边界。</li>
-            <li>榜单订阅入口、四类订阅 CRUD、同步 subscription run 与 organize preview。</li>
+            <li>榜单订阅入口、四类订阅 CRUD、同步 subscription run 与 host-aware organize preview/apply。</li>
           </ul>
         </article>
         <article class="note-card">
@@ -87,7 +87,7 @@ const dashboardStats = [
   { label: '可搜索实体', value: '3', note: 'Artist / Album / Track 已接通统一搜索页。' },
   { label: '订阅类型', value: '4', note: 'artist / album / track / chart_entry 最小闭环已可落库。' },
   { label: '榜单源', value: '4', note: '当前为 qq / netease / bilibili / local_mock 的 mock 入口。' },
-  { label: '整理边界', value: '1', note: '当前只保留 organize preview 与状态记录。' },
+  { label: '整理边界', value: '1', note: '当前已支持 host-aware organize preview / apply 与状态记录。' },
   { label: '真实自动化', value: '0', note: 'scheduler、榜单抓取与文件整理仍待后续接入。' },
 ];
 

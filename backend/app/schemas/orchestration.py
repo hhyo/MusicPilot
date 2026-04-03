@@ -1,4 +1,4 @@
-"""Schemas for Phase 4 subscriptions, charts, and organize boundaries."""
+"""Schemas for Phase 6 subscriptions, charts, and organize boundaries."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field, model_validator
 
 from .acquisition import SearchCandidateDetail, SearchJobSummary
+from .integration import AdapterMode, AdapterResolution, VerificationState
 from .metadata import MetadataDetail
 from .mvp import EntityType
 
@@ -43,8 +44,17 @@ class SubscriptionRunStatus(str, Enum):
 class OrganizeStatus(str, Enum):
     PLANNED = "planned"
     PREVIEW_READY = "preview_ready"
+    APPLY_PENDING = "apply_pending"
+    APPLIED = "applied"
+    FALLBACK_APPLIED = "fallback_applied"
     SKIPPED = "skipped"
     FAILED = "failed"
+
+
+class OrganizeConflictPolicy(str, Enum):
+    SKIP_EXISTING = "skip_existing"
+    OVERWRITE = "overwrite"
+    APPEND_SUFFIX = "append_suffix"
 
 
 class ChartProviderInfo(BaseModel):
@@ -152,6 +162,25 @@ class SubscriptionSummary(BaseModel):
     updated_at: datetime
 
 
+class OrganizeStrategySnapshot(BaseModel):
+    strategy_name: str
+    library_type: str = "music"
+    root_path: str
+    artist_dir_template: str
+    album_dir_template: str
+    track_file_template: str
+    conflict_policy: OrganizeConflictPolicy = OrganizeConflictPolicy.SKIP_EXISTING
+    template_note: str
+
+
+class OrganizePlan(BaseModel):
+    strategy: str
+    strategy_snapshot: OrganizeStrategySnapshot
+    target_library_path: str
+    target_relative_path: str
+    strategy_note: str
+
+
 class OrganizePreviewResult(BaseModel):
     id: str
     subscription_run_id: str | None = None
@@ -159,10 +188,20 @@ class OrganizePreviewResult(BaseModel):
     candidate_id: str | None = None
     binding_id: str | None = None
     organizeable: bool
+    organize_backend: AdapterMode = AdapterMode.MOCK
+    adapter_mode: AdapterMode = AdapterMode.MOCK
+    strategy: str = "music_default_layout"
+    strategy_snapshot: OrganizeStrategySnapshot
     organize_status: OrganizeStatus
     target_library_path: str
+    target_relative_path: str
     strategy_note: str
     integration_point: str
+    capability_source: str = "mock.adapter"
+    fallback_reason: str | None = None
+    failure_reason: str | None = None
+    verification_state: VerificationState = VerificationState.PLACEHOLDER
+    adapter_resolution: AdapterResolution | None = None
     mock: bool = True
     note: str | None = None
     created_at: datetime
@@ -225,11 +264,32 @@ class OrganizePreviewRequest(BaseModel):
         return self
 
 
+class OrganizeApplyRequest(BaseModel):
+    organize_job_id: str
+
+
+class OrganizeRecordListData(BaseModel):
+    items: list[OrganizePreviewResult] = Field(default_factory=list)
+    total: int = 0
+    mock: bool = True
+    note: str
+
+
 class OrganizeAdapterResult(BaseModel):
     organizeable: bool
+    organize_backend: AdapterMode = AdapterMode.MOCK
+    adapter_mode: AdapterMode = AdapterMode.MOCK
+    strategy: str = "music_default_layout"
+    strategy_snapshot: OrganizeStrategySnapshot
     organize_status: OrganizeStatus
     target_library_path: str
+    target_relative_path: str
     strategy_note: str
     integration_point: str
+    capability_source: str = "mock.adapter"
+    fallback_reason: str | None = None
+    failure_reason: str | None = None
+    verification_state: VerificationState = VerificationState.PLACEHOLDER
+    adapter_resolution: AdapterResolution | None = None
     mock: bool = True
     note: str

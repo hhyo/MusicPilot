@@ -1,4 +1,4 @@
-"""Repository layer for Phase 4 subscriptions and organize records."""
+"""Repository layer for Phase 6 subscriptions and organize records."""
 
 from __future__ import annotations
 
@@ -159,15 +159,51 @@ class OrchestrationRepository:
             candidate_id=candidate_id,
             binding_id=binding_id,
             organizeable=result.organizeable,
+            organize_backend=result.organize_backend.value,
+            strategy=result.strategy,
+            library_type=result.strategy_snapshot.library_type,
+            root_path=result.strategy_snapshot.root_path,
             organize_status=result.organize_status.value,
             target_library_path=result.target_library_path,
+            target_relative_path=result.target_relative_path,
+            conflict_policy=result.strategy_snapshot.conflict_policy.value,
             strategy_note=result.strategy_note,
             integration_point=result.integration_point,
+            capability_source=result.capability_source,
+            fallback_reason=result.fallback_reason,
+            failure_reason=result.failure_reason,
+            verification_state=result.verification_state.value,
             mock=result.mock,
             raw_payload=result.model_dump(mode="json"),
             note=result.note,
         )
         self.session.add(record)
+        return record
+
+    def mark_organize_apply_pending(self, record: OrganizeRecordModel) -> None:
+        record.organize_status = "apply_pending"
+        record.failure_reason = None
+
+    def update_organize_record(self, record: OrganizeRecordModel, *, result: OrganizeAdapterResult) -> OrganizeRecordModel:
+        record.organizeable = result.organizeable
+        record.organize_backend = result.organize_backend.value
+        record.strategy = result.strategy
+        record.library_type = result.strategy_snapshot.library_type
+        record.root_path = result.strategy_snapshot.root_path
+        record.organize_status = result.organize_status.value
+        record.target_library_path = result.target_library_path
+        record.target_relative_path = result.target_relative_path
+        record.conflict_policy = result.strategy_snapshot.conflict_policy.value
+        record.strategy_note = result.strategy_note
+        record.integration_point = result.integration_point
+        record.capability_source = result.capability_source
+        record.fallback_reason = result.fallback_reason
+        record.failure_reason = result.failure_reason
+        record.verification_state = result.verification_state.value
+        record.mock = result.mock
+        record.raw_payload = result.model_dump(mode="json")
+        record.note = result.note
+        record.updated_at = utc_now()
         return record
 
     def list_organize_records(self) -> list[OrganizeRecordModel]:

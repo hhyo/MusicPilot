@@ -1,4 +1,4 @@
-"""Central host integration wiring and adapter resolution for Phase 5."""
+"""Central host integration wiring and adapter resolution for Phase 6."""
 
 from __future__ import annotations
 
@@ -10,10 +10,12 @@ from fastapi import HTTPException
 from ..adapters.download_dispatch import DownloadDispatchAdapter
 from ..adapters.host_probe import HostProbeAdapter
 from ..adapters.host_search import HostSearchAdapter
+from ..adapters.organize import OrganizeAdapter
 from ..core.config import Settings
 from ..schemas.acquisition import DispatchAdapterResult, HostSearchCandidate, QueryBuildResult, SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, HostIntegrationRuntimeState, VerificationState
 from ..schemas.metadata import MetadataDetail
+from ..schemas.orchestration import OrganizeAdapterResult, OrganizePlan, OrganizeStatus
 
 
 @dataclass(slots=True)
@@ -25,6 +27,12 @@ class SearchExecutionResult:
 @dataclass(slots=True)
 class DispatchExecutionResult:
     result: DispatchAdapterResult
+    resolution: AdapterResolution
+
+
+@dataclass(slots=True)
+class OrganizeExecutionResult:
+    result: OrganizeAdapterResult
     resolution: AdapterResolution
 
 
@@ -45,15 +53,19 @@ class HostIntegrationService:
                 host_online=False,
                 search_capability=False,
                 dispatch_capability=False,
+                organize_capability=False,
                 downloaders_available=False,
                 sites_visible=False,
                 fallback_to_mock=self.settings.host_fallback_to_mock,
                 search_strategy=AdapterStrategy(self.settings.host_search_strategy),
                 dispatch_strategy=AdapterStrategy(self.settings.host_dispatch_strategy),
+                organize_strategy=AdapterStrategy(self.settings.host_organize_strategy),
                 active_search_adapter="mock_host_search",
                 active_dispatch_adapter="mock_download_dispatch",
+                active_organize_adapter="mock_organize",
                 search_fallback_reason="host_integration_disabled",
                 dispatch_fallback_reason="host_integration_disabled",
+                organize_fallback_reason="host_integration_disabled",
                 note="Host integration is disabled. MusicPilot will stay on mock adapters.",
             )
 
@@ -70,6 +82,10 @@ class HostIntegrationService:
         dispatch_capability = self._resolve_bool(
             self.settings.host_assume_dispatch_available,
             self._dispatch_capability_from_probe(downloaders_payload.summary.capability_available),
+        )
+        organize_capability = self._resolve_bool(
+            self.settings.host_assume_organize_available,
+            self._organize_capability_from_config(),
         )
         downloaders_available = self._resolve_bool(
             self.settings.host_assume_downloaders_available,
@@ -88,6 +104,7 @@ class HostIntegrationService:
                     self.settings.host_assume_healthy,
                     self.settings.host_assume_search_available,
                     self.settings.host_assume_dispatch_available,
+                    self.settings.host_assume_organize_available,
                     self.settings.host_assume_downloaders_available,
                     self.settings.host_assume_sites_visible,
                 ]
@@ -104,6 +121,11 @@ class HostIntegrationService:
             capability_source=capability_source,
             preview_only=True,
         )
+        organize_resolution = self.resolve_organize_strategy(
+            organize_capability=organize_capability,
+            capability_source=capability_source,
+            preview_only=True,
+        )
 
         return HostIntegrationRuntimeState(
             host_integration_enabled=host_enabled,
@@ -113,15 +135,19 @@ class HostIntegrationService:
             host_online=host_online,
             search_capability=search_capability,
             dispatch_capability=dispatch_capability,
+            organize_capability=organize_capability,
             downloaders_available=downloaders_available,
             sites_visible=sites_visible,
             fallback_to_mock=self.settings.host_fallback_to_mock,
             search_strategy=AdapterStrategy(self.settings.host_search_strategy),
             dispatch_strategy=AdapterStrategy(self.settings.host_dispatch_strategy),
+            organize_strategy=AdapterStrategy(self.settings.host_organize_strategy),
             active_search_adapter=search_resolution.adapter_key,
             active_dispatch_adapter=dispatch_resolution.adapter_key,
+            active_organize_adapter=organize_resolution.adapter_key,
             search_fallback_reason=search_resolution.fallback_reason,
             dispatch_fallback_reason=dispatch_resolution.fallback_reason,
+            organize_fallback_reason=organize_resolution.fallback_reason,
             note=(
                 "Adapter wiring is resolved from host capability probe + settings. "
                 "Host-backed adapters are only selected when capability and strategy allow it."
@@ -162,6 +188,23 @@ class HostIntegrationService:
             preview_only=preview_only,
         )
 
+    def resolve_organize_strategy(
+        self,
+        *,
+        organize_capability: bool | None,
+        capability_source: str,
+        preview_only: bool = False,
+    ) -> AdapterResolution:
+        return self._resolve_strategy(
+            adapter_key_host="real_organize",
+            adapter_key_mock="mock_organize",
+            strategy=AdapterStrategy(self.settings.host_organize_strategy),
+            capability_available=organize_capability,
+            capability_source=capability_source,
+            integration_point="OrganizeAdapterResolver",
+            preview_only=preview_only,
+        )
+
     def _resolve_strategy(
         self,
         *,
@@ -189,6 +232,7 @@ class HostIntegrationService:
 
         if not self.settings.host_integration_enabled:
             return self._mock_resolution(
+                adapter_key_mock=adapter_key_mock,
                 strategy=strategy,
                 capability_source="settings.disabled",
                 integration_point=integration_point,
@@ -233,6 +277,7 @@ class HostIntegrationService:
             )
 
         return self._mock_resolution(
+            adapter_key_mock=adapter_key_mock,
             strategy=strategy,
             capability_source=capability_source,
             integration_point=integration_point,
@@ -242,13 +287,14 @@ class HostIntegrationService:
     def _mock_resolution(
         self,
         *,
+        adapter_key_mock: str,
         strategy: AdapterStrategy,
         capability_source: str,
         integration_point: str,
         fallback_reason: str,
     ) -> AdapterResolution:
         return AdapterResolution(
-            adapter_key="mock_host_search" if "Search" in integration_point else "mock_download_dispatch",
+            adapter_key=adapter_key_mock,
             adapter_mode=AdapterMode.MOCK,
             strategy=strategy,
             capability_source=capability_source,
@@ -262,6 +308,17 @@ class HostIntegrationService:
         if self.settings.host_dispatch_path:
             return value if value is not None else True
         return value
+
+    def _organize_capability_from_config(self) -> bool | None:
+        has_endpoint = bool(
+            self.settings.host_base_url
+            and (self.settings.host_organize_preview_path or self.settings.host_organize_apply_path)
+        )
+        if has_endpoint:
+            return True
+        if self.settings.host_organize_preview_path or self.settings.host_organize_apply_path:
+            return None
+        return False
 
     def _resolve_bool(self, override: bool | None, probe_value: bool | None) -> bool | None:
         if override is not None:
@@ -402,3 +459,180 @@ class DispatchAdapterResolver:
         result.fallback_reason = resolution.fallback_reason
         result.verification_state = resolution.verification_state
         return DispatchExecutionResult(result=result, resolution=resolution)
+
+
+class OrganizeAdapterResolver:
+    def __init__(
+        self,
+        *,
+        integration_service: HostIntegrationService,
+        mock_adapter: OrganizeAdapter,
+        host_adapter: OrganizeAdapter,
+    ):
+        self.integration_service = integration_service
+        self.mock_adapter = mock_adapter
+        self.host_adapter = host_adapter
+
+    def preview(
+        self,
+        *,
+        candidate: SearchCandidateDetail,
+        metadata_detail: MetadataDetail | None,
+        binding_id: str | None,
+        plan: OrganizePlan,
+    ) -> OrganizeExecutionResult:
+        runtime_state = self.integration_service.runtime_state()
+        resolution = self.integration_service.resolve_organize_strategy(
+            organize_capability=runtime_state.organize_capability,
+            capability_source=runtime_state.capability_source,
+        )
+        adapter = self.host_adapter if resolution.adapter_mode == AdapterMode.HOST else self.mock_adapter
+
+        try:
+            result = adapter.preview(
+                candidate=candidate,
+                metadata_detail=metadata_detail,
+                binding_id=binding_id,
+                plan=plan,
+            )
+        except Exception as exc:
+            return self._fallback_preview(
+                resolution=resolution,
+                runtime_state=runtime_state,
+                candidate=candidate,
+                metadata_detail=metadata_detail,
+                binding_id=binding_id,
+                plan=plan,
+                exc=exc,
+            )
+
+        return self._finalize_result(result=result, resolution=resolution, runtime_state=runtime_state)
+
+    def apply(
+        self,
+        *,
+        organize_job_id: str,
+        candidate: SearchCandidateDetail,
+        metadata_detail: MetadataDetail | None,
+        binding_id: str | None,
+        plan: OrganizePlan,
+    ) -> OrganizeExecutionResult:
+        runtime_state = self.integration_service.runtime_state()
+        resolution = self.integration_service.resolve_organize_strategy(
+            organize_capability=runtime_state.organize_capability,
+            capability_source=runtime_state.capability_source,
+        )
+        adapter = self.host_adapter if resolution.adapter_mode == AdapterMode.HOST else self.mock_adapter
+
+        try:
+            result = adapter.apply(
+                organize_job_id=organize_job_id,
+                candidate=candidate,
+                metadata_detail=metadata_detail,
+                binding_id=binding_id,
+                plan=plan,
+            )
+        except Exception as exc:
+            return self._fallback_apply(
+                resolution=resolution,
+                runtime_state=runtime_state,
+                organize_job_id=organize_job_id,
+                candidate=candidate,
+                metadata_detail=metadata_detail,
+                binding_id=binding_id,
+                plan=plan,
+                exc=exc,
+            )
+
+        return self._finalize_result(result=result, resolution=resolution, runtime_state=runtime_state)
+
+    def _fallback_preview(
+        self,
+        *,
+        resolution: AdapterResolution,
+        runtime_state: HostIntegrationRuntimeState,
+        candidate: SearchCandidateDetail,
+        metadata_detail: MetadataDetail | None,
+        binding_id: str | None,
+        plan: OrganizePlan,
+        exc: Exception,
+    ) -> OrganizeExecutionResult:
+        if resolution.adapter_mode == AdapterMode.HOST and resolution.strategy == AdapterStrategy.PREFER_HOST and self.integration_service.settings.host_fallback_to_mock:
+            fallback_resolution = AdapterResolution(
+                adapter_key="mock_organize",
+                adapter_mode=AdapterMode.MOCK,
+                strategy=resolution.strategy,
+                capability_source=runtime_state.capability_source,
+                verification_state=VerificationState.PLACEHOLDER,
+                fallback_reason=f"host_organize_preview_runtime_error:{type(exc).__name__}",
+                integration_point="OrganizeAdapterResolver.preview",
+                host_integration_enabled=self.integration_service.settings.host_integration_enabled,
+            )
+            result = self.mock_adapter.preview(
+                candidate=candidate,
+                metadata_detail=metadata_detail,
+                binding_id=binding_id,
+                plan=plan,
+            )
+            return self._finalize_result(result=result, resolution=fallback_resolution, runtime_state=runtime_state)
+
+        raise HTTPException(
+            status_code=503,
+            detail=f"Host-backed organize preview failed and no safe fallback was allowed: {exc}",
+        ) from exc
+
+    def _fallback_apply(
+        self,
+        *,
+        resolution: AdapterResolution,
+        runtime_state: HostIntegrationRuntimeState,
+        organize_job_id: str,
+        candidate: SearchCandidateDetail,
+        metadata_detail: MetadataDetail | None,
+        binding_id: str | None,
+        plan: OrganizePlan,
+        exc: Exception,
+    ) -> OrganizeExecutionResult:
+        if resolution.adapter_mode == AdapterMode.HOST and resolution.strategy == AdapterStrategy.PREFER_HOST and self.integration_service.settings.host_fallback_to_mock:
+            fallback_resolution = AdapterResolution(
+                adapter_key="mock_organize",
+                adapter_mode=AdapterMode.MOCK,
+                strategy=resolution.strategy,
+                capability_source=runtime_state.capability_source,
+                verification_state=VerificationState.PLACEHOLDER,
+                fallback_reason=f"host_organize_apply_runtime_error:{type(exc).__name__}",
+                integration_point="OrganizeAdapterResolver.apply",
+                host_integration_enabled=self.integration_service.settings.host_integration_enabled,
+            )
+            result = self.mock_adapter.apply(
+                organize_job_id=organize_job_id,
+                candidate=candidate,
+                metadata_detail=metadata_detail,
+                binding_id=binding_id,
+                plan=plan,
+            )
+            result.organize_status = OrganizeStatus.FALLBACK_APPLIED
+            return self._finalize_result(result=result, resolution=fallback_resolution, runtime_state=runtime_state)
+
+        raise HTTPException(
+            status_code=503,
+            detail=f"Host-backed organize apply failed and no safe fallback was allowed: {exc}",
+        ) from exc
+
+    def _finalize_result(
+        self,
+        *,
+        result: OrganizeAdapterResult,
+        resolution: AdapterResolution,
+        runtime_state: HostIntegrationRuntimeState,
+    ) -> OrganizeExecutionResult:
+        result.organize_backend = resolution.adapter_mode
+        result.adapter_mode = resolution.adapter_mode
+        result.capability_source = runtime_state.capability_source
+        result.fallback_reason = resolution.fallback_reason
+        result.verification_state = resolution.verification_state
+        result.adapter_resolution = resolution
+        result.mock = resolution.adapter_mode == AdapterMode.MOCK
+        if resolution.fallback_reason:
+            result.note = f"{result.note} Fallback reason: {resolution.fallback_reason}."
+        return OrganizeExecutionResult(result=result, resolution=resolution)

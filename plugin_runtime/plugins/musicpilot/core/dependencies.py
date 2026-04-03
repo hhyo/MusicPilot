@@ -17,7 +17,7 @@ from ..adapters.chart_provider import ChartProviderAdapter, MockChartProviderAda
 from ..adapters.host_probe import HostProbeAdapter, MockHostProbeAdapter, RealHostProbeAdapter
 from ..adapters.host_search import HostSearchAdapter, MockHostSearchAdapter, RealHostSearchAdapter
 from ..adapters.metadata_provider import MetadataProviderAdapter, MockMetadataProviderAdapter
-from ..adapters.organize import MockOrganizeAdapter, OrganizeAdapter
+from ..adapters.organize import MockOrganizeAdapter, OrganizeAdapter, RealOrganizeAdapter
 from ..core.db import get_db_session
 from ..core.config import settings
 from ..services.charts import ChartService
@@ -26,11 +26,13 @@ from ..services.dispatch import DispatchService
 from ..services.host_integration import (
     DispatchAdapterResolver,
     HostIntegrationService,
+    OrganizeAdapterResolver,
     HostSearchAdapterResolver,
 )
 from ..services.metadata import MetadataService
 from ..services.mvp_placeholder import MvpPlaceholderService
 from ..services.organize import OrganizeService
+from ..services.organize_strategy import OrganizeStrategyService
 from ..services.query_builder import QueryBuilderService
 from ..services.scoring import MusicCandidateScorer
 from ..services.search_job import SearchJobService
@@ -160,6 +162,16 @@ def get_organize_adapter() -> OrganizeAdapter:
 
 
 @lru_cache
+def get_real_organize_adapter() -> OrganizeAdapter:
+    return RealOrganizeAdapter(settings=settings, client=get_host_http_client())
+
+
+@lru_cache
+def get_organize_strategy_service() -> OrganizeStrategyService:
+    return OrganizeStrategyService(settings=settings)
+
+
+@lru_cache
 def get_dispatch_adapter_resolver() -> DispatchAdapterResolver:
     return DispatchAdapterResolver(
         integration_service=get_host_integration_service(),
@@ -175,6 +187,15 @@ def get_dispatch_service(
     return DispatchService(session=session, resolver=resolver)
 
 
+@lru_cache
+def get_organize_adapter_resolver() -> OrganizeAdapterResolver:
+    return OrganizeAdapterResolver(
+        integration_service=get_host_integration_service(),
+        mock_adapter=get_organize_adapter(),
+        host_adapter=get_real_organize_adapter(),
+    )
+
+
 def get_subscription_service(
     session: Session = Depends(get_db_session),
     metadata_service: MetadataService = Depends(get_metadata_service),
@@ -184,9 +205,10 @@ def get_subscription_service(
 
 def get_organize_service(
     session: Session = Depends(get_db_session),
-    adapter: OrganizeAdapter = Depends(get_organize_adapter),
+    resolver: OrganizeAdapterResolver = Depends(get_organize_adapter_resolver),
+    strategy_service: OrganizeStrategyService = Depends(get_organize_strategy_service),
 ) -> OrganizeService:
-    return OrganizeService(session=session, adapter=adapter)
+    return OrganizeService(session=session, resolver=resolver, strategy_service=strategy_service)
 
 
 def get_subscription_execution_service(

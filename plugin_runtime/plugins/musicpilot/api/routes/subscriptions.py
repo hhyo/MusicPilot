@@ -1,4 +1,4 @@
-"""Subscription routes for Phase 4."""
+"""Subscription routes for Phase 6."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ async def list_subscriptions(
         message="Subscriptions loaded.",
         code="SUBSCRIPTIONS_OK",
         mock=True,
-        note="当前订阅列表基于 Phase 4 最小订阅闭环，未接入真实自动调度。",
+        note="当前订阅列表基于 Phase 6 最小订阅闭环，未接入真实自动调度。",
     )
 
 
@@ -67,7 +67,7 @@ async def get_subscription_run(
         message="Subscription run detail loaded.",
         code="SUBSCRIPTION_RUN_DETAIL_OK",
         mock=True,
-        note="当前 run detail 展示的是 Phase 4 同步执行结果与 mock organize preview。",
+        note="当前 run detail 展示的是 Phase 6 同步执行结果与 host-aware organize preview/apply 记录。",
     )
 
 
@@ -132,7 +132,7 @@ async def run_subscription(
         message="Subscription executed once.",
         code="SUBSCRIPTION_RUN_EXECUTED",
         mock=True,
-        note="当前执行器会同步创建 SearchJob、执行 mock host search，并生成 organize preview。",
+        note="当前执行器会同步创建 SearchJob，并按 strategy 在 host-backed skeleton 与 mock organize preview 之间选择。",
     )
  
 

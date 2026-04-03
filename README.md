@@ -1,11 +1,11 @@
 # MusicPilot
 
-MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已完成 Phase 0、Phase 1、Phase 2、Phase 3、Phase 4 与 Phase 5，重点先交付可启动、可构建、可装配、可联调的工程骨架，以及从 metadata 到 QueryBuilder、SearchJob、候选评分、mock dispatch，再到 subscriptions、mock chart discovery、subscription run、mock organize preview，最终收口到 host-aware adapter resolver 的最小闭环，而不是提前实现生产级自动化。
+MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已完成 Phase 0、Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 与 Phase 6，重点先交付可启动、可构建、可装配、可联调的工程骨架，以及从 metadata 到 QueryBuilder、SearchJob、候选评分、mock dispatch，再到 subscriptions、mock chart discovery、subscription run、host-aware organize preview/apply，逐步收口到可探测、可降级、可解释的宿主接入闭环，而不是提前实现生产级自动化。
 
 ## 项目简介
 
-- `frontend/`：基于 Vue 3 + TypeScript + Vite 的独立前端壳，当前提供首页工作台、metadata 搜索页、榜单页、订阅页，以及从 metadata / chart item 创建订阅、执行一次 run、查看 organize preview 的最小前端闭环。
-- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、host-aware search/dispatch resolver、SubscriptionService、mock chart discovery 与 mock organize boundary。
+- `frontend/`：基于 Vue 3 + TypeScript + Vite 的独立前端壳，当前提供首页工作台、metadata 搜索页、榜单页、订阅页，以及从 metadata / chart item 创建订阅、执行一次 run、查看 organize backend / status / fallback 的最小前端闭环。
+- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、host-aware search/dispatch resolver、SubscriptionService、mock chart discovery 与 host-aware organize preview/apply boundary。
 - `plugin_runtime/`：面向未来 MoviePilot 宿主集成的运行时占位产物目录，当前只保留 manifest、静态资源、后端挂载说明和打包边界。
 - `scripts/`：前端开发、后端开发、前端构建、插件装配、版本同步脚本。
 - `docs/`：产品方案、架构方案、规范与任务拆解文档，按要求保持原位不变。
@@ -72,11 +72,11 @@ uvicorn app.main:app --reload
 - `GET /health` 返回 200
 - metadata search / detail API 可访问
 - QueryBuilder / SearchJob / candidate / dispatch host-aware API 可访问
-- subscriptions / charts / organize preview API 可访问
+- subscriptions / charts / organize preview/apply API 可访问
 
 ## 数据初始化与 seed
 
-Phase 4 继续采用最小可运行方案：`SQLite + SQLAlchemy + local seed metadata + mock acquisition / chart / organize data`。
+Phase 6 继续采用最小可运行方案：`SQLite + SQLAlchemy + local seed metadata + mock/host-aware acquisition + mock chart data + mock/host-aware organize data`。
 
 - 默认数据库文件：`backend/data/musicpilot.db`
 - 手动初始化或重置 seed：
@@ -95,7 +95,7 @@ python -m app.db_init --reseed
 - Chart discovery：当前为 local seed / mock chart source，只验证发现入口与从 chart item 创建订阅的动作。
 - Host search：当前已升级为 `mock + host-backed selectable`。默认仍走 mock；当启用 host integration 且能力可用时，会优先走 host-backed skeleton。
 - Dispatch：当前已升级为 `mock + host-backed selectable`。默认仍走 mock；当启用 host integration 且能力可用时，会优先走 host-backed skeleton。
-- Organize：当前仅生成 organize preview 与状态记录，不会真实执行文件移动、硬链接、标签写入或媒体库刷新。
+- Organize：当前已升级为 `mock + host-backed selectable` 的 preview/apply 双阶段边界。默认仍走 mock；当启用 host integration 且 organize capability 可用时，会优先走 host-backed skeleton。真实文件移动、硬链接、标签写入和媒体库刷新仍未宣称完成。
 
 ## 如何启用 host integration
 
@@ -109,8 +109,11 @@ export MUSICPILOT_HOST_SITES_PATH=/sites
 export MUSICPILOT_HOST_SEARCH_PATH=/search
 export MUSICPILOT_HOST_DOWNLOADERS_PATH=/downloaders
 export MUSICPILOT_HOST_DISPATCH_PATH=/dispatch
+export MUSICPILOT_HOST_ORGANIZE_PREVIEW_PATH=/organize/preview
+export MUSICPILOT_HOST_ORGANIZE_APPLY_PATH=/organize/apply
 export MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
+export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
 export MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
 ```
 
@@ -130,10 +133,11 @@ python3 scripts/host_integration_stub.py
 
 ## 如何查看当前 active adapter
 
-- `/health`：查看 `data.host_integration.active_search_adapter` 和 `active_dispatch_adapter`
+- `/health`：查看 `data.host_integration.active_search_adapter`、`active_dispatch_adapter` 和 `active_organize_adapter`
 - `/api/probe/health`：查看 `data.runtime_state`
 - `/api/v1/plugin/musicpilot/jobs/{id}` 与 `/results`：查看 `adapter_resolution`
 - `/api/v1/plugin/musicpilot/downloads/dispatch`：查看 `dispatch_backend`、`fallback_reason`
+- `/api/v1/plugin/musicpilot/organize/preview`、`/apply` 与 `/organize/jobs/{id}`：查看 `organize_backend`、`organize_status`、`verification_state` 与 `fallback_reason`
 
 ## plugin_runtime 打包说明
 
@@ -158,14 +162,15 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - Phase 3 / T11-T14
 - Phase 4 / 订阅与编排最小闭环
 - Phase 5 / 宿主真实接入优先级最高的收口阶段
+- Phase 6 / 真实 organize 接入优先阶段
 - 宿主能力探针 API 骨架
 - MVP 路由骨架与统一响应结构
 - metadata 搜索服务最小可用版
 - SQLite 最小落库与本地 seed
 - 前端搜索页最小闭环与详情视图
 - QueryBuilder、SearchJob、候选评分与 mock dispatch 最小闭环
-- 订阅模型与 API、mock charts/discovery、subscription run 记录与 mock organize preview
-- host-aware search / dispatch adapter resolver、配置映射、fallback 机制与联调说明
+- 订阅模型与 API、mock charts/discovery、subscription run 记录与 host-aware organize preview/apply
+- host-aware search / dispatch / organize adapter resolver、配置映射、fallback 机制与联调说明
 
 ## 当前阶段未完成范围
 
@@ -173,7 +178,7 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - 真实第三方 metadata provider 接入
 - 生产级订阅调度器与重试编排
 - 真实 PT 搜索、匹配、下载派发
-- 真实整理、标签、媒体库刷新
+- 真实 organize 文件处理、标签、媒体库刷新
 - 真实 MoviePilot 宿主安装与挂载逻辑
 - 真实 MoviePilot 宿主接口语义验证完成
 
@@ -182,6 +187,6 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 ## 下一阶段建议推进方式
 
 1. 在保留现有 response envelope 的前提下，引入真实 metadata provider adapter。
-2. 将 mock chart source、mock host search、mock dispatch、mock organize 分别替换为真实 adapter。
+2. 将 mock chart source、mock host search、mock dispatch、mock organize 分别替换为真实 adapter，并补真实 MoviePilot organize 语义验证记录。
 3. 在当前 SubscriptionExecutionService 骨架上补完整调度、重试、下载完成回调与 organize job 状态机。
 4. 保持 `plugin_runtime/` 只作为构建产物边界，不把开发源码和宿主产物混放。

@@ -2,7 +2,7 @@
   <section class="job-panel">
     <header class="job-panel__header">
       <div>
-        <p class="job-panel__eyebrow">Phase 5 Host-Aware Acquisition Loop</p>
+        <p class="job-panel__eyebrow">Phase 6 Host-Aware Acquisition Loop</p>
         <h3>搜索任务、候选评分与宿主派发边界</h3>
       </div>
       <el-tag v-if="job" :type="jobAdapterMode === 'host' ? 'success' : 'warning'" effect="plain">
@@ -11,7 +11,7 @@
     </header>
 
     <el-alert
-      title="当前页面展示的是 Phase 5 host-aware acquisition loop。若宿主能力可用会优先走 host-backed skeleton；若能力缺失或配置不完整，会自动回退到 mock，并显式展示 fallback 信息。"
+      title="当前页面展示的是 Phase 6 host-aware acquisition loop。若宿主能力可用会优先走 host-backed skeleton；若能力缺失或配置不完整，会自动回退到 mock，并显式展示 fallback 信息。"
       :type="jobAdapterMode === 'host' ? 'success' : 'warning'"
       :closable="false"
       show-icon

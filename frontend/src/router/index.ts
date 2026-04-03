@@ -27,7 +27,7 @@ const routes = [
         component: ChartsView,
         meta: {
           title: '榜单',
-          description: 'Phase 4 提供榜单发现与从榜单项创建订阅的最小闭环。',
+          description: 'Phase 6 保留榜单发现与从榜单项创建订阅的最小闭环。',
         },
       },
       {
@@ -36,7 +36,7 @@ const routes = [
         component: SearchView,
         meta: {
           title: '搜索',
-          description: 'Phase 4 打通 metadata 搜索、SearchJob 与从详情创建订阅的最小闭环。',
+          description: 'Phase 6 打通 metadata 搜索、SearchJob 与从详情创建订阅的最小闭环。',
         },
       },
       {
@@ -45,7 +45,7 @@ const routes = [
         component: SubscriptionsView,
         meta: {
           title: '订阅',
-          description: 'Phase 4 提供订阅管理、立即执行与 run 结果回看。',
+          description: 'Phase 6 提供订阅管理、立即执行、run 结果回看与 host-aware organize 状态查看。',
         },
       },
       {

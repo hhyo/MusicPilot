@@ -1,4 +1,4 @@
-"""Subscription execution orchestration for Phase 4."""
+"""Subscription execution orchestration for Phase 6."""
 
 from __future__ import annotations
 
@@ -22,7 +22,10 @@ from .search_job import SearchJobService
 from .subscriptions import serialize_run_summary, serialize_subscription
 
 
-RUN_NOTE = "当前订阅执行器为同步最小骨架：会创建并执行一次 SearchJob，但不会启用生产级调度器。"
+RUN_NOTE = (
+    "当前订阅执行器为同步最小骨架：会创建并执行一次 SearchJob，并生成 organize preview。"
+    "真实 organize apply 仍按 capability 与 strategy 选择 host-backed skeleton 或 mock fallback。"
+)
 
 
 class SubscriptionExecutionService:
@@ -70,8 +73,10 @@ class SubscriptionExecutionService:
                 summary_json={
                     "best_score": executed_job.summary.get("best_score", 0.0),
                     "candidate_count": candidates_data.total,
-                    "mock_host_search": True,
+                    "mock_host_search": executed_job.mock,
                     "organize_preview_id": organize_preview.id if organize_preview else None,
+                    "organize_backend": organize_preview.organize_backend.value if organize_preview else None,
+                    "organize_fallback_reason": organize_preview.fallback_reason if organize_preview else None,
                 },
                 search_job_id=executed_job.id,
                 organize_record_id=organize_preview.id if organize_preview else None,

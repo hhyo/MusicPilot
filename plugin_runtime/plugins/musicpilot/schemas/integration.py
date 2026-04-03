@@ -43,15 +43,19 @@ class HostIntegrationRuntimeState(BaseModel):
     host_online: bool | None = None
     search_capability: bool | None = None
     dispatch_capability: bool | None = None
+    organize_capability: bool | None = None
     downloaders_available: bool | None = None
     sites_visible: bool | None = None
     fallback_to_mock: bool = True
     search_strategy: AdapterStrategy = AdapterStrategy.MOCK
     dispatch_strategy: AdapterStrategy = AdapterStrategy.MOCK
+    organize_strategy: AdapterStrategy = AdapterStrategy.MOCK
     active_search_adapter: str
     active_dispatch_adapter: str
+    active_organize_adapter: str
     search_fallback_reason: str | None = None
     dispatch_fallback_reason: str | None = None
+    organize_fallback_reason: str | None = None
     note: str
     integration_point: str = Field(
         default=(
@@ -59,4 +63,3 @@ class HostIntegrationRuntimeState(BaseModel):
             "and safely degrade to mock when capability is missing or unverified."
         )
     )
-

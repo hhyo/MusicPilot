@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local host integration stub for Phase 5 resolver and fallback validation."""
+"""Local host integration stub for Phase 6 resolver and fallback validation."""
 
 from __future__ import annotations
 
@@ -125,6 +125,35 @@ class HostIntegrationStubHandler(BaseHTTPRequestHandler):
             )
             return
 
+        if self.path == "/organize/preview":
+            plan = payload.get("plan") or {}
+            self._write_json(
+                {
+                    "organizeable": True,
+                    "organize_status": "preview_ready",
+                    "target_library_path": plan.get("target_library_path", "/library/musicpilot/library/unknown"),
+                    "target_relative_path": plan.get("target_relative_path", "unknown"),
+                    "strategy_note": plan.get("strategy_note", "Local organize preview stub."),
+                    "note": "Local host-backed organize preview stub only. Real MoviePilot organize semantics remain unverified.",
+                }
+            )
+            return
+
+        if self.path == "/organize/apply":
+            plan = payload.get("plan") or {}
+            self._write_json(
+                {
+                    "organizeable": True,
+                    "applied": True,
+                    "organize_status": "applied",
+                    "target_library_path": plan.get("target_library_path", "/library/musicpilot/library/unknown"),
+                    "target_relative_path": plan.get("target_relative_path", "unknown"),
+                    "strategy_note": plan.get("strategy_note", "Local organize apply stub."),
+                    "note": "Local host-backed organize apply stub only. Real MoviePilot file operations remain unverified.",
+                }
+            )
+            return
+
         if self.path == "/notify":
             self._write_json({"sent": True, "echo": payload})
             return
@@ -165,7 +194,7 @@ class HostIntegrationStubHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the MusicPilot Phase 5 host integration stub.")
+    parser = argparse.ArgumentParser(description="Run the MusicPilot Phase 6 host integration stub.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=19090, type=int)
     args = parser.parse_args()

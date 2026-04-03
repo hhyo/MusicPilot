@@ -5,15 +5,15 @@
         <p class="hero-panel__eyebrow">Subscriptions</p>
         <h2>订阅与执行记录最小闭环</h2>
         <p class="hero-panel__description">
-          当前页面展示的是 Phase 4 最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
-          回看 SearchJob 摘要与 organize preview。真实 scheduler、真实榜单增量与真实整理链路仍未接入。
+          当前页面展示的是 Phase 6 最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
+          回看 SearchJob 摘要与 organize preview/apply。真实 scheduler、真实榜单增量与真实文件整理链路仍未完成验证。
         </p>
       </div>
-      <el-tag type="warning" effect="plain">mock subscription executor / mock organize</el-tag>
+      <el-tag type="warning" effect="plain">host-aware organize / sync subscription executor</el-tag>
     </section>
 
     <el-alert
-      title="Phase 4 订阅执行器为同步最小骨架：不会自动定时执行，也不会触发真实下载完成后的文件整理。"
+      title="Phase 6 订阅执行器仍为同步最小骨架：不会自动定时执行；organize 已升级为 host-aware preview/apply，但真实文件移动、硬链接、刮削与媒体库刷新仍待宿主验证。"
       type="warning"
       :closable="false"
       show-icon
@@ -221,7 +221,7 @@
           <section class="run-detail-panel">
             <header class="runs-panel__header">
               <h4>Run 摘要</h4>
-              <p>候选、评分与 organize preview 都是 mock / placeholder。</p>
+              <p>候选、评分与 organize 会明确展示当前 backend、verification state 与 fallback。</p>
             </header>
 
             <el-empty
@@ -245,6 +245,11 @@
                   <span>Dispatch Recommendation</span>
                   <strong>{{ selectedRunDetail.dispatch_recommendation }}</strong>
                   <p>{{ selectedRunDetail.matched_candidates_count }} candidates</p>
+                </article>
+                <article v-if="selectedRunDetail.organize_preview" class="summary-card">
+                  <span>Organize Backend</span>
+                  <strong>{{ selectedRunDetail.organize_preview.organize_backend }}</strong>
+                  <p>{{ selectedRunDetail.organize_preview.organize_status }}</p>
                 </article>
               </section>
 
@@ -276,15 +281,28 @@
 
               <section class="organize-panel">
                 <header class="runs-panel__header">
-                  <h4>Organize Preview</h4>
-                  <el-button
-                    v-if="selectedRunDetail.candidates[0]"
-                    size="small"
-                    :loading="organizeLoading"
-                    @click="handleOrganizePreview(selectedRunDetail.candidates[0].id)"
-                  >
-                    刷新 organize preview
-                  </el-button>
+                  <h4>Organize Record</h4>
+                  <div class="organize-actions">
+                    <el-button
+                      v-if="selectedRunDetail.candidates[0]"
+                      size="small"
+                      :loading="organizeLoading"
+                      @click="handleOrganizePreview(selectedRunDetail.candidates[0].id)"
+                    >
+                      刷新 organize preview
+                    </el-button>
+                    <el-button
+                      v-if="selectedRunDetail.organize_preview"
+                      size="small"
+                      type="primary"
+                      plain
+                      :loading="organizeApplying"
+                      :disabled="!selectedRunDetail.organize_preview.organizeable"
+                      @click="handleOrganizeApply(selectedRunDetail.organize_preview.id)"
+                    >
+                      执行 organize apply
+                    </el-button>
+                  </div>
                 </header>
 
                 <el-empty
@@ -297,7 +315,20 @@
                     <strong>{{ selectedRunDetail.organize_preview.organize_status }}</strong>
                     <p>{{ selectedRunDetail.organize_preview.target_library_path }}</p>
                   </div>
-                  <p>{{ selectedRunDetail.organize_preview.strategy_note }}</p>
+                  <div class="organize-card__body">
+                    <p>backend: {{ selectedRunDetail.organize_preview.organize_backend }}</p>
+                    <p>verification: {{ selectedRunDetail.organize_preview.verification_state }}</p>
+                    <p>relative_path: {{ selectedRunDetail.organize_preview.target_relative_path }}</p>
+                    <p>strategy: {{ selectedRunDetail.organize_preview.strategy }}</p>
+                    <p>conflict_policy: {{ selectedRunDetail.organize_preview.strategy_snapshot.conflict_policy }}</p>
+                    <p v-if="selectedRunDetail.organize_preview.fallback_reason">
+                      fallback: {{ selectedRunDetail.organize_preview.fallback_reason }}
+                    </p>
+                    <p v-if="selectedRunDetail.organize_preview.failure_reason">
+                      failure: {{ selectedRunDetail.organize_preview.failure_reason }}
+                    </p>
+                    <p>{{ selectedRunDetail.organize_preview.strategy_note }}</p>
+                  </div>
                 </article>
               </section>
             </template>
@@ -314,6 +345,7 @@ import { computed, onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import {
+  applyOrganize,
   archiveSubscription,
   fetchSubscription,
   fetchSubscriptionRun,
@@ -343,6 +375,7 @@ const runs = ref<SubscriptionRunSummary[]>([]);
 const listLoading = ref(false);
 const detailLoading = ref(false);
 const organizeLoading = ref(false);
+const organizeApplying = ref(false);
 const listError = ref('');
 const detailError = ref('');
 const runningSubscriptionId = ref('');
@@ -531,6 +564,30 @@ async function handleOrganizePreview(candidateId: string) {
   }
 }
 
+async function handleOrganizeApply(recordId: string) {
+  organizeApplying.value = true;
+
+  try {
+    const response = await applyOrganize({ organize_job_id: recordId });
+    if (!response.success) {
+      throw new Error(response.message);
+    }
+
+    if (selectedRunDetail.value) {
+      selectedRunDetail.value = {
+        ...selectedRunDetail.value,
+        organize_preview: response.data,
+      };
+    }
+
+    ElMessage.success('已执行 organize apply。');
+  } catch (error) {
+    ElMessage.error(resolveErrorMessage(error, '执行 organize apply 失败。'));
+  } finally {
+    organizeApplying.value = false;
+  }
+}
+
 async function refreshSelectedSubscription() {
   if (!selectedSubscriptionId.value) {
     return;
@@ -607,6 +664,12 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.organize-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .hero-panel__eyebrow,
@@ -720,7 +783,7 @@ function resolveErrorMessage(error: unknown, fallback: string) {
 }
 
 .summary-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .summary-card span {
@@ -748,6 +811,11 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   gap: 0.8rem;
   flex-wrap: wrap;
   color: var(--mp-muted);
+}
+
+.organize-card__body {
+  display: grid;
+  gap: 0.35rem;
 }
 
 @media (max-width: 1040px) {

@@ -5,13 +5,13 @@
         <p class="search-hero__eyebrow">Metadata Search</p>
         <h2>Metadata -> Query -> Job -> Candidate -> Host Adapter 收口闭环</h2>
         <p class="search-hero__description">
-          当前基于本地 seed metadata 打通 Phase 5 的搜索与订阅入口。
+          当前基于本地 seed metadata 打通 Phase 6 的搜索与订阅入口。
           host search / dispatch 已升级为 host-aware resolver：当宿主能力可用时优先走 host-backed skeleton，
-          当能力缺失或配置不完整时自动降级回 mock，并在结果中明确标识 adapter mode 与 fallback。
+          当能力缺失或配置不完整时自动降级回 mock，并在结果中明确标识 adapter mode 与 fallback。organize 则在订阅页继续沿用同样的 host-aware preview/apply 收口方式。
         </p>
       </div>
       <el-tag type="warning" effect="plain">
-        metadata seed + host-aware search/dispatch + mock organize
+        metadata seed + host-aware search/dispatch + host-aware organize
       </el-tag>
     </section>
 

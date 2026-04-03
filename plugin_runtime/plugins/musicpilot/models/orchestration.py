@@ -1,4 +1,4 @@
-"""Subscription and organize persistence models for Phase 4."""
+"""Subscription and organize persistence models for Phase 6."""
 
 from __future__ import annotations
 
@@ -96,10 +96,20 @@ class OrganizeRecordModel(Base):
         index=True,
     )
     organizeable: Mapped[bool] = mapped_column(Boolean, default=False)
+    organize_backend: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
+    strategy: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    library_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    root_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     organize_status: Mapped[str] = mapped_column(String(32), default="planned", index=True)
     target_library_path: Mapped[str] = mapped_column(Text)
+    target_relative_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    conflict_policy: Mapped[str | None] = mapped_column(String(32), nullable=True)
     strategy_note: Mapped[str] = mapped_column(Text)
     integration_point: Mapped[str] = mapped_column(Text)
+    capability_source: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fallback_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    verification_state: Mapped[str | None] = mapped_column(String(32), nullable=True)
     mock: Mapped[bool] = mapped_column(Boolean, default=True)
     raw_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
