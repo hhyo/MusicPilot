@@ -76,7 +76,7 @@ async def apply_organize(
         message="Organize apply handled the record.",
         code="ORGANIZE_APPLY_OK",
         mock=result.mock,
-        note="当前 organize apply 只映射真实 MoviePilot `/api/v1/transfer/manual` 或 mock apply。缺少 organize input 时会直接失败，不会再自动切换到其他业务路径。",
+        note="当前 organize apply 会在 mock apply 与真实宿主底层文件/存储执行之间二选一。缺少 organize input 时会直接失败，不会再自动切换到其他业务路径。",
     )
 
 

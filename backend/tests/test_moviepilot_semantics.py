@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -753,6 +755,41 @@ class HostPathHandoffServiceTest(unittest.TestCase):
         self.assertEqual(handoff.handoff_status, "handoff_unresolved")
         self.assertEqual(handoff.verification_state, VerificationState.UNVERIFIED)
         self.assertEqual(handoff.download_hash, "hash-missing-001")
+
+
+class HostPluginEntryBootstrapTest(unittest.TestCase):
+    def test_init_plugin_bootstraps_metadata_storage_for_host_runtime(self) -> None:
+        module_path = Path(__file__).resolve().parents[1] / "app" / "__init__.py"
+        fake_plugins_module = type(sys)("app.plugins")
+
+        class FakePluginBase:
+            def __init__(self):
+                pass
+
+        fake_plugins_module._PluginBase = FakePluginBase  # type: ignore[attr-defined]
+        previous_plugins_module = sys.modules.get("app.plugins")
+        module_name = "musicpilot_host_entry_bootstrap_test"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        plugin_module = importlib.util.module_from_spec(spec)
+
+        sys.modules["app.plugins"] = fake_plugins_module
+        sys.modules.pop(module_name, None)
+        try:
+            spec.loader.exec_module(plugin_module)  # type: ignore[union-attr]
+            plugin = plugin_module.musicpilot()
+
+            with patch.object(plugin_module, "_bootstrap_plugin_storage", create=True) as bootstrap_storage:
+                plugin.init_plugin({"enabled": True})
+
+            bootstrap_storage.assert_called_once_with()
+        finally:
+            sys.modules.pop(module_name, None)
+            if previous_plugins_module is not None:
+                sys.modules["app.plugins"] = previous_plugins_module
+            else:
+                sys.modules.pop("app.plugins", None)
 
 
 if __name__ == "__main__":
