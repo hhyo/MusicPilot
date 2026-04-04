@@ -136,8 +136,6 @@ export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backe
 - `prefer_host`：优先使用 host-backed adapter；若 capability 不满足或运行时报错，直接暴露失败
 - `strict_host`：必须使用 host-backed；能力不足时直接报错
 
-> `MUSICPILOT_HOST_FALLBACK_TO_MOCK` 仅为历史兼容配置保留，当前不再驱动真实运行时语义切换。
-
 ## 当前固定调用规则
 
 - metadata 搜索默认走 `/api/v1/search/title`；只有拿到可靠宿主媒体 ID 时才走 `/api/v1/search/media/{mediaid}`。
@@ -147,12 +145,21 @@ export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backe
 - organize preview 只走 `/api/v1/transfer/name`。
 - organize apply 只走 `/api/v1/transfer/manual`。
 
-这意味着当前系统不再做“推荐路径计算”：
+这意味着当前系统不再做运行时路径计算：
 
 - 一个场景对应一个确定调用语义
 - 一个关键字段对应一个权威来源
 - 失败就是失败，不再偷偷切到其他业务接口
 - 验证矩阵只保留为验证产物，不再作为运行时决策器
+
+## Breaking Cleanup 后的数据库处理
+
+Phase 10 起，旧的 `backend/data/musicpilot.db` 不再兼容当前模型结构。升级后请直接重建：
+
+```bash
+cd backend
+python -m app.db_init --rebuild
+```
 
 本仓库还提供本地验证 stub：
 
@@ -162,7 +169,7 @@ python3 scripts/host_integration_stub.py
 
 它只用于验证 mock / host 适配器边界与 payload 语义，不代表真实 MoviePilot 宿主已经联通。
 
-更细的真实宿主联调结论见：
+更细的真实宿主联调与历史验证结论见：
 
 - [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)
 - [docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)
@@ -170,6 +177,7 @@ python3 scripts/host_integration_stub.py
 - [docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)
 - [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)
 - [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)
+- [docs/15_彻底清理变更说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/15_%E5%BD%BB%E5%BA%95%E6%B8%85%E7%90%86%E5%8F%98%E6%9B%B4%E8%AF%B4%E6%98%8E.md)
 
 ## 如何复跑 Phase 8 成功样例矩阵
 

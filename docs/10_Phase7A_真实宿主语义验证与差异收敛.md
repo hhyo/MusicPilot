@@ -29,10 +29,9 @@ export MUSICPILOT_HOST_API_KEY_HEADER_NAME=X-API-KEY
 export MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
-export MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
 ```
 
-真实 MoviePilot 宿主的推荐路径：
+真实 MoviePilot 宿主接口路径：
 
 ```env
 MUSICPILOT_HOST_HEALTH_PATH=/api/v1/search/last

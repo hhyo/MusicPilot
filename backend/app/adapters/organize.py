@@ -185,7 +185,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
             )
 
         payload = self.client.get_json(
-            self.settings.host_transfer_name_path or self.settings.host_organize_preview_path,
+            self.settings.host_transfer_name_path,
             params={"path": source["path"], "filetype": source["filetype"]},
             auth_mode="x_api_key",
         )
@@ -248,7 +248,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
             plan=plan,
         )
         data = self.client.post_json(
-            self.settings.host_transfer_manual_path or self.settings.host_organize_apply_path,
+            self.settings.host_transfer_manual_path,
             payload,
             params={"background": "false"},
             auth_mode="x_api_key",

@@ -6,8 +6,8 @@
         <h2>Metadata -> Query -> Job -> Candidate -> Host Adapter 收口闭环</h2>
         <p class="search-hero__description">
           当前基于本地 seed metadata 打通 Phase 6 的搜索与订阅入口。
-          host search / dispatch 已升级为 host-aware resolver：当宿主能力可用时优先走 host-backed skeleton，
-          当能力缺失或配置不完整时自动降级回 mock，并在结果中明确标识 adapter mode 与 fallback。organize 则在订阅页继续沿用同样的 host-aware preview/apply 收口方式。
+          host search / dispatch 已升级为 host-aware resolver：当宿主能力可用时优先走 host-backed 语义，
+          能力不足或运行失败时会直接暴露错误，并在结果中明确标识 adapter mode 与 fallback。organize 则在订阅页继续沿用同样的 preview/apply 收口方式。
         </p>
       </div>
       <el-tag type="warning" effect="plain">
@@ -385,10 +385,6 @@ async function handleDispatch(candidate: SearchCandidateDetail) {
     candidate.dispatch_status = response.data.dispatch_status;
     if (activeJob.value) {
       activeJob.value.status = 'dispatched';
-      activeJob.value.summary = {
-        ...activeJob.value.summary,
-        dispatch_recommendation: response.data.dispatch_status,
-      };
     }
   } catch (error) {
     jobError.value = resolveErrorMessage(error, '派发失败，请稍后重试。');

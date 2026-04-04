@@ -57,7 +57,6 @@ class SubscriptionRunModel(Base):
     )
     execution_status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
     matched_candidates_count: Mapped[int] = mapped_column(Integer, default=0)
-    dispatch_recommendation: Mapped[str] = mapped_column(String(32), default="pending")
     organize_record_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     summary_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -24,7 +24,7 @@ from .subscriptions import serialize_run_summary, serialize_subscription
 
 RUN_NOTE = (
     "当前订阅执行器为同步最小骨架：会创建并执行一次 SearchJob，并生成 organize preview。"
-    "真实 organize apply 仍按 capability 与 strategy 选择 host-backed skeleton 或 mock fallback。"
+    "真实 organize apply 仍按 capability 与 adapter 模式选择 host 或 mock。"
 )
 
 
@@ -69,7 +69,6 @@ class SubscriptionExecutionService:
                 run,
                 execution_status=self._map_run_status(executed_job.status).value,
                 matched_candidates_count=candidates_data.total,
-                dispatch_recommendation=str(executed_job.summary.get("dispatch_recommendation", "pending")),
                 summary_json={
                     "best_score": executed_job.summary.get("best_score", 0.0),
                     "candidate_count": candidates_data.total,
@@ -90,7 +89,6 @@ class SubscriptionExecutionService:
                     failed_run,
                     execution_status=SubscriptionRunStatus.FAILED.value,
                     matched_candidates_count=0,
-                    dispatch_recommendation="failed",
                     summary_json={"candidate_count": 0},
                     error_message=str(exc),
                 )
@@ -146,7 +144,6 @@ class SubscriptionExecutionService:
             query_source_id=entity_id,
             trigger_source=TriggerSource.SUBSCRIPTION,
             profile_id="default-lossless",
-            strategy=str((subscription.preference_json or {}).get("strategy", "balanced")),
             mode="manual" if subscription.mode == "manual" else "auto",
             preferences=preferences,
         )

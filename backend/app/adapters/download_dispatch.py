@@ -137,7 +137,7 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
             integration_point = "RealDownloadDispatchAdapter.dispatch.moviepilot_download_media"
             dispatch_semantics = "resolved_media_dispatch"
         else:
-            path = self.settings.host_download_add_path or self.settings.host_dispatch_path
+            path = self.settings.host_download_add_path
             payload = {
                 "torrent_in": torrent_in,
                 "downloader": target_downloader,

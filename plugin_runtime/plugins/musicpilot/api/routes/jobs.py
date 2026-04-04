@@ -119,7 +119,7 @@ async def run_job(
         message="Search job executed through the host-aware search resolver.",
         code="SEARCH_JOB_EXECUTED",
         mock=job.mock,
-        note="当前执行链路只在真实 MoviePilot search 语义与 mock adapter 之间切换；不会再附加 recommendation/strategy 解释层。",
+        note="当前执行链路只暴露真实采用的 search 语义与 adapter。",
     )
 
 

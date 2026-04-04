@@ -52,7 +52,6 @@ class DispatchService:
             candidate_model.job.status = "dispatched"
             candidate_model.job.summary_json = {
                 **(candidate_model.job.summary_json or {}),
-                "dispatch_recommendation": adapter_result.dispatch_status,
                 "last_dispatched_candidate_id": candidate_model.id,
                 "active_dispatch_adapter": adapter_result.adapter_resolution.adapter_key
                 if adapter_result.adapter_resolution

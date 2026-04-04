@@ -309,7 +309,7 @@ class RealHostProbeAdapter(HostProbeAdapter):
         return ProbeSitesPayload(summary=summary, items=items)
 
     def search_summary(self) -> ProbeSearchPayload:
-        available = bool((self.settings.host_search_title_path or self.settings.host_search_path) and self.settings.host_base_url)
+        available = bool(self.settings.host_search_title_path and self.settings.host_base_url)
         summary = self._summary(
             capability="search",
             capability_available=available,
@@ -330,7 +330,7 @@ class RealHostProbeAdapter(HostProbeAdapter):
     def probe_search(self, payload: ProbeSearchRequest) -> ProbeSearchPayload:
         try:
             data = self.client.get_json(
-                self.settings.host_search_title_path or self.settings.host_search_path,
+                self.settings.host_search_title_path,
                 params={"keyword": payload.keyword, "page": 0},
                 auth_mode="x_api_key",
             )
@@ -395,7 +395,7 @@ class RealHostProbeAdapter(HostProbeAdapter):
     def probe_dispatch(self, payload: ProbeDispatchRequest) -> ProbeDispatchPayload:
         try:
             data = self.client.post_json(
-                self.settings.host_download_add_path or self.settings.host_dispatch_path,
+                self.settings.host_download_add_path,
                 {
                     "torrent_in": {
                         "title": f"MusicPilot Probe {payload.result_id}",

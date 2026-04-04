@@ -75,7 +75,6 @@ class OrganizeIntegrationTest(unittest.TestCase):
         service = HostIntegrationService(
             settings=build_settings(
                 host_organize_strategy="strict_host",
-                host_fallback_to_mock=False,
             ),
             probe_adapter=DummyProbeAdapter(),
         )

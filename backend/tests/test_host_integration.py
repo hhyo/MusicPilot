@@ -176,7 +176,6 @@ def build_settings(**overrides: object) -> Settings:
         "host_integration_enabled": True,
         "host_search_strategy": "prefer_host",
         "host_dispatch_strategy": "prefer_host",
-        "host_fallback_to_mock": True,
         "host_verification_state": "unverified",
     }
     base.update(overrides)
@@ -216,7 +215,6 @@ class HostIntegrationServiceTest(unittest.TestCase):
             settings=build_settings(
                 host_search_strategy="strict_host",
                 host_dispatch_strategy="strict_host",
-                host_fallback_to_mock=False,
             ),
             probe_adapter=DummyProbeAdapter(
                 host_online=False,

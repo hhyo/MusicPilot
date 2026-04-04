@@ -11,7 +11,7 @@
     </header>
 
     <el-alert
-      title="当前页面展示的是语义归一后的 acquisition loop。这里主要暴露真实采用的 search/download 语义、handoff 来源和明确错误，不再展示推荐路径或策略摘要。"
+      title="当前页面展示的是语义归一后的 acquisition loop。这里主要暴露真实采用的 search/download 语义、handoff 来源和明确错误。"
       :type="jobAdapterMode === 'host' ? 'success' : 'warning'"
       :closable="false"
       show-icon
@@ -45,8 +45,8 @@
           <p>{{ job.metadata_snapshot?.title || job.query_source_id }}</p>
         </article>
         <article class="job-card">
-          <span>Dispatch Outcome</span>
-          <strong>{{ dispatchOutcome }}</strong>
+          <span>Candidates</span>
+          <strong>{{ candidateCount }}</strong>
           <p>best_score: {{ bestScore }}</p>
         </article>
         <article class="job-card">
@@ -231,8 +231,8 @@ defineEmits<{
   (event: 'dispatch', candidate: SearchCandidateDetail): void;
 }>();
 
-const dispatchOutcome = computed(() => props.job?.summary.dispatch_recommendation ?? 'pending');
-const bestScore = computed(() => props.job?.summary.best_score ?? '-');
+const candidateCount = computed(() => Number(props.job?.summary.candidate_count ?? 0));
+const bestScore = computed(() => String(props.job?.summary.best_score ?? '-'));
 const jobAdapterMode = computed(() => props.job?.adapter_resolution?.adapter_mode ?? 'mock');
 const activeSearchAdapter = computed(() => props.job?.adapter_resolution?.adapter_key ?? 'pending');
 const activeFallbackReason = computed(() => props.job?.adapter_resolution?.fallback_reason ?? 'fallback: none');

@@ -13,7 +13,7 @@ from ...services.metadata import MetadataService
 router = APIRouter(tags=["Search", "Metadata"])
 
 
-@router.post("/search", summary="Metadata search (contract-compatible alias)")
+@router.post("/search", summary="Metadata search")
 @router.post("/metadata/search", summary="Metadata search")
 async def search(
     payload: MetadataSearchRequest,
@@ -34,7 +34,7 @@ async def search(
     )
 
 
-@router.get("/artists/{artist_id}", summary="Artist detail (contract-compatible alias)")
+@router.get("/artists/{artist_id}", summary="Artist detail")
 @router.get("/metadata/artists/{artist_id}", summary="Artist detail")
 async def artist_detail(
     artist_id: str,
@@ -51,7 +51,7 @@ async def artist_detail(
     )
 
 
-@router.get("/albums/{album_id}", summary="Album detail (contract-compatible alias)")
+@router.get("/albums/{album_id}", summary="Album detail")
 @router.get("/metadata/albums/{album_id}", summary="Album detail")
 async def album_detail(
     album_id: str,
@@ -68,7 +68,7 @@ async def album_detail(
     )
 
 
-@router.get("/tracks/{track_id}", summary="Track detail (contract-compatible alias)")
+@router.get("/tracks/{track_id}", summary="Track detail")
 @router.get("/metadata/tracks/{track_id}", summary="Track detail")
 async def track_detail(
     track_id: str,

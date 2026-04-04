@@ -215,7 +215,6 @@ class SubscriptionRunSummary(BaseModel):
     search_job_id: str | None = None
     execution_status: SubscriptionRunStatus
     matched_candidates_count: int
-    dispatch_recommendation: str
     organize_record_id: str | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None

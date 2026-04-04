@@ -4,7 +4,7 @@
 > 数据来源：`scripts/run_phase8_real_host_matrix.py --allow-side-effects` 导出的矩阵文件，默认落到 `backend/data/host_validation_matrix.latest.json`。  
 > 约束：不记录真实 token；真实宿主 Base URL 与 token 通过本地环境变量注入。
 
-> 当前说明：这份矩阵现在只保留为验证产物，用于回看哪些真实组合曾成功、哪些曾被阻断。当前运行时不再用它做 recommendation / strategy 决策，当前固定语义见 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
+> 当前说明：这份矩阵现在只保留为验证产物，用于回看哪些真实组合曾成功、哪些曾被阻断。当前运行时不再用它做业务路径决策，当前固定语义见 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
 
 ## 12.1 当前基线摘要
 
@@ -38,7 +38,7 @@
 | `ordinary_accident_title_add` | `search/title` | `download_add` | `resolved_from_history_download` | `preview_ready` | `applied` | `applied` | `verified` | `single_sample` | 当前唯一完整的 `search -> download/add -> history/download -> transfer/manual` 真实成功闭环。 |
 | `snow_white_title_add` | `search/title` | `download_add` | `resolved_from_history_download` | `preview_ready` | `failed` | `failed` | `unverified` | `blocked` | `download_add` 并非对所有 title 样例都能稳定导出可整理输入。 |
 | `argentina_1985_title_add` | `search/title` | `download_add` | `resolved_from_history_download` | `failed` | `failed` | `failed` | `unverified` | `blocked` | 宿主在该 title 样例上仍会给出明确业务拒绝。 |
-| `transfer_history_fallback` | `history/transfer` | `N/A` | `resolved_from_history_transfer` | `N/A` | `N/A` | `N/A` | `verified` | `stable` | 证明 `history/transfer` 是可靠的 organize path fallback 来源。 |
+| `transfer_history_fallback` | `history/transfer` | `N/A` | `resolved_from_history_transfer` | `N/A` | `N/A` | `N/A` | `verified` | `stable` | 证明 `history/transfer` 是可靠的 organize 历史重放 / 补充来源。 |
 | `transfer_replay_1` | `history/transfer-replay` | `N/A` | `resolved_from_history_transfer` | `preview_ready` | `applied` | `applied` | `verified` | `stable` | 真实宿主 replay 样例一，证明 `history/transfer` 回放可稳定形成 host organize success。 |
 | `transfer_replay_2` | `history/transfer-replay` | `N/A` | `resolved_from_history_transfer` | `preview_ready` | `applied` | `applied` | `verified` | `stable` | 真实宿主 replay 样例二，进一步确认 `history/transfer` 路径回灌更稳。 |
 
@@ -70,23 +70,6 @@
 - 部分 `download_add` title 样例
   - 宿主能接受请求，但后续 organize 仍可能失败。
 
-## 12.3A Phase 9 策略提炼
-
-Phase 9 不再只“记录这些差异”，而是把它们转成默认行为：
-
-- 默认推荐路径：
-  - `history/transfer -> organize replay/apply`
-- 保留但不默认：
-  - `search/title -> download_add -> history/download -> transfer/manual -> organize`
-- 显式阻断：
-  - `download_media + resolved_from_history_download -> organize apply`
-
-也就是说，当前矩阵的用途已经从“回看历史”升级成“解释运行时策略决策”：
-
-- `stable`：作为推荐路径
-- `single_sample`：允许继续尝试，但必须显示风险
-- `blocked`：默认阻断或明确提示，不再默默尝试
-
 ## 12.4 path handoff 稳定性结论
 
 当前 MusicPilot 对真实宿主 path handoff 的优先级与结论如下：
@@ -96,8 +79,8 @@ Phase 9 不再只“记录这些差异”，而是把它们转成默认行为：
    - 优点：离下载结果最近，可直接附在 dispatch result、candidate raw payload 与 organize record 中。
    - 风险：不是所有 `history/download` 路径都能被 `transfer/manual` 稳定接受。
 2. `resolved_from_history_transfer`
-   - 是当前更稳定的 organize fallback 来源。
-   - 当 `history/download` 命中但后续 transfer 语义失败时，优先尝试 `history/transfer` replay 更符合真实宿主行为。
+   - 是当前更稳定的 organize 历史重放 / 补充来源。
+   - 当需要回看已整理记录或补充 organize 输入时，`history/transfer` 更接近真实宿主的已完成整理语义。
 3. `pending_history_sync`
    - 表示下载成功，但宿主 history 尚未完成同步。
    - MusicPilot 现在会按 `MUSICPILOT_HOST_HISTORY_SYNC_RETRY_ATTEMPTS` 和 `MUSICPILOT_HOST_HISTORY_SYNC_RETRY_INTERVAL_SECONDS` 做最小重试。

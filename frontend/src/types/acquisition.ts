@@ -102,7 +102,6 @@ export interface SearchJobSummary {
   query_source_id: string;
   trigger_source: TriggerSource;
   profile_id: string;
-  strategy: string;
   mode: string;
   status: JobStatus;
   created_at: string;
@@ -165,7 +164,6 @@ export interface SearchJobCreatePayload {
   query_source_id: string;
   trigger_source?: TriggerSource;
   profile_id?: string;
-  strategy?: string;
   mode?: 'manual' | 'auto';
   preferences?: Partial<QueryPreferences>;
 }

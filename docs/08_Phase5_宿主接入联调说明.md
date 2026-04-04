@@ -11,8 +11,8 @@ Phase 5 的目标不是宣称“已经真实接通宿主全部能力”，而是
 
 - `HostSearchAdapter = mock + host-backed selectable`
 - `DownloadDispatchAdapter = mock + host-backed selectable`
-- 能基于 probe / capability / settings 做集中决策
-- 当宿主能力缺失、配置缺失或运行失败时可安全降级回 mock
+- 能基于 probe / capability / settings 做集中 adapter 选择
+- mock 仅作为开发与显式 mock 模式下的边界
 - 在 API 返回与页面里能看到 `adapter_mode / dispatch_backend / fallback_reason`
 
 ## 8.2 当前接入状态总表
@@ -52,7 +52,6 @@ MUSICPILOT_HOST_HISTORY_DOWNLOAD_PATH=/api/v1/history/download
 MUSICPILOT_HOST_HISTORY_TRANSFER_PATH=/api/v1/history/transfer
 MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
 MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
-MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
 ```
 
 策略说明：
@@ -61,7 +60,7 @@ MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
   - 永远使用 mock adapter，适合本地默认开发。
 - `prefer_host`
   - 能力存在时优先走 host-backed adapter skeleton。
-  - 若能力缺失、配置缺失或运行失败，且 `MUSICPILOT_HOST_FALLBACK_TO_MOCK=true`，则自动回退到 mock。
+  - 当前已不再把它当成业务失败时的自动 mock 回退开关；host 运行失败会直接暴露错误。
 - `strict_host`
   - 要求必须使用 host-backed adapter。
   - 若能力缺失或配置不完整，接口会返回失败，不会静默回退。
@@ -102,7 +101,7 @@ python3 scripts/host_integration_stub.py
 
 2. 配置 `prefer_host` 并启动 backend
 3. 预期：
-   - 行为与真实宿主保持同一套 resolver / fallback 逻辑
+   - 行为与真实宿主保持同一套 resolver 与错误暴露逻辑
    - 但返回语义仍然只是本地 stub，不能替代真实宿主验证
 
 ### D. strict_host 失败验证

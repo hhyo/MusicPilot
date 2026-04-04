@@ -37,7 +37,7 @@ python -m app.db_init --reseed
 - `charts/*` 为 local seed / mock chart source
 - `organize/preview` 和 `organize/apply` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择
 - `jobs/*` 与 `downloads/dispatch` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择
-- 当前真实运行时不再做 recommendation / strategy / matrix 驱动的路径决策；矩阵只保留为验证产物
+- 当前真实运行时不再根据验证矩阵决定业务路径；矩阵只保留为验证产物
 
 启用 host integration 的最小配置示例：
 
@@ -76,13 +76,20 @@ export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backe
 python3 ../scripts/host_integration_stub.py
 ```
 
-然后通过 `/health`、`/api/probe/health`、`/api/probe/validation-matrix`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend、verification state、fallback、`path_handoff` 与多样例验证产物。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)、[docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)、[docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)、[docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)、[docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)、[docs/13_Phase9_策略收敛与交付说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/13_Phase9_策略收敛与交付说明.md) 和 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
+然后通过 `/health`、`/api/probe/health`、`/api/probe/validation-matrix`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend、verification state、fallback、`path_handoff` 与验证产物。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)、[docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)、[docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)、[docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)、[docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)、[docs/13_Phase9_策略收敛与交付说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/13_Phase9_策略收敛与交付说明.md)、[docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md) 和 [docs/15_彻底清理变更说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/15_%E5%BD%BB%E5%BA%95%E6%B8%85%E7%90%86%E5%8F%98%E6%9B%B4%E8%AF%B4%E6%98%8E.md)。
 
-当前建议这样理解当前路径：
+当前固定调用规则与历史验证结论可这样理解：
 
 - 历史重放/补充来源：`history/transfer -> organize replay/apply`
 - 单样例真实链路：`search/title -> download_add -> history/download -> transfer/manual -> organize`
 - 已知不应自动继续尝试的失败场景：`download_media + resolved_from_history_download -> organize apply`
+
+Breaking cleanup 后，旧 SQLite 不再兼容当前 schema。请直接执行：
+
+```bash
+cd backend
+python -m app.db_init --rebuild
+```
 
 手动回归真实宿主样例矩阵：
 

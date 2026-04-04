@@ -40,7 +40,6 @@ class AcquisitionRepository:
             query_source_id=payload.query_source_id,
             trigger_source=payload.trigger_source.value,
             profile_id=payload.profile_id,
-            strategy=payload.strategy,
             mode=payload.mode,
             status="queued",
             query_payload=query_payload,
@@ -49,7 +48,6 @@ class AcquisitionRepository:
             mock=True,
             summary_json={
                 "candidate_count": 0,
-                "dispatch_recommendation": "pending",
                 "execution_mode": payload.mode,
             },
         )

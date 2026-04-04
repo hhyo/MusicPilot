@@ -3,7 +3,7 @@
 > 用途：记录 MusicPilot 在 Phase 7B 针对真实 MoviePilot 宿主拿到的第一条“成功下载 -> 路径回灌 -> transfer/name -> transfer/manual”闭环样例。  
 > 约束：不写入真实 token；所有宿主配置均通过本地环境变量注入。
 
-> 当前说明：本文记录的成功样例继续有效，但它现在只作为真实验证成果，不再驱动运行时 recommendation / strategy / matrix 决策。当前固定调用规则见 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
+> 当前说明：本文记录的成功样例继续有效，但它现在只作为真实验证成果。当前固定调用规则见 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
 
 > Phase 8 更新：当前这条闭环已不再是唯一成功依据。  
 > Phase 8 已补出真实样例矩阵，用于区分 `stable / single_sample / blocked`。最新结论请同时参考 [docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)。
@@ -49,7 +49,6 @@ export MUSICPILOT_HOST_VERIFY_TLS=false
 export MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
 export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
-export MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
 
 export MUSICPILOT_HOST_SEARCH_TITLE_PATH=/api/v1/search/title
 export MUSICPILOT_HOST_SEARCH_LAST_PATH=/api/v1/search/last
@@ -132,7 +131,7 @@ MusicPilot 现在会优先从 `/api/v1/history/download` 回读：
 | Download media | `POST /api/v1/download/` | `verified` | 已拿到真实 `success=true` 与 `download_id`。 |
 | Download add | `POST /api/v1/download/add` | `verified` | Phase 8 已补到 1 条真实成功样例，但当前仍只是 `single_sample`。 |
 | History download | `GET /api/v1/history/download` | `verified` | 已回读成功样例的真实本地路径。 |
-| History transfer | `GET /api/v1/history/transfer` | `verified` | 已验证结构，可作为兼容回灌来源。 |
+| History transfer | `GET /api/v1/history/transfer` | `verified` | 已验证结构，可作为历史重放 / 补充来源。 |
 | Transfer name | `GET /api/v1/transfer/name` | `verified` | 已拿到真实正向命名样例。 |
 | Transfer manual | `POST /api/v1/transfer/manual` | `verified` | 已拿到真实 `success=true` 的最小整理样例。 |
 | Organize host preview/apply | MusicPilot `organize/*` | `verified` | 已完成一条 `backend=host`、`status=applied` 的真实记录。 |
@@ -181,7 +180,7 @@ Phase 7B 已把本地 stub 升级到更接近真实宿主的语义：
 
 - `GET /api/v1/search/media/{mediaid}` 已在 Phase 8 拿到多条正向样例。
 - `POST /api/v1/download/add` 已在 Phase 8 拿到 1 条真实成功样例，但稳定性尚不足以升级为多样例成功。
-- `history/transfer` 现在已经被证明是更稳定的 organize fallback / replay 来源。
+- `history/transfer` 现在已经被证明是更稳定的 organize 历史重放 / 补充来源。
 - “下载完成后自动进入整理”的生产级调度仍未实现；Phase 8 关注的是稳定性收敛，而不是自动化扩面。
 
 ## 11.9 如何回看当前状态

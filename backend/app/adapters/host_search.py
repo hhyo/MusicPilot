@@ -158,7 +158,7 @@ class RealHostSearchAdapter(HostSearchAdapter):
         query_type: str,
     ) -> list[HostSearchCandidate]:
         payload = self.client.get_json(
-            self.settings.host_search_title_path or self.settings.host_search_path,
+            self.settings.host_search_title_path,
             params={"keyword": clause_query, "page": 0},
             auth_mode="x_api_key",
         )

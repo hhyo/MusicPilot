@@ -1,4 +1,4 @@
-"""Database primitives for Phase 2 metadata persistence."""
+"""Database primitives for the simplified MusicPilot runtime."""
 
 from __future__ import annotations
 
@@ -23,6 +23,20 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expi
 def initialize_database_schema() -> None:
     Base.metadata.create_all(bind=engine)
     _apply_lightweight_schema_sync()
+
+
+def rebuild_sqlite_database() -> None:
+    if not settings.database_url.startswith("sqlite"):
+        raise RuntimeError("Database rebuild is only supported for SQLite.")
+
+    engine.dispose()
+    for path in [
+        DEFAULT_DATABASE_PATH,
+        DEFAULT_DATABASE_PATH.with_suffix(f"{DEFAULT_DATABASE_PATH.suffix}-wal"),
+        DEFAULT_DATABASE_PATH.with_suffix(f"{DEFAULT_DATABASE_PATH.suffix}-shm"),
+    ]:
+        if path.exists():
+            path.unlink()
 
 
 def get_db_session() -> Generator[Session, None, None]:

@@ -23,7 +23,6 @@ class SearchJobModel(Base):
     query_source_id: Mapped[str] = mapped_column(String(64), index=True)
     trigger_source: Mapped[str] = mapped_column(String(32), index=True)
     profile_id: Mapped[str] = mapped_column(String(64), default="default-lossless")
-    strategy: Mapped[str] = mapped_column(String(32), default="balanced")
     mode: Mapped[str] = mapped_column(String(16), default="manual")
     status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
     query_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)

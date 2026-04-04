@@ -29,7 +29,7 @@ from .scoring import MusicCandidateScorer
 
 JOB_NOTE = (
     "SearchJob 现在通过 host-aware resolver 选择 search adapter。"
-    "执行阶段只暴露真实采用的 search 语义和 adapter，不再附加 recommendation/strategy 解释层。"
+    "执行阶段只暴露真实采用的 search 语义和 adapter。"
 )
 
 
@@ -139,16 +139,10 @@ class SearchJobService:
                 )
             if not persisted_candidates:
                 status = JobStatus.NO_RESULT.value
-                recommendation = "no_result"
-            elif any(candidate.decision == DecisionStatus.AUTO_DOWNLOAD.value for candidate in persisted_candidates):
-                status = JobStatus.MATCHED.value
-                recommendation = "auto_ready"
             elif any(candidate.decision == DecisionStatus.MANUAL_CONFIRM.value for candidate in persisted_candidates):
                 status = JobStatus.MANUAL_PENDING.value
-                recommendation = "manual_review"
             else:
                 status = JobStatus.MATCHED.value
-                recommendation = "review_rejected"
 
             effective_resolution = (
                 raw_candidates[0].adapter_resolution
@@ -157,7 +151,6 @@ class SearchJobService:
             )
             summary = {
                 "candidate_count": len(persisted_candidates),
-                "dispatch_recommendation": recommendation,
                 "best_score": max((candidate.score_total for candidate in persisted_candidates), default=0.0),
                 "mock_host_search": effective_resolution.adapter_mode == AdapterMode.MOCK,
                 "adapter_resolution": effective_resolution.model_dump(mode="json"),
@@ -173,7 +166,7 @@ class SearchJobService:
                 self.repository.mark_job_finished(
                     failed_job,
                     status=JobStatus.FAILED.value,
-                    summary_json={"candidate_count": 0, "dispatch_recommendation": "failed"},
+                    summary_json={"candidate_count": 0},
                     error_message=str(exc),
                 )
                 self.session.commit()
@@ -205,7 +198,6 @@ def serialize_job(job: SearchJobModel) -> SearchJobSummary:
         query_source_id=job.query_source_id,
         trigger_source=TriggerSource(job.trigger_source),
         profile_id=job.profile_id,
-        strategy=job.strategy,
         mode=job.mode,
         status=JobStatus(job.status),
         created_at=job.created_at,

@@ -172,7 +172,6 @@ export interface SubscriptionRunSummary {
   search_job_id?: string | null;
   execution_status: SubscriptionRunStatus;
   matched_candidates_count: number;
-  dispatch_recommendation: string;
   organize_record_id?: string | null;
   started_at?: string | null;
   finished_at?: string | null;

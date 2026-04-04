@@ -191,7 +191,6 @@ def serialize_run_summary(run) -> "SubscriptionRunSummary":
         search_job_id=run.search_job_id,
         execution_status=SubscriptionRunStatus(run.execution_status),
         matched_candidates_count=run.matched_candidates_count,
-        dispatch_recommendation=run.dispatch_recommendation,
         organize_record_id=run.organize_record_id,
         started_at=run.started_at,
         finished_at=run.finished_at,

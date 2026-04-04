@@ -212,7 +212,7 @@
               >
                 <div>
                   <strong>{{ run.execution_status }}</strong>
-                  <p>{{ run.dispatch_recommendation }} result · {{ run.matched_candidates_count }} candidates</p>
+                  <p>{{ run.matched_candidates_count }} candidates</p>
                 </div>
                 <span>{{ formatDate(run.finished_at || run.started_at) }}</span>
               </article>
@@ -243,8 +243,8 @@
                   <p>{{ selectedRunDetail.search_job?.id || '未生成' }}</p>
                 </article>
                 <article class="summary-card">
-                  <span>Dispatch Outcome</span>
-                  <strong>{{ selectedRunDetail.dispatch_recommendation }}</strong>
+                  <span>Candidates</span>
+                  <strong>{{ selectedRunDetail.matched_candidates_count }}</strong>
                   <p>{{ selectedRunDetail.matched_candidates_count }} candidates</p>
                 </article>
                 <article v-if="selectedRunDetail.organize_preview" class="summary-card">

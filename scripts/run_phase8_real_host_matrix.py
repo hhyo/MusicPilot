@@ -130,7 +130,6 @@ def build_settings(args: argparse.Namespace, token: str) -> Settings:
         host_search_strategy="prefer_host",
         host_dispatch_strategy="prefer_host",
         host_organize_strategy="prefer_host",
-        host_fallback_to_mock=True,
         host_verification_state="verified",
         host_history_sync_retry_attempts=args.handoff_attempts,
         host_history_sync_retry_interval_seconds=args.handoff_interval,
@@ -265,7 +264,7 @@ def fetch_search_context(
         endpoint_type = "search_media"
     else:
         payload = client.get_json(
-            settings.host_search_title_path or settings.host_search_path,
+            settings.host_search_title_path,
             params={"keyword": sample.search_query, "page": 0},
             auth_mode="x_api_key",
         )

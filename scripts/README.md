@@ -38,7 +38,14 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py --allow-side-eff
 - 需要本机私有环境里已经注入真实 MoviePilot Base URL 和 token。
 - 默认输出文件是 `backend/data/host_validation_matrix.latest.json`。
 - 目的是回看 `stable / single_sample / blocked / unverified` 这些真实样例状态，而不是单纯证明“曾经成功过一次”。
-- 当前这份矩阵只作为验证产物保存，不再驱动运行时推荐或策略系统。
+- 当前这份矩阵只作为验证产物保存，不再驱动运行时路径选择。
+
+Breaking cleanup 后，如果本地仍保留旧 `backend/data/musicpilot.db`，请先执行：
+
+```bash
+cd /Users/lihuanhuan/PycharmProjects/MusicPilot/backend
+python -m app.db_init --rebuild
+```
 
 Phase 7B 后，stub 与真实宿主仍有这些边界差异需要注意：
 

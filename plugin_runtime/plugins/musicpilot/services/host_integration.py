@@ -315,7 +315,7 @@ class HostIntegrationService:
         )
 
     def _dispatch_capability_from_probe(self, value: bool | None) -> bool | None:
-        if self.settings.host_dispatch_path or self.settings.host_download_add_path:
+        if self.settings.host_download_add_path:
             return value if value is not None else True
         return value
 
@@ -323,8 +323,6 @@ class HostIntegrationService:
         has_any_path = bool(
             self.settings.host_transfer_name_path
             or self.settings.host_transfer_manual_path
-            or self.settings.host_organize_preview_path
-            or self.settings.host_organize_apply_path
         )
         has_endpoint = bool(self.settings.host_base_url and has_any_path)
         if has_endpoint:

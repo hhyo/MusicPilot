@@ -88,7 +88,6 @@ class OrchestrationRepository:
             subscription_id=subscription.id,
             execution_status="queued",
             matched_candidates_count=0,
-            dispatch_recommendation="pending",
             mock=True,
             note=note,
         )
@@ -106,7 +105,6 @@ class OrchestrationRepository:
         *,
         execution_status: str,
         matched_candidates_count: int,
-        dispatch_recommendation: str,
         summary_json: dict,
         search_job_id: str | None = None,
         organize_record_id: str | None = None,
@@ -115,7 +113,6 @@ class OrchestrationRepository:
         run.search_job_id = search_job_id
         run.execution_status = execution_status
         run.matched_candidates_count = matched_candidates_count
-        run.dispatch_recommendation = dispatch_recommendation
         run.summary_json = summary_json
         run.organize_record_id = organize_record_id
         run.error_message = error_message

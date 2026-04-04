@@ -124,7 +124,6 @@ class SearchJobCreateRequest(BaseModel):
     query_source_id: str
     trigger_source: TriggerSource = TriggerSource.MANUAL
     profile_id: str = "default-lossless"
-    strategy: str = "balanced"
     mode: Literal["manual", "auto"] = "manual"
     preferences: QueryPreferences = Field(default_factory=QueryPreferences)
 
@@ -135,7 +134,6 @@ class SearchJobSummary(BaseModel):
     query_source_id: str
     trigger_source: TriggerSource
     profile_id: str
-    strategy: str
     mode: str
     status: JobStatus
     created_at: datetime

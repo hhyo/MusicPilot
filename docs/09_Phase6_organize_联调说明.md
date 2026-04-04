@@ -44,7 +44,6 @@ MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
 MUSICPILOT_HOST_HISTORY_DOWNLOAD_PATH=/api/v1/history/download
 MUSICPILOT_HOST_HISTORY_TRANSFER_PATH=/api/v1/history/transfer
 MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
-MUSICPILOT_HOST_FALLBACK_TO_MOCK=true
 
 MUSICPILOT_ORGANIZE_LIBRARY_TYPE=music
 MUSICPILOT_ORGANIZE_ROOT_PATH=/library/musicpilot/library
@@ -60,7 +59,7 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
   - 永远使用 mock organize adapter。
 - `prefer_host`
   - organize capability 可用时优先走 host-backed preview/apply skeleton。
-  - 若 capability 缺失、配置缺失或运行失败，且 `MUSICPILOT_HOST_FALLBACK_TO_MOCK=true`，则自动回退到 mock。
+  - 当前已不再把它当成业务失败时的自动 mock 回退开关。
 - `strict_host`
   - 要求必须使用 host-backed organize adapter。
   - 若 capability 缺失或配置不完整，接口会明确失败，不会静默回退。
@@ -121,8 +120,8 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
    - `MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host`
 2. SearchJob 候选只有远端 torrent context，且 dispatch 还没有成功写回本地路径
 3. 预期：
-   - organize 会自动回退到 mock
-   - `fallback_reason` 会体现 `moviepilot_transfer_source_path_missing`
+   - organize 会直接失败
+   - 错误里会体现 `moviepilot_transfer_source_path_missing`
 
 ### D. prefer_host 但 capability 不足
 
@@ -131,8 +130,8 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
    - `MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host`
 2. 不配置合法 `HOST_BASE_URL` 或 organize path
 3. 预期：
-   - organize 会自动回退到 mock
-   - 返回中出现 `fallback_reason=host_capability_unavailable` 或同类原因
+   - organize 会明确失败
+   - 返回中出现 `host_capability_unavailable` 或同类原因
 
 ### E. 本地 host stub + prefer_host
 
