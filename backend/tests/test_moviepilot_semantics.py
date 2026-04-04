@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import subprocess
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from app.adapters.download_dispatch import RealDownloadDispatchAdapter
 from app.adapters.host_http import HostTransportError
 from app.adapters.host_search import RealHostSearchAdapter
+from app.adapters.host_transfer_runtime import HostTransferRuntimeBridge
 from app.adapters.organize import RealOrganizeAdapter
 from app.core.config import Settings
 from app.schemas.acquisition import SearchCandidateDetail
@@ -42,6 +46,19 @@ class FakeHostClient:
         if isinstance(response, Exception):
             raise response
         return response
+
+
+class FakeTransferRuntime:
+    def __init__(self, *, response=None, error: Exception | None = None):
+        self.response = response or {"success": True, "organize_status": "applied", "message": ""}
+        self.error = error
+        self.calls: list[dict] = []
+
+    def manual_transfer(self, **kwargs):  # noqa: ANN003
+        self.calls.append(kwargs)
+        if self.error is not None:
+            raise self.error
+        return self.response
 
 
 def build_settings(**overrides) -> Settings:  # noqa: ANN003
@@ -412,16 +429,18 @@ class RealOrganizeAdapterTest(unittest.TestCase):
         candidate = build_candidate(
             raw_payload={"host_transfer_source_path": "/downloads/nonexistent-file.flac", "host_transfer_filetype": "file"}
         )
-        client = FakeHostClient(
-            post_responses={
-                "/api/v1/transfer/manual": {
-                    "success": False,
-                    "message": "nonexistent-file.flac 没有找到可整理的媒体文件",
-                    "data": {},
-                }
+        runtime = FakeTransferRuntime(
+            response={
+                "success": False,
+                "organize_status": "failed",
+                "message": "nonexistent-file.flac 没有找到可整理的媒体文件",
             }
         )
-        adapter = RealOrganizeAdapter(settings=build_settings(), client=client)  # type: ignore[arg-type]
+        adapter = RealOrganizeAdapter(
+            settings=build_settings(),
+            client=FakeHostClient(),  # type: ignore[arg-type]
+            transfer_runtime=runtime,
+        )
 
         result = adapter.apply(
             organize_job_id="organize-001",
@@ -435,10 +454,74 @@ class RealOrganizeAdapterTest(unittest.TestCase):
         self.assertEqual(result.organize_status, OrganizeStatus.FAILED)
         self.assertEqual(result.verification_state, VerificationState.VERIFIED)
         self.assertIn("没有找到可整理的媒体文件", result.failure_reason or "")
-        payload = client.calls[0][3]["payload"]
-        self.assertEqual(payload["fileitem"]["path"], "/downloads/nonexistent-file.flac")
-        self.assertEqual(payload["fileitem"]["storage"], "local")
-        self.assertEqual(payload["fileitem"]["type"], "file")
+        self.assertEqual(runtime.calls[0]["fileitem"]["path"], "/downloads/nonexistent-file.flac")
+        self.assertEqual(runtime.calls[0]["fileitem"]["storage"], "local")
+        self.assertEqual(runtime.calls[0]["fileitem"]["type"], "file")
+        self.assertEqual(runtime.calls[0]["target_path"], "/library/music")
+
+    def test_apply_maps_manual_transfer_success(self) -> None:
+        candidate = build_candidate(
+            raw_payload={"host_transfer_source_path": "/downloads/Adele-25.flac", "host_transfer_filetype": "file"}
+        )
+        runtime = FakeTransferRuntime(
+            response={
+                "success": True,
+                "organize_status": "applied",
+                "message": "",
+            }
+        )
+        adapter = RealOrganizeAdapter(
+            settings=build_settings(),
+            client=FakeHostClient(),  # type: ignore[arg-type]
+            transfer_runtime=runtime,
+        )
+
+        result = adapter.apply(
+            organize_job_id="organize-002",
+            candidate=candidate,
+            metadata_detail=None,
+            binding_id=None,
+            plan=build_plan(),
+        )
+
+        self.assertEqual(result.organize_backend, AdapterMode.HOST)
+        self.assertEqual(result.organize_status, OrganizeStatus.APPLIED)
+        self.assertEqual(result.verification_state, VerificationState.VERIFIED)
+        self.assertEqual(
+            result.integration_point,
+            "RealOrganizeAdapter.apply.moviepilot_transfer_chain_manual_transfer",
+        )
+
+
+class HostTransferRuntimeBridgeTest(unittest.TestCase):
+    def test_manual_transfer_parses_direct_runtime_result(self) -> None:
+        bridge = HostTransferRuntimeBridge()
+        completed = subprocess.CompletedProcess(
+            args=["python"],
+            returncode=0,
+            stdout='noise\n__MUSICPILOT_TRANSFER_RESULT__={"success": true, "organize_status": "applied", "message": ""}\n',
+            stderr="",
+        )
+
+        with (
+            patch.object(HostTransferRuntimeBridge, "_resolve_host_root", return_value=Path("/stub/MoviePilot")),
+            patch("app.adapters.host_transfer_runtime.subprocess.run", return_value=completed),
+        ):
+            result = bridge.manual_transfer(
+                fileitem={
+                    "storage": "local",
+                    "path": "/downloads/Adele-25.flac",
+                    "type": "file",
+                    "name": "Adele-25.flac",
+                    "basename": "Adele-25",
+                    "extension": ".flac",
+                },
+                target_path="/library/music",
+                transfer_type="copy",
+            )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["organize_status"], "applied")
 
 
 class HostPathHandoffServiceTest(unittest.TestCase):

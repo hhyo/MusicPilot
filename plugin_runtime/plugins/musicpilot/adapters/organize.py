@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from .host_http import HostHttpClient, HostTransportError
+from .host_transfer_runtime import HostTransferRuntimeBridge
 from ..core.config import Settings
 from ..schemas.acquisition import PathHandoffInfo, SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterSelectionMode, VerificationState
@@ -142,7 +143,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
     Phase 7A verified that MoviePilot does not expose a native ``/organize/preview`` /
     ``/organize/apply`` pair. The closest real host semantics are:
     - ``GET /api/v1/transfer/name`` for naming preview.
-    - ``POST /api/v1/transfer/manual`` for manual transfer/apply.
+    - ``TransferChain.manual_transfer(...)`` for manual transfer/apply.
     """
 
     def __init__(
@@ -150,9 +151,11 @@ class RealOrganizeAdapter(OrganizeAdapter):
         *,
         settings: Settings,
         client: HostHttpClient,
+        transfer_runtime: HostTransferRuntimeBridge | None = None,
     ):
         self.settings = settings
         self.client = client
+        self.transfer_runtime = transfer_runtime or HostTransferRuntimeBridge()
 
     def preview(
         self,
@@ -242,16 +245,17 @@ class RealOrganizeAdapter(OrganizeAdapter):
                 reason_code="moviepilot_transfer_source_path_missing",
             )
 
-        payload = self._build_manual_payload(
+        runtime_payload = self._build_manual_transfer_args(
             candidate=candidate,
             source=source,
             plan=plan,
         )
-        data = self.client.post_json(
-            self.settings.host_transfer_manual_path,
-            payload,
-            params={"background": "false"},
-            auth_mode="x_api_key",
+        data = self.transfer_runtime.manual_transfer(
+            fileitem=runtime_payload["fileitem"],
+            target_path=runtime_payload["target_path"],
+            transfer_type=runtime_payload["transfer_type"],
+            scrape=bool(runtime_payload.get("scrape", False)),
+            background=bool(runtime_payload.get("background", False)),
         )
         success = bool(data.get("success"))
         default_status = OrganizeStatus.APPLIED if success else OrganizeStatus.FAILED
@@ -259,19 +263,18 @@ class RealOrganizeAdapter(OrganizeAdapter):
             payload=data,
             default_status=default_status,
             default_note=(
-                "当前 organize apply 映射到了真实 MoviePilot `/api/v1/transfer/manual`。"
-                "Phase 7B 已拿到真实 `success=true` 的最小手动整理样例。"
-                "但真实文件移动、硬链接、刮削入库和媒体库刷新仍未被本仓库宣称为全部已验证。"
+                "当前 organize apply 通过隔离宿主运行时直调 MoviePilot `TransferChain.manual_transfer(...)`。"
+                "MusicPilot 仍负责 organize input 解析、计划生成和结果记录；宿主内的整理执行保持原生语义。"
             ),
-            integration_point="RealOrganizeAdapter.apply.moviepilot_transfer_manual",
+            integration_point="RealOrganizeAdapter.apply.moviepilot_transfer_chain_manual_transfer",
             plan=plan,
-            capability_source="moviepilot.runtime.transfer.manual",
+            capability_source="moviepilot.runtime.transfer.manual_transfer",
             verification_state=VerificationState.VERIFIED,
             organizeable=success,
             path_handoff=_extract_candidate_path_handoff(candidate),
         )
 
-    def _build_manual_payload(
+    def _build_manual_transfer_args(
         self,
         *,
         candidate: SearchCandidateDetail,
@@ -291,7 +294,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
             "target_path": plan.target_library_path,
             "transfer_type": self.settings.organize_transfer_type,
             "scrape": False,
-            "from_history": False,
+            "background": False,
         }
 
     def _build_result(

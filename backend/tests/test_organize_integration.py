@@ -5,14 +5,28 @@ from __future__ import annotations
 import unittest
 
 from fastapi import HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.adapters.organize import OrganizeAdapter
+from app.models.acquisition import SearchCandidateModel, SearchJobModel
+from app.models.base import Base
 from app.schemas.integration import AdapterMode
-from app.schemas.orchestration import OrganizeAdapterResult, OrganizeStatus
-from app.services.host_integration import HostIntegrationService, OrganizeAdapterResolver
+from app.schemas.orchestration import (
+    OrganizeAdapterResult,
+    OrganizeApplyRequest,
+    OrganizeConflictPolicy,
+    OrganizeStatus,
+    OrganizeStrategySnapshot,
+)
+from app.services.host_integration import HostIntegrationService, OrganizeAdapterResolver, OrganizeExecutionResult
+from app.services.host_path_handoff import HostPathHandoffService
+from app.services.organize import OrganizeService
 from app.services.organize_strategy import OrganizeStrategyService
+from app.repositories.orchestration import OrchestrationRepository
 
 from test_host_integration import DummyProbeAdapter, build_candidate, build_settings
+from test_moviepilot_semantics import FakeHostClient
 from test_query_builder import build_album_detail
 
 
@@ -56,6 +70,17 @@ class DummyBrokenHostOrganizeAdapter(OrganizeAdapter):
 
     def apply(self, *, organize_job_id, candidate, metadata_detail, binding_id=None, plan):  # type: ignore[override]
         raise RuntimeError("host organize apply boom")
+
+
+class DummyApplyResolver:
+    def __init__(self, result: OrganizeAdapterResult):
+        self.result = result
+
+    def preview(self, *, candidate, metadata_detail, binding_id=None, plan):  # pragma: no cover - not used
+        raise NotImplementedError
+
+    def apply(self, *, organize_job_id, candidate, metadata_detail, binding_id=None, plan):
+        return OrganizeExecutionResult(result=self.result, resolution=self.result.adapter_resolution)
 
 
 class OrganizeIntegrationTest(unittest.TestCase):
@@ -152,6 +177,106 @@ class OrganizeIntegrationTest(unittest.TestCase):
 
         with self.assertRaises(HTTPException):
             resolver.preview(candidate=candidate, metadata_detail=detail, binding_id=None, plan=plan)
+
+    def test_organize_service_apply_updates_record_after_direct_host_result(self) -> None:
+        engine = create_engine("sqlite:///:memory:", future=True)
+        Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+        Base.metadata.create_all(bind=engine)
+        session = Session()
+        try:
+            job = SearchJobModel(
+                id="job-apply-001",
+                query_source_type="album",
+                query_source_id="album-001",
+                trigger_source="manual",
+                query_payload={},
+                metadata_snapshot={},
+                summary_json={},
+            )
+            candidate = SearchCandidateModel(
+                id="cand-apply-001",
+                job_id=job.id,
+                site_id="site-1",
+                site_name="Stub PT",
+                title="Adele - 25",
+                normalized_title="adele 25",
+                size_bytes=1024,
+                seeders=1,
+                peers=0,
+                source_tags=[],
+                score_breakdown={},
+                reason_codes=[],
+                raw_payload={
+                    "host_transfer_source_path": "/downloads/Adele-25.flac",
+                    "host_transfer_filetype": "file",
+                },
+            )
+            session.add(job)
+            session.add(candidate)
+            session.commit()
+
+            repository = OrchestrationRepository(session)
+            preview_result = OrganizeAdapterResult(
+                organizeable=True,
+                organize_backend=AdapterMode.HOST,
+                adapter_mode=AdapterMode.HOST,
+                strategy="music_default_layout",
+                strategy_snapshot=OrganizeStrategySnapshot(
+                    strategy_name="music_default_layout",
+                    library_type="music",
+                    root_path="/library/music",
+                    artist_dir_template="{artist_name}",
+                    album_dir_template="{artist_name}/{year} - {album_title}",
+                    track_file_template="{track_title}.{format_ext}",
+                    conflict_policy=OrganizeConflictPolicy.SKIP_EXISTING,
+                    template_note="test",
+                ),
+                organize_status=OrganizeStatus.PREVIEW_READY,
+                target_library_path="/library/music",
+                target_relative_path="Adele/2015 - 25/01 - Hello.flac",
+                strategy_note="preview",
+                integration_point="DummyPreview",
+                capability_source="test",
+                mock=False,
+                note="preview",
+            )
+            record = repository.create_organize_record(
+                subscription_run_id=None,
+                search_job_id=job.id,
+                candidate_id=candidate.id,
+                binding_id=None,
+                result=preview_result,
+            )
+            session.commit()
+            session.refresh(record)
+
+            apply_result = preview_result.model_copy(
+                update={
+                    "organize_status": OrganizeStatus.APPLIED,
+                    "integration_point": "DummyDirectResolver.apply",
+                    "note": "applied",
+                }
+            )
+            service = OrganizeService(
+                session=session,
+                resolver=DummyApplyResolver(apply_result),  # type: ignore[arg-type]
+                strategy_service=OrganizeStrategyService(build_settings()),
+                path_handoff_service=HostPathHandoffService(
+                    settings=build_settings(),
+                    client=FakeHostClient(),  # type: ignore[arg-type]
+                ),
+            )
+
+            result = service.apply(OrganizeApplyRequest(organize_job_id=record.id))
+
+            self.assertEqual(result.organize_status, OrganizeStatus.APPLIED)
+            self.assertEqual(result.integration_point, "DummyDirectResolver.apply")
+            refreshed = repository.get_organize_record(record.id)
+            self.assertIsNotNone(refreshed)
+            self.assertEqual(refreshed.organize_status, "applied")
+            self.assertEqual(refreshed.integration_point, "DummyDirectResolver.apply")
+        finally:
+            session.close()
 
 
 if __name__ == "__main__":
