@@ -99,6 +99,28 @@ class CapturingApplyResolver:
 
 
 class OrganizeIntegrationTest(unittest.TestCase):
+    def _build_strategy_snapshot(self) -> OrganizeStrategySnapshot:
+        return OrganizeStrategySnapshot(
+            strategy_name="music_default_layout",
+            library_type="music",
+            root_path="/library/music",
+            artist_dir_template="{artist_name}",
+            album_dir_template="{artist_name}/{year} - {album_title}",
+            track_file_template="{track_title}.{format_ext}",
+            conflict_policy=OrganizeConflictPolicy.SKIP_EXISTING,
+            template_note="test",
+        )
+
+    def _build_music_context(self) -> dict[str, str]:
+        return {
+            "artist_name": "adele",
+            "album_title": "25",
+            "track_title": "hello",
+            "title": "hello",
+            "year": "2015",
+            "format_ext": "flac",
+        }
+
     def test_music_metadata_resolver_prefers_track_detail_fields(self) -> None:
         from app.services.music_metadata import MusicMetadataResolver
 
@@ -154,6 +176,58 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.title, "adele")
         self.assertEqual(result.year, "2008")
         self.assertEqual(result.format_ext, "aac")
+
+    def test_music_layout_planner_uses_artist_template_for_artist_entity(self) -> None:
+        from app.services.music_layout import MusicLayoutPlanner
+
+        planner = MusicLayoutPlanner()
+
+        path = planner.build_relative_path(
+            snapshot=self._build_strategy_snapshot(),
+            context=self._build_music_context(),
+            metadata_detail=build_artist_detail(),
+        )
+
+        self.assertEqual(path, "adele")
+
+    def test_music_layout_planner_uses_album_template_for_album_entity(self) -> None:
+        from app.services.music_layout import MusicLayoutPlanner
+
+        planner = MusicLayoutPlanner()
+
+        path = planner.build_relative_path(
+            snapshot=self._build_strategy_snapshot(),
+            context=self._build_music_context(),
+            metadata_detail=build_album_detail(),
+        )
+
+        self.assertEqual(path, "adele/2015 - 25")
+
+    def test_music_layout_planner_uses_album_plus_track_for_track_entity(self) -> None:
+        from app.services.music_layout import MusicLayoutPlanner
+
+        planner = MusicLayoutPlanner()
+
+        path = planner.build_relative_path(
+            snapshot=self._build_strategy_snapshot(),
+            context=self._build_music_context(),
+            metadata_detail=build_track_detail(),
+        )
+
+        self.assertEqual(path, "adele/2015 - 25/hello.flac")
+
+    def test_music_layout_planner_falls_back_to_artist_template_when_metadata_missing(self) -> None:
+        from app.services.music_layout import MusicLayoutPlanner
+
+        planner = MusicLayoutPlanner()
+
+        path = planner.build_relative_path(
+            snapshot=self._build_strategy_snapshot(),
+            context=self._build_music_context(),
+            metadata_detail=None,
+        )
+
+        self.assertEqual(path, "adele")
 
     def test_strategy_service_builds_album_relative_path(self) -> None:
         candidate = build_candidate()

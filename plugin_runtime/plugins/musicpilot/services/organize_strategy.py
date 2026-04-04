@@ -1,8 +1,7 @@
-"""Music organize path planning for preview/apply flows."""
+"""Music organize plan assembly for preview/apply flows."""
 
 from __future__ import annotations
 
-import re
 from pathlib import PurePosixPath
 
 from ..core.config import Settings
@@ -13,13 +12,21 @@ from ..schemas.orchestration import (
     OrganizePlan,
     OrganizeStrategySnapshot,
 )
+from .music_layout import MusicLayoutPlanner
 from .music_metadata import MusicMetadataResolver
 
 
 class OrganizeStrategyService:
-    def __init__(self, settings: Settings, *, metadata_resolver: MusicMetadataResolver | None = None):
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        metadata_resolver: MusicMetadataResolver | None = None,
+        layout_planner: MusicLayoutPlanner | None = None,
+    ):
         self.settings = settings
         self.metadata_resolver = metadata_resolver or MusicMetadataResolver()
+        self.layout_planner = layout_planner or MusicLayoutPlanner()
 
     def build_plan(
         self,
@@ -50,7 +57,11 @@ class OrganizeStrategyService:
             "year": metadata.year,
             "format_ext": metadata.format_ext,
         }
-        target_relative_path = self._resolve_relative_path(snapshot=snapshot, context=context, metadata_detail=metadata_detail)
+        target_relative_path = self.layout_planner.build_relative_path(
+            snapshot=snapshot,
+            context=context,
+            metadata_detail=metadata_detail,
+        )
         target_library_path = str(PurePosixPath(snapshot.root_path) / target_relative_path)
 
         return OrganizePlan(
@@ -63,30 +74,3 @@ class OrganizeStrategyService:
                 f"album template `{snapshot.album_dir_template}`, track template `{snapshot.track_file_template}`."
             ),
         )
-
-    def _resolve_relative_path(
-        self,
-        *,
-        snapshot: OrganizeStrategySnapshot,
-        context: dict[str, str],
-        metadata_detail: MetadataDetail | None,
-    ) -> str:
-        if metadata_detail is None:
-            return self._render_template(snapshot.artist_dir_template, context)
-
-        if metadata_detail.entity_type == "artist":
-            return self._render_template(snapshot.artist_dir_template, context)
-
-        if metadata_detail.entity_type == "album":
-            return self._render_template(snapshot.album_dir_template, context)
-
-        album_dir = self._render_template(snapshot.album_dir_template, context)
-        track_file = self._render_template(snapshot.track_file_template, context)
-        return str(PurePosixPath(album_dir) / track_file)
-
-    def _render_template(self, template: str, context: dict[str, str]) -> str:
-        rendered = template
-        for key, value in context.items():
-            rendered = rendered.replace(f"{{{key}}}", value)
-        rendered = re.sub(r"/{2,}", "/", rendered).strip("/")
-        return rendered or "unknown"
