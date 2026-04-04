@@ -1,5 +1,7 @@
 # 19. organize apply 运行态验证
 
+> 历史记录：本文记录的是早期 `manual_transfer(...)` 直调迁移实验的运行态验证结果。当前仓库中的 `organize apply` 已经不再走 `TransferChain.manual_transfer(...)`，而是改为通过宿主底层 file/storage transfer runtime 执行音乐文件整理。
+
 ## 19.1 验证范围
 
 本轮只验证三件事：
@@ -15,9 +17,9 @@
 - `history` 迁移
 - 搜索、下载主链路
 
-## 19.2 当前代码层状态
+## 19.2 当时的代码层状态
 
-当前代码层迁移已经完成：
+当时的代码层迁移已经完成：
 
 - `POST /api/v1/plugin/musicpilot/organize/apply`
 - `OrganizeService.apply()`
@@ -25,7 +27,7 @@
 - `HostTransferRuntimeBridge.manual_transfer()`
 - `TransferChain.manual_transfer(...)`
 
-当前 `apply` 已不再走 `/api/v1/transfer/manual` 的 HTTP 映射。
+当时的 `apply` 已不再走 `/api/v1/transfer/manual` 的 HTTP 映射。
 
 ## 19.3 验证环境
 
@@ -181,9 +183,9 @@
 - 本轮对 `preview` 的验证只证明“路由和返回结构未被 apply 迁移破坏”
 - 不代表本轮同时完成了 `preview` 的真实宿主成功验证
 
-## 19.8 结论
+## 19.8 历史结论
 
-### 已确认
+### 当时已确认
 
 - 代码层迁移：`done`
 - 直调入口替换：`done`
@@ -191,15 +193,15 @@
 - 失败路径写回兼容：`done`
 - preview / record / API 未受影响：`done`
 
-### 尚未确认
+### 当时尚未确认
 
 - “在本地真实宿主运行态中，`TransferChain.manual_transfer(...)` 成功执行并回写 `APPLIED`”
 
-### 当前最后阻塞点
+### 当时最后阻塞点
 
 - 还缺一个会被宿主成功识别并完成整理的本地样本
 
-### 下一步只需要什么
+### 当时判断的下一步
 
 下一步优先需要的是：
 
@@ -210,9 +212,23 @@
 - 继续改 apply 接入层
 - 继续改 preview / path handoff / history
 
-换句话说，本轮结论是：
+换句话说，当时这轮的结论是：
 
-- 代码迁移已经完成
+- `manual_transfer(...)` 直调迁移已经完成
 - 运行态前置环境已经满足
 - 直调链路已经进入宿主 organize 业务层
-- 当前未完成的是“成功样例验证”，不是接入层打通
+- 当时未完成的是“成功样例验证”，不是接入层打通
+
+## 19.9 当前状态说明
+
+当前仓库已经不再以这条影视 `manual_transfer(...)` 路径作为 `organize apply` 主实现。
+
+当前主实现改为：
+
+- MusicPilot 负责音乐 organize input 解析、目标路径规划与 record 回写
+- 宿主仅复用底层 file/storage transfer 能力执行文件整理
+
+对应说明见：
+
+- [23_音乐文件整理技术设计与实现方案.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/23_%E9%9F%B3%E4%B9%90%E6%96%87%E4%BB%B6%E6%95%B4%E7%90%86%E6%8A%80%E6%9C%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%E6%96%B9%E6%A1%88.md)
+- [24_插件正式化遗留清理TODO.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/24_%E6%8F%92%E4%BB%B6%E6%AD%A3%E5%BC%8F%E5%8C%96%E9%81%97%E7%95%99%E6%B8%85%E7%90%86TODO.md)

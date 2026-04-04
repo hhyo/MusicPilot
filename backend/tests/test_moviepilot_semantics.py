@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-import json
-import subprocess
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from app.adapters.download_dispatch import RealDownloadDispatchAdapter
 from app.adapters.host_http import HostTransportError
 from app.adapters.host_search import RealHostSearchAdapter
 from app.adapters.host_storage_runtime import HostStorageRuntimeBridge
-from app.adapters.host_transfer_runtime import HostTransferRuntimeBridge
 from app.adapters.organize import RealOrganizeAdapter
 from app.core.config import Settings
 from app.schemas.acquisition import SearchCandidateDetail
@@ -74,6 +72,98 @@ class FakeStorageRuntime:
         if self.error is not None:
             raise self.error
         return self.response
+
+
+class FakeStorageOper:
+    def __init__(
+        self,
+        *,
+        existing_paths: set[str] | None = None,
+        folder_exists: bool = True,
+        transfer_success: bool = True,
+    ):
+        self.existing_paths = existing_paths or set()
+        self.folder_exists = folder_exists
+        self.transfer_success = transfer_success
+        self.calls: list[tuple[str, tuple]] = []
+
+    def get_item(self, path):  # noqa: ANN001
+        normalized = Path(path).as_posix()
+        if normalized in self.existing_paths:
+            return SimpleNamespace(path=normalized, type="file", storage="local")
+        return None
+
+    def get_folder(self, path):  # noqa: ANN001
+        normalized = Path(path).as_posix()
+        self.calls.append(("get_folder", (normalized,)))
+        if self.folder_exists:
+            return SimpleNamespace(path=normalized, type="dir", storage="local")
+        return None
+
+    def copy(self, source_item, target_parent, target_name):  # noqa: ANN001
+        self.calls.append(("copy", (source_item.path, Path(target_parent).as_posix(), target_name)))
+        return self.transfer_success
+
+    def move(self, source_item, target_parent, target_name):  # noqa: ANN001
+        self.calls.append(("move", (source_item.path, Path(target_parent).as_posix(), target_name)))
+        return self.transfer_success
+
+    def link(self, source_item, target_file):  # noqa: ANN001
+        self.calls.append(("link", (source_item.path, Path(target_file).as_posix())))
+        return self.transfer_success
+
+    def softlink(self, source_item, target_file):  # noqa: ANN001
+        self.calls.append(("softlink", (source_item.path, Path(target_file).as_posix())))
+        return self.transfer_success
+
+
+class FakeManagerModule:
+    def __init__(
+        self,
+        *,
+        source_item=None,
+        supported_types: dict[str, bool] | None = None,
+        source_oper: FakeStorageOper | None = None,
+        target_oper: FakeStorageOper | None = None,
+    ):
+        self.source_item = source_item
+        self.supported_types = supported_types or {"copy": True, "move": True, "link": True, "softlink": True}
+        self.source_oper = source_oper or FakeStorageOper()
+        self.target_oper = target_oper or FakeStorageOper()
+        self.calls: list[tuple[str, tuple]] = []
+
+    @classmethod
+    def for_copy_success(cls, *, source_path: str, target_root: str) -> "FakeManagerModule":
+        source_item = SimpleNamespace(path=source_path, type="file", storage="local")
+        source_oper = FakeStorageOper()
+        target_oper = FakeStorageOper()
+        manager = cls(
+            source_item=source_item,
+            source_oper=source_oper,
+            target_oper=target_oper,
+        )
+        target_oper.get_folder(Path(target_root))
+        target_oper.calls.clear()
+        return manager
+
+    def get_file_item(self, *, storage, path):  # noqa: ANN001
+        normalized = Path(path).as_posix()
+        self.calls.append(("get_file_item", (storage, normalized)))
+        if self.source_item and storage == self.source_item.storage and normalized == self.source_item.path:
+            return self.source_item
+        return None
+
+    def support_transtype(self, target_storage):  # noqa: ANN001
+        self.calls.append(("support_transtype", (target_storage,)))
+        return self.supported_types
+
+    def get_storage_oper(self, storage):  # noqa: ANN001
+        self.calls.append(("get_storage_oper", (storage,)))
+        if storage == "local":
+            if self.source_item and storage == self.source_item.storage:
+                return self.source_oper
+            return self.target_oper
+        return None
 
 
 def build_settings(**overrides) -> Settings:  # noqa: ANN003
@@ -576,19 +666,21 @@ class RealOrganizeAdapterTest(unittest.TestCase):
 
 
 class HostStorageRuntimeBridgeTest(unittest.TestCase):
-    def test_transfer_file_parses_direct_runtime_result(self) -> None:
+    def test_transfer_file_uses_in_process_manager(self) -> None:
         bridge = HostStorageRuntimeBridge()
-        completed = subprocess.CompletedProcess(
-            args=["python"],
-            returncode=0,
-            stdout='noise\n__MUSICPILOT_STORAGE_RESULT__={"success": true, "organize_status": "applied", "message": "", "target_path": "/library/music/Adele/2015 - 25/hello.flac"}\n',
-            stderr="",
+        source_oper = FakeStorageOper()
+        target_oper = FakeStorageOper()
+        fake_manager = FakeManagerModule(
+            source_item=SimpleNamespace(
+                path="/downloads/Adele/25/01 - Hello.flac",
+                type="file",
+                storage="local",
+            ),
+            source_oper=source_oper,
+            target_oper=target_oper,
         )
 
-        with (
-            patch.object(HostStorageRuntimeBridge, "_resolve_host_root", return_value=Path("/stub/MoviePilot")),
-            patch("app.adapters.host_storage_runtime.subprocess.run", return_value=completed),
-        ):
+        with patch.object(HostStorageRuntimeBridge, "_build_manager", return_value=fake_manager):
             result = bridge.transfer_file(
                 source_fileitem={
                     "storage": "local",
@@ -608,21 +700,27 @@ class HostStorageRuntimeBridgeTest(unittest.TestCase):
 
         self.assertTrue(result["success"])
         self.assertEqual(result["organize_status"], "applied")
+        self.assertEqual(result["target_path"], "/library/music/Adele/2015 - 25/hello.flac")
+        self.assertEqual(fake_manager.calls[0], ("get_file_item", ("local", "/downloads/Adele/25/01 - Hello.flac")))
+        self.assertIn(("support_transtype", ("local",)), fake_manager.calls)
+        self.assertIn(("copy", ("/downloads/Adele/25/01 - Hello.flac", "/library/music/Adele/2015 - 25", "hello.flac")), source_oper.calls)
 
-    def test_transfer_file_forwards_payload(self) -> None:
+    def test_transfer_file_forwards_conflict_policy_to_target_resolution(self) -> None:
         bridge = HostStorageRuntimeBridge()
-        completed = subprocess.CompletedProcess(
-            args=["python"],
-            returncode=0,
-            stdout='__MUSICPILOT_STORAGE_RESULT__={"success": true, "organize_status": "applied", "message": "", "target_path": "/library/music/Adele/2015 - 25/hello.flac"}\n',
-            stderr="",
+        source_oper = FakeStorageOper(existing_paths={"/library/music/Adele/2015 - 25/hello.flac"})
+        target_oper = FakeStorageOper(existing_paths={"/library/music/Adele/2015 - 25/hello.flac"})
+        fake_manager = FakeManagerModule(
+            source_item=SimpleNamespace(
+                path="/downloads/Adele/25/01 - Hello.flac",
+                type="file",
+                storage="local",
+            ),
+            source_oper=source_oper,
+            target_oper=target_oper,
         )
 
-        with (
-            patch.object(HostStorageRuntimeBridge, "_resolve_host_root", return_value=Path("/stub/MoviePilot")),
-            patch("app.adapters.host_storage_runtime.subprocess.run", return_value=completed) as mocked_run,
-        ):
-            bridge.transfer_file(
+        with patch.object(HostStorageRuntimeBridge, "_build_manager", return_value=fake_manager):
+            result = bridge.transfer_file(
                 source_fileitem={
                     "storage": "local",
                     "path": "/downloads/Adele/25/01 - Hello.flac",
@@ -639,79 +737,8 @@ class HostStorageRuntimeBridgeTest(unittest.TestCase):
                 conflict_policy="append_suffix",
             )
 
-        payload = json.loads(mocked_run.call_args.kwargs["input"])
-        self.assertEqual(payload["source_fileitem"]["path"], "/downloads/Adele/25/01 - Hello.flac")
-        self.assertEqual(payload["target_directory"], "/library/music/Adele/2015 - 25")
-        self.assertEqual(payload["target_filename"], "hello.flac")
-        self.assertEqual(payload["transfer_type"], "copy")
-        self.assertEqual(payload["conflict_policy"], "append_suffix")
-
-
-class HostTransferRuntimeBridgeTest(unittest.TestCase):
-    def test_manual_transfer_parses_direct_runtime_result(self) -> None:
-        bridge = HostTransferRuntimeBridge()
-        completed = subprocess.CompletedProcess(
-            args=["python"],
-            returncode=0,
-            stdout='noise\n__MUSICPILOT_TRANSFER_RESULT__={"success": true, "organize_status": "applied", "message": ""}\n',
-            stderr="",
-        )
-
-        with (
-            patch.object(HostTransferRuntimeBridge, "_resolve_host_root", return_value=Path("/stub/MoviePilot")),
-            patch("app.adapters.host_transfer_runtime.subprocess.run", return_value=completed),
-        ):
-            result = bridge.manual_transfer(
-                fileitem={
-                    "storage": "local",
-                    "path": "/downloads/Adele-25.flac",
-                    "type": "file",
-                    "name": "Adele-25.flac",
-                    "basename": "Adele-25",
-                    "extension": ".flac",
-                },
-                target_path="/library/music",
-                transfer_type="copy",
-            )
-
         self.assertTrue(result["success"])
-        self.assertEqual(result["organize_status"], "applied")
-
-    def test_manual_transfer_forwards_optional_context_fields(self) -> None:
-        bridge = HostTransferRuntimeBridge()
-        completed = subprocess.CompletedProcess(
-            args=["python"],
-            returncode=0,
-            stdout='__MUSICPILOT_TRANSFER_RESULT__={"success": true, "organize_status": "applied", "message": ""}\n',
-            stderr="",
-        )
-
-        with (
-            patch.object(HostTransferRuntimeBridge, "_resolve_host_root", return_value=Path("/stub/MoviePilot")),
-            patch("app.adapters.host_transfer_runtime.subprocess.run", return_value=completed) as mocked_run,
-        ):
-            bridge.manual_transfer(
-                fileitem={
-                    "storage": "local",
-                    "path": "/downloads/Adele-25.flac",
-                    "type": "file",
-                    "name": "Adele-25.flac",
-                    "basename": "Adele-25",
-                    "extension": ".flac",
-                },
-                target_path="/library/music",
-                transfer_type="copy",
-                tmdbid=603,
-                doubanid="1291843",
-                download_hash="stub-download-001",
-                downloader="QB",
-            )
-
-        request = json.loads(mocked_run.call_args.kwargs["input"])
-        self.assertEqual(request["tmdbid"], 603)
-        self.assertEqual(request["doubanid"], "1291843")
-        self.assertEqual(request["download_hash"], "stub-download-001")
-        self.assertEqual(request["downloader"], "QB")
+        self.assertEqual(result["target_path"], "/library/music/Adele/2015 - 25/hello (1).flac")
 
 
 class HostPathHandoffServiceTest(unittest.TestCase):

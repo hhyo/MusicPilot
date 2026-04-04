@@ -13,62 +13,39 @@
 - MusicPilot 侧生成音乐目标路径
 - `HostStorageRuntimeBridge` 复用宿主底层文件/存储操作
 
-但这条链路仍然带有明显的“开发期本地桥接”痕迹，不符合最终插件运行规范。
+当前主路径上的 bridge 已经完成正式化收口：
+
+- 不再依赖本地多仓库路径探测
+- 不再使用 `subprocess + python -c`
+- 不再通过 `sys.path` 人工注入宿主源码
+- 改为宿主进程内直接访问 host `filemanager` 模块
 
 ## 一、需要清理的临时 bridge 清单
 
-### P0：正式插件实现前必须移除
+### 已完成
 
 1. `backend/app/adapters/host_storage_runtime.py`
-   - 当前问题：
-     - 通过 `_resolve_host_root()` 猜测本地 `MoviePilot` / `MoviePilotPkg/MoviePilot` 路径
-     - 通过 `subprocess + python -c` 启动隔离解释器
-     - 通过 `sys.path.insert(0, host_root)` 人工注入宿主源码
-   - 为什么不合规：
-     - 正式插件运行时不应依赖工作区多仓库目录结构
-     - 插件应直接运行在宿主进程内，而不是额外开一个 Python 解释器
-   - 后续动作：
+   - 状态：
+     - 已完成正式化
+   - 结果：
      - 改成宿主进程内直接调用可用的 file/storage module
 
 2. `plugin_runtime/plugins/musicpilot/adapters/host_storage_runtime.py`
-   - 当前问题：
-     - 与主仓库同样的本地 bridge 逻辑被镜像到了 runtime
-   - 后续动作：
-     - 等主仓库替换为正式插件接入后同步移除 bridge 版实现
-
-### P0：目前已不再是主路径，但仍属于历史验证代码
+   - 状态：
+     - 已同步为正式化后的镜像版本
 
 3. `backend/app/adapters/host_transfer_runtime.py`
-   - 当前状态：
-     - 不再作为当前 `organize apply` 主路径
-     - 只剩历史验证价值
-   - 当前问题：
-     - 同样依赖 `_resolve_host_root()`、`subprocess`、`sys.path` 注入
-   - 后续动作：
-     - 若 preview / 其它链路不再需要这类直调验证，直接删除
+   - 状态：
+     - 已删除
 
 4. `plugin_runtime/plugins/musicpilot/adapters/host_transfer_runtime.py`
-   - 当前状态：
-     - mirror 历史验证代码
-   - 后续动作：
-     - 与主仓库同步删除
+   - 状态：
+     - 已删除
 
-### P1：宿主源码桥接里的临时兼容 hack
+### 当前剩余关注点
 
-5. `sys.modules.setdefault("app.helper.sites", ...)` 这类 stub
-   - 出现位置：
-     - `host_storage_runtime.py`
-     - `host_transfer_runtime.py`
-   - 当前问题：
-     - 这是为了让参考源码目录可导入而加的临时兜底
-   - 后续动作：
-     - 正式插件实现中必须删除
-
-6. `_resolve_host_root()` 路径探测规则
-   - 当前问题：
-     - 假设宿主源码在 `../MoviePilot` 或 `../MoviePilotPkg/MoviePilot`
-   - 后续动作：
-     - 正式插件运行时不再需要路径探测
+1. 继续评估 `preview` 是否需要正式插件内接入
+2. 继续完善音乐 metadata / layout 层，而不是再回到影视 organize 语义
 
 ## 二、需要保留的边界
 
@@ -94,42 +71,18 @@
 
 ### organize apply
 
-当前临时 bridge：
+当前正式实现：
 
 - `RealOrganizeAdapter.apply()`
 - `HostStorageRuntimeBridge.transfer_file(...)`
 - 宿主底层文件/存储模块
 
-正式版目标：
-
-- `RealOrganizeAdapter.apply()`
-- 宿主进程内可直接访问的 file/storage module
-- 不再经过：
-  - `_resolve_host_root()`
-  - `subprocess`
-  - `python -c`
-  - `sys.path` 注入
-
-### host transfer runtime
-
-当前状态：
-
-- 已不是主路径
-
-正式版目标：
-
-- 若后续没有正式用途，直接删除
-- 不再保留“为了本地源码验证而存在”的 runtime bridge
+这部分已完成，不再是待办。
 
 ## 四、推荐收敛顺序
 
-1. 先替换 `host_storage_runtime.py`
-   - 这是当前 `organize apply` 主路径上的临时 bridge
-
-2. 再删除 `host_transfer_runtime.py`
-   - 当前它已经不是主路径，更像历史验证残留
-
-3. 最后同步清掉 `plugin_runtime` 镜像中的同类文件
+1. 继续在正式化后的 `host_storage_runtime.py` 基础上补音乐元数据与命名层
+2. 保持 `plugin_runtime` 镜像同步
 
 ## 五、完成定义
 
@@ -140,25 +93,13 @@
    - `subprocess`
    - `python -c`
    - `sys.path.insert(...)`
-
-2. `host_storage_runtime.py` 被替换或删除
-
-3. `host_transfer_runtime.py` 被删除，或明确只保留在非运行时验证工具里
-
-4. `plugin_runtime` 中不再残留上述 bridge 镜像
-
-5. 运行时不再依赖本地多仓库目录结构
+2. `host_transfer_runtime.py` 已删除
+3. `plugin_runtime` 中不再残留上述 bridge 镜像
+4. 运行时不再依赖本地多仓库目录结构
 
 ## 六、补充说明
 
-这份 TODO 的作用是防止后续遗漏，不表示当前实现无效。
+这份 TODO 现在主要作为收口记录保留：
 
-当前 bridge 实现仍有现实价值：
-
-- 它帮助验证了宿主底层能力是否可复用
-- 它帮助确认了影视 organize 语义与音乐 organize 语义不一致
-
-但它的定位应该明确为：
-
-- 开发期验证实现
-- 不是最终插件规范实现
+- 它记录了哪些开发期 bridge 已经被清掉
+- 也提醒后续不要把音乐 organize 再拉回影视 `manual_transfer(...)` 语义

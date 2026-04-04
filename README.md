@@ -95,7 +95,7 @@ python -m app.db_init --reseed
 - Chart discovery：当前为 local seed / mock chart source，只验证发现入口与从 chart item 创建订阅的动作。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
 - Dispatch：当前保留 `mock + host-backed selectable`。当存在可靠 `media_in` 时走 `/api/v1/download/`；只有 `torrent_in` 时走 `/api/v1/download/add`。这两个接口是不同语义，不再由运行时策略层互相切换。
-- Organize：当前保留 `mock + host-backed selectable` 的 preview/apply 双阶段边界。`preview` 固定映射 `/api/v1/transfer/name`，`apply` 固定映射 `/api/v1/transfer/manual`。`history/download` 是新派发后的主 handoff 来源，`history/transfer` 只用于历史重放/补充来源，不再作为自动业务回退引擎。
+- Organize：当前保留 `mock + host-backed selectable` 的 preview/apply 双阶段边界。`preview` 固定映射 `/api/v1/transfer/name`；`apply` 当前通过宿主底层 file/storage transfer runtime 执行音乐文件整理。`history/download` 是新派发后的主 handoff 来源，`history/transfer` 只用于历史重放/补充来源，不再作为自动业务回退引擎。
 
 ## 如何启用 host integration
 
@@ -122,7 +122,6 @@ export MUSICPILOT_HOST_HISTORY_SYNC_RETRY_INTERVAL_SECONDS=1
 export MUSICPILOT_HOST_HANDOFF_PENDING_TTL_SECONDS=120
 export MUSICPILOT_HOST_TRANSFER_NAME_PATH=/api/v1/transfer/name
 export MUSICPILOT_HOST_TRANSFER_QUEUE_PATH=/api/v1/transfer/queue
-export MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual
 export MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
 export MUSICPILOT_HOST_SEARCH_MODE=prefer_host
 export MUSICPILOT_HOST_DISPATCH_MODE=prefer_host
@@ -143,7 +142,7 @@ export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backe
 - dispatch 成功后的 `source_path` 主来源是 `/api/v1/history/download`。
 - 历史重放或补充查询时，`source_path` 补充来源才是 `/api/v1/history/transfer`。
 - organize preview 只走 `/api/v1/transfer/name`。
-- organize apply 只走 `/api/v1/transfer/manual`。
+- organize apply 只走宿主底层 file/storage transfer runtime。
 
 这意味着当前系统不再做运行时路径计算：
 
