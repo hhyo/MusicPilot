@@ -43,7 +43,7 @@ MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual
 MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
 MUSICPILOT_HOST_HISTORY_DOWNLOAD_PATH=/api/v1/history/download
 MUSICPILOT_HOST_HISTORY_TRANSFER_PATH=/api/v1/history/transfer
-MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
+MUSICPILOT_HOST_ORGANIZE_MODE=prefer_host
 
 MUSICPILOT_ORGANIZE_LIBRARY_TYPE=music
 MUSICPILOT_ORGANIZE_ROOT_PATH=/library/musicpilot/library
@@ -53,7 +53,7 @@ MUSICPILOT_ORGANIZE_TRACK_FILE_TEMPLATE={track_title}.{format_ext}
 MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
 ```
 
-策略说明：
+模式说明：
 
 - `mock`
   - 永远使用 mock organize adapter。
@@ -105,7 +105,7 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
 
 1. 开启：
    - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
-   - `MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host`
+   - `MUSICPILOT_HOST_ORGANIZE_MODE=prefer_host`
 2. 先让 dispatch 走真实宿主成功样例，并确保 MusicPilot 已从 `history/download` 回读到 `path_handoff`
 3. 预期：
    - preview 返回 `organize_backend=host`
@@ -117,7 +117,7 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
 
 1. 开启：
    - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
-   - `MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host`
+   - `MUSICPILOT_HOST_ORGANIZE_MODE=prefer_host`
 2. SearchJob 候选只有远端 torrent context，且 dispatch 还没有成功写回本地路径
 3. 预期：
    - organize 会直接失败
@@ -127,7 +127,7 @@ MUSICPILOT_ORGANIZE_CONFLICT_POLICY=skip_existing
 
 1. 开启：
    - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
-   - `MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host`
+   - `MUSICPILOT_HOST_ORGANIZE_MODE=prefer_host`
 2. 不配置合法 `HOST_BASE_URL` 或 organize path
 3. 预期：
    - organize 会明确失败
@@ -146,7 +146,7 @@ python3 scripts/host_integration_stub.py
    - `MUSICPILOT_HOST_BASE_URL=http://127.0.0.1:19090`
    - `MUSICPILOT_HOST_TRANSFER_NAME_PATH=/api/v1/transfer/name`
    - `MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual`
-   - `MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host`
+   - `MUSICPILOT_HOST_ORGANIZE_MODE=prefer_host`
 3. 预期：
    - `/health` 中 `active_organize_adapter=real_organize`
    - preview/apply 返回 `organize_backend=host`
@@ -157,7 +157,7 @@ python3 scripts/host_integration_stub.py
 
 1. 开启：
    - `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
-   - `MUSICPILOT_HOST_ORGANIZE_STRATEGY=strict_host`
+   - `MUSICPILOT_HOST_ORGANIZE_MODE=strict_host`
 2. 不启动 stub 或不提供合法 organize endpoint
 3. 预期：
    - `/health` 仍可查看 wiring 状态

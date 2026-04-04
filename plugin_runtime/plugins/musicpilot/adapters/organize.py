@@ -8,7 +8,7 @@ from typing import Any
 from .host_http import HostHttpClient, HostTransportError
 from ..core.config import Settings
 from ..schemas.acquisition import PathHandoffInfo, SearchCandidateDetail
-from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, VerificationState
+from ..schemas.integration import AdapterMode, AdapterResolution, AdapterSelectionMode, VerificationState
 from ..schemas.metadata import MetadataDetail
 from ..schemas.orchestration import OrganizeAdapterResult, OrganizePlan, OrganizeStatus
 
@@ -83,7 +83,7 @@ class MockOrganizeAdapter(OrganizeAdapter):
             adapter_resolution=AdapterResolution(
                 adapter_key="mock_organize",
                 adapter_mode=AdapterMode.MOCK,
-                strategy=AdapterStrategy.MOCK,
+                selection_mode=AdapterSelectionMode.MOCK,
                 capability_source="mock.adapter",
                 verification_state=VerificationState.PLACEHOLDER,
                 integration_point="MockOrganizeAdapter.preview",
@@ -127,7 +127,7 @@ class MockOrganizeAdapter(OrganizeAdapter):
             adapter_resolution=AdapterResolution(
                 adapter_key="mock_organize",
                 adapter_mode=AdapterMode.MOCK,
-                strategy=AdapterStrategy.MOCK,
+                selection_mode=AdapterSelectionMode.MOCK,
                 capability_source="mock.adapter",
                 verification_state=VerificationState.PLACEHOLDER,
                 integration_point="MockOrganizeAdapter.apply",
@@ -336,7 +336,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
             adapter_resolution=AdapterResolution(
                 adapter_key="real_organize",
                 adapter_mode=AdapterMode.HOST,
-                strategy=AdapterStrategy.PREFER_HOST,
+                selection_mode=AdapterSelectionMode.PREFER_HOST,
                 capability_source=capability_source,
                 verification_state=verification_state,
                 integration_point=integration_point,

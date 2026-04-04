@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from .integration import AdapterMode, AdapterStrategy, HostIntegrationRuntimeState, VerificationState
+from .integration import AdapterMode, AdapterSelectionMode, HostIntegrationRuntimeState, VerificationState
 
 
 class ProbeCapabilitySummary(BaseModel):
@@ -23,7 +23,7 @@ class ProbeCapabilitySummary(BaseModel):
         description="Whether the capability is confirmed available. None means not checked in mock mode.",
     )
     adapter_mode: AdapterMode = Field(default=AdapterMode.MOCK)
-    active_strategy: AdapterStrategy = Field(default=AdapterStrategy.MOCK)
+    active_mode: AdapterSelectionMode = Field(default=AdapterSelectionMode.MOCK)
     host_integration_enabled: bool = False
     capability_source: str = "mock.probe"
     verification_state: VerificationState = VerificationState.PLACEHOLDER

@@ -124,9 +124,9 @@ export MUSICPILOT_HOST_TRANSFER_NAME_PATH=/api/v1/transfer/name
 export MUSICPILOT_HOST_TRANSFER_QUEUE_PATH=/api/v1/transfer/queue
 export MUSICPILOT_HOST_TRANSFER_MANUAL_PATH=/api/v1/transfer/manual
 export MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
-export MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
-export MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
-export MUSICPILOT_HOST_ORGANIZE_STRATEGY=prefer_host
+export MUSICPILOT_HOST_SEARCH_MODE=prefer_host
+export MUSICPILOT_HOST_DISPATCH_MODE=prefer_host
+export MUSICPILOT_HOST_ORGANIZE_MODE=prefer_host
 export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backend/data/host_validation_matrix.latest.json
 ```
 

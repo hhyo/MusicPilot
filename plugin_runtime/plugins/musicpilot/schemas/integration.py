@@ -12,7 +12,7 @@ class AdapterMode(str, Enum):
     HOST = "host"
 
 
-class AdapterStrategy(str, Enum):
+class AdapterSelectionMode(str, Enum):
     MOCK = "mock"
     PREFER_HOST = "prefer_host"
     STRICT_HOST = "strict_host"
@@ -27,7 +27,7 @@ class VerificationState(str, Enum):
 class AdapterResolution(BaseModel):
     adapter_key: str
     adapter_mode: AdapterMode
-    strategy: AdapterStrategy
+    selection_mode: AdapterSelectionMode
     capability_source: str
     verification_state: VerificationState
     fallback_reason: str | None = None
@@ -46,9 +46,9 @@ class HostIntegrationRuntimeState(BaseModel):
     organize_capability: bool | None = None
     downloaders_available: bool | None = None
     sites_visible: bool | None = None
-    search_strategy: AdapterStrategy = AdapterStrategy.MOCK
-    dispatch_strategy: AdapterStrategy = AdapterStrategy.MOCK
-    organize_strategy: AdapterStrategy = AdapterStrategy.MOCK
+    search_mode: AdapterSelectionMode = AdapterSelectionMode.MOCK
+    dispatch_mode: AdapterSelectionMode = AdapterSelectionMode.MOCK
+    organize_mode: AdapterSelectionMode = AdapterSelectionMode.MOCK
     active_search_adapter: str
     active_dispatch_adapter: str
     active_organize_adapter: str

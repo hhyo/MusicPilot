@@ -7,7 +7,7 @@ from typing import Any
 
 from .host_http import HostHttpClient, HostTransportError
 from ..core.config import Settings
-from ..schemas.integration import AdapterMode, AdapterStrategy, VerificationState
+from ..schemas.integration import AdapterMode, AdapterSelectionMode, VerificationState
 from ..schemas.probe import (
     ProbeCapabilitySummary,
     ProbeConfigPayload,
@@ -82,7 +82,7 @@ class MockHostProbeAdapter(HostProbeAdapter):
             "host_online": None,
             "capability_available": None,
             "adapter_mode": AdapterMode.MOCK,
-            "active_strategy": AdapterStrategy.MOCK,
+            "active_mode": AdapterSelectionMode.MOCK,
             "host_integration_enabled": False,
             "capability_source": "mock.probe",
             "verification_state": VerificationState.PLACEHOLDER,
@@ -564,7 +564,7 @@ class RealHostProbeAdapter(HostProbeAdapter):
             host_online=None if capability != "health" else capability_available,
             capability_available=capability_available,
             adapter_mode=AdapterMode.HOST,
-            active_strategy=AdapterStrategy.PREFER_HOST,
+            active_mode=AdapterSelectionMode.PREFER_HOST,
             host_integration_enabled=self.settings.host_integration_enabled,
             capability_source="host.probe",
             verification_state=VerificationState(self.settings.host_verification_state),

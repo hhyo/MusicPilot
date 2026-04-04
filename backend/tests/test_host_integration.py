@@ -11,7 +11,7 @@ from app.adapters.host_probe import HostProbeAdapter
 from app.adapters.host_search import HostSearchAdapter, normalize_title
 from app.core.config import Settings
 from app.schemas.acquisition import DispatchAdapterResult, HostSearchCandidate, QueryBuildResult, SearchCandidateDetail
-from app.schemas.integration import AdapterMode, AdapterStrategy, VerificationState
+from app.schemas.integration import AdapterMode, AdapterSelectionMode, VerificationState
 from app.schemas.probe import (
     ProbeCapabilitySummary,
     ProbeConfigPayload,
@@ -55,7 +55,7 @@ class DummyProbeAdapter(HostProbeAdapter):
             host_online=self.host_online if capability == "health" else None,
             capability_available=available,
             adapter_mode=AdapterMode.HOST,
-            active_strategy=AdapterStrategy.PREFER_HOST,
+            active_mode=AdapterSelectionMode.PREFER_HOST,
             host_integration_enabled=True,
             capability_source="test.probe",
             verification_state=VerificationState.UNVERIFIED,
@@ -174,8 +174,8 @@ class DummyBrokenHostDispatchAdapter(DownloadDispatchAdapter):
 def build_settings(**overrides: object) -> Settings:
     base = {
         "host_integration_enabled": True,
-        "host_search_strategy": "prefer_host",
-        "host_dispatch_strategy": "prefer_host",
+        "host_search_mode": "prefer_host",
+        "host_dispatch_mode": "prefer_host",
         "host_verification_state": "unverified",
     }
     base.update(overrides)
@@ -213,8 +213,8 @@ class HostIntegrationServiceTest(unittest.TestCase):
     def test_runtime_state_stays_observable_when_strict_host_is_unavailable(self) -> None:
         service = HostIntegrationService(
             settings=build_settings(
-                host_search_strategy="strict_host",
-                host_dispatch_strategy="strict_host",
+                host_search_mode="strict_host",
+                host_dispatch_mode="strict_host",
             ),
             probe_adapter=DummyProbeAdapter(
                 host_online=False,
@@ -294,7 +294,7 @@ class HostIntegrationServiceTest(unittest.TestCase):
         detail = build_album_detail()
         query_build = QueryBuilderService.build_from_detail(detail)
         service = HostIntegrationService(
-            settings=build_settings(host_search_strategy="strict_host"),
+            settings=build_settings(host_search_mode="strict_host"),
             probe_adapter=DummyProbeAdapter(search_capability=False),
         )
         resolver = HostSearchAdapterResolver(

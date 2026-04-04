@@ -50,11 +50,11 @@ MUSICPILOT_HOST_DOWNLOAD_ADD_PATH=/api/v1/download/add
 MUSICPILOT_HOST_DOWNLOAD_MEDIA_PATH=/api/v1/download/
 MUSICPILOT_HOST_HISTORY_DOWNLOAD_PATH=/api/v1/history/download
 MUSICPILOT_HOST_HISTORY_TRANSFER_PATH=/api/v1/history/transfer
-MUSICPILOT_HOST_SEARCH_STRATEGY=prefer_host
-MUSICPILOT_HOST_DISPATCH_STRATEGY=prefer_host
+MUSICPILOT_HOST_SEARCH_MODE=prefer_host
+MUSICPILOT_HOST_DISPATCH_MODE=prefer_host
 ```
 
-策略说明：
+模式说明：
 
 - `mock`
   - 永远使用 mock adapter，适合本地默认开发。
@@ -108,8 +108,8 @@ python3 scripts/host_integration_stub.py
 
 1. 开启 `MUSICPILOT_HOST_INTEGRATION_ENABLED=true`
 2. 设置：
-   - `MUSICPILOT_HOST_SEARCH_STRATEGY=strict_host`
-   - `MUSICPILOT_HOST_DISPATCH_STRATEGY=strict_host`
+   - `MUSICPILOT_HOST_SEARCH_MODE=strict_host`
+   - `MUSICPILOT_HOST_DISPATCH_MODE=strict_host`
 3. 不启动 stub 或不提供合法 `HOST_BASE_URL`
 4. 预期：
    - `/health` 仍可查看 wiring 状态

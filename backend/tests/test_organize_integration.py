@@ -74,7 +74,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
     def test_runtime_state_reports_strict_host_organize_blocking_reason(self) -> None:
         service = HostIntegrationService(
             settings=build_settings(
-                host_organize_strategy="strict_host",
+                host_organize_mode="strict_host",
             ),
             probe_adapter=DummyProbeAdapter(),
         )
@@ -90,7 +90,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         plan = OrganizeStrategyService(build_settings()).build_plan(candidate=candidate, metadata_detail=detail)
         service = HostIntegrationService(
             settings=build_settings(
-                host_organize_strategy="prefer_host",
+                host_organize_mode="prefer_host",
                 host_assume_organize_available=True,
             ),
             probe_adapter=DummyProbeAdapter(),
@@ -113,7 +113,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         plan = OrganizeStrategyService(build_settings()).build_plan(candidate=candidate, metadata_detail=detail)
         service = HostIntegrationService(
             settings=build_settings(
-                host_organize_strategy="prefer_host",
+                host_organize_mode="prefer_host",
                 host_assume_organize_available=True,
             ),
             probe_adapter=DummyProbeAdapter(),
@@ -141,7 +141,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         candidate = build_candidate()
         plan = OrganizeStrategyService(build_settings()).build_plan(candidate=candidate, metadata_detail=detail)
         service = HostIntegrationService(
-            settings=build_settings(host_organize_strategy="strict_host"),
+            settings=build_settings(host_organize_mode="strict_host"),
             probe_adapter=DummyProbeAdapter(),
         )
         resolver = OrganizeAdapterResolver(

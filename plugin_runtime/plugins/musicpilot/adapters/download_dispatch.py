@@ -8,7 +8,7 @@ from typing import Any
 from .host_http import HostHttpClient
 from ..core.config import Settings
 from ..schemas.acquisition import DispatchAdapterResult, SearchCandidateDetail
-from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, VerificationState
+from ..schemas.integration import AdapterMode, AdapterResolution, AdapterSelectionMode, VerificationState
 from ..services.host_path_handoff import HostPathHandoffService
 
 
@@ -47,7 +47,7 @@ class MockDownloadDispatchAdapter(DownloadDispatchAdapter):
                 adapter_resolution=AdapterResolution(
                     adapter_key="mock_download_dispatch",
                     adapter_mode=AdapterMode.MOCK,
-                    strategy=AdapterStrategy.MOCK,
+                    selection_mode=AdapterSelectionMode.MOCK,
                     capability_source="mock.adapter",
                     verification_state=VerificationState.PLACEHOLDER,
                     integration_point="MockDownloadDispatchAdapter.dispatch",
@@ -68,7 +68,7 @@ class MockDownloadDispatchAdapter(DownloadDispatchAdapter):
                 adapter_resolution=AdapterResolution(
                     adapter_key="mock_download_dispatch",
                     adapter_mode=AdapterMode.MOCK,
-                    strategy=AdapterStrategy.MOCK,
+                    selection_mode=AdapterSelectionMode.MOCK,
                     capability_source="mock.adapter",
                     verification_state=VerificationState.PLACEHOLDER,
                     integration_point="MockDownloadDispatchAdapter.dispatch",
@@ -89,7 +89,7 @@ class MockDownloadDispatchAdapter(DownloadDispatchAdapter):
             adapter_resolution=AdapterResolution(
                 adapter_key="mock_download_dispatch",
                 adapter_mode=AdapterMode.MOCK,
-                strategy=AdapterStrategy.MOCK,
+                selection_mode=AdapterSelectionMode.MOCK,
                 capability_source="mock.adapter",
                 verification_state=VerificationState.PLACEHOLDER,
                 integration_point="MockDownloadDispatchAdapter.dispatch",
@@ -196,7 +196,7 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
             adapter_resolution=AdapterResolution(
                 adapter_key="real_download_dispatch",
                 adapter_mode=AdapterMode.HOST,
-                strategy=AdapterStrategy.PREFER_HOST,
+                selection_mode=AdapterSelectionMode.PREFER_HOST,
                 capability_source=capability_source,
                 verification_state=VerificationState.VERIFIED,
                 fallback_reason=downloader_fallback,

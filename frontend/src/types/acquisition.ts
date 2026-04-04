@@ -12,13 +12,13 @@ export type JobStatus =
   | 'failed';
 export type DecisionStatus = 'auto_download' | 'manual_confirm' | 'reject' | 'pending';
 export type AdapterMode = 'mock' | 'host';
-export type AdapterStrategy = 'mock' | 'prefer_host' | 'strict_host';
+export type AdapterSelectionMode = 'mock' | 'prefer_host' | 'strict_host';
 export type VerificationState = 'verified' | 'unverified' | 'placeholder';
 
 export interface AdapterResolution {
   adapter_key: string;
   adapter_mode: AdapterMode;
-  strategy: AdapterStrategy;
+  selection_mode: AdapterSelectionMode;
   capability_source: string;
   verification_state: VerificationState;
   fallback_reason?: string | null;

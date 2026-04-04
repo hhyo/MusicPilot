@@ -14,7 +14,7 @@ from ..adapters.organize import OrganizeAdapter
 from ..core.config import Settings
 from ..adapters.host_http import HostTransportError
 from ..schemas.acquisition import DispatchAdapterResult, HostSearchCandidate, QueryBuildResult, SearchCandidateDetail
-from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, HostIntegrationRuntimeState, VerificationState
+from ..schemas.integration import AdapterMode, AdapterResolution, AdapterSelectionMode, HostIntegrationRuntimeState, VerificationState
 from ..schemas.metadata import MetadataDetail
 from ..schemas.orchestration import OrganizeAdapterResult, OrganizePlan
 
@@ -76,9 +76,9 @@ class HostIntegrationService:
                 organize_capability=False,
                 downloaders_available=False,
                 sites_visible=False,
-                search_strategy=AdapterStrategy(self.settings.host_search_strategy),
-                dispatch_strategy=AdapterStrategy(self.settings.host_dispatch_strategy),
-                organize_strategy=AdapterStrategy(self.settings.host_organize_strategy),
+                search_mode=AdapterSelectionMode(self.settings.host_search_mode),
+                dispatch_mode=AdapterSelectionMode(self.settings.host_dispatch_mode),
+                organize_mode=AdapterSelectionMode(self.settings.host_organize_mode),
                 active_search_adapter="mock_host_search",
                 active_dispatch_adapter="mock_download_dispatch",
                 active_organize_adapter="mock_organize",
@@ -130,17 +130,17 @@ class HostIntegrationService:
             ),
         )
 
-        search_resolution = self.resolve_search_strategy(
+        search_resolution = self.resolve_search_mode(
             search_capability=search_capability,
             capability_source=capability_source,
             preview_only=True,
         )
-        dispatch_resolution = self.resolve_dispatch_strategy(
+        dispatch_resolution = self.resolve_dispatch_mode(
             dispatch_capability=dispatch_capability and downloaders_available,
             capability_source=capability_source,
             preview_only=True,
         )
-        organize_resolution = self.resolve_organize_strategy(
+        organize_resolution = self.resolve_organize_mode(
             organize_capability=organize_capability,
             capability_source=capability_source,
             preview_only=True,
@@ -157,9 +157,9 @@ class HostIntegrationService:
             organize_capability=organize_capability,
             downloaders_available=downloaders_available,
             sites_visible=sites_visible,
-            search_strategy=AdapterStrategy(self.settings.host_search_strategy),
-            dispatch_strategy=AdapterStrategy(self.settings.host_dispatch_strategy),
-            organize_strategy=AdapterStrategy(self.settings.host_organize_strategy),
+            search_mode=AdapterSelectionMode(self.settings.host_search_mode),
+            dispatch_mode=AdapterSelectionMode(self.settings.host_dispatch_mode),
+            organize_mode=AdapterSelectionMode(self.settings.host_organize_mode),
             active_search_adapter=search_resolution.adapter_key,
             active_dispatch_adapter=dispatch_resolution.adapter_key,
             active_organize_adapter=organize_resolution.adapter_key,
@@ -172,63 +172,63 @@ class HostIntegrationService:
             ),
         )
 
-    def resolve_search_strategy(
+    def resolve_search_mode(
         self,
         *,
         search_capability: bool | None,
         capability_source: str,
         preview_only: bool = False,
     ) -> AdapterResolution:
-        return self._resolve_strategy(
+        return self._resolve_mode(
             adapter_key_host="real_host_search",
             adapter_key_mock="mock_host_search",
-            strategy=AdapterStrategy(self.settings.host_search_strategy),
+            selection_mode=AdapterSelectionMode(self.settings.host_search_mode),
             capability_available=search_capability,
             capability_source=capability_source,
             integration_point="HostSearchAdapterResolver",
             preview_only=preview_only,
         )
 
-    def resolve_dispatch_strategy(
+    def resolve_dispatch_mode(
         self,
         *,
         dispatch_capability: bool | None,
         capability_source: str,
         preview_only: bool = False,
     ) -> AdapterResolution:
-        return self._resolve_strategy(
+        return self._resolve_mode(
             adapter_key_host="real_download_dispatch",
             adapter_key_mock="mock_download_dispatch",
-            strategy=AdapterStrategy(self.settings.host_dispatch_strategy),
+            selection_mode=AdapterSelectionMode(self.settings.host_dispatch_mode),
             capability_available=dispatch_capability,
             capability_source=capability_source,
             integration_point="DispatchAdapterResolver",
             preview_only=preview_only,
         )
 
-    def resolve_organize_strategy(
+    def resolve_organize_mode(
         self,
         *,
         organize_capability: bool | None,
         capability_source: str,
         preview_only: bool = False,
     ) -> AdapterResolution:
-        return self._resolve_strategy(
+        return self._resolve_mode(
             adapter_key_host="real_organize",
             adapter_key_mock="mock_organize",
-            strategy=AdapterStrategy(self.settings.host_organize_strategy),
+            selection_mode=AdapterSelectionMode(self.settings.host_organize_mode),
             capability_available=organize_capability,
             capability_source=capability_source,
             integration_point="OrganizeAdapterResolver",
             preview_only=preview_only,
         )
 
-    def _resolve_strategy(
+    def _resolve_mode(
         self,
         *,
         adapter_key_host: str,
         adapter_key_mock: str,
-        strategy: AdapterStrategy,
+        selection_mode: AdapterSelectionMode,
         capability_available: bool | None,
         capability_source: str,
         integration_point: str,
@@ -236,22 +236,22 @@ class HostIntegrationService:
     ) -> AdapterResolution:
         verification_state = VerificationState(self.settings.host_verification_state)
 
-        if strategy == AdapterStrategy.MOCK:
+        if selection_mode == AdapterSelectionMode.MOCK:
             return AdapterResolution(
                 adapter_key=adapter_key_mock,
                 adapter_mode=AdapterMode.MOCK,
-                strategy=strategy,
-                capability_source="settings.strategy.mock",
+                selection_mode=selection_mode,
+                capability_source="settings.mode.mock",
                 verification_state=VerificationState.PLACEHOLDER,
                 integration_point=integration_point,
                 host_integration_enabled=self.settings.host_integration_enabled,
-                fallback_reason="strategy_forced_mock",
+                fallback_reason="mode_forced_mock",
             )
 
         if not self.settings.host_integration_enabled:
             return self._mock_resolution(
                 adapter_key_mock=adapter_key_mock,
-                strategy=strategy,
+                selection_mode=selection_mode,
                 capability_source="settings.disabled",
                 integration_point=integration_point,
                 fallback_reason="host_integration_disabled",
@@ -261,7 +261,7 @@ class HostIntegrationService:
             return AdapterResolution(
                 adapter_key=adapter_key_host,
                 adapter_mode=AdapterMode.HOST,
-                strategy=strategy,
+                selection_mode=selection_mode,
                 capability_source=capability_source,
                 verification_state=verification_state,
                 integration_point=integration_point,
@@ -272,13 +272,13 @@ class HostIntegrationService:
         if preview_only:
             blocking_reason = (
                 f"strict_host_required:{fallback_reason}"
-                if strategy == AdapterStrategy.STRICT_HOST
+                if selection_mode == AdapterSelectionMode.STRICT_HOST
                 else fallback_reason
             )
             return AdapterResolution(
                 adapter_key=adapter_key_host,
                 adapter_mode=AdapterMode.HOST,
-                strategy=strategy,
+                selection_mode=selection_mode,
                 capability_source=capability_source,
                 verification_state=verification_state,
                 fallback_reason=blocking_reason,
@@ -298,7 +298,7 @@ class HostIntegrationService:
         self,
         *,
         adapter_key_mock: str,
-        strategy: AdapterStrategy,
+        selection_mode: AdapterSelectionMode,
         capability_source: str,
         integration_point: str,
         fallback_reason: str,
@@ -306,7 +306,7 @@ class HostIntegrationService:
         return AdapterResolution(
             adapter_key=adapter_key_mock,
             adapter_mode=AdapterMode.MOCK,
-            strategy=strategy,
+            selection_mode=selection_mode,
             capability_source=capability_source,
             verification_state=VerificationState.PLACEHOLDER,
             fallback_reason=fallback_reason,
@@ -356,7 +356,7 @@ class HostSearchAdapterResolver:
 
     def search(self, *, query_build: QueryBuildResult, detail: MetadataDetail) -> SearchExecutionResult:
         runtime_state = self.integration_service.runtime_state()
-        resolution = self.integration_service.resolve_search_strategy(
+        resolution = self.integration_service.resolve_search_mode(
             search_capability=runtime_state.search_capability,
             capability_source=runtime_state.capability_source,
         )
@@ -420,7 +420,7 @@ class DispatchAdapterResolver:
         manual_confirm: bool,
     ) -> DispatchExecutionResult:
         runtime_state = self.integration_service.runtime_state()
-        resolution = self.integration_service.resolve_dispatch_strategy(
+        resolution = self.integration_service.resolve_dispatch_mode(
             dispatch_capability=runtime_state.dispatch_capability and runtime_state.downloaders_available,
             capability_source=runtime_state.capability_source,
         )
@@ -470,7 +470,7 @@ class OrganizeAdapterResolver:
         plan: OrganizePlan,
     ) -> OrganizeExecutionResult:
         runtime_state = self.integration_service.runtime_state()
-        resolution = self.integration_service.resolve_organize_strategy(
+        resolution = self.integration_service.resolve_organize_mode(
             organize_capability=runtime_state.organize_capability,
             capability_source=runtime_state.capability_source,
         )
@@ -504,7 +504,7 @@ class OrganizeAdapterResolver:
         plan: OrganizePlan,
     ) -> OrganizeExecutionResult:
         runtime_state = self.integration_service.runtime_state()
-        resolution = self.integration_service.resolve_organize_strategy(
+        resolution = self.integration_service.resolve_organize_mode(
             organize_capability=runtime_state.organize_capability,
             capability_source=runtime_state.capability_source,
         )

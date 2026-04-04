@@ -9,7 +9,7 @@ from typing import Any
 from .host_http import HostHttpClient, HostTransportError
 from ..core.config import Settings
 from ..schemas.acquisition import HostSearchCandidate, QueryBuildResult
-from ..schemas.integration import AdapterMode, AdapterResolution, AdapterStrategy, VerificationState
+from ..schemas.integration import AdapterMode, AdapterResolution, AdapterSelectionMode, VerificationState
 from ..schemas.metadata import MetadataDetail
 from ..schemas.mvp import EntityType
 
@@ -57,7 +57,7 @@ class MockHostSearchAdapter(HostSearchAdapter):
                 adapter_resolution=AdapterResolution(
                     adapter_key="mock_host_search",
                     adapter_mode=AdapterMode.MOCK,
-                    strategy=AdapterStrategy.MOCK,
+                    selection_mode=AdapterSelectionMode.MOCK,
                     capability_source="mock.adapter",
                     verification_state=VerificationState.PLACEHOLDER,
                     integration_point="MockHostSearchAdapter.search",
@@ -83,7 +83,7 @@ class MockHostSearchAdapter(HostSearchAdapter):
                 adapter_resolution=AdapterResolution(
                     adapter_key="mock_host_search",
                     adapter_mode=AdapterMode.MOCK,
-                    strategy=AdapterStrategy.MOCK,
+                    selection_mode=AdapterSelectionMode.MOCK,
                     capability_source="mock.adapter",
                     verification_state=VerificationState.PLACEHOLDER,
                     integration_point="MockHostSearchAdapter.search",
@@ -106,7 +106,7 @@ class MockHostSearchAdapter(HostSearchAdapter):
                 adapter_resolution=AdapterResolution(
                     adapter_key="mock_host_search",
                     adapter_mode=AdapterMode.MOCK,
-                    strategy=AdapterStrategy.MOCK,
+                    selection_mode=AdapterSelectionMode.MOCK,
                     capability_source="mock.adapter",
                     verification_state=VerificationState.PLACEHOLDER,
                     integration_point="MockHostSearchAdapter.search",
@@ -247,7 +247,7 @@ class RealHostSearchAdapter(HostSearchAdapter):
             resolution = AdapterResolution(
                 adapter_key="real_host_search",
                 adapter_mode=AdapterMode.HOST,
-                strategy=AdapterStrategy.PREFER_HOST,
+                selection_mode=AdapterSelectionMode.PREFER_HOST,
                 capability_source=f"moviepilot.runtime.{endpoint_label}",
                 verification_state=verification_state,
                 integration_point=f"RealHostSearchAdapter.{endpoint_label}",
