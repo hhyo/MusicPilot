@@ -41,15 +41,21 @@
 2. 宿主本地运行态已初始化
 3. 真实宿主 HTTP 服务在线
 
+本轮最终使用的本地运行环境是：
+
+- 宿主源码根目录：`/Users/lihuanhuan/PycharmProjects/MoviePilotPkg/MoviePilot`
+- 宿主本地开发配置目录：`/Users/lihuanhuan/PycharmProjects/MoviePilotPkg/MoviePilot/config-dev`
+- 本地宿主服务端口：`3001`
+
 结论是：
 
 - 宿主源码可导入：`yes`
-- 宿主本地运行态已初始化：`no`
+- 宿主本地运行态已初始化：`yes`
 - 真实宿主 HTTP 服务在线：`yes`
 
 ## 19.4 前置条件检查结论
 
-### 19.4.1 默认参考源码目录不是完整运行态
+### 19.4.1 默认 `config/` 不是完整运行态
 
 默认参考源码目录里的数据库文件是：
 
@@ -84,8 +90,24 @@
 
 结论：
 
-- 当前阻塞不是 MusicPilot apply 参数映射问题
-- 阻塞点是“本地参考宿主源码目录不等于可直接运行的完整宿主运行态”
+- 当前阻塞不再是 MusicPilot apply 参数映射问题
+- 也不再是“宿主本地运行态完全缺失”
+- 真实可用的本地运行目录是 `config-dev/`，不是仓库内默认的 `config/`
+
+### 19.4.3 已切换到可用的本地宿主运行态
+
+按宿主 README / `docs/local-development.md` 的方式，本轮确认：
+
+- `config-dev/user.db` 已存在
+- 其中包含 `systemconfig`、`user`、`downloadhistory`、`transferhistory` 等关键表
+- 本地 MoviePilot 进程已在 `3001` 端口监听
+- `app/helper/sites.cpython-312-darwin.so` 等本地资源已到位
+
+因此，本轮后续验证均以：
+
+- `CONFIG_DIR=/Users/lihuanhuan/PycharmProjects/MoviePilotPkg/MoviePilot/config-dev`
+
+作为宿主运行态上下文。
 
 ## 19.5 apply 直调链路验证结果
 
@@ -97,45 +119,52 @@
 - 代码实际进入了 `HostTransferRuntimeBridge`
 - 桥接实际执行了宿主侧 `TransferChain().manual_transfer(...)`
 
-失败信息为：
+在可用 `config-dev` 环境下，`HostTransferRuntimeBridge.manual_transfer()` 已经返回了宿主业务语义结果，而不是环境初始化错误：
 
-- `manual_transfer_runtime_error:OperationalError:(sqlite3.OperationalError) no such table: systemconfig`
+- `{'success': False, 'organize_status': 'failed', 'message': 'The.Matrix.1999.1080p.WEB-DL.mkv 没有找到可整理的媒体文件'}`
 
-这说明当前失败位置已经在宿主运行态内部，而不是 MusicPilot 的 HTTP 映射层。
+这说明：
+
+- 直调已经真正进入 `TransferChain.manual_transfer(...)`
+- 当前失败位置已经是宿主 organize 业务语义层
+- 不再是 `systemconfig` 之类的环境初始化错误
 
 ### 19.5.2 当前运行态是否跑通
 
-结论：`未跑通`
+结论：`直调链路已跑通到宿主业务层，但当前成功样例未跑通`
 
-最后阻塞点：
+当前最后阻塞点：
 
-- 宿主运行态缺少完成 `manual_transfer(...)` 所需的初始化数据库与运行上下文
+- 本轮用于验证的样本文件 `The.Matrix.1999.1080p.WEB-DL.mkv` 被宿主判定为“没有找到可整理的媒体文件”
 
 分类：
 
-- 这是宿主环境问题
-- 不是这次 apply 迁移本身的参数映射问题
+- 这是宿主业务识别/样本问题
+- 不是环境初始化问题
+- 也不是这次 apply 迁移的接入层问题
 
 ## 19.6 结果回写与兼容性验证
 
-虽然成功路径还没有在完整宿主运行态下验证通过，但失败路径已经验证：
+虽然成功路径还没有在本地宿主运行态下验证通过，但失败路径已经验证：
 
-- `POST /api/v1/plugin/musicpilot/organize/apply` 返回 `503`
+- `POST /api/v1/plugin/musicpilot/organize/apply` 返回 `200`
+- 返回体里的 organize 结果为 `organize_status=failed`
 - MusicPilot 仍把 organize record 写回为 `failed`
-- `failure_reason` 会明确记录：
-  - `Host-backed organize apply failed: host_organize_apply_runtime_error:moviepilot_transfer_runtime_failed`
+- `failure_reason` 会明确记录宿主业务错误：
+  - `The.Matrix.1999.1080p.WEB-DL.mkv 没有找到可整理的媒体文件`
 
 实测 organize record：
 
 - `organize_backend=host`
 - `organize_status=failed`
-- `integration_point=OrganizeService.apply`
-- `capability_source=runtime.seed`
+- `integration_point=RealOrganizeAdapter.apply.moviepilot_transfer_chain_manual_transfer`
+- `capability_source=moviepilot.runtime.transfer.manual_transfer`
 
 这说明：
 
-- 接入方式虽已从 HTTP 切到宿主直调
+- 接入方式已从 HTTP 切到宿主直调
 - MusicPilot 自己的结果写回语义仍保持稳定
+- 当宿主返回业务失败时，插件 API 仍保持 `200 + failed result` 的当前语义，不会误报成 transport error
 
 ## 19.7 未受影响边界验证
 
@@ -158,30 +187,32 @@
 
 - 代码层迁移：`done`
 - 直调入口替换：`done`
+- 在已初始化本地宿主运行态中进入 `TransferChain.manual_transfer(...)`：`done`
 - 失败路径写回兼容：`done`
 - preview / record / API 未受影响：`done`
 
 ### 尚未确认
 
-- “在完整真实宿主运行态中，`TransferChain.manual_transfer(...)` 成功执行并回写 `APPLIED`”
+- “在本地真实宿主运行态中，`TransferChain.manual_transfer(...)` 成功执行并回写 `APPLIED`”
 
 ### 当前最后阻塞点
 
-- 缺少一个真正已初始化完成、可被本地直调桥接复用的 MoviePilot 运行环境
+- 还缺一个会被宿主成功识别并完成整理的本地样本
 
 ### 下一步只需要什么
 
 下一步优先需要的是：
 
-- 正确的宿主本地运行态上下文
+- 更合适的本地 organize 输入样本
 
 而不是：
 
-- 继续改 organize apply 代码结构
+- 继续改 apply 接入层
 - 继续改 preview / path handoff / history
 
 换句话说，本轮结论是：
 
 - 代码迁移已经完成
-- 运行态成功验证尚未完成
-- 当前更像宿主环境阻塞，而不是 MusicPilot apply 迁移逻辑阻塞
+- 运行态前置环境已经满足
+- 直调链路已经进入宿主 organize 业务层
+- 当前未完成的是“成功样例验证”，不是接入层打通
