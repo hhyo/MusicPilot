@@ -1,4 +1,4 @@
-"""Organize strategy mapping for Phase 6 host-aware organize flows."""
+"""Music organize path planning for preview/apply flows."""
 
 from __future__ import annotations
 
@@ -13,18 +13,13 @@ from ..schemas.orchestration import (
     OrganizePlan,
     OrganizeStrategySnapshot,
 )
-
-
-def slugify(value: str | None) -> str:
-    if not value:
-        return "unknown"
-    normalized = re.sub(r"[^a-zA-Z0-9]+", "-", value.strip()).strip("-").lower()
-    return normalized or "unknown"
+from .music_metadata import MusicMetadataResolver
 
 
 class OrganizeStrategyService:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, *, metadata_resolver: MusicMetadataResolver | None = None):
         self.settings = settings
+        self.metadata_resolver = metadata_resolver or MusicMetadataResolver()
 
     def build_plan(
         self,
@@ -46,7 +41,15 @@ class OrganizeStrategyService:
             ),
         )
 
-        context = self._build_context(candidate=candidate, metadata_detail=metadata_detail)
+        metadata = self.metadata_resolver.resolve(candidate=candidate, metadata_detail=metadata_detail)
+        context = {
+            "artist_name": metadata.artist_name,
+            "album_title": metadata.album_title,
+            "track_title": metadata.track_title,
+            "title": metadata.title,
+            "year": metadata.year,
+            "format_ext": metadata.format_ext,
+        }
         target_relative_path = self._resolve_relative_path(snapshot=snapshot, context=context, metadata_detail=metadata_detail)
         target_library_path = str(PurePosixPath(snapshot.root_path) / target_relative_path)
 
@@ -80,40 +83,6 @@ class OrganizeStrategyService:
         album_dir = self._render_template(snapshot.album_dir_template, context)
         track_file = self._render_template(snapshot.track_file_template, context)
         return str(PurePosixPath(album_dir) / track_file)
-
-    def _build_context(
-        self,
-        *,
-        candidate: SearchCandidateDetail,
-        metadata_detail: MetadataDetail | None,
-    ) -> dict[str, str]:
-        title = metadata_detail.title if metadata_detail else candidate.title
-        artist_name = (
-            metadata_detail.artist_name
-            if metadata_detail and metadata_detail.artist_name
-            else (metadata_detail.title if metadata_detail and metadata_detail.entity_type == "artist" else candidate.site_name)
-        )
-        album_title = (
-            metadata_detail.album_title
-            if metadata_detail and metadata_detail.album_title
-            else (metadata_detail.title if metadata_detail and metadata_detail.entity_type == "album" else title)
-        )
-        track_title = (
-            metadata_detail.track_title
-            if metadata_detail and metadata_detail.track_title
-            else (metadata_detail.title if metadata_detail and metadata_detail.entity_type == "track" else title)
-        )
-        year = str(metadata_detail.year) if metadata_detail and metadata_detail.year else "unknown"
-        format_ext = slugify(candidate.format_tag or "bin")
-
-        return {
-            "artist_name": slugify(artist_name),
-            "album_title": slugify(album_title),
-            "track_title": slugify(track_title),
-            "title": slugify(title),
-            "year": year,
-            "format_ext": format_ext,
-        }
 
     def _render_template(self, template: str, context: dict[str, str]) -> str:
         rendered = template

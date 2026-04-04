@@ -27,7 +27,7 @@ from app.repositories.orchestration import OrchestrationRepository
 
 from test_host_integration import DummyProbeAdapter, build_candidate, build_settings
 from test_moviepilot_semantics import FakeHostClient, RealOrganizeAdapter, build_settings as build_moviepilot_settings
-from test_query_builder import build_album_detail
+from test_query_builder import build_album_detail, build_artist_detail, build_track_detail
 
 
 class DummyMockOrganizeAdapter(OrganizeAdapter):
@@ -99,6 +99,62 @@ class CapturingApplyResolver:
 
 
 class OrganizeIntegrationTest(unittest.TestCase):
+    def test_music_metadata_resolver_prefers_track_detail_fields(self) -> None:
+        from app.services.music_metadata import MusicMetadataResolver
+
+        candidate = build_candidate().model_copy(update={"title": "Fallback Title", "format_tag": "flac"})
+        detail = build_track_detail()
+
+        result = MusicMetadataResolver().resolve(candidate=candidate, metadata_detail=detail)
+
+        self.assertEqual(result.artist_name, "adele")
+        self.assertEqual(result.album_title, "25")
+        self.assertEqual(result.track_title, "hello")
+        self.assertEqual(result.title, "hello")
+        self.assertEqual(result.year, "2015")
+        self.assertEqual(result.format_ext, "flac")
+
+    def test_music_metadata_resolver_falls_back_to_candidate_fields(self) -> None:
+        from app.services.music_metadata import MusicMetadataResolver
+
+        candidate = build_candidate().model_copy(
+            update={
+                "title": "Adele Live",
+                "site_name": "Tracker Artist",
+                "format_tag": "mp3",
+            }
+        )
+
+        result = MusicMetadataResolver().resolve(candidate=candidate, metadata_detail=None)
+
+        self.assertEqual(result.title, "adele-live")
+        self.assertEqual(result.artist_name, "tracker-artist")
+        self.assertEqual(result.album_title, "adele-live")
+        self.assertEqual(result.track_title, "adele-live")
+        self.assertEqual(result.year, "unknown")
+        self.assertEqual(result.format_ext, "mp3")
+
+    def test_music_metadata_resolver_uses_artist_detail_title_for_artist_entity(self) -> None:
+        from app.services.music_metadata import MusicMetadataResolver
+
+        candidate = build_candidate().model_copy(
+            update={
+                "title": "Fallback Album",
+                "site_name": "Fallback Site",
+                "format_tag": "aac",
+            }
+        )
+        detail = build_artist_detail()
+
+        result = MusicMetadataResolver().resolve(candidate=candidate, metadata_detail=detail)
+
+        self.assertEqual(result.artist_name, "adele")
+        self.assertEqual(result.album_title, "adele")
+        self.assertEqual(result.track_title, "adele")
+        self.assertEqual(result.title, "adele")
+        self.assertEqual(result.year, "2008")
+        self.assertEqual(result.format_ext, "aac")
+
     def test_strategy_service_builds_album_relative_path(self) -> None:
         candidate = build_candidate()
         detail = build_album_detail()
