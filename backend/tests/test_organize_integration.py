@@ -26,7 +26,7 @@ from app.services.organize_strategy import OrganizeStrategyService
 from app.repositories.orchestration import OrchestrationRepository
 
 from test_host_integration import DummyProbeAdapter, build_candidate, build_settings
-from test_moviepilot_semantics import FakeHostClient
+from test_moviepilot_semantics import FakeHostClient, RealOrganizeAdapter, build_settings as build_moviepilot_settings
 from test_query_builder import build_album_detail
 
 
@@ -192,6 +192,88 @@ class OrganizeIntegrationTest(unittest.TestCase):
 
         with self.assertRaises(HTTPException):
             resolver.preview(candidate=candidate, metadata_detail=detail, binding_id=None, plan=plan)
+
+    def test_organize_service_preview_returns_local_plan_preview_for_music_sources(self) -> None:
+        engine = create_engine("sqlite:///:memory:", future=True)
+        Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+        Base.metadata.create_all(bind=engine)
+        session = Session()
+        try:
+            detail = build_album_detail()
+            settings = build_moviepilot_settings(
+                host_organize_mode="prefer_host",
+                host_assume_organize_available=True,
+            )
+            plan = OrganizeStrategyService(settings).build_plan(
+                candidate=build_candidate(),
+                metadata_detail=detail,
+            )
+            job = SearchJobModel(
+                id="job-preview-001",
+                query_source_type="album",
+                query_source_id="album-001",
+                trigger_source="manual",
+                query_payload={},
+                metadata_snapshot=detail.model_dump(mode="json"),
+                summary_json={},
+            )
+            candidate = SearchCandidateModel(
+                id="cand-preview-001",
+                job_id=job.id,
+                site_id="site-1",
+                site_name="Stub PT",
+                title="Adele - 25",
+                normalized_title="adele 25",
+                size_bytes=1024,
+                seeders=1,
+                peers=0,
+                source_tags=[],
+                score_breakdown={},
+                reason_codes=[],
+                raw_payload={
+                    "host_transfer_source_path": "/downloads/Adele-25.flac",
+                    "host_transfer_filetype": "file",
+                },
+            )
+            session.add(job)
+            session.add(candidate)
+            session.commit()
+
+            host_client = FakeHostClient(
+                get_responses={
+                    "/api/v1/transfer/name": {
+                        "success": True,
+                        "data": {"name": "Host-Only-Adele-25.flac"},
+                    }
+                }
+            )
+            service = OrganizeService(
+                session=session,
+                resolver=OrganizeAdapterResolver(
+                    integration_service=HostIntegrationService(
+                        settings=settings,
+                        probe_adapter=DummyProbeAdapter(),
+                    ),
+                    mock_adapter=DummyMockOrganizeAdapter(),
+                    host_adapter=RealOrganizeAdapter(settings=settings, client=host_client),  # type: ignore[arg-type]
+                ),
+                strategy_service=OrganizeStrategyService(settings),
+                path_handoff_service=HostPathHandoffService(
+                    settings=settings,
+                    client=FakeHostClient(),  # type: ignore[arg-type]
+                ),
+            )
+
+            result = service.preview_for_candidate(candidate_id=candidate.id)
+
+            self.assertEqual(result.organize_status, OrganizeStatus.PREVIEW_READY)
+            self.assertIn("preview", result.integration_point)
+            self.assertNotIn("transfer_name", result.integration_point)
+            self.assertEqual(result.target_library_path, plan.target_library_path)
+            self.assertEqual(result.target_relative_path, plan.target_relative_path)
+            self.assertEqual(host_client.calls, [])
+        finally:
+            session.close()
 
     def test_organize_service_apply_updates_record_after_direct_host_result(self) -> None:
         engine = create_engine("sqlite:///:memory:", future=True)

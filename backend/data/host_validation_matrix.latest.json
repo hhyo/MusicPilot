@@ -96,8 +96,8 @@
           "target_library_path": "/downloads/media/movie/phase8-validation/ordinary-accident-media",
           "target_relative_path": "phase8-validation/ordinary-accident-media/普通事故.It Was Just an Accident.2025.Amazon.WEB-DL.2160p.H265.DDP 5.1-Amazon.mkv",
           "strategy_note": "Phase 8 dedicated validation folder under host media root.",
-          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
-          "capability_source": "moviepilot.runtime.transfer.name",
+          "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
+          "capability_source": "musicpilot.runtime.organize.preview",
           "fallback_reason": null,
           "failure_reason": null,
           "path_handoff": {
@@ -122,14 +122,14 @@
             "adapter_key": "real_organize",
             "adapter_mode": "host",
             "strategy": "prefer_host",
-            "capability_source": "moviepilot.runtime.transfer.name",
+            "capability_source": "musicpilot.runtime.organize.preview",
             "verification_state": "verified",
             "fallback_reason": null,
-            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
             "host_integration_enabled": true
           },
           "mock": false,
-          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+          "note": "当前 organize preview 已本地化为 MusicPilot 的本地音乐 plan preview。预览结果直接由 MusicPilot 的音乐 metadata snapshot 与本地路径规划生成，供 apply 前确认目标路径。"
         },
         "apply": {
           "organizeable": false,
@@ -281,8 +281,8 @@
           "target_library_path": "/downloads/media/movie/phase8-validation/snow-white-media",
           "target_relative_path": "phase8-validation/snow-white-media/Snövit (2025) {tmdbid=1593082}",
           "strategy_note": "Phase 8 dedicated validation folder under host media root.",
-          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
-          "capability_source": "moviepilot.runtime.transfer.name",
+          "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
+          "capability_source": "musicpilot.runtime.organize.preview",
           "fallback_reason": null,
           "failure_reason": null,
           "path_handoff": {
@@ -307,14 +307,14 @@
             "adapter_key": "real_organize",
             "adapter_mode": "host",
             "strategy": "prefer_host",
-            "capability_source": "moviepilot.runtime.transfer.name",
+            "capability_source": "musicpilot.runtime.organize.preview",
             "verification_state": "verified",
             "fallback_reason": null,
-            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
             "host_integration_enabled": true
           },
           "mock": false,
-          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+          "note": "当前 organize preview 已本地化为 MusicPilot 的本地音乐 plan preview。预览结果直接由 MusicPilot 的音乐 metadata snapshot 与本地路径规划生成，供 apply 前确认目标路径。"
         },
         "apply": {
           "organizeable": false,
@@ -529,8 +529,8 @@
           "target_library_path": "/downloads/media/movie/phase8-validation/ordinary-accident-title-add",
           "target_relative_path": "phase8-validation/ordinary-accident-title-add/普通事故.It Was Just an Accident.2025.BluRay.1080p.x264.DDP 5.1.mkv",
           "strategy_note": "Phase 8 dedicated validation folder under host media root.",
-          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
-          "capability_source": "moviepilot.runtime.transfer.name",
+          "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
+          "capability_source": "musicpilot.runtime.organize.preview",
           "fallback_reason": null,
           "failure_reason": null,
           "path_handoff": {
@@ -555,14 +555,14 @@
             "adapter_key": "real_organize",
             "adapter_mode": "host",
             "strategy": "prefer_host",
-            "capability_source": "moviepilot.runtime.transfer.name",
+            "capability_source": "musicpilot.runtime.organize.preview",
             "verification_state": "verified",
             "fallback_reason": null,
-            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
             "host_integration_enabled": true
           },
           "mock": false,
-          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+          "note": "当前 organize preview 已本地化为 MusicPilot 的本地音乐 plan preview。预览结果直接由 MusicPilot 的音乐 metadata snapshot 与本地路径规划生成，供 apply 前确认目标路径。"
         },
         "apply": {
           "organizeable": true,
@@ -714,8 +714,8 @@
           "target_library_path": "/downloads/media/movie/phase8-validation/snow-white-title-add",
           "target_relative_path": "phase8-validation/snow-white-title-add/白雪公主 (2025) {tmdbid=447273}",
           "strategy_note": "Phase 8 dedicated validation folder under host media root.",
-          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
-          "capability_source": "moviepilot.runtime.transfer.name",
+          "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
+          "capability_source": "musicpilot.runtime.organize.preview",
           "fallback_reason": null,
           "failure_reason": null,
           "path_handoff": {
@@ -740,14 +740,14 @@
             "adapter_key": "real_organize",
             "adapter_mode": "host",
             "strategy": "prefer_host",
-            "capability_source": "moviepilot.runtime.transfer.name",
+            "capability_source": "musicpilot.runtime.organize.preview",
             "verification_state": "verified",
             "fallback_reason": null,
-            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
             "host_integration_enabled": true
           },
           "mock": false,
-          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+          "note": "当前 organize preview 已本地化为 MusicPilot 的本地音乐 plan preview。预览结果直接由 MusicPilot 的音乐 metadata snapshot 与本地路径规划生成，供 apply 前确认目标路径。"
         },
         "apply": {
           "organizeable": false,
@@ -899,8 +899,8 @@
           "target_library_path": "/downloads/media/movie/phase8-validation/argentina-1985-title-add",
           "target_relative_path": "phase8-validation/argentina-1985-title-add/阿根廷.1985.Argentina.1985.2022.AMZN.WEB-DL.1080p.AVC.DDP5.1@ZmWeb",
           "strategy_note": "Phase 8 dedicated validation folder under host media root.",
-          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
-          "capability_source": "moviepilot.runtime.transfer.name",
+          "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
+          "capability_source": "musicpilot.runtime.organize.preview",
           "fallback_reason": null,
           "failure_reason": "未识别到媒体信息",
           "path_handoff": {
@@ -925,14 +925,14 @@
             "adapter_key": "real_organize",
             "adapter_mode": "host",
             "strategy": "prefer_host",
-            "capability_source": "moviepilot.runtime.transfer.name",
+            "capability_source": "musicpilot.runtime.organize.preview",
             "verification_state": "verified",
             "fallback_reason": null,
-            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
             "host_integration_enabled": true
           },
           "mock": false,
-          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+          "note": "当前 organize preview 已本地化为 MusicPilot 的本地音乐 plan preview。预览结果直接由 MusicPilot 的音乐 metadata snapshot 与本地路径规划生成，供 apply 前确认目标路径。"
         },
         "apply": {
           "organizeable": false,
@@ -1029,7 +1029,7 @@
       "attempt_count": 1,
       "success_count": 1,
       "blocker": null,
-      "note": "Phase 8 replayed a real transfer history source path through MoviePilot transfer/name + transfer/manual.",
+      "note": "Phase 8 replayed a real transfer history source path through MusicPilot local music preview + host apply.",
       "last_verified_at": "2026-04-03T17:36:26.178020Z",
       "raw_summary": {
         "download_hash": "2ceb7e93068d5beee547d0277544a6df3d9a57f2",
@@ -1054,8 +1054,8 @@
           "target_library_path": "/downloads/media/movie/phase8-validation/transfer-replay-1",
           "target_relative_path": "phase8-validation/transfer-replay-1/普通事故 (2025) {tmdbid=1456349}",
           "strategy_note": "Phase 8 dedicated validation folder under host media root.",
-          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
-          "capability_source": "moviepilot.runtime.transfer.name",
+          "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
+          "capability_source": "musicpilot.runtime.organize.preview",
           "fallback_reason": null,
           "failure_reason": null,
           "path_handoff": {
@@ -1081,14 +1081,14 @@
             "adapter_key": "real_organize",
             "adapter_mode": "host",
             "strategy": "prefer_host",
-            "capability_source": "moviepilot.runtime.transfer.name",
+            "capability_source": "musicpilot.runtime.organize.preview",
             "verification_state": "verified",
             "fallback_reason": null,
-            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
             "host_integration_enabled": true
           },
           "mock": false,
-          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+          "note": "当前 organize preview 已本地化为 MusicPilot 的本地音乐 plan preview。预览结果直接由 MusicPilot 的音乐 metadata snapshot 与本地路径规划生成，供 apply 前确认目标路径。"
         },
         "apply": {
           "organizeable": true,
@@ -1162,7 +1162,7 @@
       "attempt_count": 1,
       "success_count": 1,
       "blocker": null,
-      "note": "Phase 8 replayed a real transfer history source path through MoviePilot transfer/name + transfer/manual.",
+      "note": "Phase 8 replayed a real transfer history source path through MusicPilot local music preview + host apply.",
       "last_verified_at": "2026-04-03T17:36:26.414566Z",
       "raw_summary": {
         "download_hash": "c830777eca3972e0ee466eb6af6f5c243d62c90f",
@@ -1187,8 +1187,8 @@
           "target_library_path": "/downloads/media/movie/phase8-validation/transfer-replay-2",
           "target_relative_path": "phase8-validation/transfer-replay-2/普通事故.It Was Just an Accident.2025.BluRay.1080p.x264.DDP 5.1.mkv",
           "strategy_note": "Phase 8 dedicated validation folder under host media root.",
-          "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
-          "capability_source": "moviepilot.runtime.transfer.name",
+          "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
+          "capability_source": "musicpilot.runtime.organize.preview",
           "fallback_reason": null,
           "failure_reason": null,
           "path_handoff": {
@@ -1214,14 +1214,14 @@
             "adapter_key": "real_organize",
             "adapter_mode": "host",
             "strategy": "prefer_host",
-            "capability_source": "moviepilot.runtime.transfer.name",
+            "capability_source": "musicpilot.runtime.organize.preview",
             "verification_state": "verified",
             "fallback_reason": null,
-            "integration_point": "RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            "integration_point": "RealOrganizeAdapter.preview.music_local_plan_preview",
             "host_integration_enabled": true
           },
           "mock": false,
-          "note": "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。Phase 7B 已拿到真实正向命名样例。"
+          "note": "当前 organize preview 已本地化为 MusicPilot 的本地音乐 plan preview。预览结果直接由 MusicPilot 的音乐 metadata snapshot 与本地路径规划生成，供 apply 前确认目标路径。"
         },
         "apply": {
           "organizeable": true,

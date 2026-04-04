@@ -505,10 +505,11 @@ class RealOrganizeAdapterTest(unittest.TestCase):
 
         self.assertEqual(context.exception.reason_code, "moviepilot_transfer_source_path_missing")
 
-    def test_preview_maps_transfer_name_success(self) -> None:
+    def test_preview_uses_music_local_plan_preview_when_source_path_and_plan_exist(self) -> None:
         candidate = build_candidate(
             raw_payload={"host_transfer_source_path": "/downloads/Adele-25.flac", "host_transfer_filetype": "file"}
         )
+        plan = build_plan()
         client = FakeHostClient(
             get_responses={
                 "/api/v1/transfer/name": {
@@ -523,14 +524,17 @@ class RealOrganizeAdapterTest(unittest.TestCase):
             candidate=candidate,
             metadata_detail=None,
             binding_id=None,
-            plan=build_plan(),
+            plan=plan,
         )
 
         self.assertEqual(result.organize_backend, AdapterMode.HOST)
         self.assertEqual(result.organize_status, OrganizeStatus.PREVIEW_READY)
         self.assertEqual(result.verification_state, VerificationState.VERIFIED)
-        self.assertTrue(result.target_relative_path.endswith("Organized-Adele-25.flac"))
-        self.assertEqual(client.calls[0][2], {"path": "/downloads/Adele-25.flac", "filetype": "file"})
+        self.assertIn("preview", result.integration_point)
+        self.assertNotIn("transfer_name", result.integration_point)
+        self.assertEqual(result.target_library_path, plan.target_library_path)
+        self.assertEqual(result.target_relative_path, plan.target_relative_path)
+        self.assertEqual(client.calls, [])
 
     def test_apply_maps_music_storage_failure(self) -> None:
         candidate = build_candidate(

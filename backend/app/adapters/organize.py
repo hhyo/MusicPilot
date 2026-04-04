@@ -143,7 +143,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
 
     Phase 7A verified that MoviePilot does not expose a native ``/organize/preview`` /
     ``/organize/apply`` pair. The closest real host semantics are:
-    - ``GET /api/v1/transfer/name`` for naming preview.
+    - MusicPilot-local music plan preview for preview.
     - host file/storage operations for music apply execution.
     """
 
@@ -188,28 +188,19 @@ class RealOrganizeAdapter(OrganizeAdapter):
                 reason_code="moviepilot_transfer_source_path_missing",
             )
 
-        payload = self.client.get_json(
-            self.settings.host_transfer_name_path,
-            params={"path": source["path"], "filetype": source["filetype"]},
-            auth_mode="x_api_key",
-        )
-        success = bool(payload.get("success"))
-        preview_name = self._extract_preview_name(payload)
-        relative_path = self._merge_preview_name(plan.target_relative_path, preview_name) if preview_name else plan.target_relative_path
         return self._build_result(
-            payload=payload,
-            default_status=OrganizeStatus.PREVIEW_READY if success else OrganizeStatus.FAILED,
+            payload={},
+            default_status=OrganizeStatus.PREVIEW_READY,
             default_note=(
-                "当前 organize preview 映射到了真实 MoviePilot `/api/v1/transfer/name`。"
-                "MoviePilot 只返回重命名后的 `name`，库路径仍由 MusicPilot 本地 organize strategy 负责。"
-                "Phase 7B 已拿到真实正向命名样例。"
+                "当前 organize preview 已切换为 MusicPilot 本地计划解析，不再依赖 MoviePilot transfer/name。"
+                "MusicPilot 直接返回 plan 计算出的音乐整理预览结果。"
             ),
-            integration_point="RealOrganizeAdapter.preview.moviepilot_transfer_name",
+            integration_point="RealOrganizeAdapter.preview.local_music_plan_preview",
             plan=plan,
-            capability_source="moviepilot.runtime.transfer.name",
+            capability_source="musicpilot.local.plan.preview",
             verification_state=VerificationState.VERIFIED,
-            organizeable=success,
-            target_relative_path=relative_path,
+            organizeable=True,
+            target_relative_path=plan.target_relative_path,
             path_handoff=_extract_candidate_path_handoff(candidate),
         )
 
@@ -415,18 +406,6 @@ class RealOrganizeAdapter(OrganizeAdapter):
             return PurePosixPath(target_path).relative_to(PurePosixPath(root_path)).as_posix()
         except ValueError:
             return None
-
-    def _extract_preview_name(self, payload: dict[str, Any]) -> str | None:
-        data = payload.get("data")
-        if isinstance(data, dict) and data.get("name"):
-            return str(data["name"])
-        return None
-
-    def _merge_preview_name(self, target_relative_path: str, preview_name: str) -> str:
-        if not target_relative_path or "/" not in target_relative_path:
-            return preview_name
-        parent = target_relative_path.rsplit("/", 1)[0]
-        return f"{parent}/{preview_name}"
 
     def _detect_extension(self, path: str) -> str:
         name = path.rsplit("/", 1)[-1]
