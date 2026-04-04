@@ -35,7 +35,7 @@ python -m app.db_init --reseed
 
 - `subscriptions/{id}/run` 为同步最小执行骨架
 - `charts/*` 为 local seed / mock chart source
-- `organize/preview` 和 `organize/apply` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择；当前 host preview 已切换为 MusicPilot 本地音乐路径预览，host apply 使用宿主底层 file/storage 执行
+- `organize/preview` 和 `organize/apply` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择；当前 host preview 已切换为 MusicPilot 本地音乐路径预览，host apply 使用宿主底层 file/storage 执行，metadata 恢复优先使用显式 detail，其次使用已有上下文、嵌入标签与 `source_path` 线索
 - `jobs/*` 与 `downloads/dispatch` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择
 - 当前真实运行时不再根据验证矩阵决定业务路径；矩阵只保留为验证产物
 

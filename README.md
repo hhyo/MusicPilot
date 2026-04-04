@@ -95,7 +95,7 @@ python -m app.db_init --reseed
 - Chart discovery：当前为 local seed / mock chart source，只验证发现入口与从 chart item 创建订阅的动作。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
 - Dispatch：当前保留 `mock + host-backed selectable`。当存在可靠 `media_in` 时走 `/api/v1/download/`；只有 `torrent_in` 时走 `/api/v1/download/add`。这两个接口是不同语义，不再由运行时策略层互相切换。
-- Organize：当前保留 `mock + host-backed selectable` 的 preview/apply 双阶段边界。`preview` 已切换为 MusicPilot 本地音乐路径预览；`apply` 当前通过宿主底层 file/storage transfer runtime 执行音乐文件整理。`history/download` 是新派发后的主 handoff 来源，`history/transfer` 只用于历史重放/补充来源，不再作为自动业务回退引擎。
+- Organize：当前保留 `mock + host-backed selectable` 的 preview/apply 双阶段边界。`preview` 已切换为 MusicPilot 本地音乐路径预览；`apply` 当前通过宿主底层 file/storage transfer runtime 执行音乐文件整理。音乐 metadata 恢复当前优先使用显式 `MetadataDetail`，其次使用已有上下文、嵌入音频标签与 `source_path` 线索。`history/download` 是新派发后的主 handoff 来源，`history/transfer` 只用于历史重放/补充来源，不再作为自动业务回退引擎。
 
 ## 如何启用 host integration
 
@@ -278,7 +278,7 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 
 ## 下一阶段建议推进方式
 
-1. 在保留现有 response envelope 的前提下，增强 MusicPilot 自己的音乐 metadata 恢复能力。
+1. 在保留现有 response envelope 的前提下，继续增强 MusicPilot 自己的音乐 metadata 恢复能力，优先补本地标签解析与更稳定的目录/文件名恢复。
 2. 引入真实 metadata provider adapter，让 metadata/search 不再停留在 seed/mock 层。
 3. 在当前 SubscriptionExecutionService 骨架上补完整调度、重试、下载完成回调与 organize job 状态机。
 4. 保持 `plugin_runtime/` 只作为构建产物边界，不把开发源码和宿主产物混放。

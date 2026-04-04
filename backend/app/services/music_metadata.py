@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
+
+try:
+    from mutagen import File as MutagenFile
+except ImportError:  # pragma: no cover - exercised only when dependency is absent at runtime
+    MutagenFile = None
 
 from ..schemas.acquisition import SearchCandidateDetail
 from ..schemas.metadata import MetadataDetail
@@ -45,6 +50,8 @@ class MusicMetadataResolver:
         metadata_detail: MetadataDetail | None,
     ) -> MusicOrganizeMetadata:
         raw_payload = candidate.raw_payload or {}
+        source_path = self._resolve_source_path(candidate)
+        embedded_tag_hints = self._coerce_hints(self._read_embedded_tag_hints(source_path))
         hints = self._parse_source_path_hints(candidate)
 
         explicit_title = self._first_optional(
@@ -62,6 +69,7 @@ class MusicMetadataResolver:
         title = self._first_non_empty(
             metadata_detail.title if metadata_detail else None,
             explicit_title,
+            embedded_tag_hints.title,
             hints.title,
             candidate.title,
         )
@@ -69,6 +77,7 @@ class MusicMetadataResolver:
             metadata_detail.artist_name if metadata_detail and metadata_detail.artist_name else None,
             explicit_artist_name,
             metadata_detail.title if metadata_detail and metadata_detail.entity_type == "artist" else None,
+            embedded_tag_hints.artist_name,
             hints.artist_name,
             candidate.site_name,
         )
@@ -76,6 +85,7 @@ class MusicMetadataResolver:
             metadata_detail.album_title if metadata_detail and metadata_detail.album_title else None,
             explicit_album_title,
             metadata_detail.title if metadata_detail and metadata_detail.entity_type == "album" else None,
+            embedded_tag_hints.album_title,
             hints.album_title,
             title,
         )
@@ -83,16 +93,18 @@ class MusicMetadataResolver:
             metadata_detail.track_title if metadata_detail and metadata_detail.track_title else None,
             explicit_track_title,
             metadata_detail.title if metadata_detail and metadata_detail.entity_type == "track" else None,
+            embedded_tag_hints.track_title,
             hints.track_title,
             title,
         )
         year = self._first_non_empty(
             str(metadata_detail.year) if metadata_detail and metadata_detail.year else None,
             explicit_year,
+            embedded_tag_hints.year,
             hints.year,
             "unknown",
         )
-        format_ext = slugify(candidate.format_tag or hints.format_ext or "bin")
+        format_ext = slugify(candidate.format_tag or embedded_tag_hints.format_ext or hints.format_ext or "bin")
 
         return MusicOrganizeMetadata(
             title=slugify(title),
@@ -102,6 +114,70 @@ class MusicMetadataResolver:
             year=year,
             format_ext=format_ext,
         )
+
+    def _read_embedded_tag_hints(self, source_path: str | None) -> _MusicPathHints:
+        if not source_path or MutagenFile is None:
+            return _MusicPathHints()
+
+        path = Path(source_path)
+        if not path.is_file():
+            return _MusicPathHints()
+
+        try:
+            audio = MutagenFile(str(path), easy=True)
+        except Exception:
+            return _MusicPathHints()
+
+        if not audio or not getattr(audio, "tags", None):
+            return _MusicPathHints()
+
+        tags = audio.tags
+        title = self._extract_tag_value(tags, "title")
+        artist_name = self._extract_tag_value(tags, "artist", "albumartist")
+        album_title = self._extract_tag_value(tags, "album")
+        year = self._normalize_year(self._extract_tag_value(tags, "date", "year"))
+
+        return self._build_tag_hints(
+            artist_name=artist_name,
+            album_title=album_title,
+            track_title=title,
+            title=title,
+            year=year,
+            format_ext=path.suffix.lstrip(".") or None,
+        )
+
+    def _build_tag_hints(
+        self,
+        *,
+        title: str | None = None,
+        artist_name: str | None = None,
+        album_title: str | None = None,
+        track_title: str | None = None,
+        year: str | None = None,
+        format_ext: str | None = None,
+    ) -> _MusicPathHints:
+        return _MusicPathHints(
+            artist_name=artist_name,
+            album_title=album_title,
+            track_title=track_title or title,
+            title=title or track_title,
+            year=year,
+            format_ext=format_ext,
+        )
+
+    def _coerce_hints(self, value: object) -> _MusicPathHints:
+        if isinstance(value, _MusicPathHints):
+            return value
+        if isinstance(value, dict):
+            return self._build_tag_hints(
+                title=self._coerce_text(value.get("title")),
+                artist_name=self._coerce_text(value.get("artist_name")),
+                album_title=self._coerce_text(value.get("album_title")),
+                track_title=self._coerce_text(value.get("track_title")),
+                year=self._normalize_year(value.get("year")),
+                format_ext=self._coerce_text(value.get("format_ext")),
+            )
+        return _MusicPathHints()
 
     def _parse_source_path_hints(self, candidate: SearchCandidateDetail) -> _MusicPathHints:
         source_path = self._resolve_source_path(candidate)
@@ -151,6 +227,25 @@ class MusicMetadataResolver:
             return match.group(1)
         return value
 
+    def _extract_tag_value(self, tags: object, *keys: str) -> str | None:
+        if not tags:
+            return None
+        for key in keys:
+            getter = getattr(tags, "get", None)
+            if not callable(getter):
+                continue
+            raw_value = getter(key)
+            if isinstance(raw_value, list):
+                for item in raw_value:
+                    coerced = self._coerce_text(item)
+                    if coerced:
+                        return coerced
+            else:
+                coerced = self._coerce_text(raw_value)
+                if coerced:
+                    return coerced
+        return None
+
     def _coerce_text(self, value: object) -> str | None:
         if isinstance(value, str) and value.strip():
             return value
@@ -160,7 +255,7 @@ class MusicMetadataResolver:
         if isinstance(value, int):
             return str(value)
         if isinstance(value, str):
-            match = re.match(r"^\s*(\d{4})\s*$", value)
+            match = re.match(r"^\s*(\d{4})(?:\D.*)?\s*$", value)
             if match:
                 return match.group(1)
         return None

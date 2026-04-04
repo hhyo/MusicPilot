@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
+from tempfile import NamedTemporaryFile
+from types import SimpleNamespace
 
 from fastapi import HTTPException
 from sqlalchemy import create_engine
@@ -221,6 +224,100 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.year, "2015")
         self.assertEqual(result.format_ext, "mp3")
 
+    def test_music_metadata_resolver_uses_embedded_tags_before_source_path_hints(self) -> None:
+        from app.services.music_metadata import MusicMetadataResolver
+
+        candidate = build_candidate().model_copy(
+            update={
+                "title": "Fallback Title",
+                "site_name": "Fallback Site",
+                "format_tag": "flac",
+                "raw_payload": {
+                    "host_transfer_source_path": "/downloads/Adele/2015 - Wrong Album/01 - Wrong Song.flac",
+                },
+            }
+        )
+        resolver = MusicMetadataResolver()
+
+        with patch.object(
+            resolver,
+            "_read_embedded_tag_hints",
+            return_value={
+                "title": "Hello",
+                "artist_name": "Adele",
+                "album_title": "25",
+                "year": "2015",
+                "format_ext": "flac",
+            },
+            create=True,
+        ):
+            result = resolver.resolve(candidate=candidate, metadata_detail=None)
+
+        self.assertEqual(result.title, "hello")
+        self.assertEqual(result.artist_name, "adele")
+        self.assertEqual(result.album_title, "25")
+        self.assertEqual(result.track_title, "hello")
+        self.assertEqual(result.year, "2015")
+        self.assertEqual(result.format_ext, "flac")
+
+    def test_music_metadata_resolver_reads_embedded_tag_hints_with_mutagen_mapping(self) -> None:
+        from app.services.music_metadata import MusicMetadataResolver
+
+        resolver = MusicMetadataResolver()
+        with NamedTemporaryFile(suffix=".flac") as handle:
+            with patch("app.services.music_metadata.MutagenFile") as mock_mutagen_file:
+                mock_mutagen_file.return_value = SimpleNamespace(
+                    tags={
+                        "title": ["Hello"],
+                        "artist": ["Adele"],
+                        "album": ["25"],
+                        "date": ["2015-11-20"],
+                    }
+                )
+
+                hints = resolver._read_embedded_tag_hints(handle.name)
+
+        self.assertEqual(hints.title, "Hello")
+        self.assertEqual(hints.track_title, "Hello")
+        self.assertEqual(hints.artist_name, "Adele")
+        self.assertEqual(hints.album_title, "25")
+        self.assertEqual(hints.year, "2015")
+        self.assertEqual(hints.format_ext, "flac")
+
+    def test_music_metadata_resolver_prefers_metadata_detail_over_embedded_tags(self) -> None:
+        from app.services.music_metadata import MusicMetadataResolver
+
+        candidate = build_candidate().model_copy(
+            update={
+                "format_tag": "flac",
+                "raw_payload": {
+                    "host_transfer_source_path": "/downloads/file.flac",
+                },
+            }
+        )
+        resolver = MusicMetadataResolver()
+
+        with patch.object(
+            resolver,
+            "_read_embedded_tag_hints",
+            return_value={
+                "title": "Wrong Song",
+                "artist_name": "Wrong Artist",
+                "album_title": "Wrong Album",
+                "year": "2001",
+                "format_ext": "flac",
+            },
+            create=True,
+        ):
+            result = resolver.resolve(candidate=candidate, metadata_detail=build_track_detail())
+
+        self.assertEqual(result.title, "hello")
+        self.assertEqual(result.artist_name, "adele")
+        self.assertEqual(result.album_title, "25")
+        self.assertEqual(result.track_title, "hello")
+        self.assertEqual(result.year, "2015")
+        self.assertEqual(result.format_ext, "flac")
+
     def test_strategy_service_builds_track_path_from_source_path_hints_when_track_metadata_is_partial(self) -> None:
         candidate = build_candidate().model_copy(
             update={
@@ -241,6 +338,41 @@ class OrganizeIntegrationTest(unittest.TestCase):
         service = OrganizeStrategyService(build_settings())
 
         plan = service.build_plan(candidate=candidate, metadata_detail=detail)
+
+        self.assertEqual(plan.target_relative_path, "adele/2015 - 25/hello.flac")
+
+    def test_strategy_service_builds_track_path_from_embedded_tags_when_track_metadata_is_partial(self) -> None:
+        candidate = build_candidate().model_copy(
+            update={
+                "format_tag": "flac",
+                "raw_payload": {
+                    "host_transfer_source_path": "/downloads/unknown.flac",
+                },
+            }
+        )
+        service = OrganizeStrategyService(build_settings())
+        detail = build_track_detail().model_copy(
+            update={
+                "artist_name": None,
+                "album_title": None,
+                "track_title": None,
+                "year": None,
+            }
+        )
+
+        with patch.object(
+            service.metadata_resolver,
+            "_read_embedded_tag_hints",
+            return_value={
+                "title": "Hello",
+                "artist_name": "Adele",
+                "album_title": "25",
+                "year": "2015",
+                "format_ext": "flac",
+            },
+            create=True,
+        ):
+            plan = service.build_plan(candidate=candidate, metadata_detail=detail)
 
         self.assertEqual(plan.target_relative_path, "adele/2015 - 25/hello.flac")
 
