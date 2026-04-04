@@ -11,6 +11,7 @@ from unittest.mock import patch
 from app.adapters.download_dispatch import RealDownloadDispatchAdapter
 from app.adapters.host_http import HostTransportError
 from app.adapters.host_search import RealHostSearchAdapter
+from app.adapters.host_storage_runtime import HostStorageRuntimeBridge
 from app.adapters.host_transfer_runtime import HostTransferRuntimeBridge
 from app.adapters.organize import RealOrganizeAdapter
 from app.core.config import Settings
@@ -56,6 +57,19 @@ class FakeTransferRuntime:
         self.calls: list[dict] = []
 
     def manual_transfer(self, **kwargs):  # noqa: ANN003
+        self.calls.append(kwargs)
+        if self.error is not None:
+            raise self.error
+        return self.response
+
+
+class FakeStorageRuntime:
+    def __init__(self, *, response=None, error: Exception | None = None):
+        self.response = response or {"success": True, "organize_status": "applied", "message": "", "target_path": ""}
+        self.error = error
+        self.calls: list[dict] = []
+
+    def transfer_file(self, **kwargs):  # noqa: ANN003
         self.calls.append(kwargs)
         if self.error is not None:
             raise self.error
@@ -128,8 +142,8 @@ def build_plan() -> OrganizePlan:
             conflict_policy=OrganizeConflictPolicy.SKIP_EXISTING,
             template_note="test",
         ),
-        target_library_path="/library/music",
-        target_relative_path="Adele/2015 - 25/01 - Hello.flac",
+        target_library_path="/library/music/Adele/2015 - 25/hello.flac",
+        target_relative_path="Adele/2015 - 25/hello.flac",
         strategy_note="test plan",
     )
 
@@ -426,11 +440,11 @@ class RealOrganizeAdapterTest(unittest.TestCase):
         self.assertTrue(result.target_relative_path.endswith("Organized-Adele-25.flac"))
         self.assertEqual(client.calls[0][2], {"path": "/downloads/Adele-25.flac", "filetype": "file"})
 
-    def test_apply_maps_transfer_manual_failure(self) -> None:
+    def test_apply_maps_music_storage_failure(self) -> None:
         candidate = build_candidate(
             raw_payload={"host_transfer_source_path": "/downloads/nonexistent-file.flac", "host_transfer_filetype": "file"}
         )
-        runtime = FakeTransferRuntime(
+        runtime = FakeStorageRuntime(
             response={
                 "success": False,
                 "organize_status": "failed",
@@ -440,7 +454,7 @@ class RealOrganizeAdapterTest(unittest.TestCase):
         adapter = RealOrganizeAdapter(
             settings=build_settings(),
             client=FakeHostClient(),  # type: ignore[arg-type]
-            transfer_runtime=runtime,
+            storage_runtime=runtime,
         )
 
         result = adapter.apply(
@@ -455,26 +469,28 @@ class RealOrganizeAdapterTest(unittest.TestCase):
         self.assertEqual(result.organize_status, OrganizeStatus.FAILED)
         self.assertEqual(result.verification_state, VerificationState.VERIFIED)
         self.assertIn("没有找到可整理的媒体文件", result.failure_reason or "")
-        self.assertEqual(runtime.calls[0]["fileitem"]["path"], "/downloads/nonexistent-file.flac")
-        self.assertEqual(runtime.calls[0]["fileitem"]["storage"], "local")
-        self.assertEqual(runtime.calls[0]["fileitem"]["type"], "file")
-        self.assertEqual(runtime.calls[0]["target_path"], "/library/music")
+        self.assertEqual(runtime.calls[0]["source_fileitem"]["path"], "/downloads/nonexistent-file.flac")
+        self.assertEqual(runtime.calls[0]["source_fileitem"]["storage"], "local")
+        self.assertEqual(runtime.calls[0]["source_fileitem"]["type"], "file")
+        self.assertEqual(runtime.calls[0]["target_directory"], "/library/music/Adele/2015 - 25")
+        self.assertEqual(runtime.calls[0]["target_filename"], "hello.flac")
 
-    def test_apply_maps_manual_transfer_success(self) -> None:
+    def test_apply_maps_music_storage_success(self) -> None:
         candidate = build_candidate(
             raw_payload={"host_transfer_source_path": "/downloads/Adele-25.flac", "host_transfer_filetype": "file"}
         )
-        runtime = FakeTransferRuntime(
+        runtime = FakeStorageRuntime(
             response={
                 "success": True,
                 "organize_status": "applied",
                 "message": "",
+                "target_path": "/library/music/Adele/2015 - 25/hello.flac",
             }
         )
         adapter = RealOrganizeAdapter(
             settings=build_settings(),
             client=FakeHostClient(),  # type: ignore[arg-type]
-            transfer_runtime=runtime,
+            storage_runtime=runtime,
         )
 
         result = adapter.apply(
@@ -490,10 +506,11 @@ class RealOrganizeAdapterTest(unittest.TestCase):
         self.assertEqual(result.verification_state, VerificationState.VERIFIED)
         self.assertEqual(
             result.integration_point,
-            "RealOrganizeAdapter.apply.moviepilot_transfer_chain_manual_transfer",
+            "RealOrganizeAdapter.apply.music_storage_runtime_transfer",
         )
+        self.assertEqual(result.target_library_path, "/library/music/Adele/2015 - 25/hello.flac")
 
-    def test_apply_passes_media_reference_and_download_context_when_available(self) -> None:
+    def test_apply_passes_storage_runtime_payload_when_available(self) -> None:
         candidate = build_candidate(
             raw_payload={
                 "host_transfer_source_path": "/downloads/The.Matrix.1999.1080p.WEB-DL.mkv",
@@ -515,11 +532,11 @@ class RealOrganizeAdapterTest(unittest.TestCase):
                 "host_transfer_downloader": "QB",
             }
         )
-        runtime = FakeTransferRuntime()
+        runtime = FakeStorageRuntime()
         adapter = RealOrganizeAdapter(
             settings=build_settings(),
             client=FakeHostClient(),  # type: ignore[arg-type]
-            transfer_runtime=runtime,
+            storage_runtime=runtime,
         )
 
         adapter.apply(
@@ -530,20 +547,20 @@ class RealOrganizeAdapterTest(unittest.TestCase):
             plan=build_plan(),
         )
 
-        self.assertEqual(runtime.calls[0]["tmdbid"], 603)
-        self.assertEqual(runtime.calls[0]["doubanid"], "1291843")
-        self.assertEqual(runtime.calls[0]["download_hash"], "stub-download-001")
-        self.assertEqual(runtime.calls[0]["downloader"], "QB")
+        self.assertEqual(runtime.calls[0]["source_fileitem"]["path"], "/downloads/The.Matrix.1999.1080p.WEB-DL.mkv")
+        self.assertEqual(runtime.calls[0]["target_directory"], "/library/music/Adele/2015 - 25")
+        self.assertEqual(runtime.calls[0]["target_filename"], "hello.flac")
+        self.assertEqual(runtime.calls[0]["transfer_type"], "copy")
 
     def test_apply_keeps_current_behavior_when_enhancement_fields_missing(self) -> None:
         candidate = build_candidate(
             raw_payload={"host_transfer_source_path": "/downloads/Adele-25.flac", "host_transfer_filetype": "file"}
         )
-        runtime = FakeTransferRuntime()
+        runtime = FakeStorageRuntime()
         adapter = RealOrganizeAdapter(
             settings=build_settings(),
             client=FakeHostClient(),  # type: ignore[arg-type]
-            transfer_runtime=runtime,
+            storage_runtime=runtime,
         )
 
         adapter.apply(
@@ -554,10 +571,80 @@ class RealOrganizeAdapterTest(unittest.TestCase):
             plan=build_plan(),
         )
 
-        self.assertNotIn("tmdbid", runtime.calls[0])
-        self.assertNotIn("doubanid", runtime.calls[0])
-        self.assertNotIn("download_hash", runtime.calls[0])
-        self.assertNotIn("downloader", runtime.calls[0])
+        self.assertEqual(runtime.calls[0]["source_fileitem"]["path"], "/downloads/Adele-25.flac")
+        self.assertEqual(runtime.calls[0]["target_filename"], "hello.flac")
+
+
+class HostStorageRuntimeBridgeTest(unittest.TestCase):
+    def test_transfer_file_parses_direct_runtime_result(self) -> None:
+        bridge = HostStorageRuntimeBridge()
+        completed = subprocess.CompletedProcess(
+            args=["python"],
+            returncode=0,
+            stdout='noise\n__MUSICPILOT_STORAGE_RESULT__={"success": true, "organize_status": "applied", "message": "", "target_path": "/library/music/Adele/2015 - 25/hello.flac"}\n',
+            stderr="",
+        )
+
+        with (
+            patch.object(HostStorageRuntimeBridge, "_resolve_host_root", return_value=Path("/stub/MoviePilot")),
+            patch("app.adapters.host_storage_runtime.subprocess.run", return_value=completed),
+        ):
+            result = bridge.transfer_file(
+                source_fileitem={
+                    "storage": "local",
+                    "path": "/downloads/Adele/25/01 - Hello.flac",
+                    "type": "file",
+                    "name": "01 - Hello.flac",
+                    "basename": "01 - Hello",
+                    "extension": ".flac",
+                    "size": 1024,
+                },
+                target_storage="local",
+                target_directory="/library/music/Adele/2015 - 25",
+                target_filename="hello.flac",
+                transfer_type="copy",
+                conflict_policy="skip_existing",
+            )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["organize_status"], "applied")
+
+    def test_transfer_file_forwards_payload(self) -> None:
+        bridge = HostStorageRuntimeBridge()
+        completed = subprocess.CompletedProcess(
+            args=["python"],
+            returncode=0,
+            stdout='__MUSICPILOT_STORAGE_RESULT__={"success": true, "organize_status": "applied", "message": "", "target_path": "/library/music/Adele/2015 - 25/hello.flac"}\n',
+            stderr="",
+        )
+
+        with (
+            patch.object(HostStorageRuntimeBridge, "_resolve_host_root", return_value=Path("/stub/MoviePilot")),
+            patch("app.adapters.host_storage_runtime.subprocess.run", return_value=completed) as mocked_run,
+        ):
+            bridge.transfer_file(
+                source_fileitem={
+                    "storage": "local",
+                    "path": "/downloads/Adele/25/01 - Hello.flac",
+                    "type": "file",
+                    "name": "01 - Hello.flac",
+                    "basename": "01 - Hello",
+                    "extension": ".flac",
+                    "size": 1024,
+                },
+                target_storage="local",
+                target_directory="/library/music/Adele/2015 - 25",
+                target_filename="hello.flac",
+                transfer_type="copy",
+                conflict_policy="append_suffix",
+            )
+
+        payload = json.loads(mocked_run.call_args.kwargs["input"])
+        self.assertEqual(payload["source_fileitem"]["path"], "/downloads/Adele/25/01 - Hello.flac")
+        self.assertEqual(payload["target_directory"], "/library/music/Adele/2015 - 25")
+        self.assertEqual(payload["target_filename"], "hello.flac")
+        self.assertEqual(payload["transfer_type"], "copy")
+        self.assertEqual(payload["conflict_policy"], "append_suffix")
 
 
 class HostTransferRuntimeBridgeTest(unittest.TestCase):

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import PurePosixPath
 from typing import Any
 
 from .host_http import HostHttpClient, HostTransportError
-from .host_transfer_runtime import HostTransferRuntimeBridge
+from .host_storage_runtime import HostStorageRuntimeBridge
 from ..core.config import Settings
 from ..schemas.acquisition import PathHandoffInfo, SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterSelectionMode, VerificationState
@@ -138,12 +139,12 @@ class MockOrganizeAdapter(OrganizeAdapter):
 
 
 class RealOrganizeAdapter(OrganizeAdapter):
-    """MoviePilot transfer-backed organize adapter.
+    """MoviePilot-backed organize adapter.
 
     Phase 7A verified that MoviePilot does not expose a native ``/organize/preview`` /
     ``/organize/apply`` pair. The closest real host semantics are:
     - ``GET /api/v1/transfer/name`` for naming preview.
-    - ``TransferChain.manual_transfer(...)`` for manual transfer/apply.
+    - host file/storage operations for music apply execution.
     """
 
     def __init__(
@@ -151,11 +152,11 @@ class RealOrganizeAdapter(OrganizeAdapter):
         *,
         settings: Settings,
         client: HostHttpClient,
-        transfer_runtime: HostTransferRuntimeBridge | None = None,
+        storage_runtime: HostStorageRuntimeBridge | None = None,
     ):
         self.settings = settings
         self.client = client
-        self.transfer_runtime = transfer_runtime or HostTransferRuntimeBridge()
+        self.storage_runtime = storage_runtime or HostStorageRuntimeBridge()
 
     def preview(
         self,
@@ -241,53 +242,53 @@ class RealOrganizeAdapter(OrganizeAdapter):
         source = self._resolve_source(candidate)
         if not source:
             raise HostTransportError(
-                "MoviePilot transfer/manual requires a downloaded local file path, but the current candidate/binding does not expose one.",
+                "Music organize apply requires a downloaded local file path, but the current candidate/binding does not expose one.",
                 reason_code="moviepilot_transfer_source_path_missing",
             )
 
-        runtime_payload = self._build_manual_transfer_args(
+        runtime_payload = self._build_storage_transfer_args(
             candidate=candidate,
             source=source,
             plan=plan,
         )
-        transfer_kwargs: dict[str, Any] = {
-            "fileitem": runtime_payload["fileitem"],
-            "target_path": runtime_payload["target_path"],
-            "transfer_type": runtime_payload["transfer_type"],
-            "scrape": bool(runtime_payload.get("scrape", False)),
-            "background": bool(runtime_payload.get("background", False)),
-        }
-        for key in ("tmdbid", "doubanid", "downloader", "download_hash"):
-            if runtime_payload.get(key) is not None:
-                transfer_kwargs[key] = runtime_payload[key]
-
-        data = self.transfer_runtime.manual_transfer(**transfer_kwargs)
+        data = self.storage_runtime.transfer_file(**runtime_payload)
         success = bool(data.get("success"))
         default_status = OrganizeStatus.APPLIED if success else OrganizeStatus.FAILED
+        target_path = self._optional_text(data.get("target_path"))
+        if target_path and not data.get("target_library_path"):
+            data["target_library_path"] = target_path
+        if target_path and not data.get("target_relative_path"):
+            relative_path = self._relative_target_path(target_path=target_path, plan=plan)
+            if relative_path:
+                data["target_relative_path"] = relative_path
         return self._build_result(
             payload=data,
             default_status=default_status,
             default_note=(
-                "当前 organize apply 通过隔离宿主运行时直调 MoviePilot `TransferChain.manual_transfer(...)`。"
-                "MusicPilot 仍负责 organize input 解析、计划生成和结果记录；宿主内的整理执行保持原生语义。"
+                "当前 organize apply 通过隔离宿主运行时复用 MoviePilot 底层文件/存储操作。"
+                "MusicPilot 仍负责 organize input 解析、音乐目录规划与结果记录；宿主只负责实际文件整理执行。"
             ),
-            integration_point="RealOrganizeAdapter.apply.moviepilot_transfer_chain_manual_transfer",
+            integration_point="RealOrganizeAdapter.apply.music_storage_runtime_transfer",
             plan=plan,
-            capability_source="moviepilot.runtime.transfer.manual_transfer",
+            capability_source="moviepilot.runtime.filemanager.storage_transfer",
             verification_state=VerificationState.VERIFIED,
             organizeable=success,
             path_handoff=_extract_candidate_path_handoff(candidate),
         )
 
-    def _build_manual_transfer_args(
+    def _build_storage_transfer_args(
         self,
         *,
         candidate: SearchCandidateDetail,
         source: dict[str, str],
         plan: OrganizePlan,
     ) -> dict[str, Any]:
-        payload: dict[str, Any] = {
-            "fileitem": {
+        target_path = self._resolve_storage_target_path(plan=plan, source=source)
+        conflict_policy = plan.strategy_snapshot.conflict_policy
+        if hasattr(conflict_policy, "value"):
+            conflict_policy = conflict_policy.value
+        return {
+            "source_fileitem": {
                 "storage": source["storage"],
                 "path": source["path"],
                 "type": source["filetype"],
@@ -296,14 +297,12 @@ class RealOrganizeAdapter(OrganizeAdapter):
                 "extension": source["extension"],
                 "size": candidate.size_bytes,
             },
-            "target_path": plan.target_library_path,
+            "target_storage": "local",
+            "target_directory": target_path.parent.as_posix(),
+            "target_filename": target_path.name,
             "transfer_type": self.settings.organize_transfer_type,
-            "scrape": False,
-            "background": False,
+            "conflict_policy": str(conflict_policy or "skip_existing"),
         }
-        context = self._extract_manual_transfer_context(candidate)
-        payload.update(context)
-        return payload
 
     def _build_result(
         self,
@@ -396,37 +395,26 @@ class RealOrganizeAdapter(OrganizeAdapter):
             }
         return None
 
-    def _extract_manual_transfer_context(self, candidate: SearchCandidateDetail) -> dict[str, Any]:
-        raw_payload = candidate.raw_payload or {}
-        context: dict[str, Any] = {}
-
-        media_reference = raw_payload.get("host_media_reference")
-        if not isinstance(media_reference, dict):
-            host_context = raw_payload.get("host_context")
-            media_reference = (
-                host_context.get("media_info")
-                if isinstance(host_context, dict) and isinstance(host_context.get("media_info"), dict)
-                else {}
+    def _resolve_storage_target_path(self, *, plan: OrganizePlan, source: dict[str, str]) -> PurePosixPath:
+        target_path = PurePosixPath(plan.target_library_path)
+        if target_path.suffix:
+            return target_path
+        source_name = self._optional_text(source.get("name"))
+        if source_name is None:
+            raise HostTransportError(
+                "Music organize apply could not derive a target filename from the resolved source file.",
+                reason_code="music_organize_target_filename_missing",
             )
-        if isinstance(media_reference, dict):
-            tmdbid = self._to_int_or_none(media_reference.get("tmdbid") or media_reference.get("tmdb_id"))
-            doubanid = self._optional_text(media_reference.get("doubanid") or media_reference.get("douban_id"))
-            if tmdbid is not None:
-                context["tmdbid"] = tmdbid
-            if doubanid is not None:
-                context["doubanid"] = doubanid
+        return target_path / source_name
 
-        handoff = raw_payload.get("path_handoff")
-        if isinstance(handoff, dict):
-            download_hash = self._optional_text(handoff.get("download_hash"))
-            if download_hash is not None:
-                context["download_hash"] = download_hash
-
-        downloader = self._optional_text(raw_payload.get("host_transfer_downloader"))
-        if downloader is not None:
-            context["downloader"] = downloader
-
-        return context
+    def _relative_target_path(self, *, target_path: str, plan: OrganizePlan) -> str | None:
+        root_path = self._optional_text(plan.strategy_snapshot.root_path)
+        if root_path is None:
+            return None
+        try:
+            return PurePosixPath(target_path).relative_to(PurePosixPath(root_path)).as_posix()
+        except ValueError:
+            return None
 
     def _extract_preview_name(self, payload: dict[str, Any]) -> str | None:
         data = payload.get("data")
@@ -450,11 +438,3 @@ class RealOrganizeAdapter(OrganizeAdapter):
         if value in (None, ""):
             return None
         return str(value)
-
-    def _to_int_or_none(self, value: Any) -> int | None:
-        if value in (None, ""):
-            return None
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return None

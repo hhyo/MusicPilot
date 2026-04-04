@@ -13,10 +13,10 @@ from ..adapters.download_dispatch import (
     RealDownloadDispatchAdapter,
 )
 from ..adapters.host_http import HostHttpClient, HostHttpClientConfig
+from ..adapters.host_storage_runtime import HostStorageRuntimeBridge
 from ..adapters.chart_provider import ChartProviderAdapter, MockChartProviderAdapter
 from ..adapters.host_probe import HostProbeAdapter, MockHostProbeAdapter, RealHostProbeAdapter
 from ..adapters.host_search import HostSearchAdapter, MockHostSearchAdapter, RealHostSearchAdapter
-from ..adapters.host_transfer_runtime import HostTransferRuntimeBridge
 from ..adapters.metadata_provider import MetadataProviderAdapter, MockMetadataProviderAdapter
 from ..adapters.organize import MockOrganizeAdapter, OrganizeAdapter, RealOrganizeAdapter
 from ..core.db import get_db_session
@@ -182,8 +182,8 @@ def get_organize_adapter() -> OrganizeAdapter:
 
 
 @lru_cache
-def get_host_transfer_runtime_bridge() -> HostTransferRuntimeBridge:
-    return HostTransferRuntimeBridge()
+def get_host_storage_runtime_bridge() -> HostStorageRuntimeBridge:
+    return HostStorageRuntimeBridge()
 
 
 @lru_cache
@@ -191,7 +191,7 @@ def get_real_organize_adapter() -> OrganizeAdapter:
     return RealOrganizeAdapter(
         settings=settings,
         client=get_host_http_client(),
-        transfer_runtime=get_host_transfer_runtime_bridge(),
+        storage_runtime=get_host_storage_runtime_bridge(),
     )
 
 
