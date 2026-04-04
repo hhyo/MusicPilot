@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import unittest
 from pathlib import Path
@@ -492,6 +493,72 @@ class RealOrganizeAdapterTest(unittest.TestCase):
             "RealOrganizeAdapter.apply.moviepilot_transfer_chain_manual_transfer",
         )
 
+    def test_apply_passes_media_reference_and_download_context_when_available(self) -> None:
+        candidate = build_candidate(
+            raw_payload={
+                "host_transfer_source_path": "/downloads/The.Matrix.1999.1080p.WEB-DL.mkv",
+                "host_transfer_filetype": "file",
+                "host_media_reference": {
+                    "tmdbid": 603,
+                    "doubanid": "1291843",
+                },
+                "path_handoff": {
+                    "download_hash": "stub-download-001",
+                    "source_path": "/downloads/The.Matrix.1999.1080p.WEB-DL.mkv",
+                    "source_filetype": "file",
+                    "handoff_source": "moviepilot.runtime.history.download",
+                    "handoff_status": "resolved_from_history_download",
+                    "verification_state": "verified",
+                    "note": "resolved",
+                    "raw_summary": {},
+                },
+                "host_transfer_downloader": "QB",
+            }
+        )
+        runtime = FakeTransferRuntime()
+        adapter = RealOrganizeAdapter(
+            settings=build_settings(),
+            client=FakeHostClient(),  # type: ignore[arg-type]
+            transfer_runtime=runtime,
+        )
+
+        adapter.apply(
+            organize_job_id="organize-003",
+            candidate=candidate,
+            metadata_detail=None,
+            binding_id="bind-001",
+            plan=build_plan(),
+        )
+
+        self.assertEqual(runtime.calls[0]["tmdbid"], 603)
+        self.assertEqual(runtime.calls[0]["doubanid"], "1291843")
+        self.assertEqual(runtime.calls[0]["download_hash"], "stub-download-001")
+        self.assertEqual(runtime.calls[0]["downloader"], "QB")
+
+    def test_apply_keeps_current_behavior_when_enhancement_fields_missing(self) -> None:
+        candidate = build_candidate(
+            raw_payload={"host_transfer_source_path": "/downloads/Adele-25.flac", "host_transfer_filetype": "file"}
+        )
+        runtime = FakeTransferRuntime()
+        adapter = RealOrganizeAdapter(
+            settings=build_settings(),
+            client=FakeHostClient(),  # type: ignore[arg-type]
+            transfer_runtime=runtime,
+        )
+
+        adapter.apply(
+            organize_job_id="organize-004",
+            candidate=candidate,
+            metadata_detail=None,
+            binding_id=None,
+            plan=build_plan(),
+        )
+
+        self.assertNotIn("tmdbid", runtime.calls[0])
+        self.assertNotIn("doubanid", runtime.calls[0])
+        self.assertNotIn("download_hash", runtime.calls[0])
+        self.assertNotIn("downloader", runtime.calls[0])
+
 
 class HostTransferRuntimeBridgeTest(unittest.TestCase):
     def test_manual_transfer_parses_direct_runtime_result(self) -> None:
@@ -522,6 +589,42 @@ class HostTransferRuntimeBridgeTest(unittest.TestCase):
 
         self.assertTrue(result["success"])
         self.assertEqual(result["organize_status"], "applied")
+
+    def test_manual_transfer_forwards_optional_context_fields(self) -> None:
+        bridge = HostTransferRuntimeBridge()
+        completed = subprocess.CompletedProcess(
+            args=["python"],
+            returncode=0,
+            stdout='__MUSICPILOT_TRANSFER_RESULT__={"success": true, "organize_status": "applied", "message": ""}\n',
+            stderr="",
+        )
+
+        with (
+            patch.object(HostTransferRuntimeBridge, "_resolve_host_root", return_value=Path("/stub/MoviePilot")),
+            patch("app.adapters.host_transfer_runtime.subprocess.run", return_value=completed) as mocked_run,
+        ):
+            bridge.manual_transfer(
+                fileitem={
+                    "storage": "local",
+                    "path": "/downloads/Adele-25.flac",
+                    "type": "file",
+                    "name": "Adele-25.flac",
+                    "basename": "Adele-25",
+                    "extension": ".flac",
+                },
+                target_path="/library/music",
+                transfer_type="copy",
+                tmdbid=603,
+                doubanid="1291843",
+                download_hash="stub-download-001",
+                downloader="QB",
+            )
+
+        request = json.loads(mocked_run.call_args.kwargs["input"])
+        self.assertEqual(request["tmdbid"], 603)
+        self.assertEqual(request["doubanid"], "1291843")
+        self.assertEqual(request["download_hash"], "stub-download-001")
+        self.assertEqual(request["downloader"], "QB")
 
 
 class HostPathHandoffServiceTest(unittest.TestCase):

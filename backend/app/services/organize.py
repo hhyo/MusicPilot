@@ -160,6 +160,15 @@ class OrganizeService:
 
         candidate_payload = dict(candidate_model.raw_payload or {})
         binding_payload = dict(binding_model.raw_payload or {}) if binding_model else {}
+        if "path_handoff" not in candidate_payload and isinstance(binding_payload.get("path_handoff"), dict):
+            candidate_payload["path_handoff"] = binding_payload["path_handoff"]
+        if "host_transfer_downloader" not in candidate_payload:
+            host_transfer_downloader = self._resolve_binding_downloader(
+                binding_payload=binding_payload,
+                binding_model=binding_model,
+            )
+            if host_transfer_downloader:
+                candidate_payload["host_transfer_downloader"] = host_transfer_downloader
         if not self._has_source_payload(candidate_payload):
             resolved_payload = self._hydrate_path_handoff_payload(
                 candidate_payload=candidate_payload,
@@ -309,6 +318,13 @@ class OrganizeService:
             dispatched_at = dispatched_at.replace(tzinfo=timezone.utc)
         age_seconds = (datetime.now(timezone.utc) - dispatched_at).total_seconds()
         return age_seconds >= self.strategy_service.settings.host_handoff_pending_ttl_seconds
+
+    def _resolve_binding_downloader(self, *, binding_payload: dict, binding_model) -> str | None:
+        if binding_payload.get("target_downloader"):
+            return str(binding_payload["target_downloader"])
+        if binding_model is not None and binding_model.target_downloader:
+            return str(binding_model.target_downloader)
+        return None
 
 
 def serialize_organize_record(record) -> OrganizePreviewResult:

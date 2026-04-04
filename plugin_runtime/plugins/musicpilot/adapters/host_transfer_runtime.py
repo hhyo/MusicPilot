@@ -55,9 +55,13 @@ _MANUAL_TRANSFER_BRIDGE = textwrap.dedent(
         state, message = TransferChain().manual_transfer(
             fileitem=fileitem,
             target_path=target_path,
+            tmdbid=request.get("tmdbid"),
+            doubanid=request.get("doubanid"),
             transfer_type=request.get("transfer_type"),
             scrape=request.get("scrape"),
             background=request.get("background"),
+            downloader=request.get("downloader"),
+            download_hash=request.get("download_hash"),
         )
     except Exception as exc:  # pragma: no cover - exercised through parent bridge
         emit(
@@ -100,6 +104,10 @@ class HostTransferRuntimeBridge:
         transfer_type: str | None,
         scrape: bool = False,
         background: bool = False,
+        tmdbid: int | None = None,
+        doubanid: str | None = None,
+        downloader: str | None = None,
+        download_hash: str | None = None,
     ) -> dict[str, Any]:
         host_root = self._resolve_host_root()
         if host_root is None:
@@ -116,6 +124,14 @@ class HostTransferRuntimeBridge:
             "scrape": scrape,
             "background": background,
         }
+        if tmdbid is not None:
+            request["tmdbid"] = tmdbid
+        if doubanid:
+            request["doubanid"] = doubanid
+        if downloader:
+            request["downloader"] = downloader
+        if download_hash:
+            request["download_hash"] = download_hash
 
         try:
             completed = subprocess.run(

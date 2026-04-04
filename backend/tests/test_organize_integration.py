@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.adapters.organize import OrganizeAdapter
-from app.models.acquisition import SearchCandidateModel, SearchJobModel
+from app.models.acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
 from app.models.base import Base
 from app.schemas.integration import AdapterMode
 from app.schemas.orchestration import (
@@ -80,6 +80,21 @@ class DummyApplyResolver:
         raise NotImplementedError
 
     def apply(self, *, organize_job_id, candidate, metadata_detail, binding_id=None, plan):
+        return OrganizeExecutionResult(result=self.result, resolution=self.result.adapter_resolution)
+
+
+class CapturingApplyResolver:
+    def __init__(self, result: OrganizeAdapterResult):
+        self.result = result
+        self.captured_candidate = None
+        self.captured_binding_id = None
+
+    def preview(self, *, candidate, metadata_detail, binding_id=None, plan):  # pragma: no cover - not used
+        raise NotImplementedError
+
+    def apply(self, *, organize_job_id, candidate, metadata_detail, binding_id=None, plan):
+        self.captured_candidate = candidate
+        self.captured_binding_id = binding_id
         return OrganizeExecutionResult(result=self.result, resolution=self.result.adapter_resolution)
 
 
@@ -275,6 +290,134 @@ class OrganizeIntegrationTest(unittest.TestCase):
             self.assertIsNotNone(refreshed)
             self.assertEqual(refreshed.organize_status, "applied")
             self.assertEqual(refreshed.integration_point, "DummyDirectResolver.apply")
+        finally:
+            session.close()
+
+    def test_organize_service_apply_injects_binding_download_context_into_candidate_payload(self) -> None:
+        engine = create_engine("sqlite:///:memory:", future=True)
+        Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+        Base.metadata.create_all(bind=engine)
+        session = Session()
+        try:
+            job = SearchJobModel(
+                id="job-apply-ctx-001",
+                query_source_type="album",
+                query_source_id="album-ctx-001",
+                trigger_source="manual",
+                query_payload={},
+                metadata_snapshot={},
+                summary_json={},
+            )
+            candidate = SearchCandidateModel(
+                id="cand-apply-ctx-001",
+                job_id=job.id,
+                site_id="site-1",
+                site_name="Stub PT",
+                title="The Matrix",
+                normalized_title="the matrix",
+                size_bytes=1024,
+                seeders=1,
+                peers=0,
+                source_tags=[],
+                score_breakdown={},
+                reason_codes=[],
+                raw_payload={
+                    "host_transfer_source_path": "/downloads/The.Matrix.1999.1080p.WEB-DL.mkv",
+                    "host_transfer_filetype": "file",
+                },
+            )
+            binding = DownloadBindingModel(
+                id="bind-apply-ctx-001",
+                job_id=job.id,
+                candidate_id=candidate.id,
+                target_downloader="QB",
+                downloader_task_id="stub-download-001",
+                dispatchable=True,
+                dispatch_status="host_submitted",
+                mock=False,
+                note="binding",
+                integration_point="test.binding",
+                raw_payload={
+                    "path_handoff": {
+                        "download_hash": "stub-download-001",
+                        "source_path": "/downloads/The.Matrix.1999.1080p.WEB-DL.mkv",
+                        "source_filetype": "file",
+                        "handoff_source": "moviepilot.runtime.history.download",
+                        "handoff_status": "resolved_from_history_download",
+                        "verification_state": "verified",
+                        "note": "resolved",
+                        "raw_summary": {},
+                    },
+                    "target_downloader": "QB",
+                },
+            )
+            session.add(job)
+            session.add(candidate)
+            session.add(binding)
+            session.commit()
+
+            repository = OrchestrationRepository(session)
+            preview_result = OrganizeAdapterResult(
+                organizeable=True,
+                organize_backend=AdapterMode.HOST,
+                adapter_mode=AdapterMode.HOST,
+                strategy="music_default_layout",
+                strategy_snapshot=OrganizeStrategySnapshot(
+                    strategy_name="music_default_layout",
+                    library_type="music",
+                    root_path="/library/music",
+                    artist_dir_template="{artist_name}",
+                    album_dir_template="{artist_name}/{year} - {album_title}",
+                    track_file_template="{track_title}.{format_ext}",
+                    conflict_policy=OrganizeConflictPolicy.SKIP_EXISTING,
+                    template_note="test",
+                ),
+                organize_status=OrganizeStatus.PREVIEW_READY,
+                target_library_path="/library/music",
+                target_relative_path="Matrix/1999 - The Matrix/The.Matrix.1999.1080p.WEB-DL.mkv",
+                strategy_note="preview",
+                integration_point="DummyPreview",
+                capability_source="test",
+                mock=False,
+                note="preview",
+            )
+            record = repository.create_organize_record(
+                subscription_run_id=None,
+                search_job_id=job.id,
+                candidate_id=candidate.id,
+                binding_id=binding.id,
+                result=preview_result,
+            )
+            session.commit()
+            session.refresh(record)
+
+            apply_result = preview_result.model_copy(
+                update={
+                    "organize_status": OrganizeStatus.APPLIED,
+                    "integration_point": "CapturingApplyResolver.apply",
+                    "note": "applied",
+                }
+            )
+            resolver = CapturingApplyResolver(apply_result)
+            service = OrganizeService(
+                session=session,
+                resolver=resolver,  # type: ignore[arg-type]
+                strategy_service=OrganizeStrategyService(build_settings()),
+                path_handoff_service=HostPathHandoffService(
+                    settings=build_settings(),
+                    client=FakeHostClient(),  # type: ignore[arg-type]
+                ),
+            )
+
+            service.apply(OrganizeApplyRequest(organize_job_id=record.id))
+
+            self.assertIsNotNone(resolver.captured_candidate)
+            self.assertEqual(resolver.captured_binding_id, binding.id)
+            self.assertEqual(resolver.captured_candidate.raw_payload["host_transfer_downloader"], "QB")
+            self.assertEqual(
+                resolver.captured_candidate.raw_payload["path_handoff"]["download_hash"],
+                "stub-download-001",
+            )
         finally:
             session.close()
 

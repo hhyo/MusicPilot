@@ -250,13 +250,18 @@ class RealOrganizeAdapter(OrganizeAdapter):
             source=source,
             plan=plan,
         )
-        data = self.transfer_runtime.manual_transfer(
-            fileitem=runtime_payload["fileitem"],
-            target_path=runtime_payload["target_path"],
-            transfer_type=runtime_payload["transfer_type"],
-            scrape=bool(runtime_payload.get("scrape", False)),
-            background=bool(runtime_payload.get("background", False)),
-        )
+        transfer_kwargs: dict[str, Any] = {
+            "fileitem": runtime_payload["fileitem"],
+            "target_path": runtime_payload["target_path"],
+            "transfer_type": runtime_payload["transfer_type"],
+            "scrape": bool(runtime_payload.get("scrape", False)),
+            "background": bool(runtime_payload.get("background", False)),
+        }
+        for key in ("tmdbid", "doubanid", "downloader", "download_hash"):
+            if runtime_payload.get(key) is not None:
+                transfer_kwargs[key] = runtime_payload[key]
+
+        data = self.transfer_runtime.manual_transfer(**transfer_kwargs)
         success = bool(data.get("success"))
         default_status = OrganizeStatus.APPLIED if success else OrganizeStatus.FAILED
         return self._build_result(
@@ -281,7 +286,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
         source: dict[str, str],
         plan: OrganizePlan,
     ) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "fileitem": {
                 "storage": source["storage"],
                 "path": source["path"],
@@ -296,6 +301,9 @@ class RealOrganizeAdapter(OrganizeAdapter):
             "scrape": False,
             "background": False,
         }
+        context = self._extract_manual_transfer_context(candidate)
+        payload.update(context)
+        return payload
 
     def _build_result(
         self,
@@ -388,6 +396,38 @@ class RealOrganizeAdapter(OrganizeAdapter):
             }
         return None
 
+    def _extract_manual_transfer_context(self, candidate: SearchCandidateDetail) -> dict[str, Any]:
+        raw_payload = candidate.raw_payload or {}
+        context: dict[str, Any] = {}
+
+        media_reference = raw_payload.get("host_media_reference")
+        if not isinstance(media_reference, dict):
+            host_context = raw_payload.get("host_context")
+            media_reference = (
+                host_context.get("media_info")
+                if isinstance(host_context, dict) and isinstance(host_context.get("media_info"), dict)
+                else {}
+            )
+        if isinstance(media_reference, dict):
+            tmdbid = self._to_int_or_none(media_reference.get("tmdbid") or media_reference.get("tmdb_id"))
+            doubanid = self._optional_text(media_reference.get("doubanid") or media_reference.get("douban_id"))
+            if tmdbid is not None:
+                context["tmdbid"] = tmdbid
+            if doubanid is not None:
+                context["doubanid"] = doubanid
+
+        handoff = raw_payload.get("path_handoff")
+        if isinstance(handoff, dict):
+            download_hash = self._optional_text(handoff.get("download_hash"))
+            if download_hash is not None:
+                context["download_hash"] = download_hash
+
+        downloader = self._optional_text(raw_payload.get("host_transfer_downloader"))
+        if downloader is not None:
+            context["downloader"] = downloader
+
+        return context
+
     def _extract_preview_name(self, payload: dict[str, Any]) -> str | None:
         data = payload.get("data")
         if isinstance(data, dict) and data.get("name"):
@@ -410,3 +450,11 @@ class RealOrganizeAdapter(OrganizeAdapter):
         if value in (None, ""):
             return None
         return str(value)
+
+    def _to_int_or_none(self, value: Any) -> int | None:
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
