@@ -95,7 +95,7 @@ python -m app.db_init --reseed
 - Chart discovery：当前为 local seed / mock chart source，只验证发现入口与从 chart item 创建订阅的动作。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
 - Dispatch：当前保留 `mock + host-backed selectable`。当存在可靠 `media_in` 时走 `/api/v1/download/`；只有 `torrent_in` 时走 `/api/v1/download/add`。这两个接口是不同语义，不再由运行时策略层互相切换。
-- Organize：当前保留 `mock + host-backed selectable` 的 preview/apply 双阶段边界。`preview` 固定映射 `/api/v1/transfer/name`；`apply` 当前通过宿主底层 file/storage transfer runtime 执行音乐文件整理。`history/download` 是新派发后的主 handoff 来源，`history/transfer` 只用于历史重放/补充来源，不再作为自动业务回退引擎。
+- Organize：当前保留 `mock + host-backed selectable` 的 preview/apply 双阶段边界。`preview` 已切换为 MusicPilot 本地音乐路径预览；`apply` 当前通过宿主底层 file/storage transfer runtime 执行音乐文件整理。`history/download` 是新派发后的主 handoff 来源，`history/transfer` 只用于历史重放/补充来源，不再作为自动业务回退引擎。
 
 ## 如何启用 host integration
 
@@ -141,7 +141,7 @@ export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backe
 - candidate 派发时，有 `media_in` 就调用 `/api/v1/download/`；只有 `torrent_in` 时调用 `/api/v1/download/add`。
 - dispatch 成功后的 `source_path` 主来源是 `/api/v1/history/download`。
 - 历史重放或补充查询时，`source_path` 补充来源才是 `/api/v1/history/transfer`。
-- organize preview 只走 `/api/v1/transfer/name`。
+- organize preview 只走 MusicPilot 本地音乐路径预览。
 - organize apply 只走宿主底层 file/storage transfer runtime。
 
 这意味着当前系统不再做运行时路径计算：
@@ -250,7 +250,7 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - 订阅模型与 API、mock charts/discovery、subscription run 记录与 host-aware organize preview/apply
 - host-aware search / dispatch / organize adapter resolver、必要的 mock/real 环境切换与联调说明
 - 真实 MoviePilot search / download / transfer 语义验证与字段映射收敛
-- 真实 download success -> history path handoff -> transfer/name -> transfer/manual 的最小成功闭环
+- 真实宿主插件 API 下的音乐 `preview_ready -> applied` 最小闭环
 - 真实宿主验证矩阵、多样例稳定性分类与手动回归脚本
 - 验证矩阵作为验证产物保留，但不再驱动运行时策略决策
 
@@ -260,7 +260,7 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - 真实第三方 metadata provider 接入
 - 生产级订阅调度器与重试编排
 - 真实 PT 搜索、匹配、下载派发
-- 真实 organize 文件处理、标签、媒体库刷新
+- 真实 organize 文件处理增强、音频标签解析与媒体库刷新
 - 真实 MoviePilot 宿主安装与挂载逻辑
 - 真实 MoviePilot `download/add` 多样例稳定成功
 - 真实 MoviePilot `download_media` 到 organize 的稳定成功映射
@@ -271,14 +271,14 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 ## 推荐演示路径
 
 1. 先访问 `/health` 与 `/api/probe/validation-matrix`，确认当前 active adapter、verification state 和最新验证产物摘要。
-2. 优先演示 `history/transfer` 历史重放语义下的 organize 成功路径。
-3. 如需演示从搜索到派发，再补一条 `search/title -> download_add -> history/download -> transfer/manual` 的单样例路径，并明确它当前仍是 `single_sample`。
+2. 优先演示真实音乐样本下的 `preview_ready -> applied` organize 闭环。
+3. 如需演示从搜索到派发，再补一条历史宿主验证路径，并明确那是早期影视语义验证记录，不代表当前音乐 organize 主实现。
 
 更完整的说明见 [docs/13_Phase9_策略收敛与交付说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/13_Phase9_策略收敛与交付说明.md) 与 [docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)。
 
 ## 下一阶段建议推进方式
 
-1. 在保留现有 response envelope 的前提下，引入真实 metadata provider adapter。
-2. 在当前已验证的真实成功样例基础上，把 `download/add` 从 `single_sample` 推进到 `stable`，并继续解释 `download_media` 被宿主业务阻断的最后条件。
+1. 在保留现有 response envelope 的前提下，增强 MusicPilot 自己的音乐 metadata 恢复能力。
+2. 引入真实 metadata provider adapter，让 metadata/search 不再停留在 seed/mock 层。
 3. 在当前 SubscriptionExecutionService 骨架上补完整调度、重试、下载完成回调与 organize job 状态机。
 4. 保持 `plugin_runtime/` 只作为构建产物边界，不把开发源码和宿主产物混放。

@@ -11,7 +11,7 @@ FastAPI 工程目录。当前已完成：
 - host-aware organize preview/apply 与 organize 状态记录
 - host-aware search / dispatch / organize adapter resolver 与必要的 mock/real 环境切换
 - 真实 MoviePilot search / download / transfer 语义收敛与差异记录
-- 真实 download success -> history path handoff -> transfer/name -> transfer/manual 成功样例
+- 真实宿主插件 API 下的音乐 `preview_ready -> applied` 成功样例
 - Phase 8 多样例真实验证矩阵与 path handoff 稳定性收敛
 - 验证矩阵作为验证产物保留，运行时改回固定接口语义与固定调用规则
 
@@ -35,7 +35,7 @@ python -m app.db_init --reseed
 
 - `subscriptions/{id}/run` 为同步最小执行骨架
 - `charts/*` 为 local seed / mock chart source
-- `organize/preview` 和 `organize/apply` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择
+- `organize/preview` 和 `organize/apply` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择；当前 host preview 已切换为 MusicPilot 本地音乐路径预览，host apply 使用宿主底层 file/storage 执行
 - `jobs/*` 与 `downloads/dispatch` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择
 - 当前真实运行时不再根据验证矩阵决定业务路径；矩阵只保留为验证产物
 
@@ -81,7 +81,7 @@ python3 ../scripts/host_integration_stub.py
 当前固定调用规则与历史验证结论可这样理解：
 
 - 历史重放/补充来源：`history/transfer -> organize replay/apply`
-- 单样例真实链路：`search/title -> download_add -> history/download -> transfer/manual -> organize`
+- 早期单样例真实宿主链路：`search/title -> download_add -> history/download -> transfer/manual -> organize`
 - 已知不应自动继续尝试的失败场景：`download_media + resolved_from_history_download -> organize apply`
 
 Breaking cleanup 后，旧 SQLite 不再兼容当前 schema。请直接执行：

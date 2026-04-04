@@ -177,6 +177,73 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.year, "2008")
         self.assertEqual(result.format_ext, "aac")
 
+    def test_music_metadata_resolver_uses_source_path_hints_when_metadata_missing(self) -> None:
+        from app.services.music_metadata import MusicMetadataResolver
+
+        candidate = build_candidate().model_copy(
+            update={
+                "title": "Fallback Title",
+                "site_name": "Fallback Site",
+                "format_tag": "flac",
+                "raw_payload": {
+                    "host_transfer_source_path": "/downloads/Adele/2015 - 25/01 - Hello.flac",
+                },
+            }
+        )
+
+        result = MusicMetadataResolver().resolve(candidate=candidate, metadata_detail=None)
+
+        self.assertEqual(result.title, "hello")
+        self.assertEqual(result.artist_name, "adele")
+        self.assertEqual(result.album_title, "25")
+        self.assertEqual(result.track_title, "hello")
+        self.assertEqual(result.year, "2015")
+        self.assertEqual(result.format_ext, "flac")
+
+    def test_music_metadata_resolver_prefers_metadata_detail_over_source_path_hints(self) -> None:
+        from app.services.music_metadata import MusicMetadataResolver
+
+        candidate = build_candidate().model_copy(
+            update={
+                "format_tag": "mp3",
+                "raw_payload": {
+                    "host_transfer_source_path": "/downloads/Someone Else/2001 - Wrong Album/02 - Wrong Song.mp3",
+                },
+            }
+        )
+
+        result = MusicMetadataResolver().resolve(candidate=candidate, metadata_detail=build_track_detail())
+
+        self.assertEqual(result.title, "hello")
+        self.assertEqual(result.artist_name, "adele")
+        self.assertEqual(result.album_title, "25")
+        self.assertEqual(result.track_title, "hello")
+        self.assertEqual(result.year, "2015")
+        self.assertEqual(result.format_ext, "mp3")
+
+    def test_strategy_service_builds_track_path_from_source_path_hints_when_track_metadata_is_partial(self) -> None:
+        candidate = build_candidate().model_copy(
+            update={
+                "format_tag": "flac",
+                "raw_payload": {
+                    "host_transfer_source_path": "/downloads/Adele/2015 - 25/01 - Hello.flac",
+                },
+            }
+        )
+        detail = build_track_detail().model_copy(
+            update={
+                "artist_name": None,
+                "album_title": None,
+                "track_title": None,
+                "year": None,
+            }
+        )
+        service = OrganizeStrategyService(build_settings())
+
+        plan = service.build_plan(candidate=candidate, metadata_detail=detail)
+
+        self.assertEqual(plan.target_relative_path, "adele/2015 - 25/hello.flac")
+
     def test_music_layout_planner_uses_artist_template_for_artist_entity(self) -> None:
         from app.services.music_layout import MusicLayoutPlanner
 
