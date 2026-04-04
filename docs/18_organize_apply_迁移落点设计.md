@@ -12,6 +12,17 @@
 - 当前改为通过隔离宿主运行时直调 `TransferChain.manual_transfer(...)`
 - `preview`、`path handoff`、`history`、插件 API 边界保持不变
 
+当前运行态验证结论见：
+
+- [19_organize_apply_运行态验证.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/19_organize_apply_%E8%BF%90%E8%A1%8C%E6%80%81%E9%AA%8C%E8%AF%81.md)
+
+截至目前：
+
+- 代码层迁移已完成
+- `apply` 已不再走 `/api/v1/transfer/manual` HTTP 映射
+- 本地参考宿主源码可导入，但尚未证明其本地运行态已完整初始化
+- 因此当前“成功执行到宿主整理完成”的运行态验证仍是 `unverified`
+
 本文不讨论：
 
 - preview 迁移
