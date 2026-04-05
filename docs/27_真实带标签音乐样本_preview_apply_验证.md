@@ -2,7 +2,7 @@
 
 ## 目标
 
-验证 `MusicMetadataResolver` 第二轮增强后的嵌入标签解析，是否能在**真实 MoviePilot 插件运行态**里真正影响：
+验证 `MusicMetadataRecognizer` 第二轮增强后的嵌入标签解析，是否能在**真实 MoviePilot 插件运行态**里真正影响：
 
 1. `POST /api/v1/plugin/musicpilot/organize/preview`
 2. `POST /api/v1/plugin/musicpilot/organize/apply`
@@ -55,7 +55,7 @@
 也就是说：
 
 - `entity_type` 和 `release_type` 仍由 MusicPilot 自己给出
-- `artist/album/year` 则要依赖嵌入标签恢复
+- `artist/album/year` 则要依赖嵌入标签识别
 
 ## 验证步骤
 
@@ -81,7 +81,7 @@
 这说明：
 
 - 当前真实插件 API 下，`preview` 已经不是宿主影视 `transfer/name`
-- 它确实使用了 MusicPilot 本地音乐 metadata 恢复 + layout planner
+- 它确实使用了 MusicPilot 本地音乐 metadata 识别 + layout planner
 - 错误目录 `Wrong Artist/2001 - Wrong Album/01 - Wrong Song.m4a`
   被嵌入标签纠正成了：
   - `adele/2015 - 25/hello.m4a`
@@ -103,14 +103,14 @@
 
 这说明：
 
-- `apply` 使用的也是同一份 metadata 恢复与路径规划结果
+- `apply` 使用的也是同一份 metadata 识别与路径规划结果
 - 最终执行的宿主底层文件操作与 preview 计算出的音乐路径一致
 
 ## 关键结论
 
 本次验证已经证明：
 
-1. `MusicMetadataResolver` 的嵌入标签解析不只是单元测试可用，而是在真实宿主插件运行态里确实生效。
+1. `MusicMetadataRecognizer` 的嵌入标签解析不只是单元测试可用，而是在真实宿主插件运行态里确实生效。
 2. 错误文件名/错误目录名不会覆盖更高优先级的嵌入标签。
 3. 当前真实音乐 organize 闭环已经形成一致语义：
    - `preview`：本地音乐路径预览
@@ -126,7 +126,7 @@
 
 - 没有嵌入标签时所有样本都能稳定恢复 metadata
 - 多碟专辑、合集、TV 类字段等更复杂路径规则已经完善
-- 当前 metadata 恢复已达到生产级“全覆盖”
+- 当前 metadata 识别已达到生产级“全覆盖”
 
 ## 当前项目判断
 
@@ -139,6 +139,6 @@
 
 后续更高价值工作应转向：
 
-1. 没有嵌入标签时的 metadata 恢复能力增强
+1. 没有嵌入标签时的 metadata 识别能力增强
 2. 多碟/合集等音乐 layout 规则增强
 3. 从 organize 单点能力，继续推进到订阅与下载后的自动闭环

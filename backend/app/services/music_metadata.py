@@ -1,4 +1,4 @@
-"""Music metadata recovery helpers for organize preview/apply planning."""
+"""Music metadata recognition helpers for organize preview/apply planning."""
 
 from __future__ import annotations
 
@@ -42,8 +42,8 @@ class _MusicPathHints:
     format_ext: str | None = None
 
 
-class MusicMetadataResolver:
-    def resolve(
+class MusicMetadataRecognizer:
+    def recognize(
         self,
         *,
         candidate: SearchCandidateDetail,

@@ -29,4 +29,4 @@ MusicPilot 当前已经支持 `MUSICPILOT_METADATA_PROVIDER_MODE=musicbrainz`，
 - 当前没有 provider 缓存
 - 当前没有 provider 配置持久化
 - 当前没有多 provider 聚合
-- 当前 organize 的本地 metadata 恢复层仍独立存在，不依赖在线 provider
+- 当前 organize 的本地 metadata 识别层仍独立存在，不依赖在线 provider

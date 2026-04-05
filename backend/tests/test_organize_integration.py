@@ -136,13 +136,13 @@ class OrganizeIntegrationTest(unittest.TestCase):
             "format_ext": "flac",
         }
 
-    def test_music_metadata_resolver_prefers_track_detail_fields(self) -> None:
-        from app.services.music_metadata import MusicMetadataResolver
+    def test_music_metadata_recognizer_prefers_track_detail_fields(self) -> None:
+        from app.services.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(update={"title": "Fallback Title", "format_tag": "flac"})
         detail = build_track_detail()
 
-        result = MusicMetadataResolver().resolve(candidate=candidate, metadata_detail=detail)
+        result = MusicMetadataRecognizer().recognize(candidate=candidate, metadata_detail=detail)
 
         self.assertEqual(result.artist_name, "adele")
         self.assertEqual(result.album_title, "25")
@@ -151,8 +151,8 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.year, "2015")
         self.assertEqual(result.format_ext, "flac")
 
-    def test_music_metadata_resolver_falls_back_to_candidate_fields(self) -> None:
-        from app.services.music_metadata import MusicMetadataResolver
+    def test_music_metadata_recognizer_falls_back_to_candidate_fields(self) -> None:
+        from app.services.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -162,7 +162,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
             }
         )
 
-        result = MusicMetadataResolver().resolve(candidate=candidate, metadata_detail=None)
+        result = MusicMetadataRecognizer().recognize(candidate=candidate, metadata_detail=None)
 
         self.assertEqual(result.title, "adele-live")
         self.assertEqual(result.artist_name, "tracker-artist")
@@ -171,8 +171,8 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.year, "unknown")
         self.assertEqual(result.format_ext, "mp3")
 
-    def test_music_metadata_resolver_uses_artist_detail_title_for_artist_entity(self) -> None:
-        from app.services.music_metadata import MusicMetadataResolver
+    def test_music_metadata_recognizer_uses_artist_detail_title_for_artist_entity(self) -> None:
+        from app.services.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -183,7 +183,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         )
         detail = build_artist_detail()
 
-        result = MusicMetadataResolver().resolve(candidate=candidate, metadata_detail=detail)
+        result = MusicMetadataRecognizer().recognize(candidate=candidate, metadata_detail=detail)
 
         self.assertEqual(result.artist_name, "adele")
         self.assertEqual(result.album_title, "adele")
@@ -192,8 +192,8 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.year, "2008")
         self.assertEqual(result.format_ext, "aac")
 
-    def test_music_metadata_resolver_uses_source_path_hints_when_metadata_missing(self) -> None:
-        from app.services.music_metadata import MusicMetadataResolver
+    def test_music_metadata_recognizer_uses_source_path_hints_when_metadata_missing(self) -> None:
+        from app.services.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -206,7 +206,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
             }
         )
 
-        result = MusicMetadataResolver().resolve(candidate=candidate, metadata_detail=None)
+        result = MusicMetadataRecognizer().recognize(candidate=candidate, metadata_detail=None)
 
         self.assertEqual(result.title, "hello")
         self.assertEqual(result.artist_name, "adele")
@@ -215,8 +215,8 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.year, "2015")
         self.assertEqual(result.format_ext, "flac")
 
-    def test_music_metadata_resolver_prefers_metadata_detail_over_source_path_hints(self) -> None:
-        from app.services.music_metadata import MusicMetadataResolver
+    def test_music_metadata_recognizer_prefers_metadata_detail_over_source_path_hints(self) -> None:
+        from app.services.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -227,7 +227,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
             }
         )
 
-        result = MusicMetadataResolver().resolve(candidate=candidate, metadata_detail=build_track_detail())
+        result = MusicMetadataRecognizer().recognize(candidate=candidate, metadata_detail=build_track_detail())
 
         self.assertEqual(result.title, "hello")
         self.assertEqual(result.artist_name, "adele")
@@ -236,8 +236,8 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.year, "2015")
         self.assertEqual(result.format_ext, "mp3")
 
-    def test_music_metadata_resolver_uses_embedded_tags_before_source_path_hints(self) -> None:
-        from app.services.music_metadata import MusicMetadataResolver
+    def test_music_metadata_recognizer_uses_embedded_tags_before_source_path_hints(self) -> None:
+        from app.services.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -249,10 +249,10 @@ class OrganizeIntegrationTest(unittest.TestCase):
                 },
             }
         )
-        resolver = MusicMetadataResolver()
+        recognizer = MusicMetadataRecognizer()
 
         with patch.object(
-            resolver,
+            recognizer,
             "_read_embedded_tag_hints",
             return_value={
                 "title": "Hello",
@@ -263,7 +263,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
             },
             create=True,
         ):
-            result = resolver.resolve(candidate=candidate, metadata_detail=None)
+            result = recognizer.recognize(candidate=candidate, metadata_detail=None)
 
         self.assertEqual(result.title, "hello")
         self.assertEqual(result.artist_name, "adele")
@@ -272,10 +272,10 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.year, "2015")
         self.assertEqual(result.format_ext, "flac")
 
-    def test_music_metadata_resolver_reads_embedded_tag_hints_with_mutagen_mapping(self) -> None:
-        from app.services.music_metadata import MusicMetadataResolver
+    def test_music_metadata_recognizer_reads_embedded_tag_hints_with_mutagen_mapping(self) -> None:
+        from app.services.music_metadata import MusicMetadataRecognizer
 
-        resolver = MusicMetadataResolver()
+        recognizer = MusicMetadataRecognizer()
         with NamedTemporaryFile(suffix=".flac") as handle:
             with patch("app.services.music_metadata.MutagenFile") as mock_mutagen_file:
                 mock_mutagen_file.return_value = SimpleNamespace(
@@ -287,7 +287,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
                     }
                 )
 
-                hints = resolver._read_embedded_tag_hints(handle.name)
+                hints = recognizer._read_embedded_tag_hints(handle.name)
 
         self.assertEqual(hints.title, "Hello")
         self.assertEqual(hints.track_title, "Hello")
@@ -296,8 +296,8 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(hints.year, "2015")
         self.assertEqual(hints.format_ext, "flac")
 
-    def test_music_metadata_resolver_prefers_metadata_detail_over_embedded_tags(self) -> None:
-        from app.services.music_metadata import MusicMetadataResolver
+    def test_music_metadata_recognizer_prefers_metadata_detail_over_embedded_tags(self) -> None:
+        from app.services.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -307,10 +307,10 @@ class OrganizeIntegrationTest(unittest.TestCase):
                 },
             }
         )
-        resolver = MusicMetadataResolver()
+        recognizer = MusicMetadataRecognizer()
 
         with patch.object(
-            resolver,
+            recognizer,
             "_read_embedded_tag_hints",
             return_value={
                 "title": "Wrong Song",
@@ -321,7 +321,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
             },
             create=True,
         ):
-            result = resolver.resolve(candidate=candidate, metadata_detail=build_track_detail())
+            result = recognizer.recognize(candidate=candidate, metadata_detail=build_track_detail())
 
         self.assertEqual(result.title, "hello")
         self.assertEqual(result.artist_name, "adele")
@@ -373,7 +373,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         )
 
         with patch.object(
-            service.metadata_resolver,
+            service.metadata_recognizer,
             "_read_embedded_tag_hints",
             return_value={
                 "title": "Hello",

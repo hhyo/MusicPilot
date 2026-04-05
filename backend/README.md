@@ -43,7 +43,7 @@ python -m app.db_init --reseed
   - 可靠 `media_in` -> `/api/v1/download/`
   - torrent-only 但已具备宿主媒体参考 -> `/api/v1/download/add`
   - 音乐 torrent-only 候选 -> 宿主 downloader runtime 直接提交下载器
-- `organize/preview` 当前是 MusicPilot 本地音乐路径预览；`organize/apply` 当前通过宿主底层 file/storage 执行音乐文件整理。metadata 恢复优先使用显式 detail，其次使用已有上下文、嵌入标签与 `source_path` 线索
+- `organize/preview` 当前是 MusicPilot 本地音乐路径预览；`organize/apply` 当前通过宿主底层 file/storage 执行音乐文件整理。metadata 识别优先使用显式 detail，其次使用已有上下文、嵌入标签与 `source_path` 线索
 - `jobs/*` 与 `downloads/dispatch` 会根据 host integration settings 在 mock 与 host 模式间切换
 - 当前真实运行时不再根据验证矩阵决定业务路径；矩阵只保留为验证产物
 

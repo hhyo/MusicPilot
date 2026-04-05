@@ -13,7 +13,7 @@ from ..schemas.orchestration import (
     OrganizeStrategySnapshot,
 )
 from .music_layout import MusicLayoutPlanner
-from .music_metadata import MusicMetadataResolver
+from .music_metadata import MusicMetadataRecognizer
 
 
 class OrganizeStrategyService:
@@ -21,11 +21,11 @@ class OrganizeStrategyService:
         self,
         settings: Settings,
         *,
-        metadata_resolver: MusicMetadataResolver | None = None,
+        metadata_recognizer: MusicMetadataRecognizer | None = None,
         layout_planner: MusicLayoutPlanner | None = None,
     ):
         self.settings = settings
-        self.metadata_resolver = metadata_resolver or MusicMetadataResolver()
+        self.metadata_recognizer = metadata_recognizer or MusicMetadataRecognizer()
         self.layout_planner = layout_planner or MusicLayoutPlanner()
 
     def build_plan(
@@ -48,7 +48,7 @@ class OrganizeStrategyService:
             ),
         )
 
-        metadata = self.metadata_resolver.resolve(candidate=candidate, metadata_detail=metadata_detail)
+        metadata = self.metadata_recognizer.recognize(candidate=candidate, metadata_detail=metadata_detail)
         context = {
             "artist_name": metadata.artist_name,
             "album_title": metadata.album_title,
