@@ -34,8 +34,8 @@ async def list_subscriptions(
         ),
         message="Subscriptions loaded.",
         code="SUBSCRIPTIONS_OK",
-        mock=True,
-        note="当前订阅列表基于 Phase 6 最小订阅闭环，未接入真实自动调度。",
+        mock=False,
+        note="当前订阅列表已支持手动 run 与最小应用内 scheduler。",
     )
 
 
@@ -50,8 +50,8 @@ async def create_subscription(
         data=service.create_subscription(payload),
         message="Subscription created.",
         code="SUBSCRIPTION_CREATED",
-        mock=True,
-        note="当前支持 metadata 实体订阅落库；执行器仍是同步最小骨架。",
+        mock=False,
+        note="当前支持 metadata 实体订阅落库；可选择手动 run 或最小应用内 scheduler。",
     )
 
 
@@ -66,8 +66,8 @@ async def get_subscription_run(
         data=service.get_run_detail(run_id),
         message="Subscription run detail loaded.",
         code="SUBSCRIPTION_RUN_DETAIL_OK",
-        mock=True,
-        note="当前 run detail 展示的是 Phase 6 同步执行结果与 host-aware organize preview/apply 记录。",
+        mock=False,
+        note="当前 run detail 展示的是手动或 scheduler 触发的执行结果与 organize preview/apply 记录。",
     )
 
 
@@ -82,8 +82,8 @@ async def get_subscription(
         data=service.get_subscription(subscription_id),
         message="Subscription detail loaded.",
         code="SUBSCRIPTION_DETAIL_OK",
-        mock=True,
-        note="当前详情聚焦订阅配置与最近执行记录，未接入真实计划任务。",
+        mock=False,
+        note="当前详情聚焦订阅配置、模式与最近执行记录。",
     )
 
 
@@ -99,8 +99,8 @@ async def update_subscription(
         data=service.update_subscription(subscription_id, payload),
         message="Subscription updated.",
         code="SUBSCRIPTION_UPDATED",
-        mock=True,
-        note="当前可切换 active / paused / archived，并调整最小 preference_json。",
+        mock=False,
+        note="当前可切换 active / paused / archived，并切换 manual / scheduled 模式。",
     )
 
 
@@ -115,7 +115,7 @@ async def archive_subscription(
         data=service.archive_subscription(subscription_id),
         message="Subscription archived.",
         code="SUBSCRIPTION_ARCHIVED",
-        mock=True,
+        mock=False,
         note="当前删除动作为 archive，保留订阅记录供后续回看。",
     )
 
@@ -131,7 +131,7 @@ async def run_subscription(
         data=service.execute(subscription_id),
         message="Subscription executed once.",
         code="SUBSCRIPTION_RUN_EXECUTED",
-        mock=True,
+        mock=False,
         note="当前执行器会同步创建 SearchJob，并沿用固定的 search/dispatch/organize 调用语义。",
     )
  
@@ -147,6 +147,6 @@ async def list_subscription_runs(
         data=service.list_runs(subscription_id),
         message="Subscription runs loaded.",
         code="SUBSCRIPTION_RUNS_OK",
-        mock=True,
-        note="当前 run 列表为同步最小执行记录，可用于回看 candidate summary 与 organize 状态。",
+        mock=False,
+        note="当前 run 列表可回看手动或 scheduler 触发的 candidate summary 与 organize 状态。",
     )

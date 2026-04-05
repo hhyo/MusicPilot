@@ -51,7 +51,7 @@ class OrchestrationRepository:
             mode=mode,
             preference_json=preference_json,
             target_payload_json=target_payload_json,
-            mock=True,
+            mock=False,
             note=note,
         )
         self.session.add(subscription)
@@ -82,13 +82,22 @@ class OrchestrationRepository:
         )
         return self.session.scalar(statement)
 
+    def has_running_run(self, subscription_id: str) -> bool:
+        statement = (
+            select(SubscriptionRunModel.id)
+            .where(SubscriptionRunModel.subscription_id == subscription_id)
+            .where(SubscriptionRunModel.execution_status == "running")
+            .limit(1)
+        )
+        return self.session.scalar(statement) is not None
+
     def create_run(self, subscription: SubscriptionModel, *, note: str) -> SubscriptionRunModel:
         run = SubscriptionRunModel(
             id=f"srun-{uuid4().hex[:12]}",
             subscription_id=subscription.id,
             execution_status="queued",
             matched_candidates_count=0,
-            mock=True,
+            mock=False,
             note=note,
         )
         self.session.add(run)

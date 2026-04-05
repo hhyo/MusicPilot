@@ -92,7 +92,7 @@ python -m app.db_init --reseed
 ## 当前执行模式与宿主集成边界
 
 - Metadata provider：当前支持 `seed` 与 `musicbrainz` 两种模式。`seed` 继续作为默认开发数据；`musicbrainz` 提供 Artist / Album / Track 的实时搜索与详情。
-- Subscription 执行模式：当前仅支持手动触发一次同步 run，不启用生产级 cron、消息队列或分布式 scheduler。
+- Subscription 执行模式：当前支持手动触发一次同步 run，以及最小应用内 scheduler 自动触发 due subscription。生产级 cron、消息队列、失败重试和分布式 scheduler 仍待后续补齐。
 - Chart discovery：当前支持 `mock` 与 `listenbrainz` 两种模式。`listenbrainz` 第一版已接入 sitewide artists / recordings 榜单；自动刷新、增量监控和专辑榜仍待后续补齐。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
 - Dispatch：当前保留 `mock + host-backed selectable`。当存在可靠 `media_in` 时走 `/api/v1/download/`；只有 `torrent_in` 时走 `/api/v1/download/add`。这两个接口是不同语义，不再由运行时策略层互相切换。
@@ -148,6 +148,9 @@ export MUSICPILOT_CHART_LISTENBRAINZ_BASE_URL=https://api.listenbrainz.org
 export MUSICPILOT_CHART_PROVIDER_USER_AGENT='MusicPilot/0.1.0 (local)'
 export MUSICPILOT_CHART_LISTENBRAINZ_RANGE=week
 export MUSICPILOT_CHART_LISTENBRAINZ_COUNT=20
+export MUSICPILOT_SUBSCRIPTION_SCHEDULER_ENABLED=true
+export MUSICPILOT_SUBSCRIPTION_SCHEDULER_POLL_SECONDS=30
+export MUSICPILOT_SUBSCRIPTION_SCHEDULER_DEFAULT_INTERVAL_MINUTES=360
 ```
 
 可选模式：

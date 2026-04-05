@@ -29,6 +29,7 @@ class SubscriptionState(str, Enum):
 
 class SubscriptionMode(str, Enum):
     MANUAL = "manual"
+    SCHEDULED = "scheduled"
     SCHEDULED_PLACEHOLDER = "scheduled_placeholder"
 
 

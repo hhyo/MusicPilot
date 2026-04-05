@@ -8,7 +8,7 @@ FastAPI 工程目录。当前已完成：
 - MusicBrainz Artist / Album / Track 搜索与详情最小接入
 - SQLite 最小落库与本地 seed 初始化
 - QueryBuilder、SearchJob、候选评分与 mock dispatch 边界
-- SubscriptionService、subscription run 与 mock/ListenBrainz chart discovery
+- SubscriptionService、subscription run、最小应用内 scheduler 与 mock/ListenBrainz chart discovery
 - 音乐 organize preview/apply 与 organize 状态记录
 - search / dispatch / organize 接入模式选择与必要的 mock/real 环境切换
 - 真实 MoviePilot search / download / transfer 语义收敛与差异记录
@@ -20,7 +20,7 @@ FastAPI 工程目录。当前已完成：
 
 - 更多真实榜单源、榜单增量监控与自动刷新
 - 真实 PT 搜索与下载器派发
-- 生产级订阅调度器与真实整理规则
+- 生产级订阅调度器能力、失败重试与真实整理规则
 - 真实 MoviePilot `download/add` 多样例稳定成功
 - 生产级下载完成回调、自动整理与媒体库刷新
 
@@ -36,7 +36,7 @@ python -m app.db_init --reseed
 - `metadata/*` 当前支持两种模式：
   - `seed`：本地 seed metadata
   - `musicbrainz`：实时查询 MusicBrainz Artist / Album / Track 搜索与详情
-- `subscriptions/{id}/run` 为同步最小执行骨架
+- `subscriptions/{id}/run` 为同步最小执行骨架，应用内 scheduler 会在 due 时触发同一条执行链
 - `charts/*` 当前支持两种模式：
   - `mock`：本地 chart seed
   - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings
@@ -82,6 +82,9 @@ export MUSICPILOT_CHART_LISTENBRAINZ_BASE_URL=https://api.listenbrainz.org
 export MUSICPILOT_CHART_PROVIDER_USER_AGENT='MusicPilot/0.1.0 (local)'
 export MUSICPILOT_CHART_LISTENBRAINZ_RANGE=week
 export MUSICPILOT_CHART_LISTENBRAINZ_COUNT=20
+export MUSICPILOT_SUBSCRIPTION_SCHEDULER_ENABLED=true
+export MUSICPILOT_SUBSCRIPTION_SCHEDULER_POLL_SECONDS=30
+export MUSICPILOT_SUBSCRIPTION_SCHEDULER_DEFAULT_INTERVAL_MINUTES=360
 export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backend/data/host_validation_matrix.latest.json
 ```
 

@@ -15,6 +15,7 @@ from app.adapters.host_search import RealHostSearchAdapter
 from app.adapters.host_storage_runtime import HostStorageRuntimeBridge
 from app.adapters.organize import RealOrganizeAdapter
 from app.core.config import Settings
+from app.services.subscription_scheduler import normalize_subscription_mode
 from app.schemas.acquisition import SearchCandidateDetail
 from app.schemas.integration import AdapterMode, VerificationState
 from app.schemas.orchestration import (
@@ -74,6 +75,11 @@ class FakeStorageRuntime:
         if self.error is not None:
             raise self.error
         return self.response
+
+
+class SubscriptionSchedulerSemanticsTest(unittest.TestCase):
+    def test_normalize_scheduled_placeholder_to_scheduled(self) -> None:
+        self.assertEqual(normalize_subscription_mode("scheduled_placeholder"), "scheduled")
 
 
 class FakeStorageOper:

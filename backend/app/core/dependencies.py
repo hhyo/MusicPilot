@@ -27,8 +27,9 @@ from ..adapters.metadata_provider import (
     MusicBrainzMetadataProviderAdapter,
 )
 from ..adapters.organize import MockOrganizeAdapter, OrganizeAdapter, RealOrganizeAdapter
-from ..core.db import get_db_session
+from ..core.db import SessionLocal, get_db_session
 from ..core.config import settings
+from ..repositories.orchestration import OrchestrationRepository
 from ..services.charts import ChartService
 from ..services.host_capabilities import HostCapabilitiesService
 from ..services.dispatch import DispatchService
@@ -47,6 +48,7 @@ from ..services.query_builder import QueryBuilderService
 from ..services.scoring import MusicCandidateScorer
 from ..services.search_job import SearchJobService
 from ..services.subscription_execution import SubscriptionExecutionService
+from ..services.subscription_scheduler import SubscriptionSchedulerService
 from ..services.subscriptions import SubscriptionService
 from ..services.validation_matrix import HostValidationMatrixService
 
@@ -278,3 +280,36 @@ def get_subscription_execution_service(
         search_job_service=search_job_service,
         organize_service=organize_service,
     )
+
+
+def build_subscription_execution_service(session: Session) -> SubscriptionExecutionService:
+    metadata_service = MetadataService(session=session, adapter=get_metadata_provider_adapter())
+    return SubscriptionExecutionService(
+        session=session,
+        search_job_service=SearchJobService(
+            session,
+            metadata_service=metadata_service,
+            query_builder=QueryBuilderService(metadata_service=metadata_service),
+            host_search_resolver=get_host_search_adapter_resolver(),
+            scorer=get_candidate_scorer(),
+        ),
+        organize_service=OrganizeService(
+            session=session,
+            resolver=get_organize_adapter_resolver(),
+            strategy_service=get_organize_strategy_service(),
+            path_handoff_service=get_host_path_handoff_service(),
+        ),
+    )
+
+
+def build_subscription_scheduler_service(session: Session) -> SubscriptionSchedulerService:
+    execution_service = build_subscription_execution_service(session)
+    return SubscriptionSchedulerService(
+        repository=OrchestrationRepository(session),
+        execute_subscription=execution_service.execute,
+        default_interval_minutes=settings.subscription_scheduler_default_interval_minutes,
+    )
+
+
+def get_session_factory():
+    return SessionLocal

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import asyncio
+import logging
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +14,9 @@ from .api.health import build_health_payload
 from .api.router import plugin_api_router, probe_api_router
 from .core.config import settings
 from .core.dependencies import (
+    build_subscription_scheduler_service,
     get_host_integration_service,
+    get_session_factory,
     get_validation_matrix_service,
 )
 from .core.http import configure_logging, register_exception_handlers, register_http_middleware
@@ -23,10 +27,43 @@ from .services.metadata import bootstrap_metadata_storage
 from .services.validation_matrix import HostValidationMatrixService
 
 
+logger = logging.getLogger("musicpilot.scheduler")
+
+
+async def _run_subscription_scheduler_loop() -> None:
+    session_factory = get_session_factory()
+    while True:
+        try:
+            with session_factory() as session:
+                scheduler = build_subscription_scheduler_service(session)
+                result = scheduler.run_pending_once()
+                if result["executed_ids"]:
+                    logger.info("subscription.scheduler.executed ids=%s", ",".join(result["executed_ids"]))
+                if result["error_ids"]:
+                    logger.warning("subscription.scheduler.errors ids=%s", ",".join(result["error_ids"]))
+                session.commit()
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # noqa: BLE001
+            logger.exception("subscription.scheduler.loop_failed")
+        await asyncio.sleep(settings.subscription_scheduler_poll_seconds)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     bootstrap_metadata_storage()
-    yield
+    scheduler_task = None
+    if settings.subscription_scheduler_enabled:
+        scheduler_task = asyncio.create_task(_run_subscription_scheduler_loop())
+    try:
+        yield
+    finally:
+        if scheduler_task is not None:
+            scheduler_task.cancel()
+            try:
+                await scheduler_task
+            except asyncio.CancelledError:
+                pass
 
 
 def build_application() -> FastAPI:

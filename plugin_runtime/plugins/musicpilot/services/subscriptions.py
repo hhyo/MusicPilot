@@ -19,11 +19,12 @@ from ..schemas.orchestration import (
     UpdateSubscriptionRequest,
 )
 from .metadata import MetadataService
+from .subscription_scheduler import normalize_subscription_mode
 
 
 SUBSCRIPTION_NOTE = (
-    "当前订阅模型已落库，但执行模式仍是 Phase 6 的同步最小闭环；"
-    "scheduled_placeholder 仅保留后续调度器接入点。"
+    "当前订阅模型已落库，可切换手动执行或最小应用内 scheduler；"
+    "production 级 cron、失败重试和增量检测仍待后续补齐。"
 )
 
 
@@ -49,8 +50,8 @@ class SubscriptionService:
         return SubscriptionListData(
             items=items,
             total=len(items),
-            mock=True,
-            note="当前订阅列表反映的是 Phase 6 最小闭环，未接入真实自动调度。",
+            mock=False,
+            note="当前订阅列表反映的是手动 run 与最小应用内 scheduler 的真实状态。",
         )
 
     def get_subscription(self, subscription_id: str) -> SubscriptionDetail:
@@ -80,7 +81,7 @@ class SubscriptionService:
             target_entity_type=detail.entity_type.value,
             chart_source=None,
             chart_name=None,
-            mode=payload.mode.value,
+            mode=normalize_subscription_mode(payload.mode.value),
             preference_json=payload.preference_json,
             target_payload_json=payload.target_payload,
             note=SUBSCRIPTION_NOTE,
@@ -102,7 +103,7 @@ class SubscriptionService:
             target_entity_type=entry.item_type.value,
             chart_source=entry.chart_source,
             chart_name=entry.chart_name,
-            mode=payload.mode.value,
+            mode=normalize_subscription_mode(payload.mode.value),
             preference_json=payload.preference_json,
             target_payload_json={
                 "chart_id": entry.chart_id,
@@ -119,7 +120,8 @@ class SubscriptionService:
                 "当前榜单订阅来自 mock chart entry。后续真实榜单接入后，可在此结构上接入增量刷新、"
                 "命中检测与调度器。"
                 if entry.mock
-                else "当前榜单订阅来自真实 chart entry，但尚未接入自动刷新、增量命中检测与调度器。"
+                else "当前榜单订阅来自真实 chart entry，已可手动 run 或进入最小应用内 scheduler；"
+                "自动刷新、增量命中检测与 production 级调度仍待后续补齐。"
             ),
         )
         self.session.commit()
@@ -138,7 +140,7 @@ class SubscriptionService:
         if payload.status is not None:
             subscription.status = payload.status.value
         if payload.mode is not None:
-            subscription.mode = payload.mode.value
+            subscription.mode = normalize_subscription_mode(payload.mode.value)
         if payload.preference_json is not None:
             subscription.preference_json = payload.preference_json
 
@@ -172,7 +174,7 @@ def serialize_subscription(subscription) -> SubscriptionSummary:
         chart_source=subscription.chart_source,
         chart_name=subscription.chart_name,
         status=subscription.status,
-        mode=subscription.mode,
+        mode=normalize_subscription_mode(subscription.mode),
         preference_json=subscription.preference_json or {},
         target_payload=subscription.target_payload_json or {},
         latest_run_status=subscription.latest_run_status,

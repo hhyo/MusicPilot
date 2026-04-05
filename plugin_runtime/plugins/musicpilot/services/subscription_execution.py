@@ -23,8 +23,8 @@ from .subscriptions import serialize_run_summary, serialize_subscription
 
 
 RUN_NOTE = (
-    "当前订阅执行器为同步最小骨架：会创建并执行一次 SearchJob，并生成 organize preview。"
-    "真实 organize apply 仍按 capability 与 adapter 模式选择 host 或 mock。"
+    "当前订阅执行器会在手动 run 或最小应用内 scheduler 触发下，同步创建并执行一次 SearchJob，"
+    "并生成 organize preview。真实 organize apply 仍按 capability 与 adapter 模式选择 host 或 mock。"
 )
 
 
@@ -106,8 +106,8 @@ class SubscriptionExecutionService:
             subscription_id=subscription_id,
             items=items,
             total=len(items),
-            mock=True,
-            note="当前 run 记录反映的是同步执行结果，未进入生产级 scheduler。",
+            mock=False,
+            note="当前 run 记录反映的是手动或最小应用内 scheduler 触发的同步执行结果。",
         )
 
     def get_run_detail(self, run_id: str) -> SubscriptionRunDetail:

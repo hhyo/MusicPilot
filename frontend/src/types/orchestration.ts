@@ -10,7 +10,7 @@ import type { ApiResponse, EntityType, MetadataDetail } from '@/types/metadata';
 
 export type SubscriptionType = 'artist' | 'album' | 'track' | 'chart_entry';
 export type SubscriptionState = 'active' | 'paused' | 'archived';
-export type SubscriptionMode = 'manual' | 'scheduled_placeholder';
+export type SubscriptionMode = 'manual' | 'scheduled' | 'scheduled_placeholder';
 export type SubscriptionRunStatus =
   | 'queued'
   | 'running'

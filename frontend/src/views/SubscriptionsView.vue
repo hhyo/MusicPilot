@@ -5,12 +5,12 @@
         <p class="hero-panel__eyebrow">Subscriptions</p>
         <h2>订阅与执行记录最小闭环</h2>
         <p class="hero-panel__description">
-          当前页面展示的是收缩后的最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
+          当前页面展示的是收缩后的最小订阅闭环：可创建和管理四类订阅、手动执行一次 run 或启用最小自动调度、
           回看 SearchJob 摘要与 organize preview/apply。页面只展示当前真实采用的 backend、handoff 来源和明确错误；
-          但真实 scheduler、真实榜单增量与完整获取自动化链路仍未完成。
+          但生产级 scheduler、真实榜单增量与完整获取自动化链路仍未完成。
         </p>
       </div>
-      <el-tag type="warning" effect="plain">manual run / music preview / host file execute</el-tag>
+      <el-tag type="info" effect="plain">manual or scheduled run / music preview / host file execute</el-tag>
     </section>
 
     <el-alert
@@ -128,6 +128,12 @@
                 </el-button>
                 <el-button
                   size="small"
+                  @click.stop="toggleSubscriptionMode(item)"
+                >
+                  {{ normalizedMode(item.mode) === 'scheduled' ? '切回手动' : '启用自动' }}
+                </el-button>
+                <el-button
+                  size="small"
                   type="danger"
                   plain
                   @click.stop="handleArchive(item.id)"
@@ -177,7 +183,7 @@
             <article class="summary-card">
               <span>类型</span>
               <strong>{{ selectedSubscription.subscription_type }}</strong>
-              <p>{{ selectedSubscription.mode }}</p>
+              <p>{{ normalizedMode(selectedSubscription.mode) }}</p>
             </article>
             <article class="summary-card">
               <span>状态</span>
@@ -194,7 +200,7 @@
           <section class="runs-panel">
             <header class="runs-panel__header">
               <h4>Run 历史</h4>
-              <p>同步执行结果可回看，当前不启用生产级 scheduler。</p>
+              <p>手动与最小 scheduler 执行结果都可回看，当前不启用生产级调度系统。</p>
             </header>
 
             <el-empty
@@ -368,6 +374,7 @@ import {
 } from '@/services/orchestration';
 import type {
   SubscriptionDetail,
+  SubscriptionMode,
   SubscriptionRunDetail,
   SubscriptionRunSummary,
   SubscriptionState,
@@ -535,6 +542,29 @@ async function toggleSubscriptionStatus(item: SubscriptionSummary) {
     await loadSubscriptions();
   } catch (error) {
     ElMessage.error(resolveErrorMessage(error, '更新订阅状态失败。'));
+  }
+}
+
+function normalizedMode(mode: SubscriptionMode): 'manual' | 'scheduled' {
+  return mode === 'scheduled_placeholder' ? 'scheduled' : mode;
+}
+
+async function toggleSubscriptionMode(item: SubscriptionSummary) {
+  if (item.status === 'archived') {
+    return;
+  }
+
+  const nextMode: SubscriptionMode = normalizedMode(item.mode) === 'scheduled' ? 'manual' : 'scheduled';
+
+  try {
+    const response = await updateSubscription(item.id, { mode: nextMode });
+    if (!response.success) {
+      throw new Error(response.message);
+    }
+    ElMessage.success(`订阅已切换为 ${nextMode === 'scheduled' ? '自动' : '手动'}模式。`);
+    await loadSubscriptions();
+  } catch (error) {
+    ElMessage.error(resolveErrorMessage(error, '更新订阅模式失败。'));
   }
 }
 
