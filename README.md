@@ -95,7 +95,7 @@ python -m app.db_init --reseed
 - Subscription 执行模式：当前支持手动触发一次同步 run，以及最小应用内 scheduler 自动触发 due subscription。执行链已能对最佳 `AUTO_DOWNLOAD` 候选自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则会继续自动 apply。生产级 cron、消息队列、失败重试和分布式 scheduler 仍待后续补齐。
 - Chart discovery：当前支持 `mock` 与 `listenbrainz` 两种模式。`listenbrainz` 第一版已接入 sitewide artists / recordings 榜单；自动刷新、增量监控和专辑榜仍待后续补齐。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
-- Dispatch：当前保留 `mock + host-backed selectable`。当存在可靠 `media_in` 时走 `/api/v1/download/`；只有 `torrent_in` 时走 `/api/v1/download/add`。这两个接口是不同语义，不再由运行时策略层互相切换。
+- Dispatch：当前保留 `mock + host-backed selectable`。当存在可靠 `media_in` 时走 `/api/v1/download/`；只有 torrent 但已具备宿主媒体参考时走 `/api/v1/download/add`；音乐 torrent-only 候选则走宿主 downloader runtime 直接提交下载器。这几条路径是不同语义，不再由运行时策略层互相切换。
 - Organize：当前保留 `mock + host-backed selectable` 的 preview/apply 双阶段边界。`preview` 已切换为 MusicPilot 本地音乐路径预览；`apply` 当前通过宿主底层 file/storage transfer runtime 执行音乐文件整理。音乐 metadata 恢复当前优先使用显式 `MetadataDetail`，其次使用已有上下文、嵌入音频标签与 `source_path` 线索。`history/download` 是新派发后的主 handoff 来源，`history/transfer` 只用于历史重放/补充来源，不再作为自动业务回退引擎。
 
 ## 如何启用 host integration
@@ -162,7 +162,7 @@ export MUSICPILOT_SUBSCRIPTION_SCHEDULER_DEFAULT_INTERVAL_MINUTES=360
 ## 当前固定调用规则
 
 - metadata 搜索默认走 `/api/v1/search/title`；只有拿到可靠宿主媒体 ID 时才走 `/api/v1/search/media/{mediaid}`。
-- candidate 派发时，有 `media_in` 就调用 `/api/v1/download/`；只有 `torrent_in` 时调用 `/api/v1/download/add`。
+- candidate 派发时，有 `media_in` 就调用 `/api/v1/download/`；只有 torrent 且已具备宿主媒体参考时调用 `/api/v1/download/add`；音乐 torrent-only 候选则调用宿主 downloader runtime。
 - dispatch 成功后的 `source_path` 主来源是 `/api/v1/history/download`。
 - 历史重放或补充查询时，`source_path` 补充来源才是 `/api/v1/history/transfer`。
 - organize preview 只走 MusicPilot 本地音乐路径预览。
@@ -283,10 +283,10 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 - 真实榜单拉取与增量监控
 - 更多 metadata provider、缓存与 provider 配置持久化
 - 生产级订阅调度器与重试编排
-- 真实 PT 搜索、匹配、下载派发
+- 真实 PT 搜索命中质量优化、更多站点覆盖与下载完成后自动整理
 - 真实 organize 文件处理增强与媒体库刷新
 - 真实 MoviePilot 宿主安装与挂载逻辑
-- 真实 MoviePilot `download/add` 多样例稳定成功
+- 基于宿主 downloader runtime 的更多真实下载样例、path handoff 稳定性与自动 organize 收口
 - 真实 MoviePilot `download_media` 到 organize 的稳定成功映射
 - 下载完成后的生产级自动整理、刮削与媒体库刷新
 

@@ -11,7 +11,7 @@ FastAPI 工程目录。当前已完成：
 - SubscriptionService、subscription run、最小应用内 scheduler 与 mock/ListenBrainz chart discovery
 - 音乐 organize preview/apply 与 organize 状态记录
 - search / dispatch / organize 接入模式选择与必要的 mock/real 环境切换
-- 真实 MoviePilot search / download / transfer 语义收敛与差异记录
+- 真实 MoviePilot search / downloader runtime / transfer 语义收敛与差异记录
 - 真实宿主插件 API 下的音乐 `preview_ready -> applied` 成功样例
 - Phase 8 多样例真实验证矩阵与 path handoff 稳定性收敛
 - 验证矩阵作为验证产物保留，运行时改回固定接口语义与固定调用规则
@@ -19,9 +19,8 @@ FastAPI 工程目录。当前已完成：
 当前仍不包含：
 
 - 更多真实榜单源、榜单增量监控与自动刷新
-- 真实 PT 搜索与下载器派发
+- 真实 PT 搜索命中质量优化、更多下载样例与 path handoff 稳定性收口
 - 生产级订阅调度器能力、失败重试与真实整理规则
-- 真实 MoviePilot `download/add` 多样例稳定成功
 - 生产级下载完成回调、自动整理与媒体库刷新
 
 手动初始化本地数据库：
@@ -40,6 +39,10 @@ python -m app.db_init --reseed
 - `charts/*` 当前支持两种模式：
   - `mock`：本地 chart seed
   - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings
+- `downloads/dispatch` 当前支持三类 host 语义：
+  - 可靠 `media_in` -> `/api/v1/download/`
+  - torrent-only 但已具备宿主媒体参考 -> `/api/v1/download/add`
+  - 音乐 torrent-only 候选 -> 宿主 downloader runtime 直接提交下载器
 - `organize/preview` 当前是 MusicPilot 本地音乐路径预览；`organize/apply` 当前通过宿主底层 file/storage 执行音乐文件整理。metadata 恢复优先使用显式 detail，其次使用已有上下文、嵌入标签与 `source_path` 线索
 - `jobs/*` 与 `downloads/dispatch` 会根据 host integration settings 在 mock 与 host 模式间切换
 - 当前真实运行时不再根据验证矩阵决定业务路径；矩阵只保留为验证产物

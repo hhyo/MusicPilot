@@ -19,6 +19,7 @@ from ..adapters.chart_provider import (
     ListenBrainzChartProviderAdapter,
     MockChartProviderAdapter,
 )
+from ..adapters.host_downloader_runtime import HostDownloaderRuntimeBridge
 from ..adapters.host_probe import HostProbeAdapter, MockHostProbeAdapter, RealHostProbeAdapter
 from ..adapters.host_search import HostSearchAdapter, MockHostSearchAdapter, RealHostSearchAdapter
 from ..adapters.metadata_provider import (
@@ -197,6 +198,7 @@ def get_real_download_dispatch_adapter() -> DownloadDispatchAdapter:
         settings=settings,
         client=get_host_http_client(),
         path_handoff_service=get_host_path_handoff_service(),
+        downloader_runtime=get_host_downloader_runtime_bridge(),
     )
 
 
@@ -208,6 +210,11 @@ def get_organize_adapter() -> OrganizeAdapter:
 @lru_cache
 def get_host_storage_runtime_bridge() -> HostStorageRuntimeBridge:
     return HostStorageRuntimeBridge()
+
+
+@lru_cache
+def get_host_downloader_runtime_bridge() -> HostDownloaderRuntimeBridge:
+    return HostDownloaderRuntimeBridge()
 
 
 @lru_cache

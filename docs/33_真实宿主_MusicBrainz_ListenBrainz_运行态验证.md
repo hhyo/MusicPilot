@@ -197,7 +197,7 @@
 - 当前真实宿主环境里已经有可用下载器
 - 早期的 “`downloaders` 为空” 结论只适用于当时的旧环境，不再代表当前状态
 
-### 4. 2026-04-05 补充验证：已配置下载器但未配置目录时的真实 subscription run
+### 4. 2026-04-05 补充验证：音乐 dispatch 已切换到 downloader runtime
 
 验证方式：
 
@@ -213,31 +213,34 @@
 
 结果：
 
-- `execution_status = matched`
+- `execution_status = dispatched`
 - `matched_candidates_count = 2`
-- `dispatch_status = host_rejected`
+- `dispatch_status = host_submitted`
 - `dispatch_backend = host`
-- `binding_id = null`
+- `binding_id != null`
 - `organize_status = preview_ready`
-- 最佳候选 `raw_payload.host_response_summary.message = 无法识别媒体信息`
+- `dispatch_semantics = music_downloader_runtime_dispatch`
+- `endpoint_type = downloader_runtime`
+- `download_id = cc75202fcef2a70254b59b81d1e186fa8f2776d6`
+- 首次真实提交返回：
+  - `message = 添加下载任务成功`
+- 相同样本重复 run 返回：
+  - `message = 下载任务已存在`
 
 解释：
 
 - 这次 run 已经真正进入了 `real_host_search -> real_download_dispatch` 主链
-- 但失败点不在 organize，也不在“下载器是否存在”
-- 当前最先挡住主链的是宿主 `/api/v1/download/add` 对音乐候选返回：
-  - `success = false`
-  - `message = 无法识别媒体信息`
-- 因为 `dispatchable = false`，所以不会生成 binding，也不会进入真实下载成功后的 organize apply 条件
-- 当前返回的 `organize preview` 只是 MusicPilot 本地音乐路径预览，不代表真实下载已成功
+- 现在不再经过 MoviePilot `/api/v1/download/add` 的影视媒体识别门槛，而是对音乐 torrent-only 候选直接走宿主 downloader runtime
+- 真实下载器任务已经被创建；重复 run 时也能稳定复用既有 qB 任务，而不是误报失败
+- 当前返回的 `organize preview` 仍只是 MusicPilot 本地音乐路径预览，不代表下载后自动 organize 已经完成
 
 结论：
 
-- 在“已配置下载器、未配置目录”的当前环境里，目录还不是第一阻塞点
-- 当前真实 acquisition / dispatch 主链更早地卡在：
-  - **宿主 download/add 仍按影视媒体识别语义拒绝音乐候选**
-- 因此测试层面可以把“是否进入真实 dispatch 并收到宿主明确拒绝”当作当前阶段的有效验收点
-- 但不应把这类失败归因到 organize 目录前置条件
+- 在当前环境里，音乐 `dispatch` 的主阻塞已经不再是宿主 `download/add` 的影视识别门槛
+- 当前已能把真实音乐候选提交给真实下载器，并拿到可追踪 `download_id`
+- 当前更靠后的剩余问题是：
+  - 部分真实 discovery 样本在当前 PT 站点环境下仍没有候选
+  - 下载完成后的自动 path handoff / organize 主链还没有完全收口
 
 ## 总结
 
@@ -247,10 +250,10 @@
 2. `ListenBrainz charts` 可用
 3. `real_host_search` 在真实宿主插件运行态下已确认可工作，Adele 基准样本能返回真实候选
 4. `ListenBrainz` 的某些真实 track 样本在当前宿主 PT 搜索环境下仍会 `no_result`
-5. 当前 host 运行态里下载器已经存在，但音乐候选进入 `/api/v1/download/add` 后仍可能被宿主以 `无法识别媒体信息` 拒绝
-6. 当前真正尚未完成的，不是 provider 接入，而是：
+5. 当前 host 运行态里下载器已经存在，音乐 torrent-only 候选也已能通过宿主 downloader runtime 创建真实下载任务
+6. 当前真正尚未完成的，不是 provider 接入，也不再是 `/api/v1/download/add` 的媒体识别门槛，而是：
    - 真实 PT 搜索命中质量
-   - 音乐候选如何稳定穿过宿主当前 download/add 媒体识别门槛
+   - 下载完成后的 path handoff 自动化
    - 拥有真实本地源文件后的自动 `apply`
 
 ## 下一步指向
@@ -266,4 +269,4 @@
 
 继续推进成：
 
-`真实 metadata / 真实 charts -> 真实 search(已验证) + 可穿过宿主 download/add 识别门槛的真实 dispatch -> preview/apply`
+`真实 metadata / 真实 charts -> 真实 search(已验证) + 真实 downloader runtime dispatch(已验证) -> preview/apply`

@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from .host_http import HostHttpClient
+from .host_downloader_runtime import HostDownloaderRuntimeBridge
 from ..core.config import Settings
 from ..schemas.acquisition import DispatchAdapterResult, SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterSelectionMode, VerificationState
@@ -107,10 +108,12 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
         settings: Settings,
         client: HostHttpClient,
         path_handoff_service: HostPathHandoffService,
+        downloader_runtime: HostDownloaderRuntimeBridge | None = None,
     ):
         self.settings = settings
         self.client = client
         self.path_handoff_service = path_handoff_service
+        self.downloader_runtime = downloader_runtime or HostDownloaderRuntimeBridge()
 
     def dispatch(
         self,
@@ -136,7 +139,15 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
             capability_source = "moviepilot.runtime.download.media"
             integration_point = "RealDownloadDispatchAdapter.dispatch.moviepilot_download_media"
             dispatch_semantics = "resolved_media_dispatch"
-        else:
+            data = self.client.post_json(path, payload, auth_mode="x_api_key")
+            success = bool(data.get("success"))
+            message = self._optional_text(data.get("message"))
+            response_data = data.get("data") if isinstance(data.get("data"), dict) else {}
+            dispatch_status = "host_submitted" if success else "host_rejected"
+            download_id = self._optional_text(
+                response_data.get("download_id") if isinstance(response_data, dict) else None
+            )
+        elif any(media_reference.values()):
             path = self.settings.host_download_add_path
             payload = {
                 "torrent_in": torrent_in,
@@ -150,13 +161,51 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
             capability_source = "moviepilot.runtime.download.add"
             integration_point = "RealDownloadDispatchAdapter.dispatch.moviepilot_download_add"
             dispatch_semantics = "torrent_only_dispatch"
+            data = self.client.post_json(path, payload, auth_mode="x_api_key")
+            success = bool(data.get("success"))
+            message = self._optional_text(data.get("message"))
+            response_data = data.get("data") if isinstance(data.get("data"), dict) else {}
+            dispatch_status = "host_submitted" if success else "host_rejected"
+            download_id = self._optional_text(
+                response_data.get("download_id") if isinstance(response_data, dict) else None
+            )
+        else:
+            runtime_result = self.downloader_runtime.submit_torrent(
+                downloader=target_downloader,
+                content=str(torrent_in.get("enclosure") or ""),
+                page_url=self._optional_text(context_payload.get("torrent_info", {}).get("page_url"))
+                if isinstance(context_payload.get("torrent_info"), dict)
+                else None,
+                title=str(torrent_in.get("title") or candidate.title),
+                site_name=str(torrent_in.get("site_name") or candidate.site_name),
+                cookie=self._optional_text(context_payload.get("torrent_info", {}).get("site_cookie"))
+                if isinstance(context_payload.get("torrent_info"), dict)
+                else None,
+                site_ua=self._optional_text(context_payload.get("torrent_info", {}).get("site_ua"))
+                if isinstance(context_payload.get("torrent_info"), dict)
+                else None,
+                site_proxy=bool(context_payload.get("torrent_info", {}).get("site_proxy"))
+                if isinstance(context_payload.get("torrent_info"), dict)
+                else None,
+            )
+            success = bool(runtime_result.get("success"))
+            message = self._optional_text(runtime_result.get("message"))
+            dispatch_status = self._optional_text(runtime_result.get("dispatch_status")) or (
+                "host_submitted" if success else "host_rejected"
+            )
+            download_id = self._optional_text(runtime_result.get("download_id"))
+            endpoint_type = "downloader_runtime"
+            capability_source = "moviepilot.runtime.downloader.submit"
+            integration_point = "RealDownloadDispatchAdapter.dispatch.moviepilot_downloader_runtime"
+            dispatch_semantics = "music_downloader_runtime_dispatch"
+            path = "runtime:downloader"
+            payload = {
+                "downloader": target_downloader,
+                "content_type": "magnet_or_torrent",
+                "title": torrent_in.get("title") or candidate.title,
+                "site_name": torrent_in.get("site_name") or candidate.site_name,
+            }
 
-        data = self.client.post_json(path, payload, auth_mode="x_api_key")
-        success = bool(data.get("success"))
-        message = self._optional_text(data.get("message"))
-        response_data = data.get("data") if isinstance(data.get("data"), dict) else {}
-        dispatch_status = "host_submitted" if success else "host_rejected"
-        download_id = self._optional_text(response_data.get("download_id") if isinstance(response_data, dict) else None)
         path_handoff = None
         if success:
             path_handoff = self.path_handoff_service.resolve_from_download_with_retry(download_id)
@@ -172,9 +221,10 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
             target_downloader=target_downloader,
             downloader_task_id=download_id,
             note=(
-                "当前派发结果来自真实 MoviePilot `/api/v1/download/add` 或 `/api/v1/download/` 语义。"
-                "如果宿主返回 `success=false`，这表示 payload 已被宿主接受并给出明确拒绝原因，而不是本地 mock。"
-                "Phase 8 继续扩展了多样例成功率验证，并补充了 path handoff 稳定性矩阵。"
+                "当前派发结果来自真实宿主下载语义。"
+                "音乐候选会优先走宿主 downloader runtime 直接提交下载器；"
+                "只有带 `media_in` 的宿主媒体派发仍走 MoviePilot `/api/v1/download/`。"
+                "如果宿主返回 `success=false`，这表示真实宿主已明确拒绝，而不是本地 mock。"
             ),
             integration_point=integration_point,
             mock=False,
@@ -192,6 +242,7 @@ class RealDownloadDispatchAdapter(DownloadDispatchAdapter):
                 "message": message,
                 "download_id": download_id,
                 "media_reference": media_reference,
+                "target_downloader": target_downloader,
             },
             adapter_resolution=AdapterResolution(
                 adapter_key="real_download_dispatch",

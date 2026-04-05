@@ -77,6 +77,77 @@ class FakeStorageRuntime:
         return self.response
 
 
+class FakeDownloaderRuntime:
+    def __init__(self, *, response=None, error: Exception | None = None):
+        self.response = response or {
+            "success": True,
+            "dispatch_status": "host_submitted",
+            "download_id": "torrent-hash-001",
+            "message": "添加下载任务成功",
+        }
+        self.error = error
+        self.calls: list[dict] = []
+
+    def submit_torrent(self, **kwargs):  # noqa: ANN003
+        self.calls.append(kwargs)
+        if self.error is not None:
+            raise self.error
+        return self.response
+
+
+class FakeDownloaderClient:
+    def __init__(self, *, add_result=True, torrent_id="torrent-hash-001", torrents=None):
+        self.add_result = add_result
+        self.torrent_id = torrent_id
+        self.torrents = torrents or []
+        self.calls: list[tuple[str, dict]] = []
+
+    def add_torrent(self, **kwargs):  # noqa: ANN003
+        self.calls.append(("add_torrent", kwargs))
+        return self.add_result
+
+    def get_torrent_id_by_tag(self, tags, status=None):  # noqa: ANN001, ARG002
+        self.calls.append(("get_torrent_id_by_tag", {"tags": tags}))
+        return self.torrent_id
+
+    def get_torrents(self, ids=None, tags=None):  # noqa: ANN001, ARG002
+        self.calls.append(("get_torrents", {"ids": ids, "tags": tags}))
+        return self.torrents, False
+
+
+class FakeTransmissionTorrent:
+    def __init__(self, hash_string: str):
+        self.hashString = hash_string
+
+
+class FakeTransmissionClient:
+    def __init__(self, *, hash_string="torrent-hash-002"):
+        self.hash_string = hash_string
+        self.calls: list[tuple[str, dict]] = []
+
+    def add_torrent(self, **kwargs):  # noqa: ANN003
+        self.calls.append(("add_torrent", kwargs))
+        return FakeTransmissionTorrent(self.hash_string)
+
+
+class FakeDownloaderService:
+    def __init__(self, *, type_name: str, instance):
+        self.type = type_name
+        self.instance = instance
+        self.module = SimpleNamespace()
+        self.config = SimpleNamespace(name="QB", type=type_name)
+
+
+class FakeDownloaderHelper:
+    def __init__(self, service):
+        self.service = service
+        self.calls: list[str | None] = []
+
+    def get_service(self, name=None):  # noqa: ANN001
+        self.calls.append(name)
+        return self.service
+
+
 class SubscriptionSchedulerSemanticsTest(unittest.TestCase):
     def test_normalize_scheduled_placeholder_to_scheduled(self) -> None:
         self.assertEqual(normalize_subscription_mode("scheduled_placeholder"), "scheduled")
@@ -114,6 +185,119 @@ class PluginRuntimeHostDefaultsTest(unittest.TestCase):
         )
 
         self.assertEqual(defaults, {})
+
+
+class HostDownloaderRuntimeBridgeTest(unittest.TestCase):
+    def test_runtime_bridge_submits_qbittorrent_with_optional_download_dir(self) -> None:
+        from app.adapters.host_downloader_runtime import HostDownloaderRuntimeBridge
+
+        client = FakeDownloaderClient()
+        helper = FakeDownloaderHelper(FakeDownloaderService(type_name="qbittorrent", instance=client))
+        bridge = HostDownloaderRuntimeBridge(helper_factory=lambda: helper, tag_generator=lambda: "dispatch-tag")
+
+        result = bridge.submit_torrent(
+            downloader="QB",
+            content="magnet:?xt=urn:btih:1",
+            title="Adele - 25",
+            site_name="Stub Site",
+        )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["download_id"], "torrent-hash-001")
+        add_call = client.calls[0][1]
+        self.assertIsNone(add_call["download_dir"])
+
+    def test_runtime_bridge_fetches_torrent_bytes_before_submitting_url_content(self) -> None:
+        from app.adapters.host_downloader_runtime import HostDownloaderRuntimeBridge
+
+        client = FakeDownloaderClient()
+        helper = FakeDownloaderHelper(FakeDownloaderService(type_name="qbittorrent", instance=client))
+        fetch_calls: list[dict] = []
+
+        def fake_fetcher(**kwargs):  # noqa: ANN003
+            fetch_calls.append(kwargs)
+            return b"torrent-bytes"
+
+        bridge = HostDownloaderRuntimeBridge(
+            helper_factory=lambda: helper,
+            tag_generator=lambda: "dispatch-tag",
+            torrent_content_fetcher=fake_fetcher,
+        )
+
+        result = bridge.submit_torrent(
+            downloader="QB",
+            content="https://stub/download.php?id=1",
+            title="Adele - 25",
+            site_name="Stub Site",
+            cookie="uid=1;pass=abc",
+            site_ua="Mozilla/5.0",
+            site_proxy=True,
+        )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(fetch_calls[0]["url"], "https://stub/download.php?id=1")
+        self.assertEqual(fetch_calls[0]["cookie"], "uid=1;pass=abc")
+        self.assertEqual(client.calls[0][1]["content"], b"torrent-bytes")
+
+    def test_runtime_bridge_prefers_detail_page_download_link(self) -> None:
+        from app.adapters.host_downloader_runtime import HostDownloaderRuntimeBridge
+
+        client = FakeDownloaderClient()
+        helper = FakeDownloaderHelper(FakeDownloaderService(type_name="qbittorrent", instance=client))
+        fetch_calls: list[dict] = []
+
+        def fake_fetcher(**kwargs):  # noqa: ANN003
+            fetch_calls.append(kwargs)
+            if kwargs["url"] == "https://stub/download.php?id=1":
+                return b"<!DOCTYPE html><html></html>"
+            return b"torrent-bytes"
+
+        bridge = HostDownloaderRuntimeBridge(
+            helper_factory=lambda: helper,
+            tag_generator=lambda: "dispatch-tag",
+            torrent_content_fetcher=fake_fetcher,
+            detail_download_url_resolver=lambda **_: "https://stub/download.php?id=1&passkey=abc",
+        )
+
+        result = bridge.submit_torrent(
+            downloader="QB",
+            content="https://stub/download.php?id=1",
+            page_url="https://stub/plugin_details.php?id=1",
+            title="Adele - 25",
+            site_name="Stub Site",
+            cookie="uid=1;pass=abc",
+            site_ua="Mozilla/5.0",
+            site_proxy=False,
+        )
+
+        self.assertTrue(result["success"])
+        self.assertEqual([call["url"] for call in fetch_calls], ["https://stub/download.php?id=1&passkey=abc"])
+        self.assertEqual(client.calls[0][1]["content"], b"torrent-bytes")
+
+    def test_runtime_bridge_reuses_existing_qbittorrent_task_when_add_returns_false(self) -> None:
+        from app.adapters.host_downloader_runtime import HostDownloaderRuntimeBridge
+
+        client = FakeDownloaderClient(
+            add_result=False,
+            torrents=[{"hash": "existing-hash-001", "name": "Adele - Hello [single] (2015) FLAC", "total_size": 30513562}],
+        )
+        helper = FakeDownloaderHelper(FakeDownloaderService(type_name="qbittorrent", instance=client))
+        bridge = HostDownloaderRuntimeBridge(
+            helper_factory=lambda: helper,
+            tag_generator=lambda: "dispatch-tag",
+            torrent_signature_resolver=lambda _content: ("Adele - Hello [single] (2015) FLAC", 30513562),
+        )
+
+        result = bridge.submit_torrent(
+            downloader="QB",
+            content=b"torrent-bytes",
+            title="Adele - Hello",
+            site_name="Stub Site",
+        )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["download_id"], "existing-hash-001")
+        self.assertEqual(result["message"], "下载任务已存在")
 
     def test_plugin_runtime_defaults_require_host_token(self) -> None:
         host_settings = SimpleNamespace(PORT=3001, API_TOKEN=None)
@@ -368,6 +552,93 @@ class RealHostSearchAdapterTest(unittest.TestCase):
 
 
 class RealDownloadDispatchAdapterTest(unittest.TestCase):
+    def test_dispatch_music_candidate_uses_runtime_downloader_bridge(self) -> None:
+        candidate = build_candidate(
+            raw_payload={
+                "host_context": {
+                    "torrent_info": {
+                        "site": 1,
+                        "site_name": "Stub Site",
+                        "title": "Adele - 25 (2015) FLAC",
+                        "description": "lossless",
+                        "enclosure": "magnet:?xt=urn:btih:1",
+                        "page_url": "https://stub/item/1",
+                        "site_cookie": "uid=1;pass=abc",
+                    }
+                }
+            }
+        )
+        client = FakeHostClient(
+            get_responses={
+                "/api/v1/download/clients": {"items": [{"name": "QB", "type": "qbittorrent"}]},
+                "/api/v1/history/download": {"items": []},
+            }
+        )
+        runtime = FakeDownloaderRuntime(
+            response={
+                "success": True,
+                "dispatch_status": "host_submitted",
+                "download_id": "torrent-hash-001",
+                "message": "添加下载任务成功",
+            }
+        )
+        settings = build_settings()
+        adapter = RealDownloadDispatchAdapter(
+            settings=settings,
+            client=client,  # type: ignore[arg-type]
+            path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
+            downloader_runtime=runtime,
+        )
+
+        result = adapter.dispatch(candidate=candidate, downloader_id="QB", manual_confirm=True)
+
+        self.assertEqual(result.dispatch_status, "host_submitted")
+        self.assertEqual(result.downloader_task_id, "torrent-hash-001")
+        self.assertEqual(runtime.calls[-1]["downloader"], "QB")
+        self.assertEqual(runtime.calls[-1]["content"], "magnet:?xt=urn:btih:1")
+        self.assertEqual(runtime.calls[-1]["page_url"], "https://stub/item/1")
+        self.assertEqual(runtime.calls[-1]["cookie"], "uid=1;pass=abc")
+        self.assertEqual([call[1] for call in client.calls if call[0] == "POST"], [])
+
+    def test_dispatch_music_candidate_maps_runtime_failure_without_http_fallback(self) -> None:
+        candidate = build_candidate(
+            raw_payload={
+                "host_context": {
+                    "torrent_info": {
+                        "site": 1,
+                        "site_name": "Stub Site",
+                        "title": "Adele - 25 (2015) FLAC",
+                        "description": "lossless",
+                        "enclosure": "magnet:?xt=urn:btih:1",
+                    }
+                }
+            }
+        )
+        client = FakeHostClient(
+            get_responses={"/api/v1/download/clients": {"items": [{"name": "QB", "type": "qbittorrent"}]}}
+        )
+        runtime = FakeDownloaderRuntime(
+            response={
+                "success": False,
+                "dispatch_status": "host_rejected",
+                "download_id": None,
+                "message": "下载器拒绝任务",
+            }
+        )
+        settings = build_settings()
+        adapter = RealDownloadDispatchAdapter(
+            settings=settings,
+            client=client,  # type: ignore[arg-type]
+            path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
+            downloader_runtime=runtime,
+        )
+
+        result = adapter.dispatch(candidate=candidate, downloader_id="QB", manual_confirm=True)
+
+        self.assertEqual(result.dispatch_status, "host_rejected")
+        self.assertEqual(result.failure_reason, "下载器拒绝任务")
+        self.assertEqual([call[1] for call in client.calls if call[0] == "POST"], [])
+
     def test_dispatch_maps_moviepilot_download_add_failure(self) -> None:
         candidate = build_candidate(
             raw_payload={
@@ -379,7 +650,8 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
                         "description": "validation",
                         "enclosure": "magnet:?xt=urn:btih:1",
                     }
-                }
+                },
+                "host_media_reference": {"tmdbid": 1},
             }
         )
         client = FakeHostClient(
