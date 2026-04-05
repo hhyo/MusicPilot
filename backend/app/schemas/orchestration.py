@@ -82,6 +82,11 @@ class ChartInfo(BaseModel):
     updated_at: datetime
     mock: bool = True
     note: str
+    summary: str | None = None
+    chart_group: str | None = None
+    chart_scope: str | None = None
+    freshness_label: str | None = None
+    supports_subscription: bool = True
 
 
 class ChartEntryInfo(BaseModel):
@@ -100,6 +105,40 @@ class ChartEntryInfo(BaseModel):
     note: str
 
 
+class DiscoverySourceContext(BaseModel):
+    chart_source: str
+    chart_id: str
+    chart_name: str
+    rank: int
+    chart_type: EntityType
+
+
+class DiscoveryTarget(BaseModel):
+    target_kind: EntityType
+    provider: str
+    provider_id: str
+    display_title: str
+    display_subtitle: str | None = None
+    source_context: DiscoverySourceContext
+    conversion_ready: bool
+    conversion_note: str | None = None
+    discovery_badges: list[str] = Field(default_factory=list)
+
+
+class DiscoveryEntryView(BaseModel):
+    entry: ChartEntryInfo
+    target: DiscoveryTarget
+    entry_summary: str
+    badges: list[str] = Field(default_factory=list)
+    highlight_reason: str | None = None
+
+
+class DiscoveryEntryGroup(BaseModel):
+    group_key: str
+    group_label: str
+    items: list[DiscoveryEntryView] = Field(default_factory=list)
+
+
 class ChartListData(BaseModel):
     items: list[ChartInfo] = Field(default_factory=list)
     total: int = 0
@@ -115,6 +154,10 @@ class ChartDetailData(BaseModel):
     mock: bool = True
     note: str
     integration_point: str
+    hero_entry: DiscoveryEntryView | None = None
+    summary_stats: dict[str, str | int] = Field(default_factory=dict)
+    entry_groups: list[DiscoveryEntryGroup] = Field(default_factory=list)
+    conversion_summary: dict[str, int] = Field(default_factory=dict)
 
 
 class CreateChartEntrySubscriptionRequest(BaseModel):

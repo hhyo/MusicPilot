@@ -52,6 +52,11 @@ export interface ChartInfo {
   updated_at: string;
   mock: boolean;
   note: string;
+  summary?: string | null;
+  chart_group?: string | null;
+  chart_scope?: string | null;
+  freshness_label?: string | null;
+  supports_subscription: boolean;
 }
 
 export interface ChartEntryInfo {
@@ -70,6 +75,40 @@ export interface ChartEntryInfo {
   note: string;
 }
 
+export interface DiscoverySourceContext {
+  chart_source: string;
+  chart_id: string;
+  chart_name: string;
+  rank: number;
+  chart_type: EntityType;
+}
+
+export interface DiscoveryTarget {
+  target_kind: EntityType;
+  provider: string;
+  provider_id: string;
+  display_title: string;
+  display_subtitle?: string | null;
+  source_context: DiscoverySourceContext;
+  conversion_ready: boolean;
+  conversion_note?: string | null;
+  discovery_badges: string[];
+}
+
+export interface DiscoveryEntryView {
+  entry: ChartEntryInfo;
+  target: DiscoveryTarget;
+  entry_summary: string;
+  badges: string[];
+  highlight_reason?: string | null;
+}
+
+export interface DiscoveryEntryGroup {
+  group_key: string;
+  group_label: string;
+  items: DiscoveryEntryView[];
+}
+
 export interface ChartListData {
   items: ChartInfo[];
   total: number;
@@ -85,6 +124,10 @@ export interface ChartDetailData {
   mock: boolean;
   note: string;
   integration_point: string;
+  hero_entry?: DiscoveryEntryView | null;
+  summary_stats: Record<string, string | number>;
+  entry_groups: DiscoveryEntryGroup[];
+  conversion_summary: Record<string, number>;
 }
 
 export interface CreateChartEntrySubscriptionPayload {

@@ -34,6 +34,7 @@ from ..repositories.orchestration import OrchestrationRepository
 from ..services.charts import ChartService
 from ..services.host_capabilities import HostCapabilitiesService
 from ..services.dispatch import DispatchService
+from ..services.discovery import DiscoveryAssembler
 from ..services.host_integration import (
     DispatchAdapterResolver,
     HostIntegrationService,
@@ -66,6 +67,11 @@ def get_host_capabilities_service() -> HostCapabilitiesService:
 @lru_cache
 def get_mvp_placeholder_service() -> MvpPlaceholderService:
     return MvpPlaceholderService()
+
+
+@lru_cache
+def get_discovery_assembler() -> DiscoveryAssembler:
+    return DiscoveryAssembler()
 
 
 @lru_cache
@@ -145,8 +151,9 @@ def get_metadata_service(
 
 def get_chart_service(
     adapter: ChartProviderAdapter = Depends(get_chart_provider_adapter),
+    discovery_assembler: DiscoveryAssembler = Depends(get_discovery_assembler),
 ) -> ChartService:
-    return ChartService(adapter=adapter)
+    return ChartService(adapter=adapter, discovery_assembler=discovery_assembler)
 
 
 def get_query_builder_service(

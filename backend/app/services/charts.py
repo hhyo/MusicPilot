@@ -7,11 +7,13 @@ from fastapi import HTTPException
 from ..adapters.chart_provider import CHART_INTEGRATION_POINT, ChartProviderAdapter
 from ..schemas.mvp import EntityType
 from ..schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartListData, ChartProviderInfo
+from .discovery import DiscoveryAssembler
 
 
 class ChartService:
-    def __init__(self, adapter: ChartProviderAdapter):
+    def __init__(self, adapter: ChartProviderAdapter, discovery_assembler: DiscoveryAssembler):
         self.adapter = adapter
+        self.discovery_assembler = discovery_assembler
 
     def list_providers(self) -> list[ChartProviderInfo]:
         return self.adapter.list_providers()
@@ -23,7 +25,7 @@ class ChartService:
         chart_type: EntityType | None = None,
         region: str | None = None,
     ) -> ChartListData:
-        items = self.adapter.list_charts()
+        items = [self.discovery_assembler.build_chart_info(item) for item in self.adapter.list_charts()]
         if provider:
             items = [item for item in items if item.chart_source == provider]
         if chart_type:
@@ -40,7 +42,7 @@ class ChartService:
 
     def get_chart_detail(self, chart_id: str) -> ChartDetailData:
         try:
-            return self.adapter.get_chart_detail(chart_id)
+            return self.discovery_assembler.build_detail(self.adapter.get_chart_detail(chart_id))
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 

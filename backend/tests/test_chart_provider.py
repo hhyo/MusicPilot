@@ -6,7 +6,9 @@ import unittest
 
 from app.adapters.chart_provider import ListenBrainzChartProviderAdapter
 from app.schemas.mvp import EntityType
+from app.schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo
 from app.services.charts import ChartService
+from app.services.discovery import DiscoveryAssembler
 
 
 class FakeResponse:
@@ -231,9 +233,60 @@ class FakeLiveChartAdapter:
 
 class ChartServiceLiveModeTest(unittest.TestCase):
     def test_chart_service_live_mode_is_not_mock(self) -> None:
-        service = ChartService(adapter=FakeLiveChartAdapter())
+        service = ChartService(adapter=FakeLiveChartAdapter(), discovery_assembler=DiscoveryAssembler())
 
         result = service.list_charts()
 
         self.assertFalse(result.mock)
         self.assertIn("ListenBrainz", result.note)
+        self.assertEqual(result.items[0].chart_group, "tracks")
+        self.assertIsNotNone(result.items[0].summary)
+
+
+class FakeDetailChartAdapter(FakeLiveChartAdapter):
+    def get_chart_detail(self, chart_id: str):  # noqa: ANN201, ARG002
+        from datetime import datetime, timezone
+
+        return ChartDetailData(
+            chart=ChartInfo(
+                id="chart-listenbrainz-top-tracks-week",
+                chart_source="listenbrainz",
+                chart_name="Top Tracks",
+                chart_type=EntityType.TRACK,
+                updated_at=datetime.now(timezone.utc),
+                mock=False,
+                note="live",
+            ),
+            items=[
+                ChartEntryInfo(
+                    item_id="chart-item-001",
+                    chart_id="chart-listenbrainz-top-tracks-week",
+                    chart_source="listenbrainz",
+                    chart_name="Top Tracks",
+                    rank=1,
+                    item_type=EntityType.TRACK,
+                    target_id="rec-1",
+                    target_name="Hello",
+                    subtitle="Adele",
+                    provider="listenbrainz",
+                    source_type="listenbrainz_sitewide_stats",
+                    mock=False,
+                    note="live",
+                )
+            ],
+            item_count=1,
+            mock=False,
+            note="live",
+            integration_point="ListenBrainzChartProviderAdapter",
+        )
+
+
+class ChartServiceDiscoveryEnrichmentTest(unittest.TestCase):
+    def test_chart_service_enriches_detail(self) -> None:
+        service = ChartService(adapter=FakeDetailChartAdapter(), discovery_assembler=DiscoveryAssembler())
+
+        detail = service.get_chart_detail("chart-listenbrainz-top-tracks-week")
+
+        self.assertIsNotNone(detail.hero_entry)
+        self.assertEqual(detail.hero_entry.target.provider_id, "rec-1")
+        self.assertGreaterEqual(len(detail.entry_groups), 1)

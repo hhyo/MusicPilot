@@ -69,3 +69,12 @@ MusicPilot 当前已经支持 `MUSICPILOT_CHART_PROVIDER_MODE=listenbrainz`，�
 - chart entry 的 `target_id` 已与当前 MusicBrainz metadata 主链对齐
 - 真实 chart entry 已可进入当前订阅执行主链
 - 这为后续真实 chart subscription run 自动化与 discovery 增量监控奠定了最小可用基础
+
+## 当前产品化状态
+
+当前 discovery 已经开始从“原始榜单 API 查看器”收口成产品化发现页：
+
+- chart list 当前会带出 `summary`、`chart_group`、`chart_scope`、`freshness_label`
+- chart detail 当前会带出 `hero_entry`、`entry_groups`、`conversion_summary`
+- 每个 chart entry 当前都映射到稳定的 `DiscoveryTarget`
+- 后续 `discovery -> metadata` 转化将以 `DiscoveryTarget` 为唯一桥接层，而不是继续依赖 provider 原始 payload

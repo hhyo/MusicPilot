@@ -39,7 +39,7 @@ python -m app.db_init --reseed
 - `subscriptions/{id}/run` 为同步最小执行骨架，应用内 scheduler 会在 due 时触发同一条执行链；若最佳候选为 `AUTO_DOWNLOAD`，当前会继续自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则继续自动 apply
 - `charts/*` 当前支持两种模式：
   - `mock`：本地 chart seed
-  - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings
+  - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings；当前 detail 输出已补 discovery 产品化字段，如 chart summary、hero entry、entry groups，以及稳定的 `DiscoveryTarget` 转化层
 - `downloads/dispatch` 当前支持三类 host 语义：
   - 可靠 `media_in` -> `/api/v1/download/`
   - torrent-only 但已具备宿主媒体参考 -> `/api/v1/download/add`

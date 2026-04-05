@@ -89,16 +89,20 @@
               <p class="chart-card__source">{{ chart.chart_source }}</p>
               <h4>{{ chart.chart_name }}</h4>
             </div>
-            <el-tag effect="plain">{{ chart.chart_type }}</el-tag>
+            <el-tag effect="plain">{{ chart.chart_group || chart.chart_type }}</el-tag>
           </div>
 
           <p class="chart-card__meta">
-            {{ chart.category || 'discovery' }} · {{ chart.region || 'global' }}
+            {{ chart.chart_scope || chart.category || 'discovery' }} · {{ chart.region || 'global' }}
           </p>
-          <p class="chart-card__note">{{ chart.note }}</p>
+          <p class="chart-card__summary">{{ chart.summary || chart.note }}</p>
+          <div class="chart-card__tags">
+            <el-tag size="small" effect="plain">{{ chart.freshness_label || chart.refresh_hint || 'live' }}</el-tag>
+            <el-tag size="small" effect="plain">{{ chart.item_count }} items</el-tag>
+          </div>
 
           <div class="chart-card__footer">
-            <span>{{ chart.item_count }} items</span>
+            <span>{{ chart.note }}</span>
             <el-button type="primary" plain @click="openChart(chart.id)">
               查看榜单项
             </el-button>
@@ -135,27 +139,86 @@
         description="选择一个榜单后，这里会展示榜单项并支持从单项创建订阅。"
       />
 
-      <div v-else class="entry-list">
-        <article v-for="item in selectedChart.items" :key="item.item_id" class="entry-card">
-          <div class="entry-card__rank">#{{ item.rank }}</div>
-          <div class="entry-card__body">
-            <h4>{{ item.target_name }}</h4>
-            <p>{{ item.subtitle || '暂无补充说明' }}</p>
-            <div class="entry-card__tags">
-              <el-tag size="small" effect="plain">{{ item.item_type }}</el-tag>
-              <el-tag size="small" effect="plain">{{ item.chart_source }}</el-tag>
-              <el-tag size="small" effect="plain">{{ item.source_type }}</el-tag>
-            </div>
+      <div v-else class="detail-stack">
+        <section v-if="selectedChart.hero_entry" class="hero-entry-card">
+          <div>
+            <p class="hero-entry-card__eyebrow">Featured Entry</p>
+            <h4>{{ selectedChart.hero_entry.target.display_title }}</h4>
+            <p>{{ selectedChart.hero_entry.entry_summary }}</p>
           </div>
-          <el-button
-            type="primary"
-            plain
-            :loading="subscribingItemId === item.item_id"
-            @click="handleSubscribe(item)"
-          >
-            创建订阅
-          </el-button>
-        </article>
+          <div class="entry-card__tags">
+            <el-tag
+              v-for="badge in selectedChart.hero_entry.badges"
+              :key="badge"
+              size="small"
+              effect="plain"
+            >
+              {{ badge }}
+            </el-tag>
+          </div>
+        </section>
+
+        <section class="detail-summary-grid">
+          <article class="detail-summary-card">
+            <p class="detail-summary-card__label">Entries</p>
+            <h4>{{ selectedChart.summary_stats.items ?? selectedChart.item_count }}</h4>
+          </article>
+          <article class="detail-summary-card">
+            <p class="detail-summary-card__label">Metadata Ready</p>
+            <h4>{{ selectedChart.conversion_summary.ready ?? 0 }}</h4>
+          </article>
+          <article class="detail-summary-card">
+            <p class="detail-summary-card__label">Needs Follow-up</p>
+            <h4>{{ selectedChart.conversion_summary.not_ready ?? 0 }}</h4>
+          </article>
+        </section>
+
+        <section
+          v-for="group in displayEntryGroups"
+          :key="group.group_key"
+          class="entry-group"
+        >
+          <header class="entry-group__header">
+            <div>
+              <p class="section-header__eyebrow">Entry Group</p>
+              <h4>{{ group.group_label }}</h4>
+            </div>
+            <el-tag effect="plain">{{ group.items.length }} items</el-tag>
+          </header>
+
+          <div class="entry-list">
+            <article v-for="item in group.items" :key="item.entry.item_id" class="entry-card">
+              <div class="entry-card__rank">#{{ item.entry.rank }}</div>
+              <div class="entry-card__body">
+                <h4>{{ item.target.display_title }}</h4>
+                <p>{{ item.entry_summary }}</p>
+                <p class="entry-card__conversion">
+                  {{ item.target.conversion_ready ? 'metadata ready' : item.target.conversion_note || 'metadata pending' }}
+                </p>
+                <div class="entry-card__tags">
+                  <el-tag size="small" effect="plain">{{ item.target.target_kind }}</el-tag>
+                  <el-tag size="small" effect="plain">{{ item.target.provider }}</el-tag>
+                  <el-tag
+                    v-for="badge in item.badges"
+                    :key="badge"
+                    size="small"
+                    effect="plain"
+                  >
+                    {{ badge }}
+                  </el-tag>
+                </div>
+              </div>
+              <el-button
+                type="primary"
+                plain
+                :loading="subscribingItemId === item.entry.item_id"
+                @click="handleSubscribe(item.entry)"
+              >
+                创建订阅
+              </el-button>
+            </article>
+          </div>
+        </section>
       </div>
     </section>
   </div>
@@ -175,6 +238,7 @@ import {
 import type {
   ChartDetailData,
   ChartEntryInfo,
+  DiscoveryEntryGroup,
   ChartProviderInfo,
   ChartInfo,
   SubscriptionSummary,
@@ -197,6 +261,7 @@ const providerOptions = computed(() => [
 ]);
 
 const hasLiveCharts = computed(() => providers.value.some((item) => !item.mock));
+const displayEntryGroups = computed<DiscoveryEntryGroup[]>(() => selectedChart.value?.entry_groups ?? []);
 
 onMounted(() => {
   void loadProviders();
@@ -393,7 +458,9 @@ function resolveErrorMessage(error: unknown, fallback: string) {
 
 .chart-grid,
 .loading-grid,
-.entry-list {
+.entry-list,
+.detail-stack,
+.detail-summary-grid {
   display: grid;
   gap: 1rem;
 }
@@ -416,13 +483,57 @@ function resolveErrorMessage(error: unknown, fallback: string) {
 }
 
 .chart-card__meta,
-.chart-card__note {
+.chart-card__summary {
   margin-top: 0.7rem;
 }
 
 .chart-card__footer {
   margin-top: 1rem;
   align-items: center;
+}
+
+.hero-entry-card,
+.detail-summary-card {
+  padding: 1rem;
+  border: 1px solid var(--mp-line);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.hero-entry-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.hero-entry-card__eyebrow,
+.detail-summary-card__label {
+  margin: 0;
+  color: var(--mp-accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-entry-card h4,
+.detail-summary-card h4 {
+  margin: 0.25rem 0 0;
+}
+
+.detail-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.entry-group {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.entry-group__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .entry-card {
@@ -447,6 +558,10 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   gap: 0.4rem;
 }
 
+.entry-card__conversion {
+  font-size: 0.92rem;
+}
+
 .entry-card__tags {
   display: flex;
   gap: 0.45rem;
@@ -458,11 +573,17 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   .section-header,
   .chart-card__header,
   .chart-card__footer,
-  .entry-card {
+  .entry-card,
+  .hero-entry-card,
+  .entry-group__header {
     flex-direction: column;
   }
 
   .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-summary-grid {
     grid-template-columns: 1fr;
   }
 }
