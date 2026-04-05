@@ -54,45 +54,15 @@ class QueryBuilderService:
     ) -> QueryBuildResult:
         resolved_preferences = preferences or QueryPreferences()
         format_terms = cls._preferred_format_terms(resolved_preferences)
-        main_title = detail.track_title or detail.album_title or detail.title
         artist_name = detail.artist_name or detail.title
 
-        canonical_queries: list[QueryClause] = []
-        alias_queries: list[QueryClause] = []
-        relaxed_queries: list[QueryClause] = []
-
-        canonical_base = cls._entity_query_base(detail)
-        if resolved_preferences.include_year and detail.year:
-            canonical_queries.append(
-                QueryClause(
-                    query_type="canonical",
-                    source="canonical_year",
-                    query=" ".join(_dedupe(canonical_base + [str(detail.year)] + format_terms)),
-                    explanation="标准查询词，包含主标题、艺人上下文、年份与偏好格式。",
-                    priority=10,
-                )
-            )
-
-        canonical_queries.append(
-            QueryClause(
-                query_type="canonical",
-                source="canonical_title",
-                query=" ".join(_dedupe(canonical_base + format_terms)),
-                explanation="标准查询词，优先使用结构化 metadata 的主标题与偏好格式。",
-                priority=20,
-            )
+        canonical_queries = cls._build_canonical_queries(
+            detail=detail,
+            format_terms=format_terms,
+            include_year=resolved_preferences.include_year,
         )
-
-        if detail.entity_type == EntityType.TRACK and detail.album_title:
-            canonical_queries.append(
-                QueryClause(
-                    query_type="canonical",
-                    source="canonical_track_album",
-                    query=" ".join(_dedupe([artist_name, main_title, detail.album_title] + format_terms)),
-                    explanation="标准查询词，歌曲搜索额外保留专辑上下文以减少误匹配。",
-                    priority=30,
-                )
-            )
+        alias_queries: list[QueryClause] = []
+        relaxed_queries = cls._build_relaxed_queries(detail, format_terms)
 
         if resolved_preferences.include_aliases:
             alias_seed = detail.aliases[:4]
@@ -107,11 +77,9 @@ class QueryBuilderService:
                         source="alias_metadata",
                         query=" ".join(_dedupe(alias_parts + format_terms)),
                         explanation="别名查询词，来自 metadata aliases 字段。",
-                        priority=40 + index,
+                        priority=80 + index,
                     )
                 )
-
-        relaxed_queries.extend(cls._build_relaxed_queries(detail, format_terms))
 
         negative_terms = list(DEFAULT_NEGATIVE_TERMS)
         if not resolved_preferences.allow_live:
@@ -182,13 +150,95 @@ class QueryBuilderService:
             return ["FLAC"]
         return []
 
-    @staticmethod
-    def _entity_query_base(detail: MetadataDetail) -> list[str]:
+    @classmethod
+    def _build_canonical_queries(
+        cls,
+        *,
+        detail: MetadataDetail,
+        format_terms: list[str],
+        include_year: bool,
+    ) -> list[QueryClause]:
+        canonical_queries: list[QueryClause] = []
+        main_title = detail.track_title or detail.album_title or detail.title
+        artist_name = detail.artist_name or detail.title
+
         if detail.entity_type == EntityType.ARTIST:
-            return [detail.title]
+            canonical_queries.append(
+                QueryClause(
+                    query_type="canonical",
+                    source="canonical_title",
+                    query=" ".join(_dedupe([detail.title])),
+                    explanation="标准查询词，艺人场景优先保留艺人名本身。",
+                    priority=10,
+                )
+            )
+            if include_year and detail.year:
+                canonical_queries.append(
+                    QueryClause(
+                        query_type="canonical",
+                        source="canonical_year",
+                        query=" ".join(_dedupe([detail.title, str(detail.year)])),
+                        explanation="标准查询词，艺人场景把年份降级为补充限定条件。",
+                        priority=65,
+                    )
+                )
+            return canonical_queries
+
+        canonical_queries.append(
+            QueryClause(
+                query_type="canonical",
+                source="canonical_title",
+                query=" ".join(_dedupe([artist_name, main_title] + format_terms)),
+                explanation="标准查询词，优先对齐 PT 常见的艺人 + 主标题 + 格式 release title。",
+                priority=10,
+            )
+        )
+
         if detail.entity_type == EntityType.ALBUM:
-            return [detail.artist_name or "", detail.title]
-        return [detail.artist_name or "", detail.title]
+            if include_year and detail.year:
+                canonical_queries.append(
+                    QueryClause(
+                        query_type="canonical",
+                        source="canonical_year",
+                        query=" ".join(_dedupe([artist_name, main_title, str(detail.year)] + format_terms)),
+                        explanation="标准查询词，在专辑场景补充年份以贴近常见 PT 专辑标题。",
+                        priority=20,
+                    )
+                )
+            return canonical_queries
+
+        if detail.album_title:
+            canonical_queries.append(
+                QueryClause(
+                    query_type="canonical",
+                    source="canonical_album_release",
+                    query=" ".join(_dedupe([artist_name, detail.album_title] + format_terms)),
+                    explanation="标准查询词，歌曲场景优先补一条专辑包查询，贴近 PT 常见整专资源标题。",
+                    priority=20,
+                )
+            )
+            canonical_queries.append(
+                QueryClause(
+                    query_type="canonical",
+                    source="canonical_track_album",
+                    query=" ".join(_dedupe([artist_name, main_title, detail.album_title] + format_terms)),
+                    explanation="标准查询词，歌曲搜索额外保留专辑上下文以减少误匹配。",
+                    priority=30,
+                )
+            )
+
+        if include_year and detail.year:
+            canonical_queries.append(
+                QueryClause(
+                    query_type="canonical",
+                    source="canonical_year",
+                    query=" ".join(_dedupe([artist_name, main_title, str(detail.year)] + format_terms)),
+                    explanation="标准查询词，歌曲场景把年份降级为补充限定条件。",
+                    priority=65,
+                )
+            )
+
+        return canonical_queries
 
     @classmethod
     def _build_relaxed_queries(cls, detail: MetadataDetail, format_terms: list[str]) -> list[QueryClause]:
@@ -202,11 +252,20 @@ class QueryBuilderService:
                 source="relaxed_primary",
                 query=" ".join(_dedupe([artist_name, main_title])),
                 explanation="宽松查询词，保留艺人 + 主标题，不附加年份与格式。",
-                priority=60,
+                priority=50,
             )
         )
 
         if detail.entity_type == EntityType.TRACK and detail.album_title:
+            relaxed_queries.append(
+                QueryClause(
+                    query_type="relaxed",
+                    source="relaxed_album_release",
+                    query=" ".join(_dedupe([artist_name, detail.album_title])),
+                    explanation="宽松查询词，歌曲场景补一条艺人 + 专辑标题，覆盖整专资源命名。",
+                    priority=60,
+                )
+            )
             relaxed_queries.append(
                 QueryClause(
                     query_type="relaxed",
@@ -223,6 +282,15 @@ class QueryBuilderService:
                     source="relaxed_album_only",
                     query=" ".join(_dedupe([detail.title] + format_terms)),
                     explanation="宽松查询词，专辑场景保留专辑标题与格式偏好。",
+                    priority=60,
+                )
+            )
+            relaxed_queries.append(
+                QueryClause(
+                    query_type="relaxed",
+                    source="relaxed_title_only",
+                    query=" ".join(_dedupe([detail.title])),
+                    explanation="宽松查询词，专辑场景仅保留专辑标题。",
                     priority=70,
                 )
             )

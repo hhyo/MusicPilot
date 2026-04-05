@@ -71,6 +71,32 @@ def build_track_detail() -> MetadataDetail:
 
 
 class QueryBuilderServiceTest(unittest.TestCase):
+    def test_track_ordered_queries_prioritize_pt_release_shapes(self) -> None:
+        result = QueryBuilderService.build_from_detail(build_track_detail())
+        top_sources = [query.source for query in result.ordered_queries[:4]]
+        self.assertEqual(
+            top_sources,
+            [
+                "canonical_title",
+                "canonical_album_release",
+                "canonical_track_album",
+                "relaxed_primary",
+            ],
+        )
+
+    def test_album_ordered_queries_prioritize_release_title_before_aliases(self) -> None:
+        result = QueryBuilderService.build_from_detail(build_album_detail())
+        top_sources = [query.source for query in result.ordered_queries[:4]]
+        self.assertEqual(
+            top_sources,
+            [
+                "canonical_title",
+                "canonical_year",
+                "relaxed_primary",
+                "relaxed_album_only",
+            ],
+        )
+
     def test_album_canonical_query_contains_artist_and_title(self) -> None:
         result = QueryBuilderService.build_from_detail(build_album_detail())
         first_query = result.canonical_queries[0].query

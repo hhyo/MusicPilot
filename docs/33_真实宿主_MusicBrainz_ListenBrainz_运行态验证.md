@@ -180,6 +180,30 @@
 
 这说明当前 `BTS - SWIM` 的问题不只是“track title 查询太窄”，连更宽的 `artist + album` 变体在当前站点环境下也没有命中。
 
+补充说明：
+
+- 当前 `QueryBuilderService` 已调整为更符合 PT release title 习惯的前置查询序列：
+  - `artist + track + format`
+  - `artist + album + format`
+  - `artist + track + album + format`
+  - `artist + track`
+- alias 查询与 year-heavy 查询已被后移，不再挤占前 4 条核心查询位
+- 因此像 `BTS - SWIM` 这类样本当前仍 `no_result`，更接近站点覆盖/资源缺失问题，而不是 query builder 仍然过窄
+
+在这轮 PT 风格 query 优化后，又直接对真实宿主补做了同一组查询验证：
+
+- `BTS SWIM FLAC`
+- `BTS ARIRANG FLAC`
+- `BTS SWIM ARIRANG FLAC`
+- `BTS SWIM`
+
+结果仍全部为：
+
+- `success = false`
+- `message = 未搜索到任何资源`
+
+这进一步说明，当前这类样本的主问题已经更接近 **站点覆盖 / 资源可得性**，而不是 MusicPilot 仍然没有给出足够 PT 友好的前置查询序列。
+
 ### 3. 真实 host dispatch 能力探测
 
 直接读取宿主真实 endpoint：
