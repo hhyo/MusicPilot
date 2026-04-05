@@ -14,6 +14,51 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATABASE_PATH = BACKEND_ROOT / "data" / "musicpilot.db"
 
 
+def _is_plugin_runtime_module(module_name: str) -> bool:
+    return module_name.startswith("app.plugins.musicpilot.")
+
+
+def _load_host_settings_for_plugin_runtime(module_name: str) -> object | None:
+    if not _is_plugin_runtime_module(module_name):
+        return None
+    try:
+        from app.core.config import settings as host_settings
+    except Exception:
+        return None
+    return host_settings
+
+
+def _derive_plugin_runtime_host_defaults(*, module_name: str, host_settings: object | None) -> dict[str, object]:
+    if not _is_plugin_runtime_module(module_name) or host_settings is None:
+        return {}
+
+    port = getattr(host_settings, "PORT", None)
+    token = getattr(host_settings, "API_TOKEN", None)
+    if not port or not token:
+        return {}
+
+    return {
+        "host_integration_enabled": True,
+        "host_base_url": f"http://127.0.0.1:{int(port)}",
+        "host_auth_token": str(token),
+        "host_auth_mode": "x_api_key",
+        "host_api_key_header_name": "X-API-KEY",
+        "host_search_mode": "prefer_host",
+        "host_dispatch_mode": "prefer_host",
+        "host_organize_mode": "prefer_host",
+    }
+
+
+PLUGIN_RUNTIME_HOST_DEFAULTS = _derive_plugin_runtime_host_defaults(
+    module_name=__name__,
+    host_settings=_load_host_settings_for_plugin_runtime(__name__),
+)
+
+
+def _plugin_runtime_default(key: str, fallback):
+    return PLUGIN_RUNTIME_HOST_DEFAULTS.get(key, fallback)
+
+
 class Settings(BaseSettings):
     app_name: str = Field(default="MusicPilot Backend")
     api_prefix: str = Field(default="/api/v1/plugin/musicpilot")
@@ -34,11 +79,11 @@ class Settings(BaseSettings):
     subscription_scheduler_enabled: bool = Field(default=True)
     subscription_scheduler_poll_seconds: float = Field(default=30.0, ge=1.0, le=3600.0)
     subscription_scheduler_default_interval_minutes: int = Field(default=360, ge=1, le=10080)
-    host_integration_enabled: bool = Field(default=False)
-    host_base_url: str | None = Field(default=None)
-    host_auth_token: str | None = Field(default=None)
-    host_auth_mode: str = Field(default="x_api_key")
-    host_api_key_header_name: str = Field(default="X-API-KEY")
+    host_integration_enabled: bool = Field(default_factory=lambda: bool(_plugin_runtime_default("host_integration_enabled", False)))
+    host_base_url: str | None = Field(default_factory=lambda: _plugin_runtime_default("host_base_url", None))
+    host_auth_token: str | None = Field(default_factory=lambda: _plugin_runtime_default("host_auth_token", None))
+    host_auth_mode: str = Field(default_factory=lambda: str(_plugin_runtime_default("host_auth_mode", "x_api_key")))
+    host_api_key_header_name: str = Field(default_factory=lambda: str(_plugin_runtime_default("host_api_key_header_name", "X-API-KEY")))
     host_timeout_seconds: float = Field(default=20.0, ge=0.5, le=60.0)
     host_verify_tls: bool = Field(default=True)
     host_verification_state: str = Field(default="unverified")
@@ -65,9 +110,9 @@ class Settings(BaseSettings):
     host_transfer_now_path: str | None = Field(default="/api/v1/transfer/now")
     host_notify_path: str | None = Field(default=None)
     host_config_path: str | None = Field(default=None)
-    host_search_mode: str = Field(default="mock")
-    host_dispatch_mode: str = Field(default="mock")
-    host_organize_mode: str = Field(default="mock")
+    host_search_mode: str = Field(default_factory=lambda: str(_plugin_runtime_default("host_search_mode", "mock")))
+    host_dispatch_mode: str = Field(default_factory=lambda: str(_plugin_runtime_default("host_dispatch_mode", "mock")))
+    host_organize_mode: str = Field(default_factory=lambda: str(_plugin_runtime_default("host_organize_mode", "mock")))
     host_strict_empty_as_error: bool = Field(default=False)
     host_dispatch_validate_clients: bool = Field(default=True)
     host_assume_healthy: bool | None = Field(default=None)

@@ -14,7 +14,7 @@ from app.adapters.host_http import HostTransportError
 from app.adapters.host_search import RealHostSearchAdapter
 from app.adapters.host_storage_runtime import HostStorageRuntimeBridge
 from app.adapters.organize import RealOrganizeAdapter
-from app.core.config import Settings
+from app.core.config import Settings, _derive_plugin_runtime_host_defaults
 from app.services.subscription_scheduler import normalize_subscription_mode
 from app.schemas.acquisition import SearchCandidateDetail
 from app.schemas.integration import AdapterMode, VerificationState
@@ -80,6 +80,50 @@ class FakeStorageRuntime:
 class SubscriptionSchedulerSemanticsTest(unittest.TestCase):
     def test_normalize_scheduled_placeholder_to_scheduled(self) -> None:
         self.assertEqual(normalize_subscription_mode("scheduled_placeholder"), "scheduled")
+
+
+class PluginRuntimeHostDefaultsTest(unittest.TestCase):
+    def test_plugin_runtime_defaults_enable_host_integration_from_host_settings(self) -> None:
+        host_settings = SimpleNamespace(PORT=3001, API_TOKEN="host-token")
+
+        defaults = _derive_plugin_runtime_host_defaults(
+            module_name="app.plugins.musicpilot.core.config",
+            host_settings=host_settings,
+        )
+
+        self.assertEqual(
+            defaults,
+            {
+                "host_integration_enabled": True,
+                "host_base_url": "http://127.0.0.1:3001",
+                "host_auth_token": "host-token",
+                "host_auth_mode": "x_api_key",
+                "host_api_key_header_name": "X-API-KEY",
+                "host_search_mode": "prefer_host",
+                "host_dispatch_mode": "prefer_host",
+                "host_organize_mode": "prefer_host",
+            },
+        )
+
+    def test_local_backend_module_name_does_not_enable_plugin_runtime_defaults(self) -> None:
+        host_settings = SimpleNamespace(PORT=3001, API_TOKEN="host-token")
+
+        defaults = _derive_plugin_runtime_host_defaults(
+            module_name="app.core.config",
+            host_settings=host_settings,
+        )
+
+        self.assertEqual(defaults, {})
+
+    def test_plugin_runtime_defaults_require_host_token(self) -> None:
+        host_settings = SimpleNamespace(PORT=3001, API_TOKEN=None)
+
+        defaults = _derive_plugin_runtime_host_defaults(
+            module_name="app.plugins.musicpilot.core.config",
+            host_settings=host_settings,
+        )
+
+        self.assertEqual(defaults, {})
 
 
 class FakeStorageOper:

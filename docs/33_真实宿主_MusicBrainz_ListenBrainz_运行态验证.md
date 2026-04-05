@@ -82,7 +82,7 @@
 - 但 artist 榜单项进入当前最小 run 骨架后，仍停在 `manual_pending`
 - 这与当前主链的实体类型差异有关，不代表 provider 失效
 
-## 验证 4：track chart entry -> subscription -> run
+## 验证 4：track chart entry -> subscription -> run（旧运行态结论）
 
 使用榜单：
 
@@ -114,15 +114,88 @@
   - `dispatched`
   - `preview_ready`
 
+## 2026-04-05 补充验证：真实 host search / dispatch 主阻塞定位
+
+在当前最新 plugin runtime 下，又补做了两组更细的运行态核对。
+
+### 1. 基准样本：Adele Hello
+
+验证方式：
+
+- `MUSICPILOT_METADATA_PROVIDER_MODE=seed`
+- 使用 `track-hello`
+- 不显式注入 `MUSICPILOT_HOST_*`，依赖插件运行态自动从宿主 `app.core.config` 派生 host 默认值
+
+结果：
+
+- `active_search_adapter = real_host_search`
+- `candidate_count = 2`
+- `results_total = 2`
+- 候选标题示例：
+  - `Adele - Hello 2015 - FLAC 分轨`
+
+结论：
+
+- 真实宿主插件运行态下，`real_host_search` 已经能在默认配置下真正工作
+- `plugin runtime host defaults` 自动派生是有效的，不再需要手动导出 `MUSICPILOT_HOST_*`
+
+### 2. 真实 ListenBrainz track 榜单样本：BTS - SWIM
+
+验证方式：
+
+- `MUSICPILOT_METADATA_PROVIDER_MODE=musicbrainz`
+- `MUSICPILOT_CHART_PROVIDER_MODE=listenbrainz`
+- 使用 `chart-listenbrainz-top-tracks-week` 的首条 track item
+
+结果：
+
+- `entry_title = BTS - SWIM`
+- `execution_status = no_result`
+- `search_job_status = no_result`
+- `active_search_adapter = real_host_search`
+- `candidate_count = 0`
+- `ordered_queries` 为：
+  - `BTS SWIM 2026 FLAC`
+  - `BTS SWIM FLAC`
+  - `BTS SWIM ARIRANG FLAC`
+  - `BTS SWIM`
+  - `SWIM`
+
+结论：
+
+- 这不是 plugin runtime 接线问题
+- 也不是 provider 没有生效
+- 当前失败点已经收敛成：**这类真实 track 样本在当前宿主 PT 搜索环境下没有命中结果**
+
+### 3. 真实 host dispatch 能力探测
+
+直接读取宿主真实 endpoint：
+
+- `GET /api/v1/download/clients`
+
+结果：
+
+- `200`
+- 返回 `[]`
+
+结论：
+
+- 当前真实宿主环境里没有可用下载器
+- 这解释了为什么 `dispatch_capability = false`
+- 所以就算 real search 已经有结果，自动下载闭环也还会被 host 环境配置挡住
+
 ## 总结
 
 当前真实宿主插件运行态下，已经成立的事实是：
 
 1. `MusicBrainz metadata` 可用
 2. `ListenBrainz charts` 可用
-3. `track chart entry -> subscription -> run` 已能接到当前主链
-4. 当前真正尚未完成的，不是 provider 接入，而是：
-   - search/dispatch 的真实宿主/真实下载闭环
+3. `real_host_search` 在真实宿主插件运行态下已确认可工作，Adele 基准样本能返回真实候选
+4. `ListenBrainz` 的某些真实 track 样本在当前宿主 PT 搜索环境下仍会 `no_result`
+5. 当前 host 运行态里 `downloaders` 为空，因此真实 dispatch 仍被环境配置阻断
+6. 当前真正尚未完成的，不是 provider 接入，而是：
+   - 真实 PT 搜索命中质量
+   - 宿主下载器配置完成后的真实 dispatch 闭环
    - 拥有真实本地源文件后的自动 `apply`
 
 ## 下一步指向
@@ -134,8 +207,8 @@
 
 也就是把当前：
 
-`真实 metadata / 真实 charts -> mock search/dispatch -> preview`
+`真实 metadata / 真实 charts -> 真实 search -> 真实 dispatch -> preview/apply`
 
 继续推进成：
 
-`真实 metadata / 真实 charts -> 真实 search/dispatch -> preview/apply`
+`真实 metadata / 真实 charts -> 真实 search(已验证) + 已配置下载器的真实 dispatch -> preview/apply`
