@@ -116,25 +116,29 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         def handler(request: httpx.Request) -> httpx.Response:
             nonlocal call_count
             call_count += 1
-            body = {
-                "id": "mb-album-25",
-                "title": "25",
-                "primary-type": "Album",
-                "first-release-date": "2015-11-20",
-                "aliases": [{"name": "二十五"}],
-                "tags": [{"name": "pop"}],
-                "artist-credit": [
-                    {
-                        "name": "Adele",
-                        "artist": {
-                            "id": "mb-artist-1",
+            if request.url.path == "/ws/2/release-group/mb-album-25":
+                body = {
+                    "id": "mb-album-25",
+                    "title": "25",
+                    "primary-type": "Album",
+                    "first-release-date": "2015-11-20",
+                    "aliases": [{"name": "二十五"}],
+                    "tags": [{"name": "pop"}],
+                    "artist-credit": [
+                        {
                             "name": "Adele",
-                        },
-                    }
-                ],
-                "releases": [{"id": "release-25-1", "title": "25"}],
-            }
-            return httpx.Response(200, json=body)
+                            "artist": {
+                                "id": "mb-artist-1",
+                                "name": "Adele",
+                            },
+                        }
+                    ],
+                    "releases": [{"id": "release-25-1", "title": "25", "status": "Official"}],
+                }
+                return httpx.Response(200, json=body)
+            if request.url.path == "/ws/2/release/release-25-1":
+                return httpx.Response(200, json={"id": "release-25-1", "media": []})
+            raise AssertionError(f"Unexpected path: {request.url.path}")
 
         client = httpx.Client(
             transport=httpx.MockTransport(handler),
@@ -145,7 +149,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         first = adapter.get_detail(EntityType.ALBUM, "mb-album-25")
         second = adapter.get_detail(EntityType.ALBUM, "mb-album-25")
 
-        self.assertEqual(call_count, 1)
+        self.assertEqual(call_count, 2)
         self.assertEqual(first.album_title, second.album_title)
 
     def test_artist_search_maps_musicbrainz_result(self) -> None:
@@ -192,33 +196,60 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
     def test_album_detail_maps_release_group_result(self) -> None:
         from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
 
+        calls: list[str] = []
+
         def handler(request: httpx.Request) -> httpx.Response:
-            self.assertEqual(request.url.path, "/ws/2/release-group/mb-album-25")
+            calls.append(request.url.path)
             self.assertEqual(request.url.params["fmt"], "json")
-            body = {
-                "id": "mb-album-25",
-                "title": "25",
-                "primary-type": "Album",
-                "first-release-date": "2015-11-20",
-                "aliases": [{"name": "二十五"}],
-                "tags": [{"name": "pop"}],
-                "artist-credit": [
-                    {
-                        "name": "Adele",
-                        "artist": {
-                            "id": "mb-artist-1",
-                            "name": "Adele",
-                        },
-                    }
-                ],
-                "releases": [
-                    {
-                        "id": "release-25-1",
+            if request.url.path == "/ws/2/release-group/mb-album-25":
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "mb-album-25",
                         "title": "25",
-                    }
-                ],
-            }
-            return httpx.Response(200, json=body)
+                        "primary-type": "Album",
+                        "first-release-date": "2015-11-20",
+                        "aliases": [{"name": "二十五"}],
+                        "tags": [{"name": "pop"}],
+                        "artist-credit": [
+                            {
+                                "name": "Adele",
+                                "artist": {
+                                    "id": "mb-artist-1",
+                                    "name": "Adele",
+                                },
+                            }
+                        ],
+                        "releases": [
+                            {
+                                "id": "release-25-1",
+                                "title": "25",
+                                "status": "Official",
+                            }
+                        ],
+                    },
+                )
+            if request.url.path == "/ws/2/release/release-25-1":
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "release-25-1",
+                        "media": [
+                            {
+                                "tracks": [
+                                    {
+                                        "id": "release-track-1",
+                                        "title": "Hello",
+                                        "number": "1",
+                                        "position": 1,
+                                        "recording": {"id": "recording-hello", "title": "Hello"},
+                                    }
+                                ]
+                            }
+                        ],
+                    },
+                )
+            raise AssertionError(f"Unexpected path: {request.url.path}")
 
         client = httpx.Client(
             transport=httpx.MockTransport(handler),
@@ -228,6 +259,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
 
         detail = adapter.get_detail(EntityType.ALBUM, "mb-album-25")
 
+        self.assertEqual(calls, ["/ws/2/release-group/mb-album-25", "/ws/2/release/release-25-1"])
         self.assertEqual(detail.provider, "musicbrainz")
         self.assertEqual(detail.source_type, "musicbrainz_ws2")
         self.assertEqual(detail.entity_type, EntityType.ALBUM)
@@ -237,6 +269,195 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(detail.release_type, ReleaseType.ALBUM)
         self.assertEqual(detail.external_ids["musicbrainz"], "mb-album-25")
         self.assertEqual(detail.related_artists[0].title, "Adele")
+        self.assertEqual(detail.tracks[0].id, "recording-hello")
+
+    def test_album_detail_uses_release_tracks_instead_of_release_list(self) -> None:
+        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+
+        calls: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request.url.path)
+            if request.url.path == "/ws/2/release-group/mb-album-25":
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "mb-album-25",
+                        "title": "25",
+                        "primary-type": "Album",
+                        "disambiguation": "studio album",
+                        "first-release-date": "2015-11-20",
+                        "artist-credit": [
+                            {
+                                "name": "Adele",
+                                "artist": {"id": "mb-artist-1", "name": "Adele"},
+                            }
+                        ],
+                        "releases": [
+                            {
+                                "id": "release-25-official",
+                                "title": "25",
+                                "date": "2015-11-20",
+                                "status": "Official",
+                            },
+                            {
+                                "id": "release-25-bootleg",
+                                "title": "25 (Bootleg)",
+                                "date": "2015-11-21",
+                                "status": "Bootleg",
+                            },
+                        ],
+                    },
+                )
+            if request.url.path == "/ws/2/release/release-25-official":
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "release-25-official",
+                        "title": "25",
+                        "media": [
+                            {
+                                "tracks": [
+                                    {
+                                        "id": "release-track-1",
+                                        "title": "Hello",
+                                        "number": "1",
+                                        "position": 1,
+                                        "recording": {"id": "recording-hello", "title": "Hello"},
+                                    },
+                                    {
+                                        "id": "release-track-2",
+                                        "title": "Send My Love",
+                                        "number": "2",
+                                        "position": 2,
+                                        "recording": {"id": "recording-send-my-love", "title": "Send My Love"},
+                                    },
+                                ]
+                            }
+                        ],
+                    },
+                )
+            raise AssertionError(f"Unexpected path: {request.url.path}")
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://musicbrainz.test/ws/2",
+        )
+        adapter = MusicBrainzMetadataProviderAdapter(client=client, user_agent="MusicPilot-Test/1.0")
+
+        detail = adapter.get_detail(EntityType.ALBUM, "mb-album-25")
+
+        self.assertEqual(
+            calls,
+            ["/ws/2/release-group/mb-album-25", "/ws/2/release/release-25-official"],
+        )
+        self.assertEqual(detail.disambiguation, "studio album")
+        self.assertEqual(detail.release_count, 2)
+        self.assertEqual([track.id for track in detail.tracks], ["recording-hello", "recording-send-my-love"])
+        self.assertEqual(detail.tracks[0].title, "Hello")
+        self.assertEqual(detail.tracks[0].track_number, 1)
+
+    def test_track_detail_related_album_points_to_release_group(self) -> None:
+        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            self.assertEqual(request.url.path, "/ws/2/recording/mb-track-hello")
+            return httpx.Response(
+                200,
+                json={
+                    "id": "mb-track-hello",
+                    "title": "Hello",
+                    "artist-credit": [
+                        {
+                            "name": "Adele",
+                            "artist": {"id": "mb-artist-1", "name": "Adele"},
+                        }
+                    ],
+                    "releases": [
+                        {
+                            "id": "release-25-official",
+                            "title": "25",
+                            "date": "2015-11-20",
+                            "release-group": {
+                                "id": "mb-album-25",
+                                "title": "25",
+                            },
+                        }
+                    ],
+                    "length": 295000,
+                    "disambiguation": "album version",
+                },
+            )
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://musicbrainz.test/ws/2",
+        )
+        adapter = MusicBrainzMetadataProviderAdapter(client=client, user_agent="MusicPilot-Test/1.0")
+
+        detail = adapter.get_detail(EntityType.TRACK, "mb-track-hello")
+
+        self.assertEqual(detail.disambiguation, "album version")
+        self.assertIsNotNone(detail.related_album)
+        self.assertEqual(detail.related_album.id, "mb-album-25")
+        self.assertEqual(detail.related_album.title, "25")
+
+    def test_track_detail_fetches_release_when_release_group_missing(self) -> None:
+        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+
+        calls: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request.url.path)
+            if request.url.path == "/ws/2/recording/mb-track-hello":
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "mb-track-hello",
+                        "title": "Hello",
+                        "artist-credit": [
+                            {
+                                "name": "Adele",
+                                "artist": {"id": "mb-artist-1", "name": "Adele"},
+                            }
+                        ],
+                        "releases": [
+                            {
+                                "id": "release-25-official",
+                                "title": "25",
+                                "date": "2015-11-20",
+                            }
+                        ],
+                    },
+                )
+            if request.url.path == "/ws/2/release/release-25-official":
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "release-25-official",
+                        "title": "25",
+                        "release-group": {
+                            "id": "mb-album-25",
+                            "title": "25",
+                        },
+                    },
+                )
+            raise AssertionError(f"Unexpected path: {request.url.path}")
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://musicbrainz.test/ws/2",
+        )
+        adapter = MusicBrainzMetadataProviderAdapter(client=client, user_agent="MusicPilot-Test/1.0")
+
+        detail = adapter.get_detail(EntityType.TRACK, "mb-track-hello")
+
+        self.assertEqual(
+            calls,
+            ["/ws/2/recording/mb-track-hello", "/ws/2/release/release-25-official"],
+        )
+        self.assertIsNotNone(detail.related_album)
+        self.assertEqual(detail.related_album.id, "mb-album-25")
 
 
 if __name__ == "__main__":

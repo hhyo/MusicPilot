@@ -7,7 +7,7 @@
   >
     <div class="detail-drawer">
       <el-alert
-        title="当前可基于 metadata 创建订阅与搜索任务。search / dispatch 会直接展示当前 backend 与明确错误；音乐 organize 的 preview/apply 在订阅执行流中继续工作。真实 metadata provider、真实 discovery 与自动调度仍待接入。"
+        title="当前可基于 metadata 创建订阅与搜索任务。search / dispatch 会直接展示当前 backend 与明确错误；音乐 organize 的 preview/apply 在订阅执行流中继续工作。真实 metadata provider、真实 discovery 与最小自动调度已接入，当前重点在真实命中率与自动闭环收口。"
         type="info"
         :closable="false"
         show-icon
@@ -39,6 +39,12 @@
             {{ detail.provider }} / {{ detail.source_type }}
           </el-descriptions-item>
           <el-descriptions-item label="Country">{{ detail.country || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Disambiguation">
+            {{ detail.disambiguation || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Release Count">
+            {{ detail.release_count ?? '-' }}
+          </el-descriptions-item>
           <el-descriptions-item label="Duration">
             {{ detail.duration_seconds ? `${detail.duration_seconds}s` : '-' }}
           </el-descriptions-item>
@@ -112,7 +118,7 @@
               :key="track.id"
               effect="plain"
             >
-              {{ track.title }}
+              {{ formatTrackLabel(track) }}
             </el-tag>
           </div>
         </section>
@@ -139,7 +145,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { MetadataDetail } from '@/types/metadata';
+import type { MetadataDetail, MetadataReference } from '@/types/metadata';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -155,6 +161,13 @@ defineEmits<{
 }>();
 
 const externalIdEntries = computed(() => Object.entries(props.detail?.external_ids ?? {}));
+
+function formatTrackLabel(track: MetadataReference) {
+  const prefixParts = [track.disc_number && `D${track.disc_number}`, track.track_number && `${track.track_number}`]
+    .filter(Boolean)
+    .join('-');
+  return prefixParts ? `${prefixParts} ${track.title}` : track.title;
+}
 </script>
 
 <style scoped lang="scss">

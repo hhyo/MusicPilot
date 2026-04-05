@@ -26,6 +26,8 @@ export interface MetadataReference {
   title: string;
   entity_type: EntityType;
   subtitle?: string | null;
+  track_number?: number | null;
+  disc_number?: number | null;
 }
 
 export interface MetadataSummary {
@@ -49,6 +51,8 @@ export interface MetadataSummary {
 export interface MetadataDetail extends MetadataSummary {
   country?: string | null;
   duration_seconds?: number | null;
+  disambiguation?: string | null;
+  release_count?: number | null;
   metadata_stage: string;
   integration_point: string;
   related_artists: MetadataReference[];

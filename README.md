@@ -91,7 +91,7 @@ python -m app.db_init --reseed
 
 ## 当前执行模式与宿主集成边界
 
-- Metadata provider：当前支持 `seed` 与 `musicbrainz` 两种模式。`seed` 继续作为默认开发数据；`musicbrainz` 提供 Artist / Album / Track 的实时搜索与详情。
+- Metadata provider：当前支持 `seed` 与 `musicbrainz` 两种模式。`seed` 继续作为默认开发数据；`musicbrainz` 提供 Artist / Album / Track 的实时搜索与详情。当前 detail 已补齐最小结构化增强：album detail 会从最佳 release 读取真实 track listing，track detail 的 related album 会对齐到 release-group 语义，并带出可选的 `disambiguation` / `release_count` / `track_number` / `disc_number`。
 - Subscription 执行模式：当前支持手动触发一次同步 run，以及最小应用内 scheduler 自动触发 due subscription。执行链已能对最佳 `AUTO_DOWNLOAD` 候选自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则会继续自动 apply。生产级 cron、消息队列、失败重试和分布式 scheduler 仍待后续补齐。
 - Chart discovery：当前支持 `mock` 与 `listenbrainz` 两种模式。`listenbrainz` 第一版已接入 sitewide artists / recordings 榜单；自动刷新、增量监控和专辑榜仍待后续补齐。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
@@ -294,7 +294,7 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 ## 当前阶段未完成范围
 
 - 真实榜单拉取与增量监控
-- 更多 metadata provider、缓存与 provider 配置持久化
+- 更多 metadata provider、provider 配置持久化与后台刷新
 - 生产级订阅调度器与重试编排
 - 真实 PT 搜索命中质量优化、更多站点覆盖与下载完成后自动整理
 - 真实 organize 文件处理增强与媒体库刷新
@@ -315,7 +315,7 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 
 ## 下一阶段建议推进方式
 
-1. 在保留现有 response envelope 的前提下，继续增强 MusicPilot 自己的音乐 metadata 识别能力，优先补本地标签解析与更稳定的目录/文件名识别。
-2. 引入真实 metadata provider adapter，让 metadata/search 不再停留在 seed/mock 层。
+1. 在保留现有 response envelope 的前提下，继续增强 MusicPilot 自己的音乐 metadata 识别能力，优先补无标签文件的目录/文件名识别、多源 provider 与 provider 刷新策略。
+2. 继续提升 discovery / search 的真实命中质量，让 ListenBrainz / MusicBrainz 入口更贴近当前 PT 环境可获取样本。
 3. 在当前 SubscriptionExecutionService 骨架上补完整调度、重试、下载完成回调与 organize job 状态机。
 4. 保持 `plugin_runtime/` 只作为构建产物边界，不把开发源码和宿主产物混放。

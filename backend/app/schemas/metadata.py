@@ -21,6 +21,8 @@ class MetadataReference(BaseModel):
     title: str
     entity_type: EntityType
     subtitle: str | None = None
+    track_number: int | None = None
+    disc_number: int | None = None
 
 
 class MetadataSummary(BaseModel):
@@ -44,6 +46,8 @@ class MetadataSummary(BaseModel):
 class MetadataDetail(MetadataSummary):
     country: str | None = None
     duration_seconds: int | None = None
+    disambiguation: str | None = None
+    release_count: int | None = None
     metadata_stage: str = "metadata_only"
     integration_point: str
     related_artists: list[MetadataReference] = Field(default_factory=list)

@@ -373,6 +373,7 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             {"fmt": "json", "inc": "aliases+artist-credits+releases"},
         )
         artist_name = self._join_artist_credit(data.get("artist-credit", []))
+        releases = data.get("releases", [])
         related_artists = [
             MetadataReference(
                 id=item["artist"]["id"],
@@ -383,15 +384,8 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             for item in data.get("artist-credit", [])
             if item.get("artist")
         ]
-        tracks = [
-            MetadataReference(
-                id=item["id"],
-                title=item["title"],
-                entity_type=EntityType.TRACK,
-                subtitle=artist_name,
-            )
-            for item in data.get("releases", [])
-        ]
+        best_release = self._select_best_release(releases)
+        tracks = self._fetch_release_tracks(best_release["id"], artist_name) if best_release else []
         return MetadataDetail(
             entity_type=EntityType.ALBUM,
             id=data["id"],
@@ -407,6 +401,8 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             source_type=self.source_type,
             mock=False,
             note="当前专辑详情来自 MusicBrainz WS/2。",
+            disambiguation=data.get("disambiguation"),
+            release_count=len(releases),
             integration_point="MusicBrainzMetadataProviderAdapter.get_album_detail",
             related_artists=related_artists,
             tracks=tracks,
@@ -432,20 +428,13 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             if item.get("artist")
         ]
         releases = data.get("releases", [])
-        related_album = None
-        if releases:
-            related_album = MetadataReference(
-                id=releases[0]["id"],
-                title=releases[0]["title"],
-                entity_type=EntityType.ALBUM,
-                subtitle=artist_name,
-            )
+        related_album = self._resolve_related_album(releases, artist_name)
         return MetadataDetail(
             entity_type=EntityType.TRACK,
             id=data["id"],
             title=data["title"],
             artist_name=artist_name,
-            album_title=releases[0]["title"] if releases else None,
+            album_title=related_album.title if related_album else self._extract_release_title(data),
             track_title=data["title"],
             aliases=self._extract_aliases(data),
             year=self._extract_year(releases[0].get("date")) if releases else None,
@@ -456,6 +445,7 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             mock=False,
             note="当前歌曲详情来自 MusicBrainz WS/2。",
             duration_seconds=self._extract_duration_seconds(data.get("length")),
+            disambiguation=data.get("disambiguation"),
             integration_point="MusicBrainzMetadataProviderAdapter.get_track_detail",
             related_artists=related_artists,
             related_album=related_album,
@@ -517,6 +507,88 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
         response = self._client.get(path, params=params)
         response.raise_for_status()
         return response.json()
+
+    def _get_release_detail(self, release_id: str) -> dict:
+        return self._get(
+            f"release/{release_id}",
+            {"fmt": "json", "inc": "recordings+artist-credits"},
+        )
+
+    def _resolve_related_album(
+        self,
+        releases: list[dict],
+        artist_name: str | None,
+    ) -> MetadataReference | None:
+        if not releases:
+            return None
+        release = self._select_best_release(releases) or releases[0]
+        release_group = release.get("release-group")
+        if not release_group and release.get("id"):
+            release_group = self._get_release_detail(release["id"]).get("release-group")
+        if not release_group:
+            return MetadataReference(
+                id=release["id"],
+                title=release.get("title") or "Unknown Release",
+                entity_type=EntityType.ALBUM,
+                subtitle=artist_name,
+            )
+        return MetadataReference(
+            id=release_group["id"],
+            title=release_group.get("title") or release.get("title") or "Unknown Release Group",
+            entity_type=EntityType.ALBUM,
+            subtitle=artist_name,
+        )
+
+    def _fetch_release_tracks(
+        self,
+        release_id: str,
+        artist_name: str | None,
+    ) -> list[MetadataReference]:
+        release = self._get_release_detail(release_id)
+        tracks: list[MetadataReference] = []
+        for disc_index, media in enumerate(release.get("media", []), start=1):
+            disc_number = self._extract_int(media.get("position")) or disc_index
+            for track in media.get("tracks", []):
+                recording = track.get("recording", {})
+                track_id = recording.get("id") or track.get("id")
+                track_title = recording.get("title") or track.get("title")
+                if not track_id or not track_title:
+                    continue
+                track_number = self._extract_int(track.get("position")) or self._extract_int(track.get("number"))
+                tracks.append(
+                    MetadataReference(
+                        id=track_id,
+                        title=track_title,
+                        entity_type=EntityType.TRACK,
+                        subtitle=artist_name,
+                        track_number=track_number,
+                        disc_number=disc_number,
+                    )
+                )
+        return tracks
+
+    @staticmethod
+    def _select_best_release(releases: list[dict]) -> dict | None:
+        if not releases:
+            return None
+
+        def sort_key(item: dict) -> tuple[int, str, str]:
+            status = (item.get("status") or "").strip().lower()
+            date = (item.get("date") or "").strip()
+            title = (item.get("title") or "").strip().lower()
+            return (0 if status == "official" else 1, date or "9999-99-99", title)
+
+        return sorted(releases, key=sort_key)[0]
+
+    @staticmethod
+    def _extract_int(value: object) -> int | None:
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str):
+            digits = "".join(char for char in value if char.isdigit())
+            if digits:
+                return int(digits)
+        return None
 
     def _respect_rate_limit(self) -> None:
         elapsed = monotonic() - self._last_request_at

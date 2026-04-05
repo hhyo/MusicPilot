@@ -5,7 +5,7 @@ FastAPI 工程目录。当前已完成：
 - 健康检查与统一响应结构
 - 宿主能力探针 API 骨架
 - metadata 搜索与详情最小闭环
-- MusicBrainz Artist / Album / Track 搜索与详情最小接入
+- MusicBrainz Artist / Album / Track 搜索与详情最小接入，以及 detail 结构化增强
 - SQLite 最小落库与本地 seed 初始化
 - QueryBuilder、SearchJob、候选评分与 mock dispatch 边界
 - SubscriptionService、subscription run、最小应用内 scheduler 与 mock/ListenBrainz chart discovery
@@ -19,6 +19,7 @@ FastAPI 工程目录。当前已完成：
 当前仍不包含：
 
 - 更多真实榜单源、榜单增量监控与自动刷新
+- 更多 metadata provider、provider 配置持久化与后台刷新
 - 真实 PT 搜索命中质量优化、更多下载样例与 path handoff 稳定性收口
 - 生产级订阅调度器能力、失败重试与真实整理规则
 - 生产级下载完成回调、自动整理与媒体库刷新
@@ -34,7 +35,7 @@ python -m app.db_init --reseed
 
 - `metadata/*` 当前支持两种模式：
   - `seed`：本地 seed metadata
-  - `musicbrainz`：实时查询 MusicBrainz Artist / Album / Track 搜索与详情
+  - `musicbrainz`：实时查询 MusicBrainz Artist / Album / Track 搜索与详情；album detail 会从最佳 release 读取真实 track listing，track detail 的 related album 会对齐 release-group 语义
 - `subscriptions/{id}/run` 为同步最小执行骨架，应用内 scheduler 会在 due 时触发同一条执行链；若最佳候选为 `AUTO_DOWNLOAD`，当前会继续自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则继续自动 apply
 - `charts/*` 当前支持两种模式：
   - `mock`：本地 chart seed
