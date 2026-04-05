@@ -5,15 +5,15 @@
         <p class="hero-panel__eyebrow">Discovery</p>
         <h2>榜单发现与订阅入口</h2>
         <p class="hero-panel__description">
-          当前榜单来自 local seed / mock chart source，只用于发现入口、榜单项下钻和创建订阅。
-          还没有真实榜单抓取、增量对比或自动刷新。
+          当前榜单来自本地 chart source，只用于发现入口、榜单项下钻和创建订阅。
+          真实榜单抓取、增量对比和自动刷新仍待后续接入。
         </p>
       </div>
-      <el-tag type="warning" effect="plain">mock chart source / subscribe boundary</el-tag>
+      <el-tag type="warning" effect="plain">local chart source / subscribe entry</el-tag>
     </section>
 
     <el-alert
-      title="Phase 4 只提供最小榜单入口：可查看 mock chart items 并创建订阅，但不会自动监控真实榜单变化。"
+      title="当前榜单页只提供本地发现入口：可查看 chart items 并创建订阅，但不会自动监控真实榜单变化。"
       type="warning"
       :closable="false"
       show-icon
@@ -68,7 +68,7 @@
 
       <el-empty
         v-else-if="charts.length === 0"
-        description="当前筛选条件下没有可展示的 mock 榜单。"
+        description="当前筛选条件下没有可展示的本地榜单。"
       />
 
       <div v-else class="chart-grid">

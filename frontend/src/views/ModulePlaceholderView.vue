@@ -2,7 +2,7 @@
   <section class="placeholder-view">
     <header class="placeholder-view__header">
       <div>
-        <p class="placeholder-view__eyebrow">Phase 0 Placeholder</p>
+        <p class="placeholder-view__eyebrow">Planned Module</p>
         <h2>{{ title }}</h2>
       </div>
       <el-tag type="warning" effect="plain">待后续接入</el-tag>
@@ -13,7 +13,7 @@
     <div class="placeholder-grid">
       <article class="placeholder-card">
         <h3>当前状态</h3>
-        <p>占位完成，已保留路由、页面边界和扩展空间，不包含真实业务实现。</p>
+        <p>入口已保留，已明确模块边界，但当前页面仍不承载真实业务实现。</p>
       </article>
       <article class="placeholder-card">
         <h3>后续接入点</h3>
@@ -21,7 +21,7 @@
       </article>
       <article class="placeholder-card">
         <h3>本轮约束</h3>
-        <p>不接真实 PT 搜索、不接真实订阅、不接真实下载派发，仅展示模块入口与 TODO。</p>
+        <p>当前页面只保留模块入口与后续方向说明，不承担真实操作链路。</p>
       </article>
     </div>
   </section>
@@ -103,4 +103,3 @@ const description = computed(() => String(route.meta.description ?? ''));
   }
 }
 </style>
-

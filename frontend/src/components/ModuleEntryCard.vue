@@ -5,13 +5,13 @@
         <p class="module-card__eyebrow">{{ module.status }}</p>
         <h3>{{ module.title }}</h3>
       </div>
-      <el-tag type="primary" effect="plain">Phase 0</el-tag>
+      <el-tag type="primary" effect="plain">当前状态</el-tag>
     </header>
 
     <p class="module-card__description">{{ module.description }}</p>
 
     <RouterLink class="module-card__link" :to="module.route">
-      进入占位页
+      进入模块
     </RouterLink>
   </article>
 </template>
@@ -76,4 +76,3 @@ defineProps<{
   text-decoration: none;
 }
 </style>
-

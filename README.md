@@ -1,12 +1,12 @@
 # MusicPilot
 
-MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已完成 Phase 0 到 Phase 9 的 MVP 收口，并在本轮进一步把实现收缩为“接口语义明确、场景调用明确、数据来源明确”的形态。仓库继续保留已经验证过的真实宿主链路，但不再扩展通用策略、推荐或矩阵决策层。
+MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已经完成插件壳层、metadata 搜索、手动订阅执行，以及音乐 organize `preview -> apply` 的真实宿主最小闭环，并继续沿“接口语义明确、场景调用明确、数据来源明确”的方向推进，不再扩展通用策略、推荐或矩阵决策层。
 
 ## 项目简介
 
 - `frontend/`：基于 Vue 3 + TypeScript + Vite 的独立前端壳，当前提供首页工作台、metadata 搜索页、榜单页、订阅页，以及从 metadata / chart item 创建订阅、执行一次 run、查看 organize backend / status / handoff 的最小前端闭环。
-- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、host-aware search/dispatch resolver、SubscriptionService、mock chart discovery 与 host-aware organize preview/apply boundary。
-- `plugin_runtime/`：面向未来 MoviePilot 宿主集成的运行时占位产物目录，当前只保留 manifest、静态资源、后端挂载说明和打包边界。
+- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、search/dispatch 模式选择、SubscriptionService、本地 chart discovery 与音乐 organize preview/apply 最小闭环。
+- `plugin_runtime/`：面向 MoviePilot 宿主的运行时装配目录，当前已完成本地宿主真实加载验证，并保留 manifest、静态资源、后端挂载说明和打包边界。
 - `scripts/`：前端开发、后端开发、前端构建、插件装配、版本同步脚本。
 - `docs/`：产品方案、架构方案、规范与任务拆解文档，按要求保持原位不变。
 
@@ -76,7 +76,7 @@ uvicorn app.main:app --reload
 
 ## 数据初始化与 seed
 
-Phase 6 继续采用最小可运行方案：`SQLite + SQLAlchemy + local seed metadata + mock/host-aware acquisition + mock chart data + mock/host-aware organize data`。
+当前继续采用最小可运行方案：`SQLite + SQLAlchemy + seed 或 MusicBrainz metadata + local chart data + search/dispatch 模式选择 + 音乐 organize preview/apply`。
 
 - 默认数据库文件：`backend/data/musicpilot.db`
 - 手动初始化或重置 seed：
@@ -91,6 +91,7 @@ python -m app.db_init --reseed
 
 ## 当前执行模式与宿主集成边界
 
+- Metadata provider：当前支持 `seed` 与 `musicbrainz` 两种模式。`seed` 继续作为默认开发数据；`musicbrainz` 提供 Artist / Album / Track 的实时搜索与详情。
 - Subscription 执行模式：当前仅支持手动触发一次同步 run，不启用生产级 cron、消息队列或分布式 scheduler。
 - Chart discovery：当前为 local seed / mock chart source，只验证发现入口与从 chart item 创建订阅的动作。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
@@ -127,6 +128,15 @@ export MUSICPILOT_HOST_SEARCH_MODE=prefer_host
 export MUSICPILOT_HOST_DISPATCH_MODE=prefer_host
 export MUSICPILOT_HOST_ORGANIZE_MODE=prefer_host
 export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backend/data/host_validation_matrix.latest.json
+```
+
+如需启用真实 metadata provider，可额外配置：
+
+```bash
+export MUSICPILOT_METADATA_PROVIDER_MODE=musicbrainz
+export MUSICPILOT_METADATA_PROVIDER_TIMEOUT_SECONDS=15
+export MUSICPILOT_METADATA_MUSICBRAINZ_BASE_URL=https://musicbrainz.org/ws/2
+export MUSICPILOT_METADATA_PROVIDER_USER_AGENT='MusicPilot/0.1.0 (local)'
 ```
 
 可选模式：
@@ -214,7 +224,7 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 
 ## plugin_runtime 打包说明
 
-Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 MoviePilot 宿主安装逻辑。当前提供的打包链路负责：
+`plugin_runtime/` 当前是面向 MoviePilot 的装配目录。当前提供的打包链路负责：
 
 1. 将 `frontend/dist/` 装配到 `plugin_runtime/plugins/musicpilot/static/`
 2. 将 `backend/app/` 装配到 `plugin_runtime/plugins/musicpilot/`
@@ -247,8 +257,8 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 - SQLite 最小落库与本地 seed
 - 前端搜索页最小闭环与详情视图
 - QueryBuilder、SearchJob、候选评分与 mock dispatch 最小闭环
-- 订阅模型与 API、mock charts/discovery、subscription run 记录与 host-aware organize preview/apply
-- host-aware search / dispatch / organize adapter resolver、必要的 mock/real 环境切换与联调说明
+- 订阅模型与 API、本地 charts/discovery 入口、subscription run 记录与音乐 organize preview/apply
+- search / dispatch / organize 接入模式选择、必要的 mock/real 环境切换与联调说明
 - 真实 MoviePilot search / download / transfer 语义验证与字段映射收敛
 - 真实宿主插件 API 下的音乐 `preview_ready -> applied` 最小闭环
 - 真实宿主验证矩阵、多样例稳定性分类与手动回归脚本
@@ -257,10 +267,10 @@ Phase 0 的 `plugin_runtime/` 仍是占位运行时目录，不伪造真实 Movi
 ## 当前阶段未完成范围
 
 - 真实榜单拉取与增量监控
-- 真实第三方 metadata provider 接入
+- 更多 metadata provider、缓存与 provider 配置持久化
 - 生产级订阅调度器与重试编排
 - 真实 PT 搜索、匹配、下载派发
-- 真实 organize 文件处理增强、音频标签解析与媒体库刷新
+- 真实 organize 文件处理增强与媒体库刷新
 - 真实 MoviePilot 宿主安装与挂载逻辑
 - 真实 MoviePilot `download/add` 多样例稳定成功
 - 真实 MoviePilot `download_media` 到 organize 的稳定成功映射

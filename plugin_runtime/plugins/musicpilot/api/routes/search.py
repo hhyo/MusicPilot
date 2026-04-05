@@ -13,6 +13,10 @@ from ...services.metadata import MetadataService
 router = APIRouter(tags=["Search", "Metadata"])
 
 
+def _is_mock_source(source_type: str) -> bool:
+    return source_type in {"mock", "local_seed"}
+
+
 @router.post("/search", summary="Metadata search")
 @router.post("/metadata/search", summary="Metadata search")
 async def search(
@@ -20,15 +24,19 @@ async def search(
     request: Request,
     service: MetadataService = Depends(get_metadata_service),
 ) -> ApiResponse:
+    result = service.search(payload)
     return success_response(
         request,
-        data=service.search(payload),
-        message="Metadata search completed against the local seed catalog.",
+        data=result,
+        message="Metadata search completed.",
         code="METADATA_SEARCH_OK",
-        mock=True,
-        note="当前搜索结果来自 local seed metadata，用于打通 Phase 2 最小闭环，不代表已接入真实第三方音乐源。",
+        mock=_is_mock_source(result.source_type),
+        note=(
+            "当前搜索结果来自 local seed metadata，用于打通最小搜索闭环。"
+            if _is_mock_source(result.source_type)
+            else "当前搜索结果来自真实 metadata provider。"
+        ),
         todo=[
-            "Replace MockMetadataProviderAdapter with a verified metadata provider in a later phase.",
             "Do not attach PT search, downloader dispatch, or organize logic in this phase.",
         ],
     )
@@ -41,13 +49,18 @@ async def artist_detail(
     request: Request,
     service: MetadataService = Depends(get_metadata_service),
 ) -> ApiResponse:
+    detail = service.get_artist_detail(artist_id)
     return success_response(
         request,
-        data=service.get_artist_detail(artist_id),
-        message="Artist detail loaded from the local seed catalog.",
+        data=detail,
+        message="Artist detail loaded.",
         code="ARTIST_DETAIL_OK",
-        mock=True,
-        note="当前艺人详情来自 local seed metadata，待后续接入真实 metadata provider。",
+        mock=detail.mock,
+        note=(
+            "当前艺人详情来自 local seed metadata。"
+            if detail.mock
+            else "当前艺人详情来自真实 metadata provider。"
+        ),
     )
 
 
@@ -58,13 +71,18 @@ async def album_detail(
     request: Request,
     service: MetadataService = Depends(get_metadata_service),
 ) -> ApiResponse:
+    detail = service.get_album_detail(album_id)
     return success_response(
         request,
-        data=service.get_album_detail(album_id),
-        message="Album detail loaded from the local seed catalog.",
+        data=detail,
+        message="Album detail loaded.",
         code="ALBUM_DETAIL_OK",
-        mock=True,
-        note="当前专辑详情来自 local seed metadata，待后续接入真实 metadata provider。",
+        mock=detail.mock,
+        note=(
+            "当前专辑详情来自 local seed metadata。"
+            if detail.mock
+            else "当前专辑详情来自真实 metadata provider。"
+        ),
     )
 
 
@@ -75,11 +93,16 @@ async def track_detail(
     request: Request,
     service: MetadataService = Depends(get_metadata_service),
 ) -> ApiResponse:
+    detail = service.get_track_detail(track_id)
     return success_response(
         request,
-        data=service.get_track_detail(track_id),
-        message="Track detail loaded from the local seed catalog.",
+        data=detail,
+        message="Track detail loaded.",
         code="TRACK_DETAIL_OK",
-        mock=True,
-        note="当前歌曲详情来自 local seed metadata，待后续接入真实 metadata provider。",
+        mock=detail.mock,
+        note=(
+            "当前歌曲详情来自 local seed metadata。"
+            if detail.mock
+            else "当前歌曲详情来自真实 metadata provider。"
+        ),
     )

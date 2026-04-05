@@ -5,8 +5,9 @@
         <p class="hero-panel__eyebrow">MusicPilot Home</p>
         <h2>你的音乐工作台</h2>
         <p class="hero-panel__description">
-          当前仓库已进入 Phase 6。搜索页已能创建订阅与 SearchJob，榜单页可从 mock chart item 创建订阅，
-          订阅页可立即执行一次 run 并回看 candidate summary、organize backend、fallback 与 apply 状态。
+          当前仓库已经完成真实插件加载、音乐 organize preview/apply 最小闭环与订阅手动执行链路。
+          搜索页可创建订阅与 SearchJob，榜单页可从本地榜单项创建订阅，订阅页可回看 run 结果与
+          organize 状态。接下来的重点不再是整理执行，而是补齐真实 metadata、真实 discovery 与自动调度。
         </p>
         <div class="hero-panel__actions">
           <RouterLink class="hero-panel__action hero-panel__action--primary" to="/search">
@@ -29,10 +30,10 @@
     <section class="section">
       <header class="section__header">
         <div>
-          <p class="section__eyebrow">Phase 6 Scope</p>
+          <p class="section__eyebrow">Current Scope</p>
           <h3>当前模块状态</h3>
         </div>
-        <el-tag type="success" effect="plain">订阅与执行最小闭环已接通</el-tag>
+        <el-tag type="success" effect="plain">真实插件 API 与音乐整理闭环已验证</el-tag>
       </header>
 
       <div class="module-grid">
@@ -47,7 +48,7 @@
     <section class="section section--compact">
       <header class="section__header">
         <div>
-          <p class="section__eyebrow">Phase 6 Notes</p>
+          <p class="section__eyebrow">Current Notes</p>
           <h3>当前边界说明</h3>
         </div>
       </header>
@@ -56,18 +57,18 @@
         <article class="note-card">
           <h4>已完成</h4>
           <ul>
-            <li>App Shell 与基础路由。</li>
-            <li>本地 seed metadata 搜索与详情页最小闭环。</li>
-            <li>QueryBuilder、SearchJob、候选评分与 mock dispatch 边界。</li>
-            <li>榜单订阅入口、四类订阅 CRUD、同步 subscription run 与 host-aware organize preview/apply。</li>
+            <li>App Shell、基础路由与插件 API 命名空间。</li>
+            <li>metadata 搜索、SearchJob、候选评分与从详情创建订阅。</li>
+            <li>四类订阅 CRUD、手动 run 与 run 结果回看。</li>
+            <li>音乐 organize preview/apply 与真实宿主插件 API 最小闭环。</li>
           </ul>
         </article>
         <article class="note-card">
           <h4>待后续接入</h4>
           <ul>
             <li>真实第三方 metadata provider。</li>
-            <li>真实榜单抓取、真实 PT 搜索、下载、整理链路。</li>
-            <li>生产级 scheduler、完整订阅执行器与复杂整理规则引擎。</li>
+            <li>真实榜单抓取、增量 discovery 与真实获取链路。</li>
+            <li>生产级 scheduler、自动 subscription run 与下载后自动整理闭环。</li>
           </ul>
         </article>
       </div>
@@ -83,12 +84,12 @@ import ModuleEntryCard from '@/components/ModuleEntryCard.vue';
 import { navigationModules } from '@/types/module';
 
 const dashboardStats = [
-  { label: 'Metadata Provider', value: '1', note: '当前为本地 seed / mock provider。' },
+  { label: 'Metadata Provider', value: '1', note: '当前仍以本地 seed / provider 骨架为主。' },
   { label: '可搜索实体', value: '3', note: 'Artist / Album / Track 已接通统一搜索页。' },
-  { label: '订阅类型', value: '4', note: 'artist / album / track / chart_entry 最小闭环已可落库。' },
-  { label: '榜单源', value: '4', note: '当前为 qq / netease / bilibili / local_mock 的 mock 入口。' },
-  { label: '整理边界', value: '1', note: '当前已支持 host-aware organize preview / apply 与状态记录。' },
-  { label: '真实自动化', value: '0', note: 'scheduler、榜单抓取与文件整理仍待后续接入。' },
+  { label: '订阅类型', value: '4', note: 'artist / album / track / chart_entry 已可落库与手动执行。' },
+  { label: '榜单源', value: '4', note: '当前为 qq / netease / bilibili / local_mock 的本地入口。' },
+  { label: '整理闭环', value: '1', note: '真实插件 API 下的音乐 preview / apply 已验证通过。' },
+  { label: '真实自动化', value: '0', note: '真实 metadata、discovery 与 scheduler 仍待接入。' },
 ];
 
 const featureModules = computed(() => navigationModules.filter((item) => item.key !== 'home'));

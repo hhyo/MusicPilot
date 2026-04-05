@@ -5,11 +5,12 @@ FastAPI 工程目录。当前已完成：
 - 健康检查与统一响应结构
 - 宿主能力探针 API 骨架
 - metadata 搜索与详情最小闭环
+- MusicBrainz Artist / Album / Track 搜索与详情最小接入
 - SQLite 最小落库与本地 seed 初始化
 - QueryBuilder、SearchJob、候选评分与 mock dispatch 边界
 - SubscriptionService、subscription run 与 mock chart discovery
-- host-aware organize preview/apply 与 organize 状态记录
-- host-aware search / dispatch / organize adapter resolver 与必要的 mock/real 环境切换
+- 音乐 organize preview/apply 与 organize 状态记录
+- search / dispatch / organize 接入模式选择与必要的 mock/real 环境切换
 - 真实 MoviePilot search / download / transfer 语义收敛与差异记录
 - 真实宿主插件 API 下的音乐 `preview_ready -> applied` 成功样例
 - Phase 8 多样例真实验证矩阵与 path handoff 稳定性收敛
@@ -17,7 +18,6 @@ FastAPI 工程目录。当前已完成：
 
 当前仍不包含：
 
-- 真实第三方 metadata provider 接入
 - 真实榜单抓取与增量监控
 - 真实 PT 搜索与下载器派发
 - 生产级订阅调度器与真实整理规则
@@ -33,10 +33,13 @@ python -m app.db_init --reseed
 
 当前执行模式说明：
 
+- `metadata/*` 当前支持两种模式：
+  - `seed`：本地 seed metadata
+  - `musicbrainz`：实时查询 MusicBrainz Artist / Album / Track 搜索与详情
 - `subscriptions/{id}/run` 为同步最小执行骨架
 - `charts/*` 为 local seed / mock chart source
-- `organize/preview` 和 `organize/apply` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择；当前 host preview 已切换为 MusicPilot 本地音乐路径预览，host apply 使用宿主底层 file/storage 执行，metadata 恢复优先使用显式 detail，其次使用已有上下文、嵌入标签与 `source_path` 线索
-- `jobs/*` 与 `downloads/dispatch` 会根据 host integration settings 在 mock 与 host-backed skeleton 间选择
+- `organize/preview` 当前是 MusicPilot 本地音乐路径预览；`organize/apply` 当前通过宿主底层 file/storage 执行音乐文件整理。metadata 恢复优先使用显式 detail，其次使用已有上下文、嵌入标签与 `source_path` 线索
+- `jobs/*` 与 `downloads/dispatch` 会根据 host integration settings 在 mock 与 host 模式间切换
 - 当前真实运行时不再根据验证矩阵决定业务路径；矩阵只保留为验证产物
 
 启用 host integration 的最小配置示例：
@@ -67,6 +70,10 @@ export MUSICPILOT_HOST_TRANSFER_NOW_PATH=/api/v1/transfer/now
 export MUSICPILOT_HOST_SEARCH_MODE=prefer_host
 export MUSICPILOT_HOST_DISPATCH_MODE=prefer_host
 export MUSICPILOT_HOST_ORGANIZE_MODE=prefer_host
+export MUSICPILOT_METADATA_PROVIDER_MODE=musicbrainz
+export MUSICPILOT_METADATA_PROVIDER_TIMEOUT_SECONDS=15
+export MUSICPILOT_METADATA_MUSICBRAINZ_BASE_URL=https://musicbrainz.org/ws/2
+export MUSICPILOT_METADATA_PROVIDER_USER_AGENT='MusicPilot/0.1.0 (local)'
 export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backend/data/host_validation_matrix.latest.json
 ```
 
@@ -76,13 +83,14 @@ export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backe
 python3 ../scripts/host_integration_stub.py
 ```
 
-然后通过 `/health`、`/api/probe/health`、`/api/probe/validation-matrix`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend、verification state、fallback、`path_handoff` 与验证产物。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)、[docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)、[docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)、[docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)、[docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)、[docs/13_Phase9_策略收敛与交付说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/13_Phase9_策略收敛与交付说明.md)、[docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md) 和 [docs/15_彻底清理变更说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/15_%E5%BD%BB%E5%BA%95%E6%B8%85%E7%90%86%E5%8F%98%E6%9B%B4%E8%AF%B4%E6%98%8E.md)。
+然后通过 `/health`、`/api/probe/health`、`/api/probe/validation-matrix`、`/jobs/*`、`/downloads/dispatch` 与 `/organize/*` 查看当前 active adapter、backend、verification state、`path_handoff` 与验证产物。更完整的联调说明见 [docs/08_Phase5_宿主接入联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/08_Phase5_宿主接入联调说明.md)、[docs/09_Phase6_organize_联调说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/09_Phase6_organize_联调说明.md)、[docs/10_Phase7A_真实宿主语义验证与差异收敛.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/10_Phase7A_真实宿主语义验证与差异收敛.md)、[docs/11_Phase7B_真实成功样例闭环.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/11_Phase7B_真实成功样例闭环.md)、[docs/12_Phase8_真实成功率验证矩阵.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/12_Phase8_真实成功率验证矩阵.md)、[docs/14_架构收缩与语义归一说明.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/14_架构收缩与语义归一说明.md)、[docs/23_音乐文件整理技术设计与实现方案.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/23_%E9%9F%B3%E4%B9%90%E6%96%87%E4%BB%B6%E6%95%B4%E7%90%86%E6%8A%80%E6%9C%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%E6%96%B9%E6%A1%88.md) 和 [docs/28_项目整体任务盘点与执行路线.md](/Users/lihuanhuan/PycharmProjects/MusicPilot/docs/28_%E9%A1%B9%E7%9B%AE%E6%95%B4%E4%BD%93%E4%BB%BB%E5%8A%A1%E7%9B%98%E7%82%B9%E4%B8%8E%E6%89%A7%E8%A1%8C%E8%B7%AF%E7%BA%BF.md)。
 
-当前固定调用规则与历史验证结论可这样理解：
+当前固定调用规则与当前实现可这样理解：
 
-- 历史重放/补充来源：`history/transfer -> organize replay/apply`
-- 早期单样例真实宿主链路：`search/title -> download_add -> history/download -> transfer/manual -> organize`
-- 已知不应自动继续尝试的失败场景：`download_media + resolved_from_history_download -> organize apply`
+- `history/download` 仍是新派发后的主 handoff 来源，`history/transfer` 只用于历史重放或补充查询
+- `organize preview` 是 MusicPilot 本地音乐路径预览
+- `organize apply` 是 MusicPilot 音乐路径规划 + 宿主底层 file/storage 执行
+- 验证矩阵只保留为验证产物，不再描述当前 organize 主路径
 
 Breaking cleanup 后，旧 SQLite 不再兼容当前 schema。请直接执行：
 

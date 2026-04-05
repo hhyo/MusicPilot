@@ -1,15 +1,29 @@
-"""Adapter boundary for metadata providers used in Phase 2."""
+"""Adapter boundary for metadata providers."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
+from time import monotonic, sleep
 
-from ..schemas.metadata import MetadataSeedCatalog, SeedAlbum, SeedArtist, SeedTrack
-from ..schemas.mvp import ReleaseType
+import httpx
+
+from ..schemas.metadata import (
+    MetadataDetail,
+    MetadataReference,
+    MetadataSearchData,
+    MetadataSearchRequest,
+    MetadataSeedCatalog,
+    MetadataSummary,
+    SeedAlbum,
+    SeedArtist,
+    SeedTrack,
+)
+from ..schemas.mvp import EntityType, ReleaseType
 
 
 class MetadataProviderAdapter(ABC):
-    """Provider boundary for metadata ingestion."""
+    """Provider boundary for metadata search/detail and optional seed ingestion."""
 
     @property
     @abstractmethod
@@ -21,13 +35,23 @@ class MetadataProviderAdapter(ABC):
     def source_type(self) -> str:
         """Descriptor for source provenance."""
 
+    @property
+    def supports_live_queries(self) -> bool:
+        return False
+
     @abstractmethod
     def load_seed_catalog(self) -> MetadataSeedCatalog:
         """Return the local seed catalog for the current stage."""
 
+    def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement live search")
+
+    def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement live detail")
+
 
 class MockMetadataProviderAdapter(MetadataProviderAdapter):
-    """Local-seed metadata adapter for the Phase 2 minimum loop."""
+    """Local-seed metadata adapter for the minimum loop."""
 
     @property
     def provider(self) -> str:
@@ -187,3 +211,324 @@ class MockMetadataProviderAdapter(MetadataProviderAdapter):
                 ),
             ],
         )
+
+
+class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
+    """Minimal MusicBrainz WS/2 metadata provider."""
+
+    def __init__(
+        self,
+        *,
+        client: httpx.Client | None = None,
+        base_url: str = "https://musicbrainz.org/ws/2",
+        user_agent: str = "MusicPilot/0.1.0 (local)",
+        timeout_seconds: float = 15.0,
+    ) -> None:
+        self._client = client or httpx.Client(
+            base_url=base_url.rstrip("/"),
+            headers={"User-Agent": user_agent},
+            timeout=timeout_seconds,
+        )
+        self._last_request_at = 0.0
+
+    @property
+    def provider(self) -> str:
+        return "musicbrainz"
+
+    @property
+    def source_type(self) -> str:
+        return "musicbrainz_ws2"
+
+    @property
+    def supports_live_queries(self) -> bool:
+        return True
+
+    def load_seed_catalog(self) -> MetadataSeedCatalog:
+        raise NotImplementedError("MusicBrainz provider does not provide a local seed catalog.")
+
+    def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+        path, response_key = self._search_path(payload.type)
+        data = self._get(
+            path,
+            {
+                "query": payload.keyword.strip(),
+                "limit": payload.page_size,
+                "offset": (payload.page - 1) * payload.page_size,
+                "fmt": "json",
+            },
+        )
+        items = [self._map_search_item(payload.type, item) for item in data.get(response_key, [])]
+        return MetadataSearchData(
+            keyword=payload.keyword,
+            entity_type=payload.type,
+            page=payload.page,
+            page_size=payload.page_size,
+            total=int(data.get("count", len(items))),
+            provider=self.provider,
+            source_type=self.source_type,
+            integration_point="MusicBrainzMetadataProviderAdapter.search",
+            items=items,
+        )
+
+    def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+        if entity_type == EntityType.ARTIST:
+            return self._get_artist_detail(entity_id)
+        if entity_type == EntityType.ALBUM:
+            return self._get_album_detail(entity_id)
+        return self._get_track_detail(entity_id)
+
+    def _get_artist_detail(self, artist_id: str) -> MetadataDetail:
+        data = self._get(
+            f"artist/{artist_id}",
+            {"fmt": "json", "inc": "aliases+release-groups"},
+        )
+        aliases = self._extract_aliases(data)
+        genres = self._extract_tags(data)
+        related_albums = [
+            MetadataReference(
+                id=item["id"],
+                title=item["title"],
+                entity_type=EntityType.ALBUM,
+                subtitle=item.get("primary-type"),
+            )
+            for item in data.get("release-groups", [])
+        ]
+        return MetadataDetail(
+            entity_type=EntityType.ARTIST,
+            id=data["id"],
+            title=data["name"],
+            artist_name=data["name"],
+            aliases=aliases,
+            year=self._extract_year(data.get("life-span", {}).get("begin")),
+            genres=genres,
+            external_ids={"musicbrainz": data["id"]},
+            provider=self.provider,
+            source_type=self.source_type,
+            mock=False,
+            note="当前艺人详情来自 MusicBrainz WS/2。",
+            country=data.get("country"),
+            integration_point="MusicBrainzMetadataProviderAdapter.get_artist_detail",
+            related_albums=related_albums,
+            todo=[
+                "当前详情直接来自 MusicBrainz，不包含 PT 搜索、下载派发或整理结果。",
+            ],
+        )
+
+    def _get_album_detail(self, album_id: str) -> MetadataDetail:
+        data = self._get(
+            f"release-group/{album_id}",
+            {"fmt": "json", "inc": "aliases+artist-credits+releases"},
+        )
+        artist_name = self._join_artist_credit(data.get("artist-credit", []))
+        related_artists = [
+            MetadataReference(
+                id=item["artist"]["id"],
+                title=item["artist"]["name"],
+                entity_type=EntityType.ARTIST,
+                subtitle=item.get("name"),
+            )
+            for item in data.get("artist-credit", [])
+            if item.get("artist")
+        ]
+        tracks = [
+            MetadataReference(
+                id=item["id"],
+                title=item["title"],
+                entity_type=EntityType.TRACK,
+                subtitle=artist_name,
+            )
+            for item in data.get("releases", [])
+        ]
+        return MetadataDetail(
+            entity_type=EntityType.ALBUM,
+            id=data["id"],
+            title=data["title"],
+            artist_name=artist_name,
+            album_title=data["title"],
+            aliases=self._extract_aliases(data),
+            year=self._extract_year(data.get("first-release-date")),
+            release_type=self._map_release_type(data.get("primary-type")),
+            genres=self._extract_tags(data),
+            external_ids={"musicbrainz": data["id"]},
+            provider=self.provider,
+            source_type=self.source_type,
+            mock=False,
+            note="当前专辑详情来自 MusicBrainz WS/2。",
+            integration_point="MusicBrainzMetadataProviderAdapter.get_album_detail",
+            related_artists=related_artists,
+            tracks=tracks,
+            todo=[
+                "当前详情直接来自 MusicBrainz，不包含 PT 搜索、下载派发或整理结果。",
+            ],
+        )
+
+    def _get_track_detail(self, track_id: str) -> MetadataDetail:
+        data = self._get(
+            f"recording/{track_id}",
+            {"fmt": "json", "inc": "artist-credits+releases"},
+        )
+        artist_name = self._join_artist_credit(data.get("artist-credit", []))
+        related_artists = [
+            MetadataReference(
+                id=item["artist"]["id"],
+                title=item["artist"]["name"],
+                entity_type=EntityType.ARTIST,
+                subtitle=item.get("name"),
+            )
+            for item in data.get("artist-credit", [])
+            if item.get("artist")
+        ]
+        releases = data.get("releases", [])
+        related_album = None
+        if releases:
+            related_album = MetadataReference(
+                id=releases[0]["id"],
+                title=releases[0]["title"],
+                entity_type=EntityType.ALBUM,
+                subtitle=artist_name,
+            )
+        return MetadataDetail(
+            entity_type=EntityType.TRACK,
+            id=data["id"],
+            title=data["title"],
+            artist_name=artist_name,
+            album_title=releases[0]["title"] if releases else None,
+            track_title=data["title"],
+            aliases=self._extract_aliases(data),
+            year=self._extract_year(releases[0].get("date")) if releases else None,
+            genres=self._extract_tags(data),
+            external_ids={"musicbrainz": data["id"]},
+            provider=self.provider,
+            source_type=self.source_type,
+            mock=False,
+            note="当前歌曲详情来自 MusicBrainz WS/2。",
+            duration_seconds=self._extract_duration_seconds(data.get("length")),
+            integration_point="MusicBrainzMetadataProviderAdapter.get_track_detail",
+            related_artists=related_artists,
+            related_album=related_album,
+            todo=[
+                "当前详情直接来自 MusicBrainz，不包含 PT 搜索、下载派发或整理结果。",
+            ],
+        )
+
+    def _search_path(self, entity_type: EntityType) -> tuple[str, str]:
+        if entity_type == EntityType.ARTIST:
+            return "artist", "artists"
+        if entity_type == EntityType.ALBUM:
+            return "release-group", "release-groups"
+        return "recording", "recordings"
+
+    def _map_search_item(self, entity_type: EntityType, item: dict) -> MetadataSummary:
+        if entity_type == EntityType.ARTIST:
+            title = item["name"]
+            artist_name = item["name"]
+            album_title = None
+            track_title = None
+            year = self._extract_year(item.get("life-span", {}).get("begin"))
+            release_type = None
+        elif entity_type == EntityType.ALBUM:
+            title = item["title"]
+            artist_name = self._join_artist_credit(item.get("artist-credit", []))
+            album_title = item["title"]
+            track_title = None
+            year = self._extract_year(item.get("first-release-date"))
+            release_type = self._map_release_type(item.get("primary-type"))
+        else:
+            title = item["title"]
+            artist_name = self._join_artist_credit(item.get("artist-credit", []))
+            album_title = self._extract_release_title(item)
+            track_title = item["title"]
+            year = self._extract_year(self._extract_release_date(item))
+            release_type = None
+
+        return MetadataSummary(
+            entity_type=entity_type,
+            id=item["id"],
+            title=title,
+            artist_name=artist_name,
+            album_title=album_title,
+            track_title=track_title,
+            aliases=self._extract_aliases(item),
+            year=year,
+            release_type=release_type,
+            genres=self._extract_tags(item),
+            external_ids={"musicbrainz": item["id"]},
+            provider=self.provider,
+            source_type=self.source_type,
+            mock=False,
+            note=f"当前结果来自 MusicBrainz WS/2 {entity_type.value} 查询。",
+        )
+
+    def _get(self, path: str, params: dict[str, object]) -> dict:
+        self._respect_rate_limit()
+        response = self._client.get(path, params=params)
+        response.raise_for_status()
+        return response.json()
+
+    def _respect_rate_limit(self) -> None:
+        elapsed = monotonic() - self._last_request_at
+        if self._last_request_at and elapsed < 1.0:
+            sleep(1.0 - elapsed)
+        self._last_request_at = monotonic()
+
+    @staticmethod
+    def _extract_aliases(data: dict) -> list[str]:
+        return [item.get("name", "").strip() for item in data.get("aliases", []) if item.get("name")]
+
+    @staticmethod
+    def _extract_tags(data: dict) -> list[str]:
+        return [item.get("name", "").strip() for item in data.get("tags", []) if item.get("name")]
+
+    @staticmethod
+    def _extract_year(value: str | None) -> int | None:
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).year
+        except ValueError:
+            if len(value) >= 4 and value[:4].isdigit():
+                return int(value[:4])
+        return None
+
+    @staticmethod
+    def _extract_duration_seconds(length_ms: int | None) -> int | None:
+        if length_ms is None:
+            return None
+        return int(length_ms // 1000)
+
+    @staticmethod
+    def _join_artist_credit(items: list[dict]) -> str | None:
+        parts: list[str] = []
+        for item in items:
+            if item.get("name"):
+                parts.append(item["name"])
+            elif item.get("artist", {}).get("name"):
+                parts.append(item["artist"]["name"])
+        return ", ".join(parts) if parts else None
+
+    @staticmethod
+    def _extract_release_title(item: dict) -> str | None:
+        releases = item.get("releases", [])
+        if not releases:
+            return None
+        return releases[0].get("title")
+
+    @staticmethod
+    def _extract_release_date(item: dict) -> str | None:
+        releases = item.get("releases", [])
+        if not releases:
+            return None
+        return releases[0].get("date")
+
+    @staticmethod
+    def _map_release_type(value: str | None) -> ReleaseType | None:
+        if not value:
+            return None
+        mapping = {
+            "album": ReleaseType.ALBUM,
+            "single": ReleaseType.SINGLE,
+            "ep": ReleaseType.EP,
+            "compilation": ReleaseType.COMPILATION,
+            "live": ReleaseType.LIVE,
+        }
+        return mapping.get(value.strip().lower())

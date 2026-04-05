@@ -17,7 +17,11 @@ from ..adapters.host_storage_runtime import HostStorageRuntimeBridge
 from ..adapters.chart_provider import ChartProviderAdapter, MockChartProviderAdapter
 from ..adapters.host_probe import HostProbeAdapter, MockHostProbeAdapter, RealHostProbeAdapter
 from ..adapters.host_search import HostSearchAdapter, MockHostSearchAdapter, RealHostSearchAdapter
-from ..adapters.metadata_provider import MetadataProviderAdapter, MockMetadataProviderAdapter
+from ..adapters.metadata_provider import (
+    MetadataProviderAdapter,
+    MockMetadataProviderAdapter,
+    MusicBrainzMetadataProviderAdapter,
+)
 from ..adapters.organize import MockOrganizeAdapter, OrganizeAdapter, RealOrganizeAdapter
 from ..core.db import get_db_session
 from ..core.config import settings
@@ -59,6 +63,12 @@ def get_mvp_placeholder_service() -> MvpPlaceholderService:
 
 @lru_cache
 def get_metadata_provider_adapter() -> MetadataProviderAdapter:
+    if settings.metadata_provider_mode == "musicbrainz":
+        return MusicBrainzMetadataProviderAdapter(
+            base_url=settings.metadata_musicbrainz_base_url,
+            user_agent=settings.metadata_provider_user_agent,
+            timeout_seconds=settings.metadata_provider_timeout_seconds,
+        )
     return MockMetadataProviderAdapter()
 
 

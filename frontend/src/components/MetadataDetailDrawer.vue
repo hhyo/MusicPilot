@@ -7,7 +7,7 @@
   >
     <div class="detail-drawer">
       <el-alert
-        title="当前已进入 Phase 6：可基于 metadata 创建订阅与搜索任务，并通过 host-aware resolver 选择 host-backed skeleton 或 mock fallback。真实 PT 站点、真实下载器与真实 organize 仍待宿主联调确认。"
+        title="当前可基于 metadata 创建订阅与搜索任务。search / dispatch 会直接展示当前 backend 与明确错误；音乐 organize 的 preview/apply 在订阅执行流中继续工作。真实 metadata provider、真实 discovery 与自动调度仍待接入。"
         type="info"
         :closable="false"
         show-icon
@@ -118,7 +118,7 @@
         </section>
 
         <section class="detail-section">
-          <h4>Phase 6 操作</h4>
+          <h4>当前操作</h4>
           <div class="detail-actions">
             <el-button type="success" plain @click="$emit('create-subscription', detail)">
               创建订阅

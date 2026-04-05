@@ -5,7 +5,8 @@
         <p class="brand-card__phase">{{ app.phaseLabel }}</p>
         <h1>{{ app.appName }}</h1>
         <p class="brand-card__description">
-          独立音乐插件入口壳。当前已接通 metadata、SearchJob、订阅执行与 host-aware organize preview/apply 最小闭环。
+          独立音乐插件入口壳。当前已接通 metadata 搜索、SearchJob、订阅手动执行，以及音乐
+          organize preview/apply 的真实宿主最小闭环。
         </p>
       </div>
 
@@ -15,10 +16,10 @@
     <main class="shell__content">
       <header class="topbar">
         <div>
-          <p class="topbar__eyebrow">MoviePilot Plugin Subscription MVP</p>
-          <h2>MusicPilot Phase 6 Host-Aware Organize 收口</h2>
+          <p class="topbar__eyebrow">MoviePilot Music Plugin</p>
+          <h2>MusicPilot 当前实现状态</h2>
         </div>
-        <el-tag type="success" effect="plain">Subscription / Run / Organize 可联调</el-tag>
+        <el-tag type="success" effect="plain">真实预览 / 整理最小闭环已验证</el-tag>
       </header>
 
       <RouterView />

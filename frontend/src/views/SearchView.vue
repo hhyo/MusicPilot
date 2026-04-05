@@ -5,13 +5,13 @@
         <p class="search-hero__eyebrow">Metadata Search</p>
         <h2>Metadata -> Query -> Job -> Candidate -> Host Adapter 收口闭环</h2>
         <p class="search-hero__description">
-          当前基于本地 seed metadata 打通 Phase 6 的搜索与订阅入口。
-          host search / dispatch 已升级为 host-aware resolver：当宿主能力可用时优先走 host-backed 语义，
-          能力不足或运行失败时会直接暴露错误，并在结果中明确标识 adapter mode 与 fallback。organize 则在订阅页继续沿用同样的 preview/apply 收口方式。
+          当前搜索页已接通 metadata 搜索、SearchJob 与从详情创建订阅的最小闭环。search / dispatch
+          会在当前接入模式下直接暴露真实 backend、adapter mode 与错误原因；organize 则在订阅页继续沿用
+          MusicPilot 本地 preview 与宿主底层文件执行的双阶段闭环。真实 metadata provider 仍是下一阶段重点。
         </p>
       </div>
       <el-tag type="warning" effect="plain">
-        metadata seed + host-aware search/dispatch + host-aware organize
+        metadata seed + host search/dispatch + music preview/apply
       </el-tag>
     </section>
 
@@ -114,7 +114,7 @@
 
       <el-empty
         v-else
-        description="输入关键词后开始搜索。当前阶段只返回 metadata 结果。"
+        description="输入关键词后开始搜索。当前阶段先返回 metadata 结果与后续订阅入口。"
       />
 
       <el-pagination

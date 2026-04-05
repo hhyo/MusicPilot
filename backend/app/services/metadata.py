@@ -1,4 +1,4 @@
-"""Metadata service for the Phase 2 minimum search loop."""
+"""Metadata service for metadata search and detail routes."""
 
 from __future__ import annotations
 
@@ -24,10 +24,10 @@ from ..schemas.metadata import (
 from ..schemas.mvp import EntityType, ReleaseType
 
 
-INTEGRATION_POINT = "Replace MockMetadataProviderAdapter with a verified metadata provider adapter in a later phase."
+INTEGRATION_POINT = "Local metadata repository backed by the current provider mode."
 DETAIL_TODO = [
-    "Phase 2 仅提供 metadata 结果，不包含 PT 搜索、下载派发或整理结果。",
-    "后续阶段可基于当前结构化字段构建 QueryBuilder 输入。",
+    "当前只提供 metadata 结果，不包含 PT 搜索、下载派发或整理结果。",
+    "可基于当前结构化字段构建 QueryBuilder 输入。",
 ]
 
 
@@ -45,9 +45,22 @@ class MetadataService:
         self.session = session
         self.adapter = adapter
         self.repository = MetadataRepository(session)
-        self.catalog_note = adapter.load_seed_catalog().note
 
     def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+        if self.adapter.supports_live_queries:
+            result = self.adapter.search(payload)
+            self.repository.record_search_history(
+                keyword=payload.keyword,
+                entity_type=payload.type.value,
+                page=payload.page,
+                page_size=payload.page_size,
+                result_count=result.total,
+                provider=result.provider,
+                source_type=result.source_type,
+            )
+            self.session.commit()
+            return result
+
         handlers = {
             EntityType.ARTIST: self.repository.search_artists,
             EntityType.ALBUM: self.repository.search_albums,
@@ -78,6 +91,9 @@ class MetadataService:
         )
 
     def get_artist_detail(self, artist_id: str) -> MetadataDetail:
+        if self.adapter.supports_live_queries:
+            return self.adapter.get_detail(EntityType.ARTIST, artist_id)
+
         artist = self.repository.get_artist(artist_id)
         if artist is None:
             raise HTTPException(status_code=404, detail=f"Artist {artist_id} was not found in the local seed catalog.")
@@ -108,6 +124,9 @@ class MetadataService:
         )
 
     def get_album_detail(self, album_id: str) -> MetadataDetail:
+        if self.adapter.supports_live_queries:
+            return self.adapter.get_detail(EntityType.ALBUM, album_id)
+
         album = self.repository.get_album(album_id)
         if album is None:
             raise HTTPException(status_code=404, detail=f"Album {album_id} was not found in the local seed catalog.")
@@ -137,6 +156,9 @@ class MetadataService:
         )
 
     def get_track_detail(self, track_id: str) -> MetadataDetail:
+        if self.adapter.supports_live_queries:
+            return self.adapter.get_detail(EntityType.TRACK, track_id)
+
         track = self.repository.get_track(track_id)
         if track is None:
             raise HTTPException(status_code=404, detail=f"Track {track_id} was not found in the local seed catalog.")
@@ -185,7 +207,7 @@ class MetadataService:
             track_title = None
             release_type = None
             year = item.year
-            note = item.note or self.catalog_note
+            note = item.note or f"Metadata loaded from {item.provider}."
         elif isinstance(item, AlbumModel):
             title = item.title
             artist_name = item.artist_name or ", ".join(artist.name for artist in item.artists)
@@ -193,7 +215,7 @@ class MetadataService:
             track_title = None
             release_type = ReleaseType(item.release_type) if item.release_type else None
             year = item.year
-            note = item.note or self.catalog_note
+            note = item.note or f"Metadata loaded from {item.provider}."
         else:
             title = item.title
             artist_name = item.artist_name or ", ".join(artist.name for artist in item.artists)
@@ -201,7 +223,7 @@ class MetadataService:
             track_title = item.title
             release_type = ReleaseType(item.release_type) if item.release_type else None
             year = item.year
-            note = item.note or self.catalog_note
+            note = item.note or f"Metadata loaded from {item.provider}."
 
         return MetadataSummary(
             entity_type=entity_type,

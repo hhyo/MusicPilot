@@ -18,7 +18,7 @@ const routes = [
         component: HomeView,
         meta: {
           title: 'MusicPilot Home',
-          description: '音乐工作台首页占位',
+          description: '音乐工作台首页与当前项目状态总览',
         },
       },
       {
@@ -27,7 +27,7 @@ const routes = [
         component: ChartsView,
         meta: {
           title: '榜单',
-          description: 'Phase 6 保留榜单发现与从榜单项创建订阅的最小闭环。',
+          description: '当前提供本地榜单入口与从榜单项创建订阅，真实榜单源待接入。',
         },
       },
       {
@@ -36,7 +36,7 @@ const routes = [
         component: SearchView,
         meta: {
           title: '搜索',
-          description: 'Phase 6 打通 metadata 搜索、SearchJob 与从详情创建订阅的最小闭环。',
+          description: '当前提供 metadata 搜索、SearchJob 与从详情创建订阅，真实 provider 待接入。',
         },
       },
       {
@@ -45,7 +45,7 @@ const routes = [
         component: SubscriptionsView,
         meta: {
           title: '订阅',
-          description: 'Phase 6 提供订阅管理、立即执行、run 结果回看与 host-aware organize 状态查看。',
+          description: '当前提供订阅管理、手动执行、run 回看与音乐 organize 状态查看。',
         },
       },
       {
@@ -54,7 +54,7 @@ const routes = [
         component: ModulePlaceholderView,
         meta: {
           title: '下载',
-          description: 'Phase 0 仅保留任务列表与候选确认壳，不实现真实 PT 搜索或下载派发。',
+          description: '当前仍是待接入模块，尚未提供真实 PT 搜索或自动下载派发闭环。',
         },
       },
       {
@@ -63,7 +63,7 @@ const routes = [
         component: ModulePlaceholderView,
         meta: {
           title: '整理',
-          description: 'Phase 0 仅保留整理页占位，不实现真实整理、标签写入或媒体库刷新。',
+          description: '当前主整理能力已嵌入订阅执行流，独立整理工作台仍待补齐。',
         },
       },
       {
@@ -72,7 +72,7 @@ const routes = [
         component: ModulePlaceholderView,
         meta: {
           title: '设置',
-          description: 'Phase 0 仅保留配置入口壳，后续再补分组表单与宿主适配项。',
+          description: '当前为配置入口占位，宿主接入与运行参数仍以环境变量为主。',
         },
       },
     ],

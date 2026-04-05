@@ -6,15 +6,15 @@
         <h2>订阅与执行记录最小闭环</h2>
         <p class="hero-panel__description">
           当前页面展示的是收缩后的最小订阅闭环：可创建和管理四类订阅、同步执行一次 run、
-          回看 SearchJob 摘要与 organize preview/apply。页面只展示真实采用的宿主语义、handoff 来源和明确错误；
-          但真实 scheduler、真实榜单增量与完整文件整理链路仍未完成验证。
+          回看 SearchJob 摘要与 organize preview/apply。页面只展示当前真实采用的 backend、handoff 来源和明确错误；
+          但真实 scheduler、真实榜单增量与完整获取自动化链路仍未完成。
         </p>
       </div>
-      <el-tag type="warning" effect="plain">host-aware organize / sync subscription executor</el-tag>
+      <el-tag type="warning" effect="plain">manual run / music preview / host file execute</el-tag>
     </section>
 
     <el-alert
-      title="当前 organize 只遵循固定宿主语义：preview 对应 transfer/name，apply 对应 transfer/manual；若缺少明确 source_path，就直接失败并暴露原因。"
+      title="当前 organize 只遵循固定音乐语义：preview 是 MusicPilot 本地路径预览，apply 是宿主底层 file/storage 执行；若缺少明确 source_path 或目标路径，就直接失败并暴露原因。"
       type="warning"
       :closable="false"
       show-icon
@@ -222,7 +222,7 @@
           <section class="run-detail-panel">
             <header class="runs-panel__header">
               <h4>Run 摘要</h4>
-              <p>候选、评分与 organize 会明确展示当前 backend、verification state 与 fallback。</p>
+              <p>候选、评分与 organize 会明确展示当前 backend、verification state、handoff 与错误原因。</p>
             </header>
 
             <el-empty
