@@ -167,6 +167,19 @@
 - 也不是 provider 没有生效
 - 当前失败点已经收敛成：**这类真实 track 样本在当前宿主 PT 搜索环境下没有命中结果**
 
+进一步核对：
+
+- 直接对真实宿主 `GET /api/v1/search/title` 发送以下查询：
+  - `BTS SWIM FLAC`
+  - `BTS ARIRANG FLAC`
+  - `ARIRANG FLAC`
+  - `BTS ARIRANG`
+- 结果全部为：
+  - `success = false`
+  - `message = 未搜索到任何资源`
+
+这说明当前 `BTS - SWIM` 的问题不只是“track title 查询太窄”，连更宽的 `artist + album` 变体在当前站点环境下也没有命中。
+
 ### 3. 真实 host dispatch 能力探测
 
 直接读取宿主真实 endpoint：

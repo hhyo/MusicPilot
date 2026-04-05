@@ -357,6 +357,26 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
         self.assertEqual(result.execution_status, SubscriptionRunStatus.APPLIED)
         self.assertEqual(result.organize_preview.organize_status, OrganizeStatus.APPLIED)
 
+    def test_execute_no_result_records_real_host_search_reason(self) -> None:
+        executed_job = build_search_job_summary(status=JobStatus.NO_RESULT)
+        executed_job.summary = {
+            "active_search_adapter": "real_host_search",
+            "candidate_count": 0,
+        }
+        search_job_service = DummySearchJobService(executed_job=executed_job, candidates=[])
+        organize_service = DummyOrganizeService()
+        service = SubscriptionExecutionService(
+            self.session,
+            search_job_service=search_job_service,
+            organize_service=organize_service,
+            dispatch_service=None,
+        )
+
+        result = service.execute(self.subscription.id)
+
+        self.assertEqual(result.execution_status, SubscriptionRunStatus.NO_RESULT)
+        self.assertEqual(result.summary_json.get("search_outcome_reason"), "host_search_no_result")
+
 
 if __name__ == "__main__":
     unittest.main()

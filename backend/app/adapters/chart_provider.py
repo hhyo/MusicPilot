@@ -416,7 +416,7 @@ class ListenBrainzChartProviderAdapter(ChartProviderAdapter):
         return f"chart-listenbrainz-top-tracks-{self.stats_range}"
 
     def _build_artist_chart(self, payload: dict | None) -> ChartInfo:
-        artists = (payload or {}).get("artists") or []
+        artists = self._dedupe_items((payload or {}).get("artists") or [], id_key="artist_mbid")
         return ChartInfo(
             id=self._artist_chart_id,
             chart_source=self.provider,
@@ -432,7 +432,7 @@ class ListenBrainzChartProviderAdapter(ChartProviderAdapter):
         )
 
     def _build_track_chart(self, payload: dict | None) -> ChartInfo:
-        recordings = (payload or {}).get("recordings") or []
+        recordings = self._dedupe_items((payload or {}).get("recordings") or [], id_key="recording_mbid")
         return ChartInfo(
             id=self._track_chart_id,
             chart_source=self.provider,
@@ -449,7 +449,7 @@ class ListenBrainzChartProviderAdapter(ChartProviderAdapter):
 
     def _build_artist_detail(self, payload: dict) -> ChartDetailData:
         items: list[ChartEntryInfo] = []
-        for index, item in enumerate(payload.get("artists") or [], start=1):
+        for index, item in enumerate(self._dedupe_items(payload.get("artists") or [], id_key="artist_mbid"), start=1):
             artist_mbid = item.get("artist_mbid")
             if not artist_mbid:
                 continue
@@ -483,7 +483,7 @@ class ListenBrainzChartProviderAdapter(ChartProviderAdapter):
 
     def _build_track_detail(self, payload: dict) -> ChartDetailData:
         items: list[ChartEntryInfo] = []
-        for index, item in enumerate(payload.get("recordings") or [], start=1):
+        for index, item in enumerate(self._dedupe_items(payload.get("recordings") or [], id_key="recording_mbid"), start=1):
             recording_mbid = item.get("recording_mbid")
             if not recording_mbid:
                 continue
@@ -535,3 +535,15 @@ class ListenBrainzChartProviderAdapter(ChartProviderAdapter):
         if isinstance(last_updated, (int, float)):
             return datetime.fromtimestamp(last_updated, tz=timezone.utc)
         return utc_now()
+
+    @staticmethod
+    def _dedupe_items(items: list[dict], *, id_key: str) -> list[dict]:
+        deduped: list[dict] = []
+        seen: set[str] = set()
+        for item in items:
+            item_id = item.get(id_key)
+            if not item_id or item_id in seen:
+                continue
+            seen.add(item_id)
+            deduped.append(item)
+        return deduped

@@ -253,6 +253,14 @@
                   <strong>{{ selectedRunDetail.matched_candidates_count }}</strong>
                   <p>{{ selectedRunDetail.matched_candidates_count }} candidates</p>
                 </article>
+                <article
+                  v-if="selectedRunDetail.summary_json.search_outcome_reason"
+                  class="summary-card"
+                >
+                  <span>Search Outcome</span>
+                  <strong>{{ selectedRunDetail.summary_json.search_outcome_reason }}</strong>
+                  <p>当前执行链显式暴露搜索结果原因，便于区分 host 无结果与其它失败。</p>
+                </article>
                 <article v-if="selectedRunDetail.organize_preview" class="summary-card">
                   <span>Organize Backend</span>
                   <strong>{{ selectedRunDetail.organize_preview.organize_backend }}</strong>
@@ -265,6 +273,13 @@
                 <el-empty
                   v-if="selectedRunDetail.candidates.length === 0"
                   description="当前 run 没有候选。"
+                />
+                <el-alert
+                  v-if="selectedRunDetail.candidates.length === 0 && selectedRunDetail.summary_json.search_outcome_reason"
+                  :title="`search_outcome: ${selectedRunDetail.summary_json.search_outcome_reason}`"
+                  type="warning"
+                  :closable="false"
+                  show-icon
                 />
 
                 <div v-else class="candidate-list">

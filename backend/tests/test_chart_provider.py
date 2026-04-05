@@ -96,6 +96,45 @@ class ListenBrainzChartProviderAdapterTest(unittest.TestCase):
         self.assertEqual(detail.items[0].subtitle, "Adele")
         self.assertEqual(detail.items[0].item_type, EntityType.TRACK)
 
+    def test_track_chart_detail_dedupes_duplicate_recording_ids(self) -> None:
+        adapter = ListenBrainzChartProviderAdapter(
+            client=FakeClient(
+                payloads={
+                    "/1/stats/sitewide/recordings": {
+                        "payload": {
+                            "last_updated": 1_775_500_000,
+                            "recordings": [
+                                {
+                                    "recording_mbid": "rec-1",
+                                    "track_name": "SWIM",
+                                    "artist_name": "BTS",
+                                    "listen_count": 10,
+                                },
+                                {
+                                    "recording_mbid": "rec-1",
+                                    "track_name": "SWIM",
+                                    "artist_name": "BTS",
+                                    "listen_count": 9,
+                                },
+                                {
+                                    "recording_mbid": "rec-2",
+                                    "track_name": "Dracula",
+                                    "artist_name": "Tame Impala",
+                                    "listen_count": 8,
+                                },
+                            ],
+                        }
+                    }
+                }
+            )
+        )
+
+        detail = adapter.get_chart_detail("chart-listenbrainz-top-tracks-week")
+
+        self.assertEqual(detail.item_count, 2)
+        self.assertEqual([item.target_id for item in detail.items], ["rec-1", "rec-2"])
+        self.assertEqual([item.rank for item in detail.items], [1, 2])
+
     def test_artist_chart_detail_maps_artist_mbid_as_target_id(self) -> None:
         adapter = ListenBrainzChartProviderAdapter(
             client=FakeClient(

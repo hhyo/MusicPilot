@@ -72,6 +72,7 @@ class SubscriptionExecutionService:
                 "best_score": executed_job.summary.get("best_score", 0.0),
                 "candidate_count": candidates_data.total,
                 "mock_host_search": executed_job.mock,
+                "search_outcome_reason": None,
                 "organize_preview_id": None,
                 "organize_backend": None,
                 "organize_fallback_reason": None,
@@ -80,6 +81,8 @@ class SubscriptionExecutionService:
                 "binding_id": None,
                 "last_dispatched_candidate_id": None,
             }
+            if candidates_data.total == 0:
+                summary["search_outcome_reason"] = self._search_outcome_reason(executed_job)
             if candidates_data.items:
                 auto_candidate = self._select_auto_dispatch_candidate(candidates_data.items)
                 if auto_candidate is not None and self.dispatch_service is not None:
@@ -270,3 +273,10 @@ class SubscriptionExecutionService:
             if isinstance(fileitem, dict) and fileitem.get("path"):
                 return True
         return False
+
+    @staticmethod
+    def _search_outcome_reason(executed_job: SearchJobSummary) -> str:
+        active_adapter = executed_job.summary.get("active_search_adapter")
+        if active_adapter == "real_host_search":
+            return "host_search_no_result"
+        return "search_no_result"
