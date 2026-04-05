@@ -189,13 +189,55 @@
 结果：
 
 - `200`
-- 返回 `[]`
+- 返回：
+  - `[{ "name": "下载器1", "type": "qbittorrent" }]`
 
 结论：
 
-- 当前真实宿主环境里没有可用下载器
-- 这解释了为什么 `dispatch_capability = false`
-- 所以就算 real search 已经有结果，自动下载闭环也还会被 host 环境配置挡住
+- 当前真实宿主环境里已经有可用下载器
+- 早期的 “`downloaders` 为空” 结论只适用于当时的旧环境，不再代表当前状态
+
+### 4. 2026-04-05 补充验证：已配置下载器但未配置目录时的真实 subscription run
+
+验证方式：
+
+- 宿主运行态：`CONFIG_DIR=/Users/lihuanhuan/PycharmProjects/MoviePilotPkg/MoviePilot/config-dev`
+- `MUSICPILOT_METADATA_PROVIDER_MODE=seed`
+- `MUSICPILOT_CHART_PROVIDER_MODE=mock`
+- 创建：
+  - `subscription_type=track`
+  - `target_id=track-hello`
+  - `preference_json.target_downloader=QB`
+- 再调用：
+  - `POST /api/v1/plugin/musicpilot/subscriptions/{id}/run`
+
+结果：
+
+- `execution_status = matched`
+- `matched_candidates_count = 2`
+- `dispatch_status = host_rejected`
+- `dispatch_backend = host`
+- `binding_id = null`
+- `organize_status = preview_ready`
+- 最佳候选 `raw_payload.host_response_summary.message = 无法识别媒体信息`
+
+解释：
+
+- 这次 run 已经真正进入了 `real_host_search -> real_download_dispatch` 主链
+- 但失败点不在 organize，也不在“下载器是否存在”
+- 当前最先挡住主链的是宿主 `/api/v1/download/add` 对音乐候选返回：
+  - `success = false`
+  - `message = 无法识别媒体信息`
+- 因为 `dispatchable = false`，所以不会生成 binding，也不会进入真实下载成功后的 organize apply 条件
+- 当前返回的 `organize preview` 只是 MusicPilot 本地音乐路径预览，不代表真实下载已成功
+
+结论：
+
+- 在“已配置下载器、未配置目录”的当前环境里，目录还不是第一阻塞点
+- 当前真实 acquisition / dispatch 主链更早地卡在：
+  - **宿主 download/add 仍按影视媒体识别语义拒绝音乐候选**
+- 因此测试层面可以把“是否进入真实 dispatch 并收到宿主明确拒绝”当作当前阶段的有效验收点
+- 但不应把这类失败归因到 organize 目录前置条件
 
 ## 总结
 
@@ -205,10 +247,10 @@
 2. `ListenBrainz charts` 可用
 3. `real_host_search` 在真实宿主插件运行态下已确认可工作，Adele 基准样本能返回真实候选
 4. `ListenBrainz` 的某些真实 track 样本在当前宿主 PT 搜索环境下仍会 `no_result`
-5. 当前 host 运行态里 `downloaders` 为空，因此真实 dispatch 仍被环境配置阻断
+5. 当前 host 运行态里下载器已经存在，但音乐候选进入 `/api/v1/download/add` 后仍可能被宿主以 `无法识别媒体信息` 拒绝
 6. 当前真正尚未完成的，不是 provider 接入，而是：
    - 真实 PT 搜索命中质量
-   - 宿主下载器配置完成后的真实 dispatch 闭环
+   - 音乐候选如何稳定穿过宿主当前 download/add 媒体识别门槛
    - 拥有真实本地源文件后的自动 `apply`
 
 ## 下一步指向
@@ -224,4 +266,4 @@
 
 继续推进成：
 
-`真实 metadata / 真实 charts -> 真实 search(已验证) + 已配置下载器的真实 dispatch -> preview/apply`
+`真实 metadata / 真实 charts -> 真实 search(已验证) + 可穿过宿主 download/add 识别门槛的真实 dispatch -> preview/apply`
