@@ -5,7 +5,7 @@ MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩
 ## 项目简介
 
 - `frontend/`：基于 Vue 3 + TypeScript + Vite 的独立前端壳，当前提供首页工作台、metadata 搜索页、榜单页、订阅页，以及从 metadata / chart item 创建订阅、执行一次 run、查看 organize backend / status / handoff 的最小前端闭环。
-- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、search/dispatch 模式选择、SubscriptionService、本地 chart discovery 与音乐 organize preview/apply 最小闭环。
+- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、search/dispatch 模式选择、SubscriptionService、mock 或 ListenBrainz chart discovery，以及音乐 organize preview/apply 最小闭环。
 - `plugin_runtime/`：面向 MoviePilot 宿主的运行时装配目录，当前已完成本地宿主真实加载验证，并保留 manifest、静态资源、后端挂载说明和打包边界。
 - `scripts/`：前端开发、后端开发、前端构建、插件装配、版本同步脚本。
 - `docs/`：产品方案、架构方案、规范与任务拆解文档，按要求保持原位不变。
@@ -87,13 +87,13 @@ python -m app.db_init --reseed
 ```
 
 - 正常启动后端时也会自动建表，并在库为空时导入本地 seed
-- 当前 seed 只用于验证 Artist / Album / Track 搜索链路、mock chart entry 和 subscription run 输入，不代表已经真实接入第三方音乐源或真实榜单源
+- 当前 seed 仍用于默认开发模式下的 Artist / Album / Track 搜索链路、chart entry 和 subscription run 输入；当切到 `musicbrainz` / `listenbrainz` 模式时，可分别使用真实 metadata 与真实榜单源
 
 ## 当前执行模式与宿主集成边界
 
 - Metadata provider：当前支持 `seed` 与 `musicbrainz` 两种模式。`seed` 继续作为默认开发数据；`musicbrainz` 提供 Artist / Album / Track 的实时搜索与详情。
 - Subscription 执行模式：当前仅支持手动触发一次同步 run，不启用生产级 cron、消息队列或分布式 scheduler。
-- Chart discovery：当前为 local seed / mock chart source，只验证发现入口与从 chart item 创建订阅的动作。
+- Chart discovery：当前支持 `mock` 与 `listenbrainz` 两种模式。`listenbrainz` 第一版已接入 sitewide artists / recordings 榜单；自动刷新、增量监控和专辑榜仍待后续补齐。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
 - Dispatch：当前保留 `mock + host-backed selectable`。当存在可靠 `media_in` 时走 `/api/v1/download/`；只有 `torrent_in` 时走 `/api/v1/download/add`。这两个接口是不同语义，不再由运行时策略层互相切换。
 - Organize：当前保留 `mock + host-backed selectable` 的 preview/apply 双阶段边界。`preview` 已切换为 MusicPilot 本地音乐路径预览；`apply` 当前通过宿主底层 file/storage transfer runtime 执行音乐文件整理。音乐 metadata 恢复当前优先使用显式 `MetadataDetail`，其次使用已有上下文、嵌入音频标签与 `source_path` 线索。`history/download` 是新派发后的主 handoff 来源，`history/transfer` 只用于历史重放/补充来源，不再作为自动业务回退引擎。
@@ -137,6 +137,17 @@ export MUSICPILOT_METADATA_PROVIDER_MODE=musicbrainz
 export MUSICPILOT_METADATA_PROVIDER_TIMEOUT_SECONDS=15
 export MUSICPILOT_METADATA_MUSICBRAINZ_BASE_URL=https://musicbrainz.org/ws/2
 export MUSICPILOT_METADATA_PROVIDER_USER_AGENT='MusicPilot/0.1.0 (local)'
+```
+
+如需启用真实 chart provider，可额外配置：
+
+```bash
+export MUSICPILOT_CHART_PROVIDER_MODE=listenbrainz
+export MUSICPILOT_CHART_PROVIDER_TIMEOUT_SECONDS=15
+export MUSICPILOT_CHART_LISTENBRAINZ_BASE_URL=https://api.listenbrainz.org
+export MUSICPILOT_CHART_PROVIDER_USER_AGENT='MusicPilot/0.1.0 (local)'
+export MUSICPILOT_CHART_LISTENBRAINZ_RANGE=week
+export MUSICPILOT_CHART_LISTENBRAINZ_COUNT=20
 ```
 
 可选模式：

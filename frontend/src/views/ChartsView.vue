@@ -5,16 +5,22 @@
         <p class="hero-panel__eyebrow">Discovery</p>
         <h2>榜单发现与订阅入口</h2>
         <p class="hero-panel__description">
-          当前榜单来自本地 chart source，只用于发现入口、榜单项下钻和创建订阅。
-          真实榜单抓取、增量对比和自动刷新仍待后续接入。
+          当前榜单页用于发现入口、榜单项下钻和创建订阅。
+          实际榜单来源与刷新能力取决于后端当前启用的 chart provider。
         </p>
       </div>
-      <el-tag type="warning" effect="plain">local chart source / subscribe entry</el-tag>
+      <el-tag :type="hasLiveCharts ? 'success' : 'warning'" effect="plain">
+        {{ hasLiveCharts ? 'live chart source / subscribe entry' : 'local chart source / subscribe entry' }}
+      </el-tag>
     </section>
 
     <el-alert
-      title="当前榜单页只提供本地发现入口：可查看 chart items 并创建订阅，但不会自动监控真实榜单变化。"
-      type="warning"
+      :title="
+        hasLiveCharts
+          ? '当前榜单页已接入真实 chart provider，可查看真实榜单项并创建订阅；自动刷新与增量监控仍待后续接入。'
+          : '当前榜单页只提供本地发现入口：可查看 chart items 并创建订阅，但不会自动监控真实榜单变化。'
+      "
+      :type="hasLiveCharts ? 'info' : 'warning'"
       :closable="false"
       show-icon
     />
@@ -68,7 +74,7 @@
 
       <el-empty
         v-else-if="charts.length === 0"
-        description="当前筛选条件下没有可展示的本地榜单。"
+        :description="hasLiveCharts ? '当前筛选条件下没有可展示的真实榜单。' : '当前筛选条件下没有可展示的本地榜单。'"
       />
 
       <div v-else class="chart-grid">
@@ -189,6 +195,8 @@ const providerOptions = computed(() => [
   { value: 'all', label: '全部' },
   ...providers.value.map((item) => ({ value: item.chart_source, label: item.display_name })),
 ]);
+
+const hasLiveCharts = computed(() => providers.value.some((item) => !item.mock));
 
 onMounted(() => {
   void loadProviders();

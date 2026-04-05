@@ -14,7 +14,11 @@ from ..adapters.download_dispatch import (
 )
 from ..adapters.host_http import HostHttpClient, HostHttpClientConfig
 from ..adapters.host_storage_runtime import HostStorageRuntimeBridge
-from ..adapters.chart_provider import ChartProviderAdapter, MockChartProviderAdapter
+from ..adapters.chart_provider import (
+    ChartProviderAdapter,
+    ListenBrainzChartProviderAdapter,
+    MockChartProviderAdapter,
+)
 from ..adapters.host_probe import HostProbeAdapter, MockHostProbeAdapter, RealHostProbeAdapter
 from ..adapters.host_search import HostSearchAdapter, MockHostSearchAdapter, RealHostSearchAdapter
 from ..adapters.metadata_provider import (
@@ -74,6 +78,14 @@ def get_metadata_provider_adapter() -> MetadataProviderAdapter:
 
 @lru_cache
 def get_chart_provider_adapter() -> ChartProviderAdapter:
+    if settings.chart_provider_mode == "listenbrainz":
+        return ListenBrainzChartProviderAdapter(
+            base_url=settings.chart_listenbrainz_base_url,
+            user_agent=settings.chart_provider_user_agent,
+            timeout_seconds=settings.chart_provider_timeout_seconds,
+            stats_range=settings.chart_listenbrainz_range,
+            count=settings.chart_listenbrainz_count,
+        )
     metadata_adapter = MockMetadataProviderAdapter()
     return MockChartProviderAdapter(metadata_adapter.load_seed_catalog())
 

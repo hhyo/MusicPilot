@@ -6,7 +6,7 @@
         <h2>你的音乐工作台</h2>
         <p class="hero-panel__description">
           当前仓库已经完成真实插件加载、音乐 organize preview/apply 最小闭环与订阅手动执行链路。
-          搜索页可创建订阅与 SearchJob，榜单页可从本地榜单项创建订阅，订阅页可回看 run 结果与
+          搜索页可创建订阅与 SearchJob，榜单页可从 mock 或真实榜单项创建订阅，订阅页可回看 run 结果与
           organize 状态。接下来的重点不再是整理执行，而是补齐真实 metadata、真实 discovery 与自动调度。
         </p>
         <div class="hero-panel__actions">
@@ -59,6 +59,7 @@
           <ul>
             <li>App Shell、基础路由与插件 API 命名空间。</li>
             <li>metadata 搜索、SearchJob、候选评分与从详情创建订阅。</li>
+            <li>mock / ListenBrainz 榜单发现与从 chart entry 创建订阅。</li>
             <li>四类订阅 CRUD、手动 run 与 run 结果回看。</li>
             <li>音乐 organize preview/apply 与真实宿主插件 API 最小闭环。</li>
           </ul>
@@ -66,8 +67,8 @@
         <article class="note-card">
           <h4>待后续接入</h4>
           <ul>
-            <li>真实第三方 metadata provider。</li>
-            <li>真实榜单抓取、增量 discovery 与真实获取链路。</li>
+            <li>更多真实第三方 metadata provider。</li>
+            <li>更多真实榜单抓取、增量 discovery 与真实获取链路。</li>
             <li>生产级 scheduler、自动 subscription run 与下载后自动整理闭环。</li>
           </ul>
         </article>
@@ -84,10 +85,10 @@ import ModuleEntryCard from '@/components/ModuleEntryCard.vue';
 import { navigationModules } from '@/types/module';
 
 const dashboardStats = [
-  { label: 'Metadata Provider', value: '1', note: '当前仍以本地 seed / provider 骨架为主。' },
+  { label: 'Metadata Provider', value: '2', note: '当前支持 seed 与 MusicBrainz 两种模式。' },
   { label: '可搜索实体', value: '3', note: 'Artist / Album / Track 已接通统一搜索页。' },
   { label: '订阅类型', value: '4', note: 'artist / album / track / chart_entry 已可落库与手动执行。' },
-  { label: '榜单源', value: '4', note: '当前为 qq / netease / bilibili / local_mock 的本地入口。' },
+  { label: '榜单源', value: '2', note: '当前支持 mock 与 ListenBrainz 两种 discovery 模式。' },
   { label: '整理闭环', value: '1', note: '真实插件 API 下的音乐 preview / apply 已验证通过。' },
   { label: '真实自动化', value: '0', note: '真实 metadata、discovery 与 scheduler 仍待接入。' },
 ];

@@ -18,8 +18,8 @@ export const navigationModules: NavigationModule[] = [
     key: 'charts',
     title: '榜单',
     route: '/charts',
-    description: '本地榜单入口与从榜单项创建订阅，真实榜单源待接入',
-    status: '本地入口',
+    description: '榜单入口与从榜单项创建订阅，支持 mock 或真实榜单源',
+    status: '可用（mock/live）',
   },
   {
     key: 'search',

@@ -33,9 +33,9 @@ class ChartService:
         return ChartListData(
             items=items,
             total=len(items),
-            mock=True,
-            note="当前榜单列表来自 mock chart source，只用于发现入口和订阅动作验证。",
-            integration_point=CHART_INTEGRATION_POINT,
+            mock=self.adapter.mock,
+            note=self.adapter.note,
+            integration_point=self.adapter.integration_point,
         )
 
     def get_chart_detail(self, chart_id: str) -> ChartDetailData:

@@ -15,18 +15,26 @@ from ...services.subscriptions import SubscriptionService
 router = APIRouter(prefix="/charts", tags=["Charts"])
 
 
+def _chart_note(mock: bool, *, subject: str) -> str:
+    if mock:
+        return f"当前{subject}来自 local seed / mock chart source，用于发现入口与订阅动作验证。"
+    return f"当前{subject}来自真实 chart provider。"
+
+
 @router.get("/providers", summary="List chart providers")
 async def chart_providers(
     request: Request,
     service: ChartService = Depends(get_chart_service),
 ) -> ApiResponse:
+    data = service.list_providers()
+    mock = all(item.mock for item in data) if data else True
     return success_response(
         request,
-        data=service.list_providers(),
+        data=data,
         message="Chart providers loaded.",
         code="CHART_PROVIDERS_OK",
-        mock=True,
-        note="当前 provider 列表来自 mock chart source，尚未接入真实榜单抓取。",
+        mock=mock,
+        note=_chart_note(mock, subject="provider 列表"),
     )
 
 
@@ -38,13 +46,14 @@ async def list_charts(
     region: str | None = Query(default=None),
     service: ChartService = Depends(get_chart_service),
 ) -> ApiResponse:
+    data = service.list_charts(provider=provider, chart_type=chart_type, region=region)
     return success_response(
         request,
-        data=service.list_charts(provider=provider, chart_type=chart_type, region=region),
+        data=data,
         message="Chart list loaded.",
         code="CHART_LIST_OK",
-        mock=True,
-        note="当前榜单列表来自 local seed / mock chart source，用于 Phase 4 的发现与订阅入口。",
+        mock=data.mock,
+        note=data.note,
     )
 
 
@@ -54,13 +63,14 @@ async def chart_detail(
     request: Request,
     service: ChartService = Depends(get_chart_service),
 ) -> ApiResponse:
+    data = service.get_chart_detail(chart_id)
     return success_response(
         request,
-        data=service.get_chart_detail(chart_id),
+        data=data,
         message="Chart detail loaded.",
         code="CHART_DETAIL_OK",
-        mock=True,
-        note="当前榜单详情来自 mock chart source，榜单项可用于创建 Phase 4 最小订阅。",
+        mock=data.mock,
+        note=data.note,
     )
 
 
@@ -73,11 +83,16 @@ async def subscribe_chart(
     subscription_service: SubscriptionService = Depends(get_subscription_service),
 ) -> ApiResponse:
     entry = chart_service.get_chart_entry(chart_id, payload.chart_item_id)
+    data = subscription_service.create_from_chart_entry(entry=entry, payload=payload)
     return success_response(
         request,
-        data=subscription_service.create_from_chart_entry(entry=entry, payload=payload),
+        data=data,
         message="Subscription created from chart entry.",
         code="CHART_SUBSCRIBE_OK",
-        mock=True,
-        note="当前榜单订阅来自 mock chart entry，不会自动刷新或自动发现真实榜单增量。",
+        mock=entry.mock,
+        note=(
+            "当前榜单订阅来自 mock chart entry，不会自动刷新或自动发现真实榜单增量。"
+            if entry.mock
+            else "当前榜单订阅来自真实 chart entry，但尚未接入自动刷新或增量监控。"
+        ),
     )

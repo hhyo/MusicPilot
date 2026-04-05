@@ -27,7 +27,7 @@ const routes = [
         component: ChartsView,
         meta: {
           title: '榜单',
-          description: '当前提供本地榜单入口与从榜单项创建订阅，真实榜单源待接入。',
+          description: '当前提供 mock 或真实榜单入口，并支持从榜单项创建订阅。',
         },
       },
       {

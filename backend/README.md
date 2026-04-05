@@ -8,7 +8,7 @@ FastAPI 工程目录。当前已完成：
 - MusicBrainz Artist / Album / Track 搜索与详情最小接入
 - SQLite 最小落库与本地 seed 初始化
 - QueryBuilder、SearchJob、候选评分与 mock dispatch 边界
-- SubscriptionService、subscription run 与 mock chart discovery
+- SubscriptionService、subscription run 与 mock/ListenBrainz chart discovery
 - 音乐 organize preview/apply 与 organize 状态记录
 - search / dispatch / organize 接入模式选择与必要的 mock/real 环境切换
 - 真实 MoviePilot search / download / transfer 语义收敛与差异记录
@@ -18,7 +18,7 @@ FastAPI 工程目录。当前已完成：
 
 当前仍不包含：
 
-- 真实榜单抓取与增量监控
+- 更多真实榜单源、榜单增量监控与自动刷新
 - 真实 PT 搜索与下载器派发
 - 生产级订阅调度器与真实整理规则
 - 真实 MoviePilot `download/add` 多样例稳定成功
@@ -37,7 +37,9 @@ python -m app.db_init --reseed
   - `seed`：本地 seed metadata
   - `musicbrainz`：实时查询 MusicBrainz Artist / Album / Track 搜索与详情
 - `subscriptions/{id}/run` 为同步最小执行骨架
-- `charts/*` 为 local seed / mock chart source
+- `charts/*` 当前支持两种模式：
+  - `mock`：本地 chart seed
+  - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings
 - `organize/preview` 当前是 MusicPilot 本地音乐路径预览；`organize/apply` 当前通过宿主底层 file/storage 执行音乐文件整理。metadata 恢复优先使用显式 detail，其次使用已有上下文、嵌入标签与 `source_path` 线索
 - `jobs/*` 与 `downloads/dispatch` 会根据 host integration settings 在 mock 与 host 模式间切换
 - 当前真实运行时不再根据验证矩阵决定业务路径；矩阵只保留为验证产物
@@ -74,6 +76,12 @@ export MUSICPILOT_METADATA_PROVIDER_MODE=musicbrainz
 export MUSICPILOT_METADATA_PROVIDER_TIMEOUT_SECONDS=15
 export MUSICPILOT_METADATA_MUSICBRAINZ_BASE_URL=https://musicbrainz.org/ws/2
 export MUSICPILOT_METADATA_PROVIDER_USER_AGENT='MusicPilot/0.1.0 (local)'
+export MUSICPILOT_CHART_PROVIDER_MODE=listenbrainz
+export MUSICPILOT_CHART_PROVIDER_TIMEOUT_SECONDS=15
+export MUSICPILOT_CHART_LISTENBRAINZ_BASE_URL=https://api.listenbrainz.org
+export MUSICPILOT_CHART_PROVIDER_USER_AGENT='MusicPilot/0.1.0 (local)'
+export MUSICPILOT_CHART_LISTENBRAINZ_RANGE=week
+export MUSICPILOT_CHART_LISTENBRAINZ_COUNT=20
 export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backend/data/host_validation_matrix.latest.json
 ```
 

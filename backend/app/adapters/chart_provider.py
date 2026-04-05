@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
+from time import monotonic, sleep
+
+import httpx
 
 from ..schemas.metadata import MetadataSeedCatalog
 from ..schemas.mvp import EntityType
@@ -19,9 +22,33 @@ CHART_INTEGRATION_POINT = (
     "chart source contracts are validated."
 )
 CHART_NOTE = "当前榜单数据来自 local seed / mock chart source，不代表已接入真实榜单抓取。"
+LISTENBRAINZ_CHART_NOTE = "当前榜单数据来自真实 ListenBrainz sitewide stats。"
+LISTENBRAINZ_CHART_INTEGRATION_POINT = "ListenBrainzChartProviderAdapter"
 
 
 class ChartProviderAdapter(ABC):
+    @property
+    @abstractmethod
+    def provider(self) -> str:
+        """Logical provider id."""
+
+    @property
+    @abstractmethod
+    def source_type(self) -> str:
+        """Descriptor for source provenance."""
+
+    @property
+    def mock(self) -> bool:
+        return True
+
+    @property
+    def note(self) -> str:
+        return CHART_NOTE
+
+    @property
+    def integration_point(self) -> str:
+        return CHART_INTEGRATION_POINT
+
     @abstractmethod
     def list_providers(self) -> list[ChartProviderInfo]:
         """Return available chart sources."""
@@ -44,6 +71,14 @@ class MockChartProviderAdapter(ChartProviderAdapter):
         self.catalog = catalog
         self._charts = self._build_charts()
 
+    @property
+    def provider(self) -> str:
+        return self.catalog.provider
+
+    @property
+    def source_type(self) -> str:
+        return "mock_chart_seed"
+
     def list_providers(self) -> list[ChartProviderInfo]:
         return [
             ChartProviderInfo(
@@ -51,6 +86,7 @@ class MockChartProviderAdapter(ChartProviderAdapter):
                 chart_source="qq",
                 display_name="QQ Music",
                 enabled=True,
+                mock=True,
                 note=CHART_NOTE,
                 integration_point=CHART_INTEGRATION_POINT,
             ),
@@ -59,6 +95,7 @@ class MockChartProviderAdapter(ChartProviderAdapter):
                 chart_source="netease",
                 display_name="NetEase Cloud Music",
                 enabled=True,
+                mock=True,
                 note=CHART_NOTE,
                 integration_point=CHART_INTEGRATION_POINT,
             ),
@@ -67,6 +104,7 @@ class MockChartProviderAdapter(ChartProviderAdapter):
                 chart_source="bilibili",
                 display_name="Bilibili Music",
                 enabled=True,
+                mock=True,
                 note=CHART_NOTE,
                 integration_point=CHART_INTEGRATION_POINT,
             ),
@@ -75,6 +113,7 @@ class MockChartProviderAdapter(ChartProviderAdapter):
                 chart_source="local_mock",
                 display_name="Local Mock Discovery",
                 enabled=True,
+                mock=True,
                 note=CHART_NOTE,
                 integration_point=CHART_INTEGRATION_POINT,
             ),
@@ -289,3 +328,210 @@ class MockChartProviderAdapter(ChartProviderAdapter):
             ],
         )
         return charts
+
+
+class ListenBrainzChartProviderAdapter(ChartProviderAdapter):
+    def __init__(
+        self,
+        *,
+        client: httpx.Client | None = None,
+        base_url: str = "https://api.listenbrainz.org",
+        user_agent: str = "MusicPilot/0.1.0 (local)",
+        timeout_seconds: float = 15.0,
+        stats_range: str = "week",
+        count: int = 20,
+    ) -> None:
+        self._client = client or httpx.Client(
+            base_url=base_url.rstrip("/"),
+            headers={"User-Agent": user_agent},
+            timeout=timeout_seconds,
+        )
+        self.stats_range = stats_range
+        self.count = count
+        self._last_request_at = 0.0
+
+    @property
+    def provider(self) -> str:
+        return "listenbrainz"
+
+    @property
+    def source_type(self) -> str:
+        return "listenbrainz_sitewide_stats"
+
+    @property
+    def mock(self) -> bool:
+        return False
+
+    @property
+    def note(self) -> str:
+        return LISTENBRAINZ_CHART_NOTE
+
+    @property
+    def integration_point(self) -> str:
+        return LISTENBRAINZ_CHART_INTEGRATION_POINT
+
+    def list_providers(self) -> list[ChartProviderInfo]:
+        return [
+            ChartProviderInfo(
+                id=self.provider,
+                chart_source=self.provider,
+                display_name="ListenBrainz",
+                enabled=True,
+                mock=False,
+                note=self.note,
+                integration_point=self.integration_point,
+            )
+        ]
+
+    def list_charts(self) -> list[ChartInfo]:
+        artist_payload = self._get("/1/stats/sitewide/artists")
+        track_payload = self._get("/1/stats/sitewide/recordings")
+        return [
+            self._build_artist_chart(payload=artist_payload),
+            self._build_track_chart(payload=track_payload),
+        ]
+
+    def get_chart_detail(self, chart_id: str) -> ChartDetailData:
+        if chart_id == self._artist_chart_id:
+            payload = self._get("/1/stats/sitewide/artists")
+            return self._build_artist_detail(payload)
+        if chart_id == self._track_chart_id:
+            payload = self._get("/1/stats/sitewide/recordings")
+            return self._build_track_detail(payload)
+        raise KeyError(f"Chart {chart_id} was not found in ListenBrainz sitewide stats.")
+
+    def get_chart_entry(self, chart_id: str, item_id: str) -> ChartEntryInfo:
+        detail = self.get_chart_detail(chart_id)
+        for item in detail.items:
+            if item.item_id == item_id:
+                return item
+        raise KeyError(f"Chart entry {item_id} was not found in chart {chart_id}.")
+
+    @property
+    def _artist_chart_id(self) -> str:
+        return f"chart-listenbrainz-top-artists-{self.stats_range}"
+
+    @property
+    def _track_chart_id(self) -> str:
+        return f"chart-listenbrainz-top-tracks-{self.stats_range}"
+
+    def _build_artist_chart(self, payload: dict | None) -> ChartInfo:
+        artists = (payload or {}).get("artists") or []
+        return ChartInfo(
+            id=self._artist_chart_id,
+            chart_source=self.provider,
+            chart_name=f"ListenBrainz 热门艺人（{self.stats_range}）",
+            chart_type=EntityType.ARTIST,
+            region="Global",
+            category="sitewide",
+            refresh_hint=f"sitewide-{self.stats_range}",
+            item_count=len([item for item in artists if item.get("artist_mbid")]),
+            updated_at=self._updated_at(payload),
+            mock=False,
+            note=self.note,
+        )
+
+    def _build_track_chart(self, payload: dict | None) -> ChartInfo:
+        recordings = (payload or {}).get("recordings") or []
+        return ChartInfo(
+            id=self._track_chart_id,
+            chart_source=self.provider,
+            chart_name=f"ListenBrainz 热门单曲（{self.stats_range}）",
+            chart_type=EntityType.TRACK,
+            region="Global",
+            category="sitewide",
+            refresh_hint=f"sitewide-{self.stats_range}",
+            item_count=len([item for item in recordings if item.get("recording_mbid")]),
+            updated_at=self._updated_at(payload),
+            mock=False,
+            note=self.note,
+        )
+
+    def _build_artist_detail(self, payload: dict) -> ChartDetailData:
+        items: list[ChartEntryInfo] = []
+        for index, item in enumerate(payload.get("artists") or [], start=1):
+            artist_mbid = item.get("artist_mbid")
+            if not artist_mbid:
+                continue
+            listen_count = item.get("listen_count")
+            subtitle = f"{listen_count} listens" if listen_count is not None else None
+            items.append(
+                ChartEntryInfo(
+                    item_id=f"{self._artist_chart_id}-item-{index:03d}",
+                    chart_id=self._artist_chart_id,
+                    chart_source=self.provider,
+                    chart_name=f"ListenBrainz 热门艺人（{self.stats_range}）",
+                    rank=index,
+                    item_type=EntityType.ARTIST,
+                    target_id=artist_mbid,
+                    target_name=item.get("artist_name", artist_mbid),
+                    subtitle=subtitle,
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    mock=False,
+                    note=self.note,
+                )
+            )
+        return ChartDetailData(
+            chart=self._build_artist_chart(payload),
+            items=items,
+            item_count=len(items),
+            mock=False,
+            note=self.note,
+            integration_point=self.integration_point,
+        )
+
+    def _build_track_detail(self, payload: dict) -> ChartDetailData:
+        items: list[ChartEntryInfo] = []
+        for index, item in enumerate(payload.get("recordings") or [], start=1):
+            recording_mbid = item.get("recording_mbid")
+            if not recording_mbid:
+                continue
+            items.append(
+                ChartEntryInfo(
+                    item_id=f"{self._track_chart_id}-item-{index:03d}",
+                    chart_id=self._track_chart_id,
+                    chart_source=self.provider,
+                    chart_name=f"ListenBrainz 热门单曲（{self.stats_range}）",
+                    rank=index,
+                    item_type=EntityType.TRACK,
+                    target_id=recording_mbid,
+                    target_name=item.get("track_name", recording_mbid),
+                    subtitle=item.get("artist_name"),
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    mock=False,
+                    note=self.note,
+                )
+            )
+        return ChartDetailData(
+            chart=self._build_track_chart(payload),
+            items=items,
+            item_count=len(items),
+            mock=False,
+            note=self.note,
+            integration_point=self.integration_point,
+        )
+
+    def _get(self, path: str) -> dict:
+        self._respect_rate_limit()
+        response = self._client.get(
+            path,
+            params={"count": self.count, "range": self.stats_range},
+        )
+        response.raise_for_status()
+        payload = response.json().get("payload", {})
+        return payload if isinstance(payload, dict) else {}
+
+    def _respect_rate_limit(self) -> None:
+        elapsed = monotonic() - self._last_request_at
+        if self._last_request_at and elapsed < 1.0:
+            sleep(1.0 - elapsed)
+        self._last_request_at = monotonic()
+
+    @staticmethod
+    def _updated_at(payload: dict | None) -> datetime:
+        last_updated = (payload or {}).get("last_updated")
+        if isinstance(last_updated, (int, float)):
+            return datetime.fromtimestamp(last_updated, tz=timezone.utc)
+        return utc_now()

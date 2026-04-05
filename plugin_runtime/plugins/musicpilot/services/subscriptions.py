@@ -118,6 +118,8 @@ class SubscriptionService:
             note=(
                 "当前榜单订阅来自 mock chart entry。后续真实榜单接入后，可在此结构上接入增量刷新、"
                 "命中检测与调度器。"
+                if entry.mock
+                else "当前榜单订阅来自真实 chart entry，但尚未接入自动刷新、增量命中检测与调度器。"
             ),
         )
         self.session.commit()
