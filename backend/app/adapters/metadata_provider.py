@@ -8,6 +8,7 @@ from time import monotonic, sleep
 
 import httpx
 
+from ..core.runtime_cache import RuntimeTTLCache, stable_cache_key
 from ..schemas.metadata import (
     MetadataDetail,
     MetadataReference,
@@ -223,6 +224,10 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
         base_url: str = "https://musicbrainz.org/ws/2",
         user_agent: str = "MusicPilot/0.1.0 (local)",
         timeout_seconds: float = 15.0,
+        cache_enabled: bool = True,
+        cache_maxsize: int = 512,
+        search_cache_ttl_seconds: int = 1800,
+        detail_cache_ttl_seconds: int = 21600,
     ) -> None:
         self._client = client or httpx.Client(
             base_url=base_url.rstrip("/"),
@@ -230,6 +235,24 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             timeout=timeout_seconds,
         )
         self._last_request_at = 0.0
+        self._search_cache = (
+            RuntimeTTLCache(
+                region="musicpilot_metadata_search",
+                maxsize=cache_maxsize,
+                ttl=search_cache_ttl_seconds,
+            )
+            if cache_enabled
+            else None
+        )
+        self._detail_cache = (
+            RuntimeTTLCache(
+                region="musicpilot_metadata_detail",
+                maxsize=cache_maxsize,
+                ttl=detail_cache_ttl_seconds,
+            )
+            if cache_enabled
+            else None
+        )
 
     @property
     def provider(self) -> str:
@@ -247,6 +270,18 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
         raise NotImplementedError("MusicBrainz provider does not provide a local seed catalog.")
 
     def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+        cache_key = stable_cache_key(
+            "musicbrainz_search",
+            entity_type=payload.type.value,
+            keyword=payload.keyword.strip().lower(),
+            page=payload.page,
+            page_size=payload.page_size,
+        )
+        if self._search_cache is not None:
+            cached_result = self._search_cache.get(cache_key)
+            if cached_result is not None:
+                return cached_result
+
         path, response_key = self._search_path(payload.type)
         data = self._get(
             path,
@@ -258,7 +293,7 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             },
         )
         items = [self._map_search_item(payload.type, item) for item in data.get(response_key, [])]
-        return MetadataSearchData(
+        result = MetadataSearchData(
             keyword=payload.keyword,
             entity_type=payload.type,
             page=payload.page,
@@ -269,13 +304,31 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             integration_point="MusicBrainzMetadataProviderAdapter.search",
             items=items,
         )
+        if self._search_cache is not None:
+            self._search_cache.set(cache_key, result)
+        return result
 
     def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+        cache_key = stable_cache_key(
+            "musicbrainz_detail",
+            entity_type=entity_type.value,
+            entity_id=entity_id,
+        )
+        if self._detail_cache is not None:
+            cached_result = self._detail_cache.get(cache_key)
+            if cached_result is not None:
+                return cached_result
+
         if entity_type == EntityType.ARTIST:
-            return self._get_artist_detail(entity_id)
-        if entity_type == EntityType.ALBUM:
-            return self._get_album_detail(entity_id)
-        return self._get_track_detail(entity_id)
+            result = self._get_artist_detail(entity_id)
+        elif entity_type == EntityType.ALBUM:
+            result = self._get_album_detail(entity_id)
+        else:
+            result = self._get_track_detail(entity_id)
+
+        if self._detail_cache is not None:
+            self._detail_cache.set(cache_key, result)
+        return result
 
     def _get_artist_detail(self, artist_id: str) -> MetadataDetail:
         data = self._get(

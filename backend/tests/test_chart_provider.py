@@ -31,6 +31,39 @@ class FakeClient:
 
 
 class ListenBrainzChartProviderAdapterTest(unittest.TestCase):
+    def test_list_charts_and_detail_reuse_cached_payload(self) -> None:
+        client = FakeClient(
+            payloads={
+                "/1/stats/sitewide/artists": {
+                    "payload": {
+                        "last_updated": 1_775_500_000,
+                        "artists": [{"artist_mbid": "artist-1", "artist_name": "Adele", "listen_count": 99}],
+                    }
+                },
+                "/1/stats/sitewide/recordings": {
+                    "payload": {
+                        "last_updated": 1_775_500_000,
+                        "recordings": [
+                            {
+                                "recording_mbid": "rec-1",
+                                "track_name": "Hello",
+                                "artist_name": "Adele",
+                                "listen_count": 10,
+                            }
+                        ],
+                    }
+                },
+            }
+        )
+        adapter = ListenBrainzChartProviderAdapter(client=client)
+
+        adapter.list_charts()
+        adapter.get_chart_detail("chart-listenbrainz-top-tracks-week")
+        adapter.get_chart_entry("chart-listenbrainz-top-tracks-week", "chart-listenbrainz-top-tracks-week-item-001")
+
+        self.assertEqual(client.calls.count(("/1/stats/sitewide/recordings", {"count": 20, "range": "week"})), 1)
+        self.assertEqual(client.calls.count(("/1/stats/sitewide/artists", {"count": 20, "range": "week"})), 1)
+
     def test_list_charts_returns_artist_and_track_chart(self) -> None:
         adapter = ListenBrainzChartProviderAdapter(
             client=FakeClient(

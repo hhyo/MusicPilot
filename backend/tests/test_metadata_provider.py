@@ -71,6 +71,83 @@ class MetadataServiceLiveProviderTest(unittest.TestCase):
 
 
 class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
+    def test_search_reuses_cached_result_for_identical_payload(self) -> None:
+        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+
+        call_count = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            call_count += 1
+            body = {
+                "count": 1,
+                "offset": 0,
+                "artists": [
+                    {
+                        "id": "mb-artist-1",
+                        "name": "Adele",
+                        "country": "GB",
+                        "aliases": [{"name": "阿黛尔"}],
+                        "life-span": {"begin": "2008-01-01"},
+                        "tags": [{"name": "pop"}],
+                    }
+                ],
+            }
+            return httpx.Response(200, json=body)
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://musicbrainz.test/ws/2",
+        )
+        adapter = MusicBrainzMetadataProviderAdapter(client=client, user_agent="MusicPilot-Test/1.0")
+        payload = MetadataSearchRequest(keyword="Adele", type=EntityType.ARTIST, page=1, page_size=10)
+
+        first = adapter.search(payload)
+        second = adapter.search(payload)
+
+        self.assertEqual(call_count, 1)
+        self.assertEqual(first.items[0].title, second.items[0].title)
+
+    def test_detail_reuses_cached_result_for_identical_entity(self) -> None:
+        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+
+        call_count = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            call_count += 1
+            body = {
+                "id": "mb-album-25",
+                "title": "25",
+                "primary-type": "Album",
+                "first-release-date": "2015-11-20",
+                "aliases": [{"name": "二十五"}],
+                "tags": [{"name": "pop"}],
+                "artist-credit": [
+                    {
+                        "name": "Adele",
+                        "artist": {
+                            "id": "mb-artist-1",
+                            "name": "Adele",
+                        },
+                    }
+                ],
+                "releases": [{"id": "release-25-1", "title": "25"}],
+            }
+            return httpx.Response(200, json=body)
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://musicbrainz.test/ws/2",
+        )
+        adapter = MusicBrainzMetadataProviderAdapter(client=client, user_agent="MusicPilot-Test/1.0")
+
+        first = adapter.get_detail(EntityType.ALBUM, "mb-album-25")
+        second = adapter.get_detail(EntityType.ALBUM, "mb-album-25")
+
+        self.assertEqual(call_count, 1)
+        self.assertEqual(first.album_title, second.album_title)
+
     def test_artist_search_maps_musicbrainz_result(self) -> None:
         from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
 

@@ -75,6 +75,10 @@ def get_metadata_provider_adapter() -> MetadataProviderAdapter:
             base_url=settings.metadata_musicbrainz_base_url,
             user_agent=settings.metadata_provider_user_agent,
             timeout_seconds=settings.metadata_provider_timeout_seconds,
+            cache_enabled=settings.metadata_cache_enabled,
+            cache_maxsize=settings.metadata_cache_maxsize,
+            search_cache_ttl_seconds=settings.metadata_search_cache_ttl_seconds,
+            detail_cache_ttl_seconds=settings.metadata_detail_cache_ttl_seconds,
         )
     return MockMetadataProviderAdapter()
 
@@ -88,6 +92,9 @@ def get_chart_provider_adapter() -> ChartProviderAdapter:
             timeout_seconds=settings.chart_provider_timeout_seconds,
             stats_range=settings.chart_listenbrainz_range,
             count=settings.chart_listenbrainz_count,
+            cache_enabled=settings.chart_cache_enabled,
+            cache_maxsize=settings.chart_cache_maxsize,
+            cache_ttl_seconds=settings.chart_cache_ttl_seconds,
         )
     metadata_adapter = MockMetadataProviderAdapter()
     return MockChartProviderAdapter(metadata_adapter.load_seed_catalog())

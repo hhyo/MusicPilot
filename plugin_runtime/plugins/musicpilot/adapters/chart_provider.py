@@ -8,6 +8,7 @@ from time import monotonic, sleep
 
 import httpx
 
+from ..core.runtime_cache import RuntimeTTLCache, stable_cache_key
 from ..schemas.metadata import MetadataSeedCatalog
 from ..schemas.mvp import EntityType
 from ..schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo, ChartProviderInfo
@@ -340,6 +341,9 @@ class ListenBrainzChartProviderAdapter(ChartProviderAdapter):
         timeout_seconds: float = 15.0,
         stats_range: str = "week",
         count: int = 20,
+        cache_enabled: bool = True,
+        cache_maxsize: int = 256,
+        cache_ttl_seconds: int = 900,
     ) -> None:
         self._client = client or httpx.Client(
             base_url=base_url.rstrip("/"),
@@ -349,6 +353,15 @@ class ListenBrainzChartProviderAdapter(ChartProviderAdapter):
         self.stats_range = stats_range
         self.count = count
         self._last_request_at = 0.0
+        self._payload_cache = (
+            RuntimeTTLCache(
+                region="musicpilot_chart_payload",
+                maxsize=cache_maxsize,
+                ttl=cache_ttl_seconds,
+            )
+            if cache_enabled
+            else None
+        )
 
     @property
     def provider(self) -> str:
@@ -514,6 +527,17 @@ class ListenBrainzChartProviderAdapter(ChartProviderAdapter):
         )
 
     def _get(self, path: str) -> dict:
+        cache_key = stable_cache_key(
+            "listenbrainz_payload",
+            path=path,
+            stats_range=self.stats_range,
+            count=self.count,
+        )
+        if self._payload_cache is not None:
+            cached_payload = self._payload_cache.get(cache_key)
+            if cached_payload is not None:
+                return cached_payload
+
         self._respect_rate_limit()
         response = self._client.get(
             path,
@@ -521,7 +545,10 @@ class ListenBrainzChartProviderAdapter(ChartProviderAdapter):
         )
         response.raise_for_status()
         payload = response.json().get("payload", {})
-        return payload if isinstance(payload, dict) else {}
+        normalized_payload = payload if isinstance(payload, dict) else {}
+        if self._payload_cache is not None:
+            self._payload_cache.set(cache_key, normalized_payload)
+        return normalized_payload
 
     def _respect_rate_limit(self) -> None:
         elapsed = monotonic() - self._last_request_at

@@ -137,6 +137,10 @@ export MUSICPILOT_METADATA_PROVIDER_MODE=musicbrainz
 export MUSICPILOT_METADATA_PROVIDER_TIMEOUT_SECONDS=15
 export MUSICPILOT_METADATA_MUSICBRAINZ_BASE_URL=https://musicbrainz.org/ws/2
 export MUSICPILOT_METADATA_PROVIDER_USER_AGENT='MusicPilot/0.1.0 (local)'
+export MUSICPILOT_METADATA_CACHE_ENABLED=true
+export MUSICPILOT_METADATA_CACHE_MAXSIZE=512
+export MUSICPILOT_METADATA_SEARCH_CACHE_TTL_SECONDS=1800
+export MUSICPILOT_METADATA_DETAIL_CACHE_TTL_SECONDS=21600
 ```
 
 如需启用真实 chart provider，可额外配置：
@@ -148,6 +152,9 @@ export MUSICPILOT_CHART_LISTENBRAINZ_BASE_URL=https://api.listenbrainz.org
 export MUSICPILOT_CHART_PROVIDER_USER_AGENT='MusicPilot/0.1.0 (local)'
 export MUSICPILOT_CHART_LISTENBRAINZ_RANGE=week
 export MUSICPILOT_CHART_LISTENBRAINZ_COUNT=20
+export MUSICPILOT_CHART_CACHE_ENABLED=true
+export MUSICPILOT_CHART_CACHE_MAXSIZE=256
+export MUSICPILOT_CHART_CACHE_TTL_SECONDS=900
 export MUSICPILOT_SUBSCRIPTION_SCHEDULER_ENABLED=true
 export MUSICPILOT_SUBSCRIPTION_SCHEDULER_POLL_SECONDS=30
 export MUSICPILOT_SUBSCRIPTION_SCHEDULER_DEFAULT_INTERVAL_MINUTES=360
@@ -158,6 +165,12 @@ export MUSICPILOT_SUBSCRIPTION_SCHEDULER_DEFAULT_INTERVAL_MINUTES=360
 - `mock`：始终使用 mock adapter
 - `prefer_host`：优先使用 host-backed adapter；若 capability 不满足或运行时报错，直接暴露失败
 - `strict_host`：必须使用 host-backed；能力不足时直接报错
+
+当前 `metadata` 与 `charts` 的真实 provider 已支持最小缓存：
+
+- 在真实插件运行态下，优先复用 MoviePilot 推荐的统一 `TTLCache`
+- 在本地 backend/test 运行态下，自动回退到本地内存 TTL cache
+- 第一阶段缓存面只覆盖 provider 输出，不包含后台刷新或持久化缓存管理
 
 ## 当前固定调用规则
 
