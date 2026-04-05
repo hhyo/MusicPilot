@@ -270,6 +270,9 @@ class OrganizeService:
         if not download_hash:
             return payload
 
+        if self._skip_host_handoff_lookup(binding_payload=binding_payload):
+            return payload
+
         resolved = self.path_handoff_service.resolve_from_download_with_retry(str(download_hash))
         if resolved is None:
             if binding_model is not None and self._binding_handoff_stale(binding_model):
@@ -309,6 +312,24 @@ class OrganizeService:
         if candidate_payload.get("host_transfer_filetype"):
             patch["host_transfer_filetype"] = candidate_payload["host_transfer_filetype"]
         return patch
+
+    def _skip_host_handoff_lookup(self, *, binding_payload: dict) -> bool:
+        if not self.strategy_service.settings.host_integration_enabled:
+            return True
+        if not self.strategy_service.settings.host_base_url:
+            return True
+
+        dispatch_backend = binding_payload.get("dispatch_backend")
+        if isinstance(dispatch_backend, str) and dispatch_backend.lower() == "mock":
+            return True
+
+        adapter_resolution = binding_payload.get("adapter_resolution")
+        if isinstance(adapter_resolution, dict):
+            adapter_mode = adapter_resolution.get("adapter_mode")
+            if isinstance(adapter_mode, str) and adapter_mode.lower() == "mock":
+                return True
+
+        return False
 
     def _binding_handoff_stale(self, binding_model) -> bool:
         if binding_model is None or binding_model.dispatched_at is None:

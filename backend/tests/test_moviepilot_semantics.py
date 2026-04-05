@@ -498,18 +498,21 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
 
 
 class RealOrganizeAdapterTest(unittest.TestCase):
-    def test_preview_requires_source_path(self) -> None:
+    def test_preview_uses_local_music_plan_without_source_path(self) -> None:
         adapter = RealOrganizeAdapter(settings=build_settings(), client=FakeHostClient())  # type: ignore[arg-type]
 
-        with self.assertRaises(HostTransportError) as context:
-            adapter.preview(
-                candidate=build_candidate(),
-                metadata_detail=None,
-                binding_id=None,
-                plan=build_plan(),
-            )
+        result = adapter.preview(
+            candidate=build_candidate(),
+            metadata_detail=None,
+            binding_id=None,
+            plan=build_plan(),
+        )
 
-        self.assertEqual(context.exception.reason_code, "moviepilot_transfer_source_path_missing")
+        self.assertEqual(result.organize_backend, AdapterMode.HOST)
+        self.assertEqual(result.organize_status, OrganizeStatus.PREVIEW_READY)
+        self.assertEqual(result.verification_state, VerificationState.VERIFIED)
+        self.assertIn("preview", result.integration_point)
+        self.assertEqual(result.target_relative_path, build_plan().target_relative_path)
 
     def test_preview_uses_music_local_plan_preview_when_source_path_and_plan_exist(self) -> None:
         candidate = build_candidate(

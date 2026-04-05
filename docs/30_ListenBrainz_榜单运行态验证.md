@@ -46,11 +46,11 @@ MusicPilot 当前已经支持 `MUSICPILOT_CHART_PROVIDER_MODE=listenbrainz`，�
 - track chart entry 的 `target_id` 为 `recording_mbid`
 - chart entry 订阅创建返回 `200`
 - 使用 artist chart entry 创建的订阅可以成功进入手动 `run`
-- 当前 `run` 已能走到：
+- 当时的 `run` 已能走到：
   - `metadata detail`
   - `search job`
   - `organize preview`
-- 当前 execution status 仍会停在现阶段获取链的 `manual_pending`，这不是 chart provider 阻塞
+- 当时的 execution status 仍停在现阶段获取链的 `manual_pending`，这不是 chart provider 阻塞。当前主链已继续推进到自动 dispatch，并会在具备明确本地源文件时继续自动 apply。
 
 ## 当前边界
 

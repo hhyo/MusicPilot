@@ -15,6 +15,8 @@ export type SubscriptionRunStatus =
   | 'queued'
   | 'running'
   | 'matched'
+  | 'dispatched'
+  | 'applied'
   | 'manual_pending'
   | 'no_result'
   | 'failed';

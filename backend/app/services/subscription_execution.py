@@ -6,10 +6,13 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from ..repositories.orchestration import OrchestrationRepository
-from ..schemas.acquisition import QueryPreferences, SearchJobCreateRequest
+from ..schemas.acquisition import DispatchRequest, QueryPreferences, SearchCandidateDetail, SearchJobCreateRequest
 from ..schemas.metadata import MetadataDetail
-from ..schemas.mvp import EntityType, JobStatus, TriggerSource
+from ..schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from ..schemas.orchestration import (
+    OrganizeApplyRequest,
+    OrganizeStatus,
+    OrganizePreviewRequest,
     SubscriptionRunDetail,
     SubscriptionRunListData,
     SubscriptionRunStatus,
@@ -17,6 +20,7 @@ from ..schemas.orchestration import (
     SubscriptionSummary,
     SubscriptionType,
 )
+from .dispatch import DispatchService
 from .organize import OrganizeService
 from .search_job import SearchJobService
 from .subscriptions import serialize_run_summary, serialize_subscription
@@ -24,7 +28,9 @@ from .subscriptions import serialize_run_summary, serialize_subscription
 
 RUN_NOTE = (
     "当前订阅执行器会在手动 run 或最小应用内 scheduler 触发下，同步创建并执行一次 SearchJob，"
-    "并生成 organize preview。真实 organize apply 仍按 capability 与 adapter 模式选择 host 或 mock。"
+    "对最佳 AUTO_DOWNLOAD 候选会继续自动派发并生成 organize preview；"
+    "若 preview 已拿到明确本地源文件，则继续自动 apply。"
+    "真实 organize apply 仍按 capability 与 adapter 模式选择 host 或 mock。"
 )
 
 
@@ -35,10 +41,12 @@ class SubscriptionExecutionService:
         *,
         search_job_service: SearchJobService,
         organize_service: OrganizeService,
+        dispatch_service: DispatchService | None = None,
     ):
         self.session = session
         self.search_job_service = search_job_service
         self.organize_service = organize_service
+        self.dispatch_service = dispatch_service
         self.repository = OrchestrationRepository(session)
 
     def execute(self, subscription_id: str) -> SubscriptionRunDetail:
@@ -59,24 +67,73 @@ class SubscriptionExecutionService:
             candidates_data = self.search_job_service.list_candidates(executed_job.id)
 
             organize_preview = None
+            execution_status = self._map_run_status(executed_job.status).value
+            summary = {
+                "best_score": executed_job.summary.get("best_score", 0.0),
+                "candidate_count": candidates_data.total,
+                "mock_host_search": executed_job.mock,
+                "organize_preview_id": None,
+                "organize_backend": None,
+                "organize_fallback_reason": None,
+                "dispatch_status": None,
+                "dispatch_backend": None,
+                "binding_id": None,
+                "last_dispatched_candidate_id": None,
+            }
             if candidates_data.items:
-                organize_preview = self.organize_service.preview_for_candidate(
-                    candidate_id=candidates_data.items[0].id,
-                    subscription_run_id=run.id,
+                auto_candidate = self._select_auto_dispatch_candidate(candidates_data.items)
+                if auto_candidate is not None and self.dispatch_service is not None:
+                    dispatch_result = self.dispatch_service.dispatch(
+                        DispatchRequest(
+                            result_id=auto_candidate.id,
+                            downloader_id=self._resolve_downloader_id(subscription),
+                            manual_confirm=True,
+                        )
+                    )
+                    summary.update(
+                        {
+                            "dispatch_status": dispatch_result.dispatch_status,
+                            "dispatch_backend": dispatch_result.dispatch_backend.value,
+                            "binding_id": dispatch_result.binding_id,
+                            "last_dispatched_candidate_id": dispatch_result.candidate_id,
+                        }
+                    )
+                    if dispatch_result.binding_id:
+                        organize_preview = self.organize_service.preview(
+                            OrganizePreviewRequest(binding_id=dispatch_result.binding_id),
+                            subscription_run_id=run.id,
+                        )
+                    else:
+                        organize_preview = self.organize_service.preview_for_candidate(
+                            candidate_id=auto_candidate.id,
+                            subscription_run_id=run.id,
+                        )
+                    if dispatch_result.dispatchable:
+                        execution_status = SubscriptionRunStatus.DISPATCHED.value
+                        if organize_preview is not None and self._should_auto_apply(organize_preview, auto_candidate):
+                            organize_preview = self.organize_service.apply(
+                                OrganizeApplyRequest(organize_job_id=organize_preview.id)
+                            )
+                            execution_status = SubscriptionRunStatus.APPLIED.value
+                else:
+                    organize_preview = self.organize_service.preview_for_candidate(
+                        candidate_id=candidates_data.items[0].id,
+                        subscription_run_id=run.id,
+                    )
+            if organize_preview is not None:
+                summary.update(
+                    {
+                        "organize_preview_id": organize_preview.id,
+                        "organize_backend": organize_preview.organize_backend.value,
+                        "organize_fallback_reason": organize_preview.fallback_reason,
+                    }
                 )
 
             self.repository.mark_run_finished(
                 run,
-                execution_status=self._map_run_status(executed_job.status).value,
+                execution_status=execution_status,
                 matched_candidates_count=candidates_data.total,
-                summary_json={
-                    "best_score": executed_job.summary.get("best_score", 0.0),
-                    "candidate_count": candidates_data.total,
-                    "mock_host_search": executed_job.mock,
-                    "organize_preview_id": organize_preview.id if organize_preview else None,
-                    "organize_backend": organize_preview.organize_backend.value if organize_preview else None,
-                    "organize_fallback_reason": organize_preview.fallback_reason if organize_preview else None,
-                },
+                summary_json=summary,
                 search_job_id=executed_job.id,
                 organize_record_id=organize_preview.id if organize_preview else None,
             )
@@ -168,6 +225,8 @@ class SubscriptionExecutionService:
         return EntityType(target_entity_type), subscription.target_id
 
     def _map_run_status(self, job_status: JobStatus) -> SubscriptionRunStatus:
+        if job_status == JobStatus.DISPATCHED:
+            return SubscriptionRunStatus.DISPATCHED
         if job_status == JobStatus.MANUAL_PENDING:
             return SubscriptionRunStatus.MANUAL_PENDING
         if job_status == JobStatus.NO_RESULT:
@@ -175,3 +234,39 @@ class SubscriptionExecutionService:
         if job_status == JobStatus.FAILED:
             return SubscriptionRunStatus.FAILED
         return SubscriptionRunStatus.MATCHED
+
+    def _select_auto_dispatch_candidate(
+        self,
+        candidates: list[SearchCandidateDetail],
+    ) -> SearchCandidateDetail | None:
+        for candidate in candidates:
+            if candidate.dispatchable and candidate.decision == DecisionStatus.AUTO_DOWNLOAD:
+                return candidate
+        return None
+
+    def _resolve_downloader_id(self, subscription) -> str:
+        preference_json = subscription.preference_json or {}
+        for key in ("downloader_id", "target_downloader"):
+            value = preference_json.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return "mock-downloader"
+
+    def _should_auto_apply(
+        self,
+        organize_preview,
+        candidate: SearchCandidateDetail,
+    ) -> bool:
+        if organize_preview.organize_status != OrganizeStatus.PREVIEW_READY:
+            return False
+        if organize_preview.path_handoff and organize_preview.path_handoff.source_path:
+            return True
+
+        raw_payload = candidate.raw_payload or {}
+        if raw_payload.get("host_transfer_source_path") or raw_payload.get("local_file_path"):
+            return True
+        for key in ("host_transfer_source", "source_fileitem"):
+            fileitem = raw_payload.get(key)
+            if isinstance(fileitem, dict) and fileitem.get("path"):
+                return True
+        return False

@@ -36,7 +36,7 @@ python -m app.db_init --reseed
 - `metadata/*` 当前支持两种模式：
   - `seed`：本地 seed metadata
   - `musicbrainz`：实时查询 MusicBrainz Artist / Album / Track 搜索与详情
-- `subscriptions/{id}/run` 为同步最小执行骨架，应用内 scheduler 会在 due 时触发同一条执行链
+- `subscriptions/{id}/run` 为同步最小执行骨架，应用内 scheduler 会在 due 时触发同一条执行链；若最佳候选为 `AUTO_DOWNLOAD`，当前会继续自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则继续自动 apply
 - `charts/*` 当前支持两种模式：
   - `mock`：本地 chart seed
   - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings

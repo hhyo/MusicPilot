@@ -19,6 +19,7 @@ from app.schemas.orchestration import (
     OrganizeAdapterResult,
     OrganizeApplyRequest,
     OrganizeConflictPolicy,
+    OrganizePreviewRequest,
     OrganizeStatus,
     OrganizeStrategySnapshot,
 )
@@ -99,6 +100,17 @@ class CapturingApplyResolver:
         self.captured_candidate = candidate
         self.captured_binding_id = binding_id
         return OrganizeExecutionResult(result=self.result, resolution=self.result.adapter_resolution)
+
+
+class RaisingPathHandoffService:
+    def resolve_from_download_with_retry(self, download_hash: str | None):  # noqa: ANN001
+        raise AssertionError(f"host handoff lookup should not run for download_hash={download_hash}")
+
+    def build_pending(self, *, download_hash: str | None, handoff_source: str):  # pragma: no cover - not used
+        raise AssertionError("build_pending should not run in this test")
+
+    def build_unresolved(self, *, download_hash: str | None, handoff_source: str):  # pragma: no cover - not used
+        raise AssertionError("build_unresolved should not run in this test")
 
 
 class OrganizeIntegrationTest(unittest.TestCase):
@@ -601,6 +613,95 @@ class OrganizeIntegrationTest(unittest.TestCase):
             self.assertEqual(result.target_library_path, plan.target_library_path)
             self.assertEqual(result.target_relative_path, plan.target_relative_path)
             self.assertEqual(host_client.calls, [])
+        finally:
+            session.close()
+
+    def test_organize_service_preview_with_binding_keeps_local_plan_when_host_handoff_unavailable(self) -> None:
+        engine = create_engine("sqlite:///:memory:", future=True)
+        Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+        Base.metadata.create_all(bind=engine)
+        session = Session()
+        try:
+            detail = build_track_detail()
+            settings = build_moviepilot_settings(
+                host_base_url=None,
+                host_organize_mode="prefer_host",
+                host_assume_organize_available=True,
+            )
+            job = SearchJobModel(
+                id="job-preview-binding-001",
+                query_source_type="track",
+                query_source_id="track-001",
+                trigger_source="manual",
+                query_payload={},
+                metadata_snapshot=detail.model_dump(mode="json"),
+                summary_json={},
+            )
+            candidate = SearchCandidateModel(
+                id="cand-preview-binding-001",
+                job_id=job.id,
+                site_id="site-1",
+                site_name="Stub PT",
+                title="Adele - Hello",
+                normalized_title="adele hello",
+                size_bytes=1024,
+                seeders=1,
+                peers=0,
+                source_tags=[],
+                score_breakdown={},
+                reason_codes=[],
+                raw_payload={},
+            )
+            binding = DownloadBindingModel(
+                id="bind-preview-binding-001",
+                job_id=job.id,
+                candidate_id=candidate.id,
+                target_downloader="mock-downloader",
+                downloader_task_id="mock-task-001",
+                dispatchable=True,
+                dispatch_status="mock_submitted",
+                mock=False,
+                note="binding",
+                integration_point="test.binding",
+                raw_payload={
+                    "path_handoff": {
+                        "download_hash": "mock-task-001",
+                        "source_path": None,
+                        "source_filetype": None,
+                        "handoff_source": "moviepilot.runtime.history.download",
+                        "handoff_status": "pending_history_sync",
+                        "verification_state": "unverified",
+                        "note": "pending",
+                        "raw_summary": {"download_hash": "mock-task-001"},
+                    }
+                },
+            )
+            session.add(job)
+            session.add(candidate)
+            session.add(binding)
+            session.commit()
+
+            service = OrganizeService(
+                session=session,
+                resolver=OrganizeAdapterResolver(
+                    integration_service=HostIntegrationService(
+                        settings=settings,
+                        probe_adapter=DummyProbeAdapter(),
+                    ),
+                    mock_adapter=DummyMockOrganizeAdapter(),
+                    host_adapter=RealOrganizeAdapter(settings=settings, client=FakeHostClient()),  # type: ignore[arg-type]
+                ),
+                strategy_service=OrganizeStrategyService(settings),
+                path_handoff_service=RaisingPathHandoffService(),  # type: ignore[arg-type]
+            )
+
+            result = service.preview(OrganizePreviewRequest(binding_id=binding.id))
+
+            self.assertEqual(result.organize_status, OrganizeStatus.PREVIEW_READY)
+            self.assertEqual(result.binding_id, binding.id)
+            self.assertEqual(result.path_handoff.download_hash, "mock-task-001")
+            self.assertEqual(result.path_handoff.handoff_status, "pending_history_sync")
+            self.assertIn("local_music_plan_preview", result.integration_point)
         finally:
             session.close()
 

@@ -274,30 +274,37 @@ def get_subscription_execution_service(
     session: Session = Depends(get_db_session),
     search_job_service: SearchJobService = Depends(get_search_job_service),
     organize_service: OrganizeService = Depends(get_organize_service),
+    dispatch_service: DispatchService = Depends(get_dispatch_service),
 ) -> SubscriptionExecutionService:
     return SubscriptionExecutionService(
         session=session,
         search_job_service=search_job_service,
         organize_service=organize_service,
+        dispatch_service=dispatch_service,
     )
 
 
 def build_subscription_execution_service(session: Session) -> SubscriptionExecutionService:
     metadata_service = MetadataService(session=session, adapter=get_metadata_provider_adapter())
+    search_job_service = SearchJobService(
+        session,
+        metadata_service=metadata_service,
+        query_builder=QueryBuilderService(metadata_service=metadata_service),
+        host_search_resolver=get_host_search_adapter_resolver(),
+        scorer=get_candidate_scorer(),
+    )
     return SubscriptionExecutionService(
         session=session,
-        search_job_service=SearchJobService(
-            session,
-            metadata_service=metadata_service,
-            query_builder=QueryBuilderService(metadata_service=metadata_service),
-            host_search_resolver=get_host_search_adapter_resolver(),
-            scorer=get_candidate_scorer(),
-        ),
+        search_job_service=search_job_service,
         organize_service=OrganizeService(
             session=session,
             resolver=get_organize_adapter_resolver(),
             strategy_service=get_organize_strategy_service(),
             path_handoff_service=get_host_path_handoff_service(),
+        ),
+        dispatch_service=DispatchService(
+            session=session,
+            resolver=get_dispatch_adapter_resolver(),
         ),
     )
 

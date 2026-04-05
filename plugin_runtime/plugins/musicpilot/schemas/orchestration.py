@@ -37,6 +37,8 @@ class SubscriptionRunStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
     MATCHED = "matched"
+    DISPATCHED = "dispatched"
+    APPLIED = "applied"
     MANUAL_PENDING = "manual_pending"
     NO_RESULT = "no_result"
     FAILED = "failed"

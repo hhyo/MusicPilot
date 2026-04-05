@@ -55,7 +55,7 @@ async def preview_organize(
         message="Organize preview created.",
         code="ORGANIZE_PREVIEW_OK",
         mock=result.mock,
-        note="当前 organize preview 已收口为本地音乐路径预览：基于明确的 source_path 和音乐 metadata snapshot 生成本地 plan preview，不再依赖宿主影视预览语义。",
+        note="当前 organize preview 已收口为本地音乐路径预览：基于音乐 metadata、现有上下文与 organize 模板生成本地 plan preview，不再依赖宿主影视预览语义。",
     )
 
 

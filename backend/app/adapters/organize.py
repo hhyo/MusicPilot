@@ -181,13 +181,6 @@ class RealOrganizeAdapter(OrganizeAdapter):
         binding_id: str | None,
         plan: OrganizePlan,
     ) -> OrganizeAdapterResult:
-        source = self._resolve_source(candidate)
-        if not source:
-            raise HostTransportError(
-                "MoviePilot transfer/name requires a downloaded local file path, but the current candidate/binding only contains remote torrent context.",
-                reason_code="moviepilot_transfer_source_path_missing",
-            )
-
         return self._build_result(
             payload={},
             default_status=OrganizeStatus.PREVIEW_READY,
