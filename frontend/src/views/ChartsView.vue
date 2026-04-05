@@ -103,7 +103,7 @@
 
           <div class="chart-card__footer">
             <span>{{ chart.note }}</span>
-            <el-button type="primary" plain @click="openChart(chart.id)">
+            <el-button type="primary" plain :data-test="`open-chart-${chart.id}`" @click="openChart(chart.id)">
               查看榜单项
             </el-button>
           </div>
@@ -140,7 +140,25 @@
       />
 
       <div v-else class="detail-stack">
-        <section v-if="selectedChart.hero_entry" class="hero-entry-card">
+        <el-alert
+          v-if="discoveryWarningMessage"
+          :title="discoveryWarningMessage"
+          type="warning"
+          :closable="false"
+          show-icon
+        />
+
+        <section
+          v-if="selectedChart.hero_entry"
+          class="hero-entry-card"
+          :class="{ 'hero-entry-card--active': activeDiscoveryEntryId === selectedChart.hero_entry.entry.item_id }"
+          data-test="discovery-hero-entry"
+          role="button"
+          tabindex="0"
+          @click="void openDiscoveryEntryDetail(selectedChart.hero_entry)"
+          @keydown.enter.prevent="void openDiscoveryEntryDetail(selectedChart.hero_entry)"
+          @keydown.space.prevent="void openDiscoveryEntryDetail(selectedChart.hero_entry)"
+        >
           <div>
             <p class="hero-entry-card__eyebrow">Featured Entry</p>
             <h4>{{ selectedChart.hero_entry.target.display_title }}</h4>
@@ -187,7 +205,18 @@
           </header>
 
           <div class="entry-list">
-            <article v-for="item in group.items" :key="item.entry.item_id" class="entry-card">
+            <article
+              v-for="item in group.items"
+              :key="item.entry.item_id"
+              class="entry-card"
+              :class="{ 'entry-card--active': activeDiscoveryEntryId === item.entry.item_id }"
+              :data-test="`discovery-entry-${item.entry.item_id}`"
+              role="button"
+              tabindex="0"
+              @click="void openDiscoveryEntryDetail(item)"
+              @keydown.enter.prevent="void openDiscoveryEntryDetail(item)"
+              @keydown.space.prevent="void openDiscoveryEntryDetail(item)"
+            >
               <div class="entry-card__rank">#{{ item.entry.rank }}</div>
               <div class="entry-card__body">
                 <h4>{{ item.target.display_title }}</h4>
@@ -212,7 +241,8 @@
                 type="primary"
                 plain
                 :loading="subscribingItemId === item.entry.item_id"
-                @click="handleSubscribe(item.entry)"
+                :data-test="`subscribe-entry-${item.entry.item_id}`"
+                @click.stop="handleSubscribe(item.entry)"
               >
                 创建订阅
               </el-button>
@@ -221,6 +251,16 @@
         </section>
       </div>
     </section>
+
+    <MetadataDetailDrawer
+      :model-value="metadataDrawerOpen"
+      :loading="metadataDetailLoading"
+      :detail="metadataDetail"
+      :error-message="metadataDetailError"
+      @update:model-value="handleMetadataDrawerVisibility"
+      @create-subscription="createSubscriptionFromDetail"
+      @search-resources="createAndRunSearchJobFromDetail"
+    />
   </div>
 </template>
 
@@ -229,15 +269,21 @@ import axios from 'axios';
 import { computed, onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 
+import MetadataDetailDrawer from '@/components/MetadataDetailDrawer.vue';
+import { createSearchJob, executeSearchJob } from '@/services/acquisition';
+import { fetchDiscoveryTargetDetail } from '@/services/discovery-metadata';
 import {
+  createSubscription,
   fetchChartDetail,
   fetchChartProviders,
   fetchCharts,
   subscribeFromChartEntry,
 } from '@/services/orchestration';
+import type { MetadataDetail } from '@/types/metadata';
 import type {
   ChartDetailData,
   ChartEntryInfo,
+  DiscoveryEntryView,
   DiscoveryEntryGroup,
   ChartProviderInfo,
   ChartInfo,
@@ -254,6 +300,12 @@ const selectedChart = ref<ChartDetailData | null>(null);
 const providerFilter = ref('all');
 const subscribingItemId = ref('');
 const createdSubscription = ref<SubscriptionSummary | null>(null);
+const metadataDrawerOpen = ref(false);
+const metadataDetailLoading = ref(false);
+const metadataDetailError = ref('');
+const metadataDetail = ref<MetadataDetail | null>(null);
+const activeDiscoveryEntryId = ref('');
+const discoveryWarningMessage = ref('');
 
 const providerOptions = computed(() => [
   { value: 'all', label: '全部' },
@@ -299,10 +351,12 @@ async function loadCharts() {
       const nextChartId = selectedChart.value?.chart.id ?? response.data.items[0].id;
       await openChart(nextChartId);
     } else {
+      resetDiscoveryDetailState();
       selectedChart.value = null;
     }
   } catch (error) {
     charts.value = [];
+    resetDiscoveryDetailState();
     selectedChart.value = null;
     chartsError.value = resolveErrorMessage(error, '榜单列表加载失败，请确认后端已启动。');
   } finally {
@@ -313,6 +367,7 @@ async function loadCharts() {
 async function openChart(chartId: string) {
   loadingDetail.value = true;
   detailError.value = '';
+  resetDiscoveryDetailState();
 
   try {
     const response = await fetchChartDetail(chartId);
@@ -324,6 +379,38 @@ async function openChart(chartId: string) {
     detailError.value = resolveErrorMessage(error, '榜单详情加载失败。');
   } finally {
     loadingDetail.value = false;
+  }
+}
+
+async function openDiscoveryEntryDetail(item: DiscoveryEntryView) {
+  activeDiscoveryEntryId.value = item.entry.item_id;
+  discoveryWarningMessage.value = '';
+
+  if (!item.target.conversion_ready) {
+    metadataDrawerOpen.value = false;
+    metadataDetail.value = null;
+    metadataDetailError.value = '';
+    metadataDetailLoading.value = false;
+    discoveryWarningMessage.value = item.target.conversion_note || '当前榜单项暂不支持 metadata detail。';
+    ElMessage.warning(discoveryWarningMessage.value);
+    return;
+  }
+
+  metadataDrawerOpen.value = true;
+  metadataDetailLoading.value = true;
+  metadataDetailError.value = '';
+  metadataDetail.value = null;
+
+  try {
+    const response = await fetchDiscoveryTargetDetail(item.target);
+    if (!response.success) {
+      throw new Error(response.message);
+    }
+    metadataDetail.value = response.data;
+  } catch (error) {
+    metadataDetailError.value = resolveErrorMessage(error, 'metadata detail 加载失败。');
+  } finally {
+    metadataDetailLoading.value = false;
   }
 }
 
@@ -352,9 +439,70 @@ async function handleSubscribe(item: ChartEntryInfo) {
   }
 }
 
+async function createSubscriptionFromDetail(detail: MetadataDetail) {
+  try {
+    const response = await createSubscription({
+      subscription_type: detail.entity_type,
+      target_id: detail.id,
+      target_name: detail.title,
+      target_entity_type: detail.entity_type,
+      mode: 'manual',
+    });
+
+    if (!response.success) {
+      throw new Error(response.message);
+    }
+
+    createdSubscription.value = response.data;
+    ElMessage.success(`已创建 ${response.data.target_name} 的订阅。`);
+  } catch (error) {
+    ElMessage.error(resolveErrorMessage(error, '创建订阅失败。'));
+  }
+}
+
+async function createAndRunSearchJobFromDetail(detail: MetadataDetail) {
+  try {
+    const created = await createSearchJob({
+      query_source_type: detail.entity_type,
+      query_source_id: detail.id,
+      trigger_source: 'manual',
+      mode: 'manual',
+    });
+
+    if (!created.success) {
+      throw new Error(created.message);
+    }
+
+    const executed = await executeSearchJob(created.data.id);
+    if (!executed.success) {
+      throw new Error(executed.message);
+    }
+
+    ElMessage.success(`已创建并执行 ${detail.title} 的搜索任务。`);
+  } catch (error) {
+    ElMessage.error(resolveErrorMessage(error, '创建搜索任务失败。'));
+  }
+}
+
 function changeProvider(nextProvider: string) {
   providerFilter.value = nextProvider;
   void loadCharts();
+}
+
+function handleMetadataDrawerVisibility(nextValue: boolean) {
+  metadataDrawerOpen.value = nextValue;
+  if (!nextValue) {
+    activeDiscoveryEntryId.value = '';
+  }
+}
+
+function resetDiscoveryDetailState() {
+  metadataDrawerOpen.value = false;
+  metadataDetailLoading.value = false;
+  metadataDetailError.value = '';
+  metadataDetail.value = null;
+  activeDiscoveryEntryId.value = '';
+  discoveryWarningMessage.value = '';
 }
 
 function resolveErrorMessage(error: unknown, fallback: string) {
@@ -504,6 +652,13 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
+  cursor: pointer;
+}
+
+.hero-entry-card--active,
+.entry-card--active {
+  border-color: rgba(126, 94, 248, 0.4);
+  box-shadow: 0 12px 30px rgba(126, 94, 248, 0.12);
 }
 
 .hero-entry-card__eyebrow,
