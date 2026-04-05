@@ -158,6 +158,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         def handler(request: httpx.Request) -> httpx.Response:
             self.assertEqual(request.url.path, "/ws/2/artist")
             self.assertEqual(request.url.params["fmt"], "json")
+            self.assertEqual(request.url.params["dismax"], "true")
             body = {
                 "count": 1,
                 "offset": 0,
@@ -192,6 +193,100 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(result.items[0].artist_name, "Adele")
         self.assertEqual(result.items[0].year, 2008)
         self.assertEqual(result.items[0].external_ids["musicbrainz"], "mb-artist-1")
+
+    def test_search_skips_dismax_for_advanced_query(self) -> None:
+        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            self.assertEqual(request.url.path, "/ws/2/artist")
+            self.assertNotIn("dismax", request.url.params)
+            return httpx.Response(200, json={"count": 0, "offset": 0, "artists": []})
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://musicbrainz.test/ws/2",
+        )
+        adapter = MusicBrainzMetadataProviderAdapter(client=client, user_agent="MusicPilot-Test/1.0")
+
+        result = adapter.search(
+            MetadataSearchRequest(
+                keyword='artist:"Adele" AND country:GB',
+                type=EntityType.ARTIST,
+                page=1,
+                page_size=10,
+            )
+        )
+
+        self.assertEqual(result.total, 0)
+
+    def test_artist_detail_exposes_discovery_context(self) -> None:
+        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            self.assertEqual(request.url.path, "/ws/2/artist/mb-artist-adele")
+            return httpx.Response(
+                200,
+                json={
+                    "id": "mb-artist-adele",
+                    "name": "Adele",
+                    "sort-name": "Adele",
+                    "type": "Person",
+                    "country": "GB",
+                    "area": {"name": "United Kingdom"},
+                    "begin-area": {"name": "Tottenham"},
+                    "life-span": {"begin": "1988-05-05", "ended": False},
+                    "disambiguation": "English singer-songwriter",
+                    "aliases": [{"name": "阿黛尔"}],
+                    "tags": [{"name": "pop"}, {"name": "soul"}],
+                    "release-groups": [
+                        {
+                            "id": "album-30",
+                            "title": "30",
+                            "primary-type": "Album",
+                            "first-release-date": "2021-11-19",
+                        },
+                        {
+                            "id": "album-25",
+                            "title": "25",
+                            "primary-type": "Album",
+                            "first-release-date": "2015-11-20",
+                        },
+                        {
+                            "id": "single-easy-on-me",
+                            "title": "Easy on Me",
+                            "primary-type": "Single",
+                            "first-release-date": "2021-10-15",
+                        },
+                    ],
+                },
+            )
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://musicbrainz.test/ws/2",
+        )
+        adapter = MusicBrainzMetadataProviderAdapter(client=client, user_agent="MusicPilot-Test/1.0")
+
+        detail = adapter.get_detail(EntityType.ARTIST, "mb-artist-adele")
+
+        self.assertEqual(detail.sort_name, "Adele")
+        self.assertEqual(detail.artist_type, "Person")
+        self.assertEqual(detail.country, "GB")
+        self.assertEqual(detail.area_name, "United Kingdom")
+        self.assertEqual(detail.begin_area_name, "Tottenham")
+        self.assertEqual(detail.ended, False)
+        self.assertEqual(detail.disambiguation, "English singer-songwriter")
+        self.assertEqual(detail.release_group_count, 3)
+        self.assertEqual(detail.primary_release_types, ["Album", "Single"])
+        self.assertEqual([item.id for item in detail.related_albums], ["album-30", "album-25", "single-easy-on-me"])
+        self.assertEqual(detail.related_albums[0].subtitle, "Album · 2021")
+        self.assertEqual([item.id for item in detail.featured_albums], ["album-30", "album-25"])
+        self.assertEqual([item.id for item in detail.featured_singles], ["single-easy-on-me"])
+        self.assertEqual(detail.featured_other_releases, [])
+        self.assertEqual(
+            detail.featured_release_group_counts,
+            {"album": 2, "single": 1, "other": 0, "total": 3},
+        )
 
     def test_album_detail_maps_release_group_result(self) -> None:
         from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
@@ -357,37 +452,138 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(detail.tracks[0].title, "Hello")
         self.assertEqual(detail.tracks[0].track_number, 1)
 
-    def test_track_detail_related_album_points_to_release_group(self) -> None:
+    def test_album_detail_exposes_release_context(self) -> None:
         from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         def handler(request: httpx.Request) -> httpx.Response:
-            self.assertEqual(request.url.path, "/ws/2/recording/mb-track-hello")
-            return httpx.Response(
-                200,
-                json={
-                    "id": "mb-track-hello",
-                    "title": "Hello",
-                    "artist-credit": [
-                        {
-                            "name": "Adele",
-                            "artist": {"id": "mb-artist-1", "name": "Adele"},
-                        }
-                    ],
-                    "releases": [
-                        {
-                            "id": "release-25-official",
-                            "title": "25",
-                            "date": "2015-11-20",
-                            "release-group": {
-                                "id": "mb-album-25",
+            if request.url.path == "/ws/2/release-group/mb-album-25":
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "mb-album-25",
+                        "title": "25",
+                        "primary-type": "Album",
+                        "secondary-types": ["Live"],
+                        "artist-credit": [
+                            {
+                                "name": "Adele",
+                                "artist": {"id": "mb-artist-1", "name": "Adele"},
+                            }
+                        ],
+                        "releases": [
+                            {
+                                "id": "release-25-official",
                                 "title": "25",
-                            },
-                        }
-                    ],
-                    "length": 295000,
-                    "disambiguation": "album version",
-                },
-            )
+                                "status": "Official",
+                                "date": "2015-11-20",
+                                "country": "GB",
+                                "barcode": "1234567890123",
+                            }
+                        ],
+                    },
+                )
+            if request.url.path == "/ws/2/release/release-25-official":
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "release-25-official",
+                        "country": "GB",
+                        "status": "Official",
+                        "barcode": "1234567890123",
+                        "label-info": [
+                            {"label": {"name": "XL Recordings"}},
+                            {"label": {"name": "Columbia"}},
+                        ],
+                        "media": [
+                            {
+                                "position": 1,
+                                "format": "Digital Media",
+                                "tracks": [
+                                    {
+                                        "id": "release-track-1",
+                                        "title": "Hello",
+                                        "number": "1",
+                                        "position": 1,
+                                        "recording": {"id": "recording-hello", "title": "Hello"},
+                                    },
+                                    {
+                                        "id": "release-track-2",
+                                        "title": "Send My Love",
+                                        "number": "2",
+                                        "position": 2,
+                                        "recording": {"id": "recording-send-my-love", "title": "Send My Love"},
+                                    },
+                                ],
+                            }
+                        ],
+                    },
+                )
+            raise AssertionError(f"Unexpected path: {request.url.path}")
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://musicbrainz.test/ws/2",
+        )
+        adapter = MusicBrainzMetadataProviderAdapter(client=client, user_agent="MusicPilot-Test/1.0")
+
+        detail = adapter.get_detail(EntityType.ALBUM, "mb-album-25")
+
+        self.assertEqual(detail.country, "GB")
+        self.assertEqual(detail.status, "Official")
+        self.assertEqual(detail.barcode, "1234567890123")
+        self.assertEqual(detail.label_names, ["XL Recordings", "Columbia"])
+        self.assertEqual(detail.media_format, "Digital Media")
+        self.assertEqual(detail.track_count, 2)
+        self.assertEqual(detail.disc_count, 1)
+        self.assertEqual(detail.secondary_types, ["Live"])
+
+    def test_track_detail_related_album_points_to_release_group(self) -> None:
+        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+
+        calls: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request.url.path)
+            if request.url.path == "/ws/2/recording/mb-track-hello":
+                self.assertEqual(
+                    request.url.params["inc"],
+                    "artist-credits+releases+release-groups",
+                )
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "mb-track-hello",
+                        "title": "Hello",
+                        "artist-credit": [
+                            {
+                                "name": "Adele",
+                                "artist": {"id": "mb-artist-1", "name": "Adele"},
+                            }
+                        ],
+                        "releases": [
+                            {
+                                "id": "release-25-official",
+                                "title": "25",
+                                "date": "2015-11-20",
+                                "release-group": {
+                                    "id": "mb-album-25",
+                                    "title": "25",
+                                },
+                            }
+                        ],
+                        "length": 295000,
+                        "disambiguation": "album version",
+                    },
+                )
+            if request.url.path == "/ws/2/release/release-25-official":
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "release-25-official",
+                        "media": [],
+                    },
+                )
+            raise AssertionError(f"Unexpected path: {request.url.path}")
 
         client = httpx.Client(
             transport=httpx.MockTransport(handler),
@@ -397,6 +593,10 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
 
         detail = adapter.get_detail(EntityType.TRACK, "mb-track-hello")
 
+        self.assertEqual(
+            calls,
+            ["/ws/2/recording/mb-track-hello", "/ws/2/release/release-25-official"],
+        )
         self.assertEqual(detail.disambiguation, "album version")
         self.assertIsNotNone(detail.related_album)
         self.assertEqual(detail.related_album.id, "mb-album-25")
@@ -458,6 +658,84 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         )
         self.assertIsNotNone(detail.related_album)
         self.assertEqual(detail.related_album.id, "mb-album-25")
+
+    def test_track_detail_exposes_release_context(self) -> None:
+        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/ws/2/recording/mb-track-hello":
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "mb-track-hello",
+                        "title": "Hello",
+                        "artist-credit": [
+                            {
+                                "name": "Adele",
+                                "artist": {"id": "mb-artist-1", "name": "Adele"},
+                            }
+                        ],
+                        "releases": [
+                            {
+                                "id": "release-25-official",
+                                "title": "25",
+                                "date": "2015-11-20",
+                                "country": "GB",
+                                "status": "Official",
+                                "barcode": "1234567890123",
+                                "release-group": {
+                                    "id": "mb-album-25",
+                                    "title": "25",
+                                    "secondary-types": ["Live"],
+                                },
+                            }
+                        ],
+                    },
+                )
+            if request.url.path == "/ws/2/release/release-25-official":
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "release-25-official",
+                        "country": "GB",
+                        "status": "Official",
+                        "barcode": "1234567890123",
+                        "label-info": [{"label": {"name": "XL Recordings"}}],
+                        "media": [
+                            {
+                                "position": 1,
+                                "format": "Digital Media",
+                                "tracks": [
+                                    {
+                                        "id": "release-track-1",
+                                        "title": "Hello",
+                                        "number": "1",
+                                        "position": 1,
+                                        "recording": {"id": "mb-track-hello", "title": "Hello"},
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                )
+            raise AssertionError(f"Unexpected path: {request.url.path}")
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="https://musicbrainz.test/ws/2",
+        )
+        adapter = MusicBrainzMetadataProviderAdapter(client=client, user_agent="MusicPilot-Test/1.0")
+
+        detail = adapter.get_detail(EntityType.TRACK, "mb-track-hello")
+
+        self.assertEqual(detail.country, "GB")
+        self.assertEqual(detail.status, "Official")
+        self.assertEqual(detail.barcode, "1234567890123")
+        self.assertEqual(detail.label_names, ["XL Recordings"])
+        self.assertEqual(detail.media_format, "Digital Media")
+        self.assertEqual(detail.track_count, 1)
+        self.assertEqual(detail.disc_count, 1)
+        self.assertEqual(detail.secondary_types, ["Live"])
 
 
 if __name__ == "__main__":

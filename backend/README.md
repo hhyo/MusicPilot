@@ -35,7 +35,7 @@ python -m app.db_init --reseed
 
 - `metadata/*` 当前支持两种模式：
   - `seed`：本地 seed metadata
-  - `musicbrainz`：实时查询 MusicBrainz Artist / Album / Track 搜索与详情；album detail 会从最佳 release 读取真实 track listing，track detail 的 related album 会对齐 release-group 语义
+  - `musicbrainz`：实时查询 MusicBrainz Artist / Album / Track 搜索与详情；album detail 会从最佳 release 读取真实 track listing，track detail 的 related album 会对齐 release-group 语义。普通 keyword search 会按 MusicBrainz plain indexed search 语义带 `dismax=true`；recording detail 会直接请求 `release-groups`；album / track detail 还会补充最佳 release 的发行上下文，例如 `status`、`country`、`barcode`、`label_names`、`media_format`、`track_count`、`disc_count` 与 `secondary_types`；artist detail 还会补 discovery 更关心的上下文，例如 `sort_name`、`artist_type`、`area_name`、`begin_area_name`、`ended`、`release_group_count`、`primary_release_types`，以及 `featured_albums / featured_singles / featured_other_releases` 分类摘要
 - `subscriptions/{id}/run` 为同步最小执行骨架，应用内 scheduler 会在 due 时触发同一条执行链；若最佳候选为 `AUTO_DOWNLOAD`，当前会继续自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则继续自动 apply
 - `charts/*` 当前支持两种模式：
   - `mock`：本地 chart seed

@@ -49,10 +49,29 @@ export interface MetadataSummary {
 }
 
 export interface MetadataDetail extends MetadataSummary {
+  sort_name?: string | null;
+  artist_type?: string | null;
   country?: string | null;
+  area_name?: string | null;
+  begin_area_name?: string | null;
+  end_area_name?: string | null;
+  ended?: boolean | null;
   duration_seconds?: number | null;
   disambiguation?: string | null;
   release_count?: number | null;
+  release_group_count?: number | null;
+  status?: string | null;
+  barcode?: string | null;
+  media_format?: string | null;
+  track_count?: number | null;
+  disc_count?: number | null;
+  label_names: string[];
+  secondary_types: string[];
+  primary_release_types: string[];
+  featured_albums: MetadataReference[];
+  featured_singles: MetadataReference[];
+  featured_other_releases: MetadataReference[];
+  featured_release_group_counts: Record<string, number>;
   metadata_stage: string;
   integration_point: string;
   related_artists: MetadataReference[];

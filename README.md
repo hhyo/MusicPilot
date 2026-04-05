@@ -91,7 +91,7 @@ python -m app.db_init --reseed
 
 ## 当前执行模式与宿主集成边界
 
-- Metadata provider：当前支持 `seed` 与 `musicbrainz` 两种模式。`seed` 继续作为默认开发数据；`musicbrainz` 提供 Artist / Album / Track 的实时搜索与详情。当前 detail 已补齐最小结构化增强：album detail 会从最佳 release 读取真实 track listing，track detail 的 related album 会对齐到 release-group 语义，并带出可选的 `disambiguation` / `release_count` / `track_number` / `disc_number`。
+- Metadata provider：当前支持 `seed` 与 `musicbrainz` 两种模式。`seed` 继续作为默认开发数据；`musicbrainz` 提供 Artist / Album / Track 的实时搜索与详情。当前 detail 已补齐最小结构化增强：album detail 会从最佳 release 读取真实 track listing，track detail 的 related album 会对齐到 release-group 语义，并带出可选的 `disambiguation` / `release_count` / `track_number` / `disc_number`。普通 keyword search 会按 MusicBrainz 官方 plain indexed search 方式带 `dismax=true`；recording detail 会直接请求 `release-groups`。album / track detail 会补充最佳 release 的发行上下文，例如 `status`、`country`、`barcode`、`label_names`、`media_format`、`track_count`、`disc_count` 和 `secondary_types`；artist detail 则会补 discovery 更关心的上下文，例如 `sort_name`、`artist_type`、`area_name`、`begin_area_name`、`ended`、`release_group_count`、`primary_release_types`，以及面向 discovery 的 `featured_albums / featured_singles / featured_other_releases` 分类摘要。
 - Subscription 执行模式：当前支持手动触发一次同步 run，以及最小应用内 scheduler 自动触发 due subscription。执行链已能对最佳 `AUTO_DOWNLOAD` 候选自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则会继续自动 apply。生产级 cron、消息队列、失败重试和分布式 scheduler 仍待后续补齐。
 - Chart discovery：当前支持 `mock` 与 `listenbrainz` 两种模式。`listenbrainz` 第一版已接入 sitewide artists / recordings 榜单；自动刷新、增量监控和专辑榜仍待后续补齐。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。

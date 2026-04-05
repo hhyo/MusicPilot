@@ -283,14 +283,17 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
                 return cached_result
 
         path, response_key = self._search_path(payload.type)
+        params: dict[str, object] = {
+            "query": payload.keyword.strip(),
+            "limit": payload.page_size,
+            "offset": (payload.page - 1) * payload.page_size,
+            "fmt": "json",
+        }
+        if self._should_use_dismax(payload.keyword):
+            params["dismax"] = "true"
         data = self._get(
             path,
-            {
-                "query": payload.keyword.strip(),
-                "limit": payload.page_size,
-                "offset": (payload.page - 1) * payload.page_size,
-                "fmt": "json",
-            },
+            params,
         )
         items = [self._map_search_item(payload.type, item) for item in data.get(response_key, [])]
         result = MetadataSearchData(
@@ -337,20 +340,18 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
         )
         aliases = self._extract_aliases(data)
         genres = self._extract_tags(data)
-        related_albums = [
-            MetadataReference(
-                id=item["id"],
-                title=item["title"],
-                entity_type=EntityType.ALBUM,
-                subtitle=item.get("primary-type"),
-            )
-            for item in data.get("release-groups", [])
-        ]
+        release_groups = data.get("release-groups", [])
+        related_albums = self._build_artist_related_albums(release_groups)
+        featured_albums, featured_singles, featured_other_releases = self._build_artist_featured_release_groups(
+            related_albums
+        )
         return MetadataDetail(
             entity_type=EntityType.ARTIST,
             id=data["id"],
             title=data["name"],
             artist_name=data["name"],
+            sort_name=data.get("sort-name"),
+            artist_type=data.get("type"),
             aliases=aliases,
             year=self._extract_year(data.get("life-span", {}).get("begin")),
             genres=genres,
@@ -359,7 +360,27 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             source_type=self.source_type,
             mock=False,
             note="当前艺人详情来自 MusicBrainz WS/2。",
+            disambiguation=data.get("disambiguation"),
             country=data.get("country"),
+            area_name=(data.get("area") or {}).get("name"),
+            begin_area_name=(data.get("begin-area") or {}).get("name"),
+            end_area_name=(data.get("end-area") or {}).get("name"),
+            ended=(data.get("life-span") or {}).get("ended"),
+            release_group_count=len(release_groups),
+            primary_release_types=self._extract_primary_release_types(release_groups),
+            featured_albums=featured_albums,
+            featured_singles=featured_singles,
+            featured_other_releases=featured_other_releases,
+            featured_release_group_counts={
+                "album": sum(1 for item in related_albums if self._reference_primary_type(item) == "album"),
+                "single": sum(1 for item in related_albums if self._reference_primary_type(item) == "single"),
+                "other": sum(
+                    1
+                    for item in related_albums
+                    if self._reference_primary_type(item) not in {"album", "single"}
+                ),
+                "total": len(related_albums),
+            },
             integration_point="MusicBrainzMetadataProviderAdapter.get_artist_detail",
             related_albums=related_albums,
             todo=[
@@ -385,7 +406,9 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             if item.get("artist")
         ]
         best_release = self._select_best_release(releases)
-        tracks = self._fetch_release_tracks(best_release["id"], artist_name) if best_release else []
+        release_detail = self._get_release_detail(best_release["id"]) if best_release else None
+        tracks = self._map_release_tracks(release_detail, artist_name) if release_detail else []
+        release_context = self._build_release_context(best_release, release_detail)
         return MetadataDetail(
             entity_type=EntityType.ALBUM,
             id=data["id"],
@@ -403,6 +426,14 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             note="当前专辑详情来自 MusicBrainz WS/2。",
             disambiguation=data.get("disambiguation"),
             release_count=len(releases),
+            country=release_context["country"],
+            status=release_context["status"],
+            barcode=release_context["barcode"],
+            media_format=release_context["media_format"],
+            track_count=release_context["track_count"],
+            disc_count=release_context["disc_count"],
+            label_names=release_context["label_names"],
+            secondary_types=self._extract_secondary_types(data),
             integration_point="MusicBrainzMetadataProviderAdapter.get_album_detail",
             related_artists=related_artists,
             tracks=tracks,
@@ -414,7 +445,7 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
     def _get_track_detail(self, track_id: str) -> MetadataDetail:
         data = self._get(
             f"recording/{track_id}",
-            {"fmt": "json", "inc": "artist-credits+releases"},
+            {"fmt": "json", "inc": "artist-credits+releases+release-groups"},
         )
         artist_name = self._join_artist_credit(data.get("artist-credit", []))
         related_artists = [
@@ -428,7 +459,11 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             if item.get("artist")
         ]
         releases = data.get("releases", [])
-        related_album = self._resolve_related_album(releases, artist_name)
+        best_release = self._select_best_release(releases)
+        release_detail = self._get_release_detail(best_release["id"]) if best_release and best_release.get("id") else None
+        related_album = self._resolve_related_album(releases, artist_name, release_detail)
+        release_context = self._build_release_context(best_release, release_detail)
+        secondary_types = self._extract_release_group_secondary_types(best_release, release_detail)
         return MetadataDetail(
             entity_type=EntityType.TRACK,
             id=data["id"],
@@ -446,6 +481,14 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
             note="当前歌曲详情来自 MusicBrainz WS/2。",
             duration_seconds=self._extract_duration_seconds(data.get("length")),
             disambiguation=data.get("disambiguation"),
+            country=release_context["country"],
+            status=release_context["status"],
+            barcode=release_context["barcode"],
+            media_format=release_context["media_format"],
+            track_count=release_context["track_count"],
+            disc_count=release_context["disc_count"],
+            label_names=release_context["label_names"],
+            secondary_types=secondary_types,
             integration_point="MusicBrainzMetadataProviderAdapter.get_track_detail",
             related_artists=related_artists,
             related_album=related_album,
@@ -518,11 +561,14 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
         self,
         releases: list[dict],
         artist_name: str | None,
+        release_detail: dict | None = None,
     ) -> MetadataReference | None:
         if not releases:
             return None
         release = self._select_best_release(releases) or releases[0]
         release_group = release.get("release-group")
+        if not release_group and release_detail:
+            release_group = release_detail.get("release-group")
         if not release_group and release.get("id"):
             release_group = self._get_release_detail(release["id"]).get("release-group")
         if not release_group:
@@ -545,6 +591,13 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
         artist_name: str | None,
     ) -> list[MetadataReference]:
         release = self._get_release_detail(release_id)
+        return self._map_release_tracks(release, artist_name)
+
+    def _map_release_tracks(
+        self,
+        release: dict,
+        artist_name: str | None,
+    ) -> list[MetadataReference]:
         tracks: list[MetadataReference] = []
         for disc_index, media in enumerate(release.get("media", []), start=1):
             disc_number = self._extract_int(media.get("position")) or disc_index
@@ -566,6 +619,135 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
                     )
                 )
         return tracks
+
+    def _build_release_context(
+        self,
+        release: dict | None,
+        release_detail: dict | None,
+    ) -> dict[str, object]:
+        source = release_detail or {}
+        return {
+            "country": source.get("country") or (release or {}).get("country"),
+            "status": source.get("status") or (release or {}).get("status"),
+            "barcode": source.get("barcode") or (release or {}).get("barcode"),
+            "label_names": self._extract_label_names(source),
+            "media_format": self._extract_media_format(source),
+            "track_count": self._extract_track_count(source),
+            "disc_count": self._extract_disc_count(source),
+        }
+
+    @staticmethod
+    def _extract_label_names(release_detail: dict) -> list[str]:
+        names: list[str] = []
+        for item in release_detail.get("label-info", []):
+            label = item.get("label") or {}
+            name = (label.get("name") or "").strip()
+            if name:
+                names.append(name)
+        return names
+
+    @staticmethod
+    def _extract_media_format(release_detail: dict) -> str | None:
+        formats = []
+        for media in release_detail.get("media", []):
+            fmt = (media.get("format") or "").strip()
+            if fmt and fmt not in formats:
+                formats.append(fmt)
+        return " / ".join(formats) if formats else None
+
+    @staticmethod
+    def _extract_track_count(release_detail: dict) -> int | None:
+        total = sum(len(media.get("tracks", [])) for media in release_detail.get("media", []))
+        return total or None
+
+    @staticmethod
+    def _extract_disc_count(release_detail: dict) -> int | None:
+        count = len(release_detail.get("media", []))
+        return count or None
+
+    @staticmethod
+    def _extract_secondary_types(data: dict) -> list[str]:
+        return [item.strip() for item in data.get("secondary-types", []) if isinstance(item, str) and item.strip()]
+
+    def _extract_release_group_secondary_types(
+        self,
+        release: dict | None,
+        release_detail: dict | None,
+    ) -> list[str]:
+        release_group = (release or {}).get("release-group") or (release_detail or {}).get("release-group") or {}
+        return self._extract_secondary_types(release_group)
+
+    def _build_artist_related_albums(self, release_groups: list[dict]) -> list[MetadataReference]:
+        sorted_items = sorted(release_groups, key=self._artist_release_group_sort_key)
+        result: list[MetadataReference] = []
+        for item in sorted_items:
+            item_id = item.get("id")
+            title = item.get("title")
+            if not item_id or not title:
+                continue
+            subtitle = self._format_release_group_subtitle(item)
+            result.append(
+                MetadataReference(
+                    id=item_id,
+                    title=title,
+                    entity_type=EntityType.ALBUM,
+                    subtitle=subtitle,
+                )
+            )
+        return result
+
+    @staticmethod
+    def _extract_primary_release_types(release_groups: list[dict]) -> list[str]:
+        seen: list[str] = []
+        for item in sorted(release_groups, key=MusicBrainzMetadataProviderAdapter._artist_release_group_sort_key):
+            primary_type = (item.get("primary-type") or "").strip()
+            if primary_type and primary_type not in seen:
+                seen.append(primary_type)
+        return seen
+
+    @staticmethod
+    def _artist_release_group_sort_key(item: dict) -> tuple[int, str, str]:
+        priority = {
+            "album": 0,
+            "ep": 1,
+            "single": 2,
+            "compilation": 3,
+            "live": 4,
+        }
+        primary_type = (item.get("primary-type") or "").strip().lower()
+        year = MusicBrainzMetadataProviderAdapter._extract_year(item.get("first-release-date")) or 0
+        title = (item.get("title") or "").strip().lower()
+        return (priority.get(primary_type, 9), -year, title)
+
+    @staticmethod
+    def _format_release_group_subtitle(item: dict) -> str | None:
+        parts: list[str] = []
+        primary_type = (item.get("primary-type") or "").strip()
+        year = MusicBrainzMetadataProviderAdapter._extract_year(item.get("first-release-date"))
+        if primary_type:
+            parts.append(primary_type)
+        if year:
+            parts.append(str(year))
+        return " · ".join(parts) if parts else None
+
+    @staticmethod
+    def _reference_primary_type(item: MetadataReference) -> str | None:
+        if not item.subtitle:
+            return None
+        return item.subtitle.split("·", 1)[0].strip().lower()
+
+    def _build_artist_featured_release_groups(
+        self,
+        related_albums: list[MetadataReference],
+    ) -> tuple[list[MetadataReference], list[MetadataReference], list[MetadataReference]]:
+        albums = [item for item in related_albums if self._reference_primary_type(item) == "album"][:3]
+        singles = [item for item in related_albums if self._reference_primary_type(item) == "single"][:3]
+        others = [
+            item
+            for item in related_albums
+            if self._reference_primary_type(item) not in {"album", "single"}
+        ][:3]
+        return albums, singles, others
 
     @staticmethod
     def _select_best_release(releases: list[dict]) -> dict | None:
@@ -620,6 +802,14 @@ class MusicBrainzMetadataProviderAdapter(MetadataProviderAdapter):
         if length_ms is None:
             return None
         return int(length_ms // 1000)
+
+    @staticmethod
+    def _should_use_dismax(keyword: str) -> bool:
+        normalized = keyword.strip()
+        if not normalized:
+            return False
+        advanced_tokens = (":", " AND ", " OR ", " NOT ", "\"", "(", ")")
+        return not any(token in normalized for token in advanced_tokens)
 
     @staticmethod
     def _join_artist_credit(items: list[dict]) -> str | None:

@@ -44,10 +44,29 @@ class MetadataSummary(BaseModel):
 
 
 class MetadataDetail(MetadataSummary):
+    sort_name: str | None = None
+    artist_type: str | None = None
     country: str | None = None
+    area_name: str | None = None
+    begin_area_name: str | None = None
+    end_area_name: str | None = None
+    ended: bool | None = None
     duration_seconds: int | None = None
     disambiguation: str | None = None
     release_count: int | None = None
+    release_group_count: int | None = None
+    status: str | None = None
+    barcode: str | None = None
+    media_format: str | None = None
+    track_count: int | None = None
+    disc_count: int | None = None
+    label_names: list[str] = Field(default_factory=list)
+    secondary_types: list[str] = Field(default_factory=list)
+    primary_release_types: list[str] = Field(default_factory=list)
+    featured_albums: list[MetadataReference] = Field(default_factory=list)
+    featured_singles: list[MetadataReference] = Field(default_factory=list)
+    featured_other_releases: list[MetadataReference] = Field(default_factory=list)
+    featured_release_group_counts: dict[str, int] = Field(default_factory=dict)
     metadata_stage: str = "metadata_only"
     integration_point: str
     related_artists: list[MetadataReference] = Field(default_factory=list)

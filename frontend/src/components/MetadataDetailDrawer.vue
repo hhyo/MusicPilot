@@ -38,12 +38,40 @@
           <el-descriptions-item label="Provider">
             {{ detail.provider }} / {{ detail.source_type }}
           </el-descriptions-item>
+          <el-descriptions-item label="Sort Name">{{ detail.sort_name || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Artist Type">{{ detail.artist_type || '-' }}</el-descriptions-item>
           <el-descriptions-item label="Country">{{ detail.country || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Area">{{ detail.area_name || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Begin Area">{{ detail.begin_area_name || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="End Area">{{ detail.end_area_name || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Ended">
+            {{ detail.ended == null ? '-' : detail.ended ? 'Yes' : 'No' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Status">{{ detail.status || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Barcode">{{ detail.barcode || '-' }}</el-descriptions-item>
           <el-descriptions-item label="Disambiguation">
             {{ detail.disambiguation || '-' }}
           </el-descriptions-item>
+          <el-descriptions-item label="Release Group Count">
+            {{ detail.release_group_count ?? '-' }}
+          </el-descriptions-item>
           <el-descriptions-item label="Release Count">
             {{ detail.release_count ?? '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Primary Release Types">
+            {{ detail.primary_release_types.length > 0 ? detail.primary_release_types.join(' / ') : '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Secondary Types">
+            {{ detail.secondary_types.length > 0 ? detail.secondary_types.join(' / ') : '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Labels">
+            {{ detail.label_names.length > 0 ? detail.label_names.join(' / ') : '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Media Format">
+            {{ detail.media_format || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Disc / Track Count">
+            {{ formatReleaseCounts(detail) }}
           </el-descriptions-item>
           <el-descriptions-item label="Duration">
             {{ detail.duration_seconds ? `${detail.duration_seconds}s` : '-' }}
@@ -110,6 +138,59 @@
           </div>
         </section>
 
+        <section
+          v-if="detail.featured_albums.length > 0 || detail.featured_singles.length > 0 || detail.featured_other_releases.length > 0"
+          class="detail-section"
+        >
+          <h4>Discovery Summary</h4>
+          <p class="detail-section__note">
+            Albums {{ detail.featured_release_group_counts.album ?? 0 }} /
+            Singles {{ detail.featured_release_group_counts.single ?? 0 }} /
+            Others {{ detail.featured_release_group_counts.other ?? 0 }}
+          </p>
+
+          <div v-if="detail.featured_albums.length > 0" class="detail-subsection">
+            <strong>Featured Albums</strong>
+            <div class="detail-badges">
+              <el-tag
+                v-for="album in detail.featured_albums"
+                :key="album.id"
+                effect="plain"
+                type="warning"
+              >
+                {{ formatReferenceLabel(album) }}
+              </el-tag>
+            </div>
+          </div>
+
+          <div v-if="detail.featured_singles.length > 0" class="detail-subsection">
+            <strong>Featured Singles</strong>
+            <div class="detail-badges">
+              <el-tag
+                v-for="single in detail.featured_singles"
+                :key="single.id"
+                effect="plain"
+                type="success"
+              >
+                {{ formatReferenceLabel(single) }}
+              </el-tag>
+            </div>
+          </div>
+
+          <div v-if="detail.featured_other_releases.length > 0" class="detail-subsection">
+            <strong>Other Releases</strong>
+            <div class="detail-badges">
+              <el-tag
+                v-for="release in detail.featured_other_releases"
+                :key="release.id"
+                effect="plain"
+              >
+                {{ formatReferenceLabel(release) }}
+              </el-tag>
+            </div>
+          </div>
+        </section>
+
         <section v-if="detail.tracks.length > 0" class="detail-section">
           <h4>Tracks</h4>
           <div class="detail-badges">
@@ -168,6 +249,17 @@ function formatTrackLabel(track: MetadataReference) {
     .join('-');
   return prefixParts ? `${prefixParts} ${track.title}` : track.title;
 }
+
+function formatReleaseCounts(detail: MetadataDetail) {
+  if (detail.disc_count == null && detail.track_count == null) {
+    return '-';
+  }
+  return `${detail.disc_count ?? '-'} / ${detail.track_count ?? '-'}`;
+}
+
+function formatReferenceLabel(item: MetadataReference) {
+  return item.subtitle ? `${item.title} · ${item.subtitle}` : item.title;
+}
 </script>
 
 <style scoped lang="scss">
@@ -211,6 +303,11 @@ function formatTrackLabel(track: MetadataReference) {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.detail-subsection {
+  display: grid;
+  gap: 0.45rem;
 }
 
 .detail-list {
