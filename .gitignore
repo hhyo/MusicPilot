@@ -1,6 +1,8 @@
 .DS_Store
 .idea/
 .worktrees/
+.tmp/
+.playwright-cli/
 
 # Frontend
 frontend/node_modules/
