@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any
 
 import httpx
@@ -258,6 +259,33 @@ class MetadataService:
                 return ""
             return " ".join(value.strip().lower().split())
 
+        def _artist_tokens(value: str | None) -> list[str]:
+            normalized = _normalize(value)
+            if not normalized:
+                return []
+
+            normalized = re.sub(r"\b(featuring|feat\.?|ft\.?|with)\b", ",", normalized)
+            normalized = normalized.replace("&", ",")
+            normalized = re.sub(r"\band\b", ",", normalized)
+            normalized = normalized.replace("/", ",").replace(" x ", ",")
+            parts = [part.strip(" .-_") for part in normalized.split(",")]
+            return [part for part in parts if part]
+
+        def _artist_credit_matches(hint_value: str | None, candidate_value: str | None) -> bool:
+            hint_normalized = _normalize(hint_value)
+            candidate_normalized = _normalize(candidate_value)
+            if not hint_normalized:
+                return False
+
+            hint_parts = _artist_tokens(hint_value)
+            candidate_parts = _artist_tokens(candidate_value)
+
+            if len(hint_parts) <= 1 and len(candidate_parts) <= 1:
+                return hint_normalized == candidate_normalized
+            if not hint_parts or not candidate_parts:
+                return hint_normalized == candidate_normalized
+            return set(hint_parts) == set(candidate_parts)
+
         hint_artist = _normalize(str(hints.get("artist_name") or ""))
         hint_title = _normalize(str(hints.get("title") or ""))
         hint_album = _normalize(str(hints.get("album_title") or ""))
@@ -271,23 +299,25 @@ class MetadataService:
             if entity_type == EntityType.TRACK:
                 if not hint_title or not hint_artist:
                     continue
-                if item_title != hint_title or item_artist != hint_artist:
+                if item_title != hint_title or not _artist_credit_matches(hint_artist, item_artist):
                     continue
                 score = 2
-                if hint_album and item_album == hint_album:
+                if hint_album:
+                    if item_album != hint_album:
+                        continue
                     score += 1
             elif entity_type == EntityType.ALBUM:
                 if not hint_album or not hint_artist:
                     continue
                 item_album_title = _normalize(item.album_title or item.title)
-                if item_album_title != hint_album or item_artist != hint_artist:
+                if item_album_title != hint_album or not _artist_credit_matches(hint_artist, item_artist):
                     continue
                 score = 2
             else:
                 if not hint_artist:
                     continue
                 item_artist_name = _normalize(item.artist_name or item.title)
-                if item_artist_name != hint_artist:
+                if not _artist_credit_matches(hint_artist, item_artist_name):
                     continue
                 score = 1
 
