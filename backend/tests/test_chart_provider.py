@@ -380,7 +380,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         self.assertTrue(detail.hero_entry.target.conversion_ready)
         self.assertEqual(detail.hero_entry.target.resolution_mode, "search_lookup")
 
-    def test_rss_entry_keeps_family_and_origin_hints_in_note(self) -> None:
+    def test_rss_entry_keeps_structured_lookup_hints_in_target_payload(self) -> None:
         feed_xml_by_url = {
             "https://rsshub.app/163/music/playlist/9345476": """<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0">
@@ -414,9 +414,51 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         self.assertEqual(item.target_payload["family"], "netease_playlist_tracks")
         self.assertEqual(item.target_payload["provider_origin_url"], "https://music.163.com/#/song?id=100001")
         self.assertEqual(item.target_payload["provider_origin_id"], "100001")
+        self.assertEqual(item.target_payload["title"], "Wonderful Tonight")
+        self.assertEqual(item.target_payload["artist_name"], "Eric Clapton")
         self.assertEqual(item.target_payload["album_title"], "Slowhand")
         self.assertIn("raw_context", item.target_payload)
         self.assertEqual(item.note, adapter.note)
+
+    def test_rss_album_and_artist_entries_include_normalized_lookup_fields(self) -> None:
+        feed_xml_by_url = {
+            "https://rsshub.app/163/music/artist/6452": """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>网易云艺人专辑</title>
+    <item>
+      <title>Slowhand</title>
+      <link>https://music.163.com/#/album?id=200002</link>
+      <description><![CDATA[专辑：Slowhand<br/>歌手：Eric Clapton]]></description>
+    </item>
+  </channel>
+</rss>""",
+            "https://rsshub.app/youtube/charts/TopArtists/us": """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>YouTube Top Artists</title>
+    <item>
+      <title>Bruno Mars</title>
+      <link>https://www.youtube.com/channel/UCabc123</link>
+    </item>
+  </channel>
+</rss>""",
+        }
+        adapter = RssFeedChartProviderAdapter(
+            feeds=[
+                {"id": "feed-album", "enabled": True, "url": "https://rsshub.app/163/music/artist/6452"},
+                {"id": "feed-artist", "enabled": True, "url": "https://rsshub.app/youtube/charts/TopArtists/us"},
+            ],
+            fetcher=lambda url: feed_xml_by_url[url],
+            cache_enabled=False,
+        )
+
+        album_item = adapter.get_chart_detail("rss-feed-feed-album").items[0]
+        artist_item = adapter.get_chart_detail("rss-feed-feed-artist").items[0]
+
+        self.assertEqual(album_item.target_payload["album_title"], "Slowhand")
+        self.assertEqual(album_item.target_payload["artist_name"], "Eric Clapton")
+        self.assertEqual(artist_item.target_payload["artist_name"], "Bruno Mars")
 
     def test_list_charts_skips_disabled_and_unsupported_feeds(self) -> None:
         feed_xml_by_url = {

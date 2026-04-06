@@ -756,6 +756,7 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
             chart_id_seed = f"rss-{sha1(url_seed.encode('utf-8')).hexdigest()[:10]}"
         entries: list[ChartEntryInfo] = []
         for rank, item in enumerate(parsed_items, start=1):
+            target_name = item.get("target_name") or f"{chart_id_seed}-rank-{rank:03d}"
             subtitle = item.get("subtitle")
             if not subtitle and item.get("album_title"):
                 subtitle = str(item["album_title"])
@@ -768,6 +769,15 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
                 "published_at": item.get("published_at"),
                 "raw_context": item.get("raw_context"),
             }
+            if chart_type == EntityType.TRACK:
+                rss_hints["title"] = target_name
+                rss_hints["artist_name"] = item.get("subtitle")
+                rss_hints["album_title"] = item.get("album_title")
+            elif chart_type == EntityType.ALBUM:
+                rss_hints["album_title"] = item.get("album_title") or target_name
+                rss_hints["artist_name"] = item.get("subtitle")
+            elif chart_type == EntityType.ARTIST:
+                rss_hints["artist_name"] = target_name
             entries.append(
                 ChartEntryInfo(
                     item_id=f"{chart_id_seed}-item-{rank:03d}",
@@ -777,7 +787,7 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
                     rank=rank,
                     item_type=chart_type,
                     target_id="",
-                    target_name=item.get("target_name") or f"{chart_id_seed}-rank-{rank:03d}",
+                    target_name=target_name,
                     subtitle=subtitle,
                     provider=self.provider,
                     source_type=f"rss_feed/{family}",

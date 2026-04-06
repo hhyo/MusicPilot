@@ -81,6 +81,7 @@ class DiscoveryAssembler:
 
     def _build_rss_lookup_target(self, chart: ChartInfo, entry: ChartEntryInfo) -> DiscoveryTarget:
         hints = self._build_rss_resolution_hints(entry)
+        conversion_ready, conversion_note = self._resolve_rss_lookup_readiness(entry=entry, hints=hints)
         return DiscoveryTarget(
             target_kind=entry.item_type,
             provider="musicbrainz",
@@ -94,8 +95,8 @@ class DiscoveryAssembler:
                 rank=entry.rank,
                 chart_type=chart.chart_type,
             ),
-            conversion_ready=True,
-            conversion_note=None,
+            conversion_ready=conversion_ready,
+            conversion_note=conversion_note,
             resolution_mode="search_lookup",
             resolution_hints=hints,
             discovery_badges=self._build_badges(chart, entry),
@@ -114,19 +115,35 @@ class DiscoveryAssembler:
         }
 
         if entry.item_type == EntityType.TRACK:
-            hints["title"] = entry.target_name
-            hints["artist_name"] = entry.subtitle
+            hints["title"] = payload.get("title")
+            hints["artist_name"] = payload.get("artist_name")
             hints["album_title"] = payload.get("album_title")
         elif entry.item_type == EntityType.ALBUM:
             hints["album_title"] = payload.get("album_title") or entry.target_name
-            hints["artist_name"] = entry.subtitle
+            hints["artist_name"] = payload.get("artist_name")
         elif entry.item_type == EntityType.ARTIST:
-            hints["artist_name"] = entry.target_name
+            hints["artist_name"] = payload.get("artist_name")
 
         for key in ("cover_url", "published_at", "raw_context"):
             if key in payload:
                 hints[key] = payload.get(key)
         return {key: value for key, value in hints.items() if value is not None}
+
+    def _resolve_rss_lookup_readiness(self, *, entry: ChartEntryInfo, hints: dict[str, Any]) -> tuple[bool, str | None]:
+        if entry.item_type == EntityType.TRACK:
+            required = ("title", "artist_name")
+            label = "title + artist_name"
+        elif entry.item_type == EntityType.ALBUM:
+            required = ("album_title", "artist_name")
+            label = "album_title + artist_name"
+        else:
+            required = ("artist_name",)
+            label = "artist_name"
+
+        missing = [key for key in required if not str(hints.get(key) or "").strip()]
+        if not missing:
+            return True, None
+        return False, f"Missing RSS lookup hints: requires {label}."
 
     def _build_badges(self, chart: ChartInfo, entry: ChartEntryInfo) -> list[str]:
         badges: list[str] = []

@@ -131,6 +131,8 @@ class DiscoveryAssemblerTests(TestCase):
                         "family": "netease_playlist_tracks",
                         "provider_origin_url": "https://music.163.com/#/song?id=100001",
                         "provider_origin_id": "100001",
+                        "title": "Wonderful Tonight",
+                        "artist_name": "Eric Clapton",
                         "album_title": "Slowhand",
                     },
                     mock=False,
@@ -184,6 +186,7 @@ class DiscoveryAssemblerTests(TestCase):
                         "provider_origin_url": "https://music.163.com/#/album?id=200002",
                         "provider_origin_id": "200002",
                         "album_title": "Slowhand",
+                        "artist_name": "Eric Clapton",
                     },
                     mock=False,
                     note="rss",
@@ -234,6 +237,7 @@ class DiscoveryAssemblerTests(TestCase):
                         "family": "youtube_top_artists",
                         "provider_origin_url": "https://www.youtube.com/channel/UCabc123",
                         "provider_origin_id": "UCabc123",
+                        "artist_name": "Bruno Mars",
                     },
                     mock=False,
                     note="rss",
@@ -294,3 +298,95 @@ class DiscoveryAssemblerTests(TestCase):
 
         self.assertEqual(target.resolution_mode, "direct_id")
         self.assertEqual(target.provider_id, "rec-1")
+
+    def test_rss_track_uses_payload_artist_name_not_subtitle_album_fallback(self) -> None:
+        detail = ChartDetailData(
+            chart=ChartInfo(
+                id="rss-feed-n3",
+                chart_source="rss_feed",
+                chart_name="网易云喜欢",
+                chart_type=EntityType.TRACK,
+                updated_at=datetime.now(timezone.utc),
+                mock=False,
+                note="rss",
+            ),
+            items=[
+                ChartEntryInfo(
+                    item_id="rss-item-004",
+                    chart_id="rss-feed-n3",
+                    chart_source="rss_feed",
+                    chart_name="网易云喜欢",
+                    rank=1,
+                    item_type=EntityType.TRACK,
+                    target_id="",
+                    target_name="Wonderful Tonight",
+                    subtitle="Slowhand",
+                    provider="rss_feed",
+                    source_type="rss_feed/netease_playlist_tracks",
+                    target_payload={
+                        "family": "netease_playlist_tracks",
+                        "title": "Wonderful Tonight",
+                        "artist_name": "Eric Clapton",
+                        "album_title": "Slowhand",
+                    },
+                    mock=False,
+                    note="rss",
+                )
+            ],
+            item_count=1,
+            mock=False,
+            note="rss",
+            integration_point="RssFeedChartProviderAdapter",
+        )
+
+        result = DiscoveryAssembler().build_detail(detail)
+        target = result.hero_entry.target
+
+        self.assertTrue(target.conversion_ready)
+        self.assertEqual(target.resolution_hints["artist_name"], "Eric Clapton")
+        self.assertNotEqual(target.resolution_hints["artist_name"], "Slowhand")
+
+    def test_rss_entry_missing_minimum_hints_is_not_lookup_ready(self) -> None:
+        detail = ChartDetailData(
+            chart=ChartInfo(
+                id="rss-feed-missing",
+                chart_source="rss_feed",
+                chart_name="Broken RSS",
+                chart_type=EntityType.TRACK,
+                updated_at=datetime.now(timezone.utc),
+                mock=False,
+                note="rss",
+            ),
+            items=[
+                ChartEntryInfo(
+                    item_id="rss-item-005",
+                    chart_id="rss-feed-missing",
+                    chart_source="rss_feed",
+                    chart_name="Broken RSS",
+                    rank=1,
+                    item_type=EntityType.TRACK,
+                    target_id="",
+                    target_name="Unknown",
+                    subtitle="Unknown",
+                    provider="rss_feed",
+                    source_type="rss_feed/netease_playlist_tracks",
+                    target_payload={
+                        "family": "netease_playlist_tracks",
+                        "title": "Unknown",
+                    },
+                    mock=False,
+                    note="rss",
+                )
+            ],
+            item_count=1,
+            mock=False,
+            note="rss",
+            integration_point="RssFeedChartProviderAdapter",
+        )
+
+        result = DiscoveryAssembler().build_detail(detail)
+        target = result.hero_entry.target
+
+        self.assertFalse(target.conversion_ready)
+        self.assertEqual(target.resolution_mode, "search_lookup")
+        self.assertIn("title + artist_name", target.conversion_note or "")
