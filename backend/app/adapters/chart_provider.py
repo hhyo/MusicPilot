@@ -770,7 +770,7 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
                 "raw_context": item.get("raw_context"),
             }
             if chart_type == EntityType.TRACK:
-                rss_hints["title"] = target_name
+                rss_hints["title"] = item.get("target_name")
                 rss_hints["artist_name"] = item.get("subtitle")
                 rss_hints["album_title"] = item.get("album_title")
             elif chart_type == EntityType.ALBUM:

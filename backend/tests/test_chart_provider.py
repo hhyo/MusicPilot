@@ -486,6 +486,31 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         self.assertIsNone(item.target_payload.get("album_title"))
         self.assertNotEqual(item.target_payload.get("album_title"), item.target_name)
 
+    def test_rss_track_entry_without_structured_title_does_not_fallback_to_synthetic_target_name(self) -> None:
+        feed_xml_by_url = {
+            "https://rsshub.app/163/music/playlist/9345476": """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>网易云喜欢</title>
+    <item>
+      <link>https://music.163.com/#/song?id=100777</link>
+      <description><![CDATA[歌手：Unknown Artist]]></description>
+    </item>
+  </channel>
+</rss>"""
+        }
+        adapter = RssFeedChartProviderAdapter(
+            feeds=[{"id": "feed-track-no-structured-title", "enabled": True, "url": "https://rsshub.app/163/music/playlist/9345476"}],
+            fetcher=lambda url: feed_xml_by_url[url],
+            cache_enabled=False,
+        )
+
+        item = adapter.get_chart_detail("rss-feed-feed-track-no-structured-title").items[0]
+
+        self.assertEqual(item.target_name, "feed-track-no-structured-title-rank-001")
+        self.assertEqual(item.target_payload.get("title"), "")
+        self.assertNotEqual(item.target_payload.get("title"), item.target_name)
+
     def test_list_charts_skips_disabled_and_unsupported_feeds(self) -> None:
         feed_xml_by_url = {
             "https://rsshub.app/163/music/playlist/9345476": """<?xml version="1.0" encoding="utf-8"?>
