@@ -102,3 +102,195 @@ class DiscoveryAssemblerTests(TestCase):
         self.assertEqual(result.hero_entry.target.conversion_note, "Missing provider target id.")
         self.assertEqual(result.conversion_summary["not_ready"], 1)
         self.assertEqual(result.entry_groups[0].group_key, "artists")
+
+    def test_builds_rss_track_target_with_search_lookup_hints(self) -> None:
+        detail = ChartDetailData(
+            chart=ChartInfo(
+                id="rss-feed-n1",
+                chart_source="rss_feed",
+                chart_name="网易云喜欢",
+                chart_type=EntityType.TRACK,
+                updated_at=datetime.now(timezone.utc),
+                mock=False,
+                note="rss",
+            ),
+            items=[
+                ChartEntryInfo(
+                    item_id="rss-item-001",
+                    chart_id="rss-feed-n1",
+                    chart_source="rss_feed",
+                    chart_name="网易云喜欢",
+                    rank=1,
+                    item_type=EntityType.TRACK,
+                    target_id="",
+                    target_name="Wonderful Tonight",
+                    subtitle="Eric Clapton",
+                    provider="rss_feed",
+                    source_type="rss_feed/netease_playlist_tracks",
+                    target_payload={
+                        "family": "netease_playlist_tracks",
+                        "provider_origin_url": "https://music.163.com/#/song?id=100001",
+                        "provider_origin_id": "100001",
+                        "album_title": "Slowhand",
+                    },
+                    mock=False,
+                    note="rss",
+                )
+            ],
+            item_count=1,
+            mock=False,
+            note="rss",
+            integration_point="RssFeedChartProviderAdapter",
+        )
+
+        result = DiscoveryAssembler().build_detail(detail)
+        target = result.hero_entry.target
+
+        self.assertTrue(target.conversion_ready)
+        self.assertEqual(target.resolution_mode, "search_lookup")
+        self.assertEqual(target.resolution_hints["title"], "Wonderful Tonight")
+        self.assertEqual(target.resolution_hints["artist_name"], "Eric Clapton")
+        self.assertEqual(target.resolution_hints["album_title"], "Slowhand")
+        self.assertEqual(target.resolution_hints["provider_origin_url"], "https://music.163.com/#/song?id=100001")
+        self.assertEqual(target.resolution_hints["provider_origin_id"], "100001")
+        self.assertEqual(target.resolution_hints["family"], "netease_playlist_tracks")
+
+    def test_builds_rss_album_target_with_search_lookup_hints(self) -> None:
+        detail = ChartDetailData(
+            chart=ChartInfo(
+                id="rss-feed-n2",
+                chart_source="rss_feed",
+                chart_name="网易云艺人专辑",
+                chart_type=EntityType.ALBUM,
+                updated_at=datetime.now(timezone.utc),
+                mock=False,
+                note="rss",
+            ),
+            items=[
+                ChartEntryInfo(
+                    item_id="rss-item-002",
+                    chart_id="rss-feed-n2",
+                    chart_source="rss_feed",
+                    chart_name="网易云艺人专辑",
+                    rank=1,
+                    item_type=EntityType.ALBUM,
+                    target_id="",
+                    target_name="Slowhand",
+                    subtitle="Eric Clapton",
+                    provider="rss_feed",
+                    source_type="rss_feed/netease_artist_albums",
+                    target_payload={
+                        "family": "netease_artist_albums",
+                        "provider_origin_url": "https://music.163.com/#/album?id=200002",
+                        "provider_origin_id": "200002",
+                        "album_title": "Slowhand",
+                    },
+                    mock=False,
+                    note="rss",
+                )
+            ],
+            item_count=1,
+            mock=False,
+            note="rss",
+            integration_point="RssFeedChartProviderAdapter",
+        )
+
+        result = DiscoveryAssembler().build_detail(detail)
+        target = result.hero_entry.target
+
+        self.assertTrue(target.conversion_ready)
+        self.assertEqual(target.resolution_mode, "search_lookup")
+        self.assertEqual(target.resolution_hints["album_title"], "Slowhand")
+        self.assertEqual(target.resolution_hints["artist_name"], "Eric Clapton")
+        self.assertEqual(target.resolution_hints["provider_origin_url"], "https://music.163.com/#/album?id=200002")
+        self.assertEqual(target.resolution_hints["provider_origin_id"], "200002")
+        self.assertEqual(target.resolution_hints["family"], "netease_artist_albums")
+
+    def test_builds_rss_artist_target_with_search_lookup_hints(self) -> None:
+        detail = ChartDetailData(
+            chart=ChartInfo(
+                id="rss-feed-y1",
+                chart_source="rss_feed",
+                chart_name="YouTube Top Artists",
+                chart_type=EntityType.ARTIST,
+                updated_at=datetime.now(timezone.utc),
+                mock=False,
+                note="rss",
+            ),
+            items=[
+                ChartEntryInfo(
+                    item_id="rss-item-003",
+                    chart_id="rss-feed-y1",
+                    chart_source="rss_feed",
+                    chart_name="YouTube Top Artists",
+                    rank=1,
+                    item_type=EntityType.ARTIST,
+                    target_id="",
+                    target_name="Bruno Mars",
+                    subtitle=None,
+                    provider="rss_feed",
+                    source_type="rss_feed/youtube_top_artists",
+                    target_payload={
+                        "family": "youtube_top_artists",
+                        "provider_origin_url": "https://www.youtube.com/channel/UCabc123",
+                        "provider_origin_id": "UCabc123",
+                    },
+                    mock=False,
+                    note="rss",
+                )
+            ],
+            item_count=1,
+            mock=False,
+            note="rss",
+            integration_point="RssFeedChartProviderAdapter",
+        )
+
+        result = DiscoveryAssembler().build_detail(detail)
+        target = result.hero_entry.target
+
+        self.assertTrue(target.conversion_ready)
+        self.assertEqual(target.resolution_mode, "search_lookup")
+        self.assertEqual(target.resolution_hints["artist_name"], "Bruno Mars")
+        self.assertEqual(target.resolution_hints["provider_origin_url"], "https://www.youtube.com/channel/UCabc123")
+        self.assertEqual(target.resolution_hints["provider_origin_id"], "UCabc123")
+        self.assertEqual(target.resolution_hints["family"], "youtube_top_artists")
+
+    def test_non_rss_entry_keeps_direct_id_resolution_mode(self) -> None:
+        detail = ChartDetailData(
+            chart=ChartInfo(
+                id="chart-listenbrainz-top-tracks-week",
+                chart_source="listenbrainz",
+                chart_name="Top Tracks",
+                chart_type=EntityType.TRACK,
+                updated_at=datetime.now(timezone.utc),
+                mock=False,
+                note="live",
+            ),
+            items=[
+                ChartEntryInfo(
+                    item_id="chart-item-001",
+                    chart_id="chart-listenbrainz-top-tracks-week",
+                    chart_source="listenbrainz",
+                    chart_name="Top Tracks",
+                    rank=1,
+                    item_type=EntityType.TRACK,
+                    target_id="rec-1",
+                    target_name="Hello",
+                    subtitle="Adele",
+                    provider="listenbrainz",
+                    source_type="listenbrainz_sitewide_stats",
+                    mock=False,
+                    note="live",
+                )
+            ],
+            item_count=1,
+            mock=False,
+            note="live",
+            integration_point="ListenBrainzChartProviderAdapter",
+        )
+
+        result = DiscoveryAssembler().build_detail(detail)
+        target = result.hero_entry.target
+
+        self.assertEqual(target.resolution_mode, "direct_id")
+        self.assertEqual(target.provider_id, "rec-1")
