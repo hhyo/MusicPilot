@@ -377,7 +377,8 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
 
         self.assertEqual(detail.items[0].target_id, "")
         self.assertIsNotNone(detail.hero_entry)
-        self.assertFalse(detail.hero_entry.target.conversion_ready)
+        self.assertTrue(detail.hero_entry.target.conversion_ready)
+        self.assertEqual(detail.hero_entry.target.resolution_mode, "search_lookup")
 
     def test_rss_entry_keeps_family_and_origin_hints_in_note(self) -> None:
         feed_xml_by_url = {
