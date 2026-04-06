@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createMemoryHistory, createRouter, createWebHistory } from 'vue-router';
 
 import AppShell from '@/layouts/AppShell.vue';
 import ChartsView from '@/views/ChartsView.vue';
@@ -80,17 +80,23 @@ const routes = [
   },
 ];
 
-const router = createRouter({
-  history: createWebHistory(),
-  routes,
-  scrollBehavior() {
-    return { top: 0 };
-  },
-});
+export function createMusicPilotRouter(mode: 'web' | 'memory' = 'web') {
+  const router = createRouter({
+    history: mode === 'memory' ? createMemoryHistory() : createWebHistory(),
+    routes,
+    scrollBehavior() {
+      return { top: 0 };
+    },
+  });
 
-router.afterEach((to) => {
-  const pageTitle = typeof to.meta.title === 'string' ? to.meta.title : 'MusicPilot';
-  document.title = `${pageTitle} · MusicPilot`;
-});
+  router.afterEach((to) => {
+    const pageTitle = typeof to.meta.title === 'string' ? to.meta.title : 'MusicPilot';
+    document.title = `${pageTitle} · MusicPilot`;
+  });
+
+  return router;
+}
+
+const router = createMusicPilotRouter('web');
 
 export default router;

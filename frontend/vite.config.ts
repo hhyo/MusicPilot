@@ -2,9 +2,26 @@ import { fileURLToPath, URL } from 'node:url';
 
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
+import federation from '@originjs/vite-plugin-federation';
 
 export default defineConfig({
-  plugins: [vue()],
+  base: './',
+  plugins: [
+    vue(),
+    federation({
+      name: 'musicpilot',
+      filename: 'remoteEntry.js',
+      exposes: {
+        './Page': './src/plugin/Page.vue',
+      },
+      shared: {
+        vue: {
+          requiredVersion: false,
+        },
+      },
+      format: 'esm',
+    }),
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -24,6 +41,10 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  build: {
+    target: 'esnext',
+    cssCodeSplit: true,
   },
   preview: {
     host: '0.0.0.0',

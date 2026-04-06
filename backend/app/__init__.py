@@ -22,7 +22,7 @@ except Exception:  # pragma: no cover - only available inside MoviePilot host ru
 
 __version__ = "0.1.0"
 PLUGIN_NAME = "MusicPilot"
-PLUGIN_DESCRIPTION = "Phase 6 runtime placeholder with host-aware search/dispatch/organize wiring for future MoviePilot integration."
+PLUGIN_DESCRIPTION = "Music discovery, metadata, subscriptions, and organize workspace for MoviePilot."
 
 
 def _bootstrap_plugin_storage() -> None:
@@ -89,8 +89,12 @@ if _HostPluginBase is not None:
         def get_form(self):
             return [], {"enabled": True}
 
+        @staticmethod
+        def get_render_mode():
+            return "vue", "static/assets"
+
         def get_page(self):
-            return []
+            return None
 
         def stop_service(self):
             return None

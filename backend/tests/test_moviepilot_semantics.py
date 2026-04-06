@@ -1120,6 +1120,68 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
             else:
                 sys.modules.pop("app.plugins", None)
 
+    def test_plugin_entry_uses_vue_remote_render_mode(self) -> None:
+        module_path = Path(__file__).resolve().parents[1] / "app" / "__init__.py"
+        fake_plugins_module = type(sys)("app.plugins")
+
+        class FakePluginBase:
+            def __init__(self):
+                pass
+
+        fake_plugins_module._PluginBase = FakePluginBase  # type: ignore[attr-defined]
+        previous_plugins_module = sys.modules.get("app.plugins")
+        module_name = "musicpilot_host_entry_render_mode_test"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        plugin_module = importlib.util.module_from_spec(spec)
+
+        sys.modules["app.plugins"] = fake_plugins_module
+        sys.modules.pop(module_name, None)
+        try:
+            spec.loader.exec_module(plugin_module)  # type: ignore[union-attr]
+            plugin = plugin_module.musicpilot()
+
+            self.assertIsNone(plugin.get_page())
+            self.assertEqual(plugin.get_render_mode(), ("vue", "static/assets"))
+        finally:
+            sys.modules.pop(module_name, None)
+            if previous_plugins_module is not None:
+                sys.modules["app.plugins"] = previous_plugins_module
+            else:
+                sys.modules.pop("app.plugins", None)
+
+    def test_plugin_entry_declares_vue_remote_render_mode(self) -> None:
+        module_path = Path(__file__).resolve().parents[1] / "app" / "__init__.py"
+        fake_plugins_module = type(sys)("app.plugins")
+
+        class FakePluginBase:
+            def __init__(self):
+                pass
+
+        fake_plugins_module._PluginBase = FakePluginBase  # type: ignore[attr-defined]
+        previous_plugins_module = sys.modules.get("app.plugins")
+        module_name = "musicpilot_host_entry_render_mode_test"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        plugin_module = importlib.util.module_from_spec(spec)
+
+        sys.modules["app.plugins"] = fake_plugins_module
+        sys.modules.pop(module_name, None)
+        try:
+            spec.loader.exec_module(plugin_module)  # type: ignore[union-attr]
+            plugin = plugin_module.musicpilot()
+
+            self.assertEqual(plugin.get_render_mode(), ("vue", "static/assets"))
+            self.assertIsNone(plugin.get_page())
+        finally:
+            sys.modules.pop(module_name, None)
+            if previous_plugins_module is not None:
+                sys.modules["app.plugins"] = previous_plugins_module
+            else:
+                sys.modules.pop("app.plugins", None)
+
 
 if __name__ == "__main__":
     unittest.main()
