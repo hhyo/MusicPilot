@@ -283,6 +283,7 @@ import type { MetadataDetail } from '@/types/metadata';
 import type {
   ChartDetailData,
   ChartEntryInfo,
+  DiscoveryTarget,
   DiscoveryEntryView,
   DiscoveryEntryGroup,
   ChartProviderInfo,
@@ -391,7 +392,7 @@ async function openDiscoveryEntryDetail(item: DiscoveryEntryView) {
     metadataDetail.value = null;
     metadataDetailError.value = '';
     metadataDetailLoading.value = false;
-    discoveryWarningMessage.value = item.target.conversion_note || '当前榜单项暂不支持 metadata detail。';
+    discoveryWarningMessage.value = resolveConversionStatusText(item.target);
     ElMessage.warning(discoveryWarningMessage.value);
     return;
   }
@@ -516,13 +517,17 @@ function resolveErrorMessage(error: unknown, fallback: string) {
 }
 
 function renderConversionStatus(item: DiscoveryEntryView) {
-  if (!item.target.conversion_ready) {
-    return item.target.conversion_note || 'metadata pending';
+  return resolveConversionStatusText(item.target);
+}
+
+function resolveConversionStatusText(target: DiscoveryTarget) {
+  if (target.conversion_ready) {
+    return target.resolution_mode === 'search_lookup' ? '需要检索详情' : '已可查看详情';
   }
-  if (item.target.resolution_mode === 'search_lookup') {
-    return 'metadata lookup ready';
+  if (target.resolution_mode === 'search_lookup') {
+    return '解析信息不足';
   }
-  return 'metadata direct ready';
+  return '当前暂不支持详情下钻';
 }
 </script>
 

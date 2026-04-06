@@ -523,7 +523,7 @@ describe('ChartsView discovery metadata drawer', () => {
     expect(fetchDiscoveryTargetDetail).not.toHaveBeenCalledWith(
       readyDetailResponse.data.entry_groups[0].items[0].target,
     );
-    expect(elMessageWarning).toHaveBeenCalledWith('需要补充 provider id');
+    expect(elMessageWarning).toHaveBeenCalledWith('当前暂不支持详情下钻');
   });
 
   it('keeps subscribe button behavior isolated from metadata click', async () => {
@@ -563,7 +563,7 @@ describe('ChartsView discovery metadata drawer', () => {
     await flushPromises();
 
     const statusText = wrapper.find('.entry-card__conversion').text();
-    expect(statusText).toContain('metadata lookup ready');
+    expect(statusText).toContain('需要检索详情');
 
     await wrapper.get('[data-test="discovery-entry-rss-entry-1"]').trigger('click');
     await flushPromises();
