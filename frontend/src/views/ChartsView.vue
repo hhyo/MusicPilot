@@ -222,7 +222,7 @@
                 <h4>{{ item.target.display_title }}</h4>
                 <p>{{ item.entry_summary }}</p>
                 <p class="entry-card__conversion">
-                  {{ item.target.conversion_ready ? 'metadata ready' : item.target.conversion_note || 'metadata pending' }}
+                  {{ renderConversionStatus(item) }}
                 </p>
                 <div class="entry-card__tags">
                   <el-tag size="small" effect="plain">{{ item.target.target_kind }}</el-tag>
@@ -513,6 +513,16 @@ function resolveErrorMessage(error: unknown, fallback: string) {
     return error.message;
   }
   return fallback;
+}
+
+function renderConversionStatus(item: DiscoveryEntryView) {
+  if (!item.target.conversion_ready) {
+    return item.target.conversion_note || 'metadata pending';
+  }
+  if (item.target.resolution_mode === 'search_lookup') {
+    return 'metadata lookup ready';
+  }
+  return 'metadata direct ready';
 }
 </script>
 

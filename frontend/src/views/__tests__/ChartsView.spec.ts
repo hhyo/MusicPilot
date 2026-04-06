@@ -137,6 +137,8 @@ const artistDetailResponse = {
         },
         conversion_ready: true,
         conversion_note: null,
+        resolution_mode: 'direct_id',
+        resolution_hints: {},
         discovery_badges: ['top_artist'],
       },
       entry_summary: 'artist summary',
@@ -187,6 +189,8 @@ const readyDetailResponse = {
         },
         conversion_ready: true,
         conversion_note: null,
+        resolution_mode: 'direct_id',
+        resolution_hints: {},
         discovery_badges: ['top_track'],
       },
       entry_summary: 'summary',
@@ -228,6 +232,8 @@ const readyDetailResponse = {
               },
               conversion_ready: false,
               conversion_note: '需要补充 provider id',
+              resolution_mode: 'direct_id',
+              resolution_hints: {},
               discovery_badges: [],
             },
             entry_summary: 'summary',
@@ -237,6 +243,147 @@ const readyDetailResponse = {
       },
     ],
     conversion_summary: { ready: 1, not_ready: 1 },
+  },
+};
+
+const rssChartListResponse = {
+  success: true,
+  data: {
+    items: [
+      {
+        id: 'rss-feed-feed-1',
+        chart_source: 'rss_feed',
+        chart_name: '网易云喜欢',
+        chart_type: 'track',
+        item_count: 1,
+        updated_at: '2026-04-05T10:00:00Z',
+        mock: false,
+        note: 'rss',
+        summary: 'summary',
+        chart_group: 'tracks',
+        chart_scope: 'liked',
+        freshness_label: 'rss-feed',
+        supports_subscription: true,
+      },
+    ],
+    total: 1,
+    mock: false,
+    note: '',
+    integration_point: 'runtime',
+  },
+};
+
+const rssDetailResponse = {
+  success: true,
+  data: {
+    chart: rssChartListResponse.data.items[0],
+    items: [],
+    item_count: 1,
+    mock: false,
+    note: '',
+    integration_point: 'runtime',
+    hero_entry: {
+      entry: {
+        item_id: 'rss-entry-1',
+        chart_id: 'rss-feed-feed-1',
+        chart_source: 'rss_feed',
+        chart_name: '网易云喜欢',
+        rank: 1,
+        item_type: 'track',
+        target_id: '',
+        target_name: 'Hello',
+        provider: 'rss_feed',
+        source_type: 'rss_feed/netease_playlist_tracks',
+        target_payload: {
+          title: 'Hello',
+          artist_name: 'Adele',
+          album_title: '25',
+        },
+        mock: false,
+        note: '',
+      },
+      target: {
+        target_kind: 'track',
+        provider: 'musicbrainz',
+        provider_id: '',
+        display_title: 'Hello',
+        display_subtitle: 'Adele',
+        source_context: {
+          chart_source: 'rss_feed',
+          chart_id: 'rss-feed-feed-1',
+          chart_name: '网易云喜欢',
+          rank: 1,
+          chart_type: 'track',
+        },
+        conversion_ready: true,
+        conversion_note: null,
+        resolution_mode: 'search_lookup',
+        resolution_hints: {
+          title: 'Hello',
+          artist_name: 'Adele',
+          album_title: '25',
+        },
+        discovery_badges: ['rss'],
+      },
+      entry_summary: 'summary',
+      badges: ['rss'],
+    },
+    summary_stats: { items: 1 },
+    entry_groups: [
+      {
+        group_key: 'tracks',
+        group_label: 'Tracks',
+        items: [
+          {
+            entry: {
+              item_id: 'rss-entry-1',
+              chart_id: 'rss-feed-feed-1',
+              chart_source: 'rss_feed',
+              chart_name: '网易云喜欢',
+              rank: 1,
+              item_type: 'track',
+              target_id: '',
+              target_name: 'Hello',
+              provider: 'rss_feed',
+              source_type: 'rss_feed/netease_playlist_tracks',
+              target_payload: {
+                title: 'Hello',
+                artist_name: 'Adele',
+                album_title: '25',
+              },
+              mock: false,
+              note: '',
+            },
+            target: {
+              target_kind: 'track',
+              provider: 'musicbrainz',
+              provider_id: '',
+              display_title: 'Hello',
+              display_subtitle: 'Adele',
+              source_context: {
+                chart_source: 'rss_feed',
+                chart_id: 'rss-feed-feed-1',
+                chart_name: '网易云喜欢',
+                rank: 1,
+                chart_type: 'track',
+              },
+              conversion_ready: true,
+              conversion_note: null,
+              resolution_mode: 'search_lookup',
+              resolution_hints: {
+                title: 'Hello',
+                artist_name: 'Adele',
+                album_title: '25',
+              },
+              discovery_badges: ['rss'],
+            },
+            entry_summary: 'summary',
+            badges: ['rss'],
+          },
+        ],
+      },
+    ],
+    conversion_summary: { ready: 1, not_ready: 0 },
   },
 };
 
@@ -406,5 +553,25 @@ describe('ChartsView discovery metadata drawer', () => {
     expect(drawer.props('modelValue')).toBe(false);
     expect(drawer.props('detail')).toBe(null);
     expect(wrapper.find('[data-test="discovery-hero-entry"]').classes()).not.toContain('hero-entry-card--active');
+  });
+
+  it('renders rss search_lookup entry status and opens drawer through lookup target', async () => {
+    fetchCharts.mockReset().mockResolvedValue(rssChartListResponse);
+    fetchChartDetail.mockReset().mockResolvedValue(rssDetailResponse);
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    const statusText = wrapper.find('.entry-card__conversion').text();
+    expect(statusText).toContain('metadata lookup ready');
+
+    await wrapper.get('[data-test="discovery-entry-rss-entry-1"]').trigger('click');
+    await flushPromises();
+
+    expect(fetchDiscoveryTargetDetail).toHaveBeenCalledWith(
+      rssDetailResponse.data.entry_groups[0].items[0].target,
+    );
+    const drawer = wrapper.findComponent({ name: 'MetadataDetailDrawer' });
+    expect(drawer.props('modelValue')).toBe(true);
   });
 });

@@ -37,9 +37,10 @@ python -m app.db_init --reseed
   - `seed`：本地 seed metadata
   - `musicbrainz`：实时查询 MusicBrainz Artist / Album / Track 搜索与详情；album detail 会从最佳 release 读取真实 track listing，track detail 的 related album 会对齐 release-group 语义。普通 keyword search 会按 MusicBrainz plain indexed search 语义带 `dismax=true`；recording detail 会直接请求 `release-groups`；album / track detail 还会补充最佳 release 的发行上下文，例如 `status`、`country`、`barcode`、`label_names`、`media_format`、`track_count`、`disc_count` 与 `secondary_types`；artist detail 还会补 discovery 更关心的上下文，例如 `sort_name`、`artist_type`、`area_name`、`begin_area_name`、`ended`、`release_group_count`、`primary_release_types`，以及 `featured_albums / featured_singles / featured_other_releases` 分类摘要
 - `subscriptions/{id}/run` 为同步最小执行骨架，应用内 scheduler 会在 due 时触发同一条执行链；若最佳候选为 `AUTO_DOWNLOAD`，当前会继续自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则继续自动 apply
-- `charts/*` 当前支持两种模式：
+- `charts/*` 当前支持三种模式：
   - `mock`：本地 chart seed
   - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings；当前 detail 输出已补 discovery 产品化字段，如 chart summary、hero entry、entry groups，以及稳定的 `DiscoveryTarget` 转化层
+  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取；当前仅支持 5 个 family：`netease_playlist_tracks`、`netease_artist_songs`、`netease_artist_albums`、`youtube_top_songs`、`youtube_top_artists`。RSS 条目在 discovery 层统一映射为 `search_lookup`，通过 `/metadata/lookup` 做 metadata 下钻
 - `downloads/dispatch` 当前支持三类 host 语义：
   - 可靠 `media_in` -> `/api/v1/download/`
   - torrent-only 但已具备宿主媒体参考 -> `/api/v1/download/add`
@@ -97,6 +98,16 @@ export MUSICPILOT_SUBSCRIPTION_SCHEDULER_ENABLED=true
 export MUSICPILOT_SUBSCRIPTION_SCHEDULER_POLL_SECONDS=30
 export MUSICPILOT_SUBSCRIPTION_SCHEDULER_DEFAULT_INTERVAL_MINUTES=360
 export MUSICPILOT_HOST_VALIDATION_MATRIX_PATH=/Users/me/path/to/MusicPilot/backend/data/host_validation_matrix.latest.json
+```
+
+启用 RSS chart provider 的最小配置示例：
+
+```bash
+export MUSICPILOT_CHART_PROVIDER_MODE=rss_feed
+export MUSICPILOT_CHART_RSS_FEEDS='[
+  {"id":"netease-liked","label":"网易云喜欢","url":"https://rsshub.app/163/music/playlist/9345476","category":"liked","region":"CN","enabled":true},
+  {"id":"youtube-top-artists-us","label":"YouTube Top Artists US","url":"https://rsshub.app/youtube/charts/TopArtists/us","category":"top-artists","region":"US","enabled":true}
+]'
 ```
 
 补充说明：
