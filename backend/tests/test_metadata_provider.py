@@ -275,6 +275,233 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
             service.lookup_detail(EntityType.ARTIST, {"artist_name": "NotFound Artist"})
         self.assertEqual(ctx_not_found.exception.status_code, 404)
 
+    def test_lookup_prefers_precise_match_over_first_item(self) -> None:
+        from app.adapters.metadata_provider import MetadataProviderAdapter
+
+        class RankedLiveAdapter(MetadataProviderAdapter):
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+                return MetadataSearchData(
+                    keyword=payload.keyword,
+                    entity_type=payload.type,
+                    page=payload.page,
+                    page_size=payload.page_size,
+                    total=2,
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    integration_point="fake.live.search",
+                    items=[
+                        MetadataSummary(
+                            entity_type=EntityType.TRACK,
+                            id="track-wrong-first",
+                            title="Hello (Live)",
+                            artist_name="Adele",
+                            album_title="25",
+                            track_title="Hello (Live)",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="wrong",
+                        ),
+                        MetadataSummary(
+                            entity_type=EntityType.TRACK,
+                            id="track-best-second",
+                            title="Hello",
+                            artist_name="Adele",
+                            album_title="25",
+                            track_title="Hello",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="best",
+                        ),
+                    ],
+                )
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+                return MetadataDetail(
+                    entity_type=entity_type,
+                    id=entity_id,
+                    title="Hello",
+                    artist_name="Adele",
+                    album_title="25",
+                    track_title="Hello",
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    mock=False,
+                    note="ok",
+                    integration_point="fake.live.detail",
+                )
+
+        service = MetadataService(session=self.session, adapter=RankedLiveAdapter())
+
+        detail = service.lookup_detail(
+            EntityType.TRACK,
+            {"artist_name": "Adele", "title": "Hello", "album_title": "25"},
+        )
+
+        self.assertEqual(detail.id, "track-best-second")
+
+    def test_lookup_raises_404_when_search_has_items_but_none_match_minimum_criteria(self) -> None:
+        from app.adapters.metadata_provider import MetadataProviderAdapter
+
+        class NonMatchingLiveAdapter(MetadataProviderAdapter):
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+                return MetadataSearchData(
+                    keyword=payload.keyword,
+                    entity_type=payload.type,
+                    page=payload.page,
+                    page_size=payload.page_size,
+                    total=2,
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    integration_point="fake.live.search",
+                    items=[
+                        MetadataSummary(
+                            entity_type=EntityType.ALBUM,
+                            id="album-1",
+                            title="21",
+                            artist_name="Adele",
+                            album_title="21",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="wrong",
+                        ),
+                        MetadataSummary(
+                            entity_type=EntityType.ALBUM,
+                            id="album-2",
+                            title="19",
+                            artist_name="Adele",
+                            album_title="19",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="wrong2",
+                        ),
+                    ],
+                )
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:  # pragma: no cover
+                raise NotImplementedError
+
+        service = MetadataService(session=self.session, adapter=NonMatchingLiveAdapter())
+
+        with self.assertRaises(HTTPException) as ctx:
+            service.lookup_detail(EntityType.ALBUM, {"artist_name": "Adele", "album_title": "25"})
+        self.assertEqual(ctx.exception.status_code, 404)
+
+    def test_lookup_converts_provider_http_failures_to_502(self) -> None:
+        from app.adapters.metadata_provider import MetadataProviderAdapter
+
+        class FailingSearchAdapter(MetadataProviderAdapter):
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+                raise httpx.ReadTimeout("search timeout")
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:  # pragma: no cover
+                raise NotImplementedError
+
+        with self.assertRaises(HTTPException) as ctx_search:
+            MetadataService(session=self.session, adapter=FailingSearchAdapter()).lookup_detail(
+                EntityType.ARTIST,
+                {"artist_name": "Adele"},
+            )
+        self.assertEqual(ctx_search.exception.status_code, 502)
+
+        class FailingDetailAdapter(MetadataProviderAdapter):
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+                return MetadataSearchData(
+                    keyword=payload.keyword,
+                    entity_type=payload.type,
+                    page=1,
+                    page_size=10,
+                    total=1,
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    integration_point="fake.live.search",
+                    items=[
+                        MetadataSummary(
+                            entity_type=EntityType.ARTIST,
+                            id="artist-1",
+                            title="Adele",
+                            artist_name="Adele",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="ok",
+                        )
+                    ],
+                )
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+                raise httpx.ConnectError("detail connect error")
+
+        with self.assertRaises(HTTPException) as ctx_detail:
+            MetadataService(session=self.session, adapter=FailingDetailAdapter()).lookup_detail(
+                EntityType.ARTIST,
+                {"artist_name": "Adele"},
+            )
+        self.assertEqual(ctx_detail.exception.status_code, 502)
+
 
 class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
     def test_search_reuses_cached_result_for_identical_payload(self) -> None:
