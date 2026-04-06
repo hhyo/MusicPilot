@@ -774,7 +774,7 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
                 rss_hints["artist_name"] = item.get("subtitle")
                 rss_hints["album_title"] = item.get("album_title")
             elif chart_type == EntityType.ALBUM:
-                rss_hints["album_title"] = item.get("album_title") or target_name
+                rss_hints["album_title"] = item.get("album_title")
                 rss_hints["artist_name"] = item.get("subtitle")
             elif chart_type == EntityType.ARTIST:
                 rss_hints["artist_name"] = target_name

@@ -456,9 +456,35 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         album_item = adapter.get_chart_detail("rss-feed-feed-album").items[0]
         artist_item = adapter.get_chart_detail("rss-feed-feed-artist").items[0]
 
-        self.assertEqual(album_item.target_payload["album_title"], "Slowhand")
+        self.assertIsNone(album_item.target_payload["album_title"])
         self.assertEqual(album_item.target_payload["artist_name"], "Eric Clapton")
         self.assertEqual(artist_item.target_payload["artist_name"], "Bruno Mars")
+
+    def test_rss_album_entry_without_structured_album_title_does_not_fallback_to_target_name(self) -> None:
+        feed_xml_by_url = {
+            "https://rsshub.app/163/music/artist/6452": """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>网易云艺人专辑</title>
+    <item>
+      <title>Display Album Name</title>
+      <link>https://music.163.com/#/album?id=200099</link>
+      <description><![CDATA[歌手：Eric Clapton]]></description>
+    </item>
+  </channel>
+</rss>"""
+        }
+        adapter = RssFeedChartProviderAdapter(
+            feeds=[{"id": "feed-album-no-structured", "enabled": True, "url": "https://rsshub.app/163/music/artist/6452"}],
+            fetcher=lambda url: feed_xml_by_url[url],
+            cache_enabled=False,
+        )
+
+        item = adapter.get_chart_detail("rss-feed-feed-album-no-structured").items[0]
+
+        self.assertEqual(item.target_name, "Display Album Name")
+        self.assertIsNone(item.target_payload.get("album_title"))
+        self.assertNotEqual(item.target_payload.get("album_title"), item.target_name)
 
     def test_list_charts_skips_disabled_and_unsupported_feeds(self) -> None:
         feed_xml_by_url = {
