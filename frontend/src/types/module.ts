@@ -53,7 +53,7 @@ export const navigationModules: NavigationModule[] = [
     key: 'settings',
     title: '设置',
     route: '/settings',
-    description: '插件设置与宿主接入入口占位',
-    status: '占位完成',
+    description: 'chart provider mode 与 RSS feed 配置',
+    status: '可用（providers）',
   },
 ];

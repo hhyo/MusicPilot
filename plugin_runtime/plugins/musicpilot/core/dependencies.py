@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 
 from fastapi import Depends
@@ -31,6 +32,7 @@ from ..adapters.metadata_provider import (
 from ..adapters.organize import MockOrganizeAdapter, OrganizeAdapter, RealOrganizeAdapter
 from ..core.db import SessionLocal, get_db_session
 from ..core.config import settings
+from ..core.runtime_cache import stable_cache_key
 from ..repositories.orchestration import OrchestrationRepository
 from ..services.charts import ChartService
 from ..services.host_capabilities import HostCapabilitiesService
@@ -45,6 +47,7 @@ from ..services.host_integration import (
 from ..services.host_path_handoff import HostPathHandoffService
 from ..services.metadata import MetadataService
 from ..services.mvp_placeholder import MvpPlaceholderService
+from ..services.settings import SettingsService
 from ..services.organize import OrganizeService
 from ..services.organize_strategy import OrganizeStrategyService
 from ..services.query_builder import QueryBuilderService
@@ -70,6 +73,10 @@ def get_mvp_placeholder_service() -> MvpPlaceholderService:
     return MvpPlaceholderService()
 
 
+def get_settings_service(session: Session = Depends(get_db_session)) -> SettingsService:
+    return SettingsService(session=session, env_settings=settings)
+
+
 @lru_cache
 def get_discovery_assembler() -> DiscoveryAssembler:
     return DiscoveryAssembler()
@@ -90,27 +97,75 @@ def get_metadata_provider_adapter() -> MetadataProviderAdapter:
     return MockMetadataProviderAdapter()
 
 
-@lru_cache
-def get_chart_provider_adapter() -> ChartProviderAdapter:
-    if settings.chart_provider_mode == "listenbrainz":
+def get_chart_provider_adapter(
+    session: Session = Depends(get_db_session),
+    settings_service: SettingsService = Depends(get_settings_service),
+) -> ChartProviderAdapter:
+    _ = session
+    provider_settings = settings_service.get_provider_settings()
+    feed_payload = [feed.model_dump(mode="json") for feed in provider_settings.chart_rss_feeds]
+    cache_key = stable_cache_key(
+        "chart_provider_adapter",
+        provider_mode=provider_settings.chart_provider_mode.value,
+        feeds=feed_payload,
+        listenbrainz_base_url=settings.chart_listenbrainz_base_url,
+        user_agent=settings.chart_provider_user_agent,
+        timeout_seconds=settings.chart_provider_timeout_seconds,
+        stats_range=settings.chart_listenbrainz_range,
+        count=settings.chart_listenbrainz_count,
+        cache_enabled=settings.chart_cache_enabled,
+        cache_maxsize=settings.chart_cache_maxsize,
+        cache_ttl_seconds=settings.chart_cache_ttl_seconds,
+    )
+    return _build_chart_provider_adapter(
+        cache_key,
+        provider_settings.chart_provider_mode.value,
+        json.dumps(feed_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False),
+        settings.chart_listenbrainz_base_url,
+        settings.chart_provider_user_agent,
+        settings.chart_provider_timeout_seconds,
+        settings.chart_listenbrainz_range,
+        settings.chart_listenbrainz_count,
+        settings.chart_cache_enabled,
+        settings.chart_cache_maxsize,
+        settings.chart_cache_ttl_seconds,
+    )
+
+
+@lru_cache(maxsize=32)
+def _build_chart_provider_adapter(
+    cache_key: str,
+    provider_mode: str,
+    feeds_json: str,
+    listenbrainz_base_url: str,
+    user_agent: str,
+    timeout_seconds: float,
+    stats_range: str,
+    count: int,
+    cache_enabled: bool,
+    cache_maxsize: int,
+    cache_ttl_seconds: int,
+) -> ChartProviderAdapter:
+    _ = cache_key
+    if provider_mode == "listenbrainz":
         return ListenBrainzChartProviderAdapter(
-            base_url=settings.chart_listenbrainz_base_url,
-            user_agent=settings.chart_provider_user_agent,
-            timeout_seconds=settings.chart_provider_timeout_seconds,
-            stats_range=settings.chart_listenbrainz_range,
-            count=settings.chart_listenbrainz_count,
-            cache_enabled=settings.chart_cache_enabled,
-            cache_maxsize=settings.chart_cache_maxsize,
-            cache_ttl_seconds=settings.chart_cache_ttl_seconds,
+            base_url=listenbrainz_base_url,
+            user_agent=user_agent,
+            timeout_seconds=timeout_seconds,
+            stats_range=stats_range,
+            count=count,
+            cache_enabled=cache_enabled,
+            cache_maxsize=cache_maxsize,
+            cache_ttl_seconds=cache_ttl_seconds,
         )
-    if settings.chart_provider_mode == "rss_feed":
+    if provider_mode == "rss_feed":
         return RssFeedChartProviderAdapter(
-            feeds=settings.chart_rss_feeds,
-            user_agent=settings.chart_provider_user_agent,
-            timeout_seconds=settings.chart_provider_timeout_seconds,
-            cache_enabled=settings.chart_cache_enabled,
-            cache_maxsize=settings.chart_cache_maxsize,
-            cache_ttl_seconds=settings.chart_cache_ttl_seconds,
+            feeds=json.loads(feeds_json),
+            user_agent=user_agent,
+            timeout_seconds=timeout_seconds,
+            cache_enabled=cache_enabled,
+            cache_maxsize=cache_maxsize,
+            cache_ttl_seconds=cache_ttl_seconds,
         )
     metadata_adapter = MockMetadataProviderAdapter()
     return MockChartProviderAdapter(metadata_adapter.load_seed_catalog())

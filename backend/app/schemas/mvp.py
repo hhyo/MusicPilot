@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 
 def utc_now() -> datetime:
@@ -81,6 +81,12 @@ class ReleaseType(str, Enum):
     LIVE = "live"
     REMASTER = "remaster"
     DELUXE = "deluxe"
+
+
+class ChartProviderMode(str, Enum):
+    MOCK = "mock"
+    LISTENBRAINZ = "listenbrainz"
+    RSS_FEED = "rss_feed"
 
 
 class DashboardSummary(BaseModel):
@@ -195,6 +201,30 @@ class ProviderSettings(BaseModel):
     pt_sites: list[Provider] = Field(default_factory=list)
 
 
+class ChartRssFeedSettings(BaseModel):
+    id: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+    url: HttpUrl
+    category: str = Field(min_length=1)
+    region: str = Field(min_length=1)
+    enabled: bool = True
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderSettingsUpdatePayload(BaseModel):
+    chart_provider_mode: ChartProviderMode
+    chart_rss_feeds: list[ChartRssFeedSettings] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderSettingsResponse(BaseModel):
+    chart_provider_mode: ChartProviderMode
+    chart_rss_feeds: list[ChartRssFeedSettings] = Field(default_factory=list)
+    metadata_provider_mode: str | None = None
+
+
 class RuleProfile(BaseModel):
     id: str
     name: str
@@ -245,4 +275,3 @@ class DispatchDownloadRequest(BaseModel):
     downloader_id: str
     save_path_policy: str = "auto"
     manual_confirm: bool = True
-

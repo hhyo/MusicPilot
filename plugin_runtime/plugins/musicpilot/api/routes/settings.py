@@ -4,43 +4,42 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 
-from ...core.dependencies import get_mvp_placeholder_service
+from ...core.dependencies import get_mvp_placeholder_service, get_settings_service
 from ...core.responses import success_response
 from ...schemas.common import ApiResponse
-from ...schemas.mvp import ProviderSettings, RuleProfile
+from ...schemas.mvp import ProviderSettingsUpdatePayload, RuleProfile
 from ...services.mvp_placeholder import MvpPlaceholderService
+from ...services.settings import SettingsService
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
 
-@router.get("/providers", summary="Get provider settings placeholder")
+@router.get("/providers", summary="Get provider settings")
 async def provider_settings(
     request: Request,
-    service: MvpPlaceholderService = Depends(get_mvp_placeholder_service),
+    service: SettingsService = Depends(get_settings_service),
 ) -> ApiResponse:
     return success_response(
         request,
-        data=service.provider_settings(),
-        message="Provider settings placeholder is callable.",
-        code="SETTINGS_PROVIDERS_PLACEHOLDER",
-        mock=True,
-        note="当前 provider settings 为 mock 数据，未连接真实配置持久化。",
+        data=service.get_provider_settings(),
+        message="Provider settings loaded.",
+        code="SETTINGS_PROVIDERS_OK",
+        mock=False,
     )
 
 
-@router.put("/providers", summary="Update provider settings placeholder")
+@router.put("/providers", summary="Update provider settings")
 async def update_provider_settings(
-    payload: ProviderSettings,
+    payload: ProviderSettingsUpdatePayload,
     request: Request,
-    service: MvpPlaceholderService = Depends(get_mvp_placeholder_service),
+    service: SettingsService = Depends(get_settings_service),
 ) -> ApiResponse:
     return success_response(
         request,
         data=service.update_provider_settings(payload),
-        message="Update provider settings placeholder accepted the payload.",
-        code="UPDATE_SETTINGS_PROVIDERS_PLACEHOLDER",
-        mock=True,
-        note="当前只回显 provider 配置，不会写入真实配置存储。",
+        message="Provider settings updated.",
+        code="UPDATE_SETTINGS_PROVIDERS_OK",
+        mock=False,
     )
 
 
@@ -73,4 +72,3 @@ async def update_rule_profile(
         mock=True,
         note="当前只回显 profile 配置，不会写入真实配置存储。",
     )
-

@@ -5,6 +5,7 @@ import ChartsView from '@/views/ChartsView.vue';
 import HomeView from '@/views/HomeView.vue';
 import ModulePlaceholderView from '@/views/ModulePlaceholderView.vue';
 import SearchView from '@/views/SearchView.vue';
+import SettingsView from '@/views/SettingsView.vue';
 import SubscriptionsView from '@/views/SubscriptionsView.vue';
 
 const routes = [
@@ -69,10 +70,10 @@ const routes = [
       {
         path: 'settings',
         name: 'settings',
-        component: ModulePlaceholderView,
+        component: SettingsView,
         meta: {
           title: '设置',
-          description: '当前为配置入口占位，宿主接入与运行参数仍以环境变量为主。',
+          description: '真实 provider settings 页面，支持 chart provider mode 与 RSS feed JSON 配置。',
         },
       },
     ],

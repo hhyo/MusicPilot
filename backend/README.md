@@ -11,6 +11,7 @@ FastAPI 工程目录。当前已完成：
 - SubscriptionService、subscription run、最小应用内 scheduler 与 mock/ListenBrainz chart discovery
 - 音乐 organize preview/apply 与 organize 状态记录
 - search / dispatch / organize 接入模式选择与必要的 mock/real 环境切换
+- `/settings` 最小可用设置页与 `/settings/providers` 真实读写接口
 - 真实 MoviePilot search / downloader runtime / transfer 语义收敛与差异记录
 - 真实宿主插件 API 下的音乐 `preview_ready -> applied` 成功样例
 - Phase 8 多样例真实验证矩阵与 path handoff 稳定性收敛
@@ -40,7 +41,7 @@ python -m app.db_init --reseed
 - `charts/*` 当前支持三种模式：
   - `mock`：本地 chart seed
   - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings；当前 detail 输出已补 discovery 产品化字段，如 chart summary、hero entry、entry groups，以及稳定的 `DiscoveryTarget` 转化层
-  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取；当前仅支持 5 个 family：`netease_playlist_tracks`、`netease_artist_songs`、`netease_artist_albums`、`youtube_top_songs`、`youtube_top_artists`。RSS 条目在 discovery 层统一映射为 `search_lookup`，通过 `/metadata/lookup` 做 metadata 下钻
+  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取，运行时优先读取项目 settings，环境变量仅作为 fallback；当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，`item_count` 分别可写为 `200`、`100`、`100`。RSS 条目在 discovery 层统一映射为 `search_lookup`，通过 `/metadata/lookup` 做 metadata 下钻；条目点击会进入 metadata drawer，但在 `metadata provider mode=seed` 的运行态下，示例 lookup 可能返回“未匹配到 metadata”
 - `downloads/dispatch` 当前支持三类 host 语义：
   - 可靠 `media_in` -> `/api/v1/download/`
   - torrent-only 但已具备宿主媒体参考 -> `/api/v1/download/add`
@@ -110,11 +111,14 @@ export MUSICPILOT_CHART_RSS_FEEDS='[
 ]'
 ```
 
+当前运行态里，RSS feeds 也可以通过 `/settings/providers` 真实读写，保存后的配置会直接参与 charts discovery。
+
 补充说明：
 
 - `metadata` 与 `charts` 真实 provider 当前已支持最小 TTL 缓存
 - 真正运行在宿主插件进程内时，优先复用 MoviePilot 推荐缓存接口
 - backend 本地运行态与测试环境会自动回退到本地内存 TTL cache
+- 第一阶段不包含复杂 RSS 可视化 CRUD
 
 若没有真实宿主，可运行：
 
