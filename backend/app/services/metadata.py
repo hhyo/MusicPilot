@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -194,6 +195,46 @@ class MetadataService:
         if entity_type == EntityType.ALBUM:
             return self.get_album_detail(entity_id)
         return self.get_track_detail(entity_id)
+
+    def lookup_detail(self, entity_type: EntityType, hints: dict[str, Any]) -> MetadataDetail:
+        keyword = self._build_lookup_keyword(entity_type=entity_type, hints=hints)
+        if not keyword:
+            raise HTTPException(status_code=400, detail="Insufficient lookup hints for metadata lookup.")
+
+        search_result = self.search(
+            MetadataSearchRequest(
+                keyword=keyword,
+                type=entity_type,
+                page=1,
+                page_size=10,
+            )
+        )
+        if not search_result.items:
+            raise HTTPException(status_code=404, detail="No metadata match found for lookup hints.")
+
+        winner = search_result.items[0]
+        return self.get_detail(entity_type, winner.id)
+
+    @staticmethod
+    def _build_lookup_keyword(*, entity_type: EntityType, hints: dict[str, Any]) -> str:
+        def _clean(value: Any) -> str:
+            return str(value).strip() if value is not None else ""
+
+        if entity_type == EntityType.TRACK:
+            parts = [
+                _clean(hints.get("artist_name")),
+                _clean(hints.get("title")),
+                _clean(hints.get("album_title")),
+            ]
+        elif entity_type == EntityType.ALBUM:
+            parts = [
+                _clean(hints.get("artist_name")),
+                _clean(hints.get("album_title")),
+            ]
+        else:
+            parts = [_clean(hints.get("artist_name"))]
+
+        return " ".join(part for part in parts if part)
 
     def _build_summary(
         self,

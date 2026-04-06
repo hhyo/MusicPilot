@@ -93,6 +93,8 @@ export interface DiscoveryTarget {
   source_context: DiscoverySourceContext;
   conversion_ready: boolean;
   conversion_note?: string | null;
+  resolution_mode?: 'direct_id' | 'search_lookup';
+  resolution_hints?: Record<string, unknown>;
   discovery_badges: string[];
 }
 
