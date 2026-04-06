@@ -777,7 +777,11 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
                 rss_hints["album_title"] = item.get("album_title")
                 rss_hints["artist_name"] = item.get("subtitle")
             elif chart_type == EntityType.ARTIST:
-                rss_hints["artist_name"] = target_name
+                structured_artist_name = item.get("target_name")
+                if isinstance(structured_artist_name, str):
+                    normalized = structured_artist_name.strip()
+                    if normalized and normalized.lower() != "unknown artist":
+                        rss_hints["artist_name"] = normalized
             entries.append(
                 ChartEntryInfo(
                     item_id=f"{chart_id_seed}-item-{rank:03d}",

@@ -511,6 +511,34 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         self.assertEqual(item.target_payload.get("title"), "")
         self.assertNotEqual(item.target_payload.get("title"), item.target_name)
 
+    def test_rss_artist_entry_without_real_artist_name_does_not_backfill_payload_and_not_ready(self) -> None:
+        feed_xml_by_url = {
+            "https://rsshub.app/youtube/charts/TopArtists/us": """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>YouTube Top Artists</title>
+    <item>
+      <link>https://www.youtube.com/channel/UCmissingtitle</link>
+    </item>
+  </channel>
+</rss>"""
+        }
+        service = ChartService(
+            adapter=RssFeedChartProviderAdapter(
+                feeds=[{"id": "feed-artist-no-name", "enabled": True, "url": "https://rsshub.app/youtube/charts/TopArtists/us"}],
+                fetcher=lambda url: feed_xml_by_url[url],
+                cache_enabled=False,
+            ),
+            discovery_assembler=DiscoveryAssembler(),
+        )
+
+        detail = service.get_chart_detail("rss-feed-feed-artist-no-name")
+        item = detail.items[0]
+
+        self.assertEqual(item.target_name, "Unknown Artist")
+        self.assertNotIn("artist_name", item.target_payload)
+        self.assertFalse(detail.hero_entry.target.conversion_ready)
+
     def test_list_charts_skips_disabled_and_unsupported_feeds(self) -> None:
         feed_xml_by_url = {
             "https://rsshub.app/163/music/playlist/9345476": """<?xml version="1.0" encoding="utf-8"?>
