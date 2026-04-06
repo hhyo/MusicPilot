@@ -108,6 +108,9 @@ def get_chart_provider_adapter() -> ChartProviderAdapter:
             feeds=settings.chart_rss_feeds,
             user_agent=settings.chart_provider_user_agent,
             timeout_seconds=settings.chart_provider_timeout_seconds,
+            cache_enabled=settings.chart_cache_enabled,
+            cache_maxsize=settings.chart_cache_maxsize,
+            cache_ttl_seconds=settings.chart_cache_ttl_seconds,
         )
     metadata_adapter = MockMetadataProviderAdapter()
     return MockChartProviderAdapter(metadata_adapter.load_seed_catalog())

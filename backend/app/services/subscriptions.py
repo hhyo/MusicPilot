@@ -96,6 +96,7 @@ class SubscriptionService:
         entry: ChartEntryInfo,
         payload: CreateChartEntrySubscriptionRequest,
     ) -> SubscriptionSummary:
+        entry_hints = dict(entry.target_payload or {})
         subscription = self.repository.create_subscription(
             subscription_type=SubscriptionType.CHART_ENTRY.value,
             target_id=entry.item_id,
@@ -115,6 +116,8 @@ class SubscriptionService:
                 "target_name": entry.target_name,
                 "target_entity_type": entry.item_type.value,
                 "subtitle": entry.subtitle,
+                "entry_target_payload": entry_hints,
+                **entry_hints,
             },
             note=(
                 "当前榜单订阅来自 mock chart entry。后续真实榜单接入后，可在此结构上接入增量刷新、"

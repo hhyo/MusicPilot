@@ -71,6 +71,7 @@ export interface ChartEntryInfo {
   subtitle?: string | null;
   provider: string;
   source_type: string;
+  target_payload: Record<string, unknown>;
   mock: boolean;
   note: string;
 }

@@ -5,14 +5,20 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from hashlib import sha1
-import json
+import logging
 from time import monotonic, sleep
 from typing import Any, Callable
+from xml.etree import ElementTree as ET
 
 import httpx
 
 from ..core.runtime_cache import RuntimeTTLCache, stable_cache_key
-from .rss_feed_parser import detect_rss_feed_family, parse_rss_feed
+from .rss_feed_parser import (
+    RssFeedParseError,
+    UnsupportedRssFeedError,
+    detect_rss_feed_family,
+    parse_rss_feed,
+)
 from ..schemas.metadata import MetadataSeedCatalog
 from ..schemas.mvp import EntityType
 from ..schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo, ChartProviderInfo
@@ -31,6 +37,7 @@ LISTENBRAINZ_CHART_NOTE = "当前榜单数据来自真实 ListenBrainz sitewide 
 LISTENBRAINZ_CHART_INTEGRATION_POINT = "ListenBrainzChartProviderAdapter"
 RSS_FEED_CHART_NOTE = "当前榜单数据来自已配置 RSS feed（按 URL family 自动识别）。"
 RSS_FEED_CHART_INTEGRATION_POINT = "RssFeedChartProviderAdapter"
+logger = logging.getLogger(__name__)
 
 
 class ChartProviderAdapter(ABC):
@@ -591,6 +598,9 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
         client: httpx.Client | None = None,
         user_agent: str = "MusicPilot/0.1.0 (local)",
         timeout_seconds: float = 15.0,
+        cache_enabled: bool = True,
+        cache_maxsize: int = 256,
+        cache_ttl_seconds: int = 900,
     ) -> None:
         self.feeds = list(feeds or [])
         self._fetcher = fetcher
@@ -598,7 +608,15 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
             headers={"User-Agent": user_agent},
             timeout=timeout_seconds,
         )
-        self._chart_cache = self._build_chart_cache()
+        self._chart_cache = (
+            RuntimeTTLCache(
+                region="musicpilot_rss_feed_chart_cache",
+                maxsize=cache_maxsize,
+                ttl=cache_ttl_seconds,
+            )
+            if cache_enabled
+            else None
+        )
 
     @property
     def provider(self) -> str:
@@ -634,11 +652,12 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
         ]
 
     def list_charts(self) -> list[ChartInfo]:
-        return [detail.chart for detail in self._chart_cache.values()]
+        return [detail.chart for detail in self._load_chart_cache().values()]
 
     def get_chart_detail(self, chart_id: str) -> ChartDetailData:
+        chart_cache = self._load_chart_cache()
         try:
-            return self._chart_cache[chart_id]
+            return chart_cache[chart_id]
         except KeyError as exc:
             raise KeyError(f"Chart {chart_id} was not found in configured RSS feeds.") from exc
 
@@ -649,6 +668,18 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
                 return item
         raise KeyError(f"Chart entry {item_id} was not found in chart {chart_id}.")
 
+    def _load_chart_cache(self) -> dict[str, ChartDetailData]:
+        cache_key = stable_cache_key("rss_feed_chart_catalog", feeds=self.feeds)
+        if self._chart_cache is not None:
+            cached = self._chart_cache.get(cache_key)
+            if cached is not None:
+                return cached
+
+        charts = self._build_chart_cache()
+        if self._chart_cache is not None:
+            self._chart_cache.set(cache_key, charts)
+        return charts
+
     def _build_chart_cache(self) -> dict[str, ChartDetailData]:
         charts: dict[str, ChartDetailData] = {}
         for feed in self.feeds:
@@ -657,9 +688,11 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
             try:
                 feed_id = self._feed_id(feed)
                 if not feed_id:
+                    logger.warning("Skipping RSS feed without id: %s", feed)
                     continue
                 url = self._feed_str(feed, "url")
                 if not url:
+                    logger.warning("Skipping RSS feed %s without url", feed_id)
                     continue
                 family = detect_rss_feed_family(url)
                 payload = parse_rss_feed(url, self._fetch_feed(url))
@@ -695,7 +728,13 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
                     note=self.note,
                     integration_point=self.integration_point,
                 )
-            except Exception:
+            except (UnsupportedRssFeedError, RssFeedParseError, ET.ParseError, httpx.HTTPError) as exc:
+                logger.warning(
+                    "Skipping RSS feed due to parse/fetch issue. feed_id=%s url=%s error=%s",
+                    self._feed_id(feed),
+                    self._feed_str(feed, "url"),
+                    exc,
+                )
                 continue
         return charts
 
@@ -720,7 +759,7 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
             subtitle = item.get("subtitle")
             if not subtitle and item.get("album_title"):
                 subtitle = str(item["album_title"])
-            rss_hints = {
+            rss_hints: dict[str, Any] = {
                 "family": item.get("family"),
                 "provider_origin_url": item.get("provider_origin_url"),
                 "provider_origin_id": item.get("provider_origin_id"),
@@ -742,8 +781,9 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
                     subtitle=subtitle,
                     provider=self.provider,
                     source_type=f"rss_feed/{family}",
+                    target_payload=rss_hints,
                     mock=False,
-                    note=f"{self.note} | rss_hints={json.dumps(rss_hints, ensure_ascii=False, sort_keys=True)}",
+                    note=self.note,
                 )
             )
         return entries

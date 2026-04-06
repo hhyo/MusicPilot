@@ -26,6 +26,14 @@ _NETEASE_FIELD_RE = re.compile(r"^\s*(歌曲|歌手|专辑)\s*[：:]\s*(.+?)\s*$
 _IMG_SRC_RE = re.compile(r"""<img[^>]+src=["']([^"']+)["']""", re.IGNORECASE)
 
 
+class UnsupportedRssFeedError(ValueError):
+    """Raised when feed URL does not match supported RSS families."""
+
+
+class RssFeedParseError(ValueError):
+    """Raised when RSS XML shape is invalid for supported feeds."""
+
+
 def detect_rss_feed_family(feed_url: str) -> str:
     normalized_path = urlparse(feed_url).path.lower().rstrip("/")
     if "/163/music/playlist" in normalized_path:
@@ -40,7 +48,7 @@ def detect_rss_feed_family(feed_url: str) -> str:
         return "youtube_top_songs"
     if "/youtube/charts/topartists" in normalized_path:
         return "youtube_top_artists"
-    raise ValueError(f"Unsupported RSS feed URL family: {feed_url}")
+    raise UnsupportedRssFeedError(f"Unsupported RSS feed URL family: {feed_url}")
 
 
 def parse_rss_feed(feed_url: str, feed_xml: str) -> dict[str, Any]:
@@ -49,7 +57,7 @@ def parse_rss_feed(feed_url: str, feed_xml: str) -> dict[str, Any]:
     root = ET.fromstring(feed_xml)
     channel = root.find("./channel")
     if channel is None:
-        raise ValueError("Invalid RSS payload: missing channel node.")
+        raise RssFeedParseError("Invalid RSS payload: missing channel node.")
 
     chart_name = _text_or_none(channel.find("title")) or family
     normalized_items: list[dict[str, Any]] = []

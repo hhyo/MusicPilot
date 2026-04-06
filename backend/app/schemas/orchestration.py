@@ -101,6 +101,7 @@ class ChartEntryInfo(BaseModel):
     subtitle: str | None = None
     provider: str
     source_type: str
+    target_payload: dict[str, Any] = Field(default_factory=dict)
     mock: bool = True
     note: str
 

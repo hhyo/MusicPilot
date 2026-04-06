@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timezone
+from types import SimpleNamespace
 
 from app.adapters.chart_provider import ListenBrainzChartProviderAdapter, RssFeedChartProviderAdapter
 from app.schemas.mvp import EntityType
-from app.schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo
+from app.schemas.orchestration import (
+    ChartDetailData,
+    ChartEntryInfo,
+    ChartInfo,
+    CreateChartEntrySubscriptionRequest,
+    SubscriptionType,
+)
 from app.services.charts import ChartService
 from app.services.discovery import DiscoveryAssembler
+from app.services.subscriptions import SubscriptionService
 
 
 class FakeResponse:
@@ -401,10 +410,12 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         detail = adapter.get_chart_detail("rss-feed-feed-netease-playlist")
         item = detail.items[0]
 
-        self.assertIn('"family": "netease_playlist_tracks"', item.note)
-        self.assertIn('"provider_origin_url": "https://music.163.com/#/song?id=100001"', item.note)
-        self.assertIn('"provider_origin_id": "100001"', item.note)
-        self.assertIn('"album_title": "Slowhand"', item.note)
+        self.assertEqual(item.target_payload["family"], "netease_playlist_tracks")
+        self.assertEqual(item.target_payload["provider_origin_url"], "https://music.163.com/#/song?id=100001")
+        self.assertEqual(item.target_payload["provider_origin_id"], "100001")
+        self.assertEqual(item.target_payload["album_title"], "Slowhand")
+        self.assertIn("raw_context", item.target_payload)
+        self.assertEqual(item.note, adapter.note)
 
     def test_list_charts_skips_disabled_and_unsupported_feeds(self) -> None:
         feed_xml_by_url = {
@@ -446,7 +457,158 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
             fetcher=lambda url: feed_xml_by_url[url],
         )
 
-        charts = adapter.list_charts()
+        with self.assertLogs("app.adapters.chart_provider", level="WARNING") as logs:
+            charts = adapter.list_charts()
 
         self.assertEqual(len(charts), 1)
         self.assertEqual(charts[0].id, "rss-feed-feed-enabled")
+        self.assertIn("Skipping RSS feed", "\n".join(logs.output))
+
+    def test_constructor_does_not_fetch_feed(self) -> None:
+        calls: list[str] = []
+
+        def fetcher(url: str) -> str:
+            calls.append(url)
+            return "<rss version='2.0'><channel><title>x</title></channel></rss>"
+
+        RssFeedChartProviderAdapter(
+            feeds=[
+                {
+                    "id": "feed-enabled",
+                    "label": "Enabled Feed",
+                    "enabled": True,
+                    "url": "https://rsshub.app/163/music/playlist/9345476",
+                }
+            ],
+            fetcher=fetcher,
+        )
+
+        self.assertEqual(calls, [])
+
+    def test_list_charts_uses_cache_but_is_not_permanent_snapshot_when_disabled(self) -> None:
+        calls: list[str] = []
+        feed_xml = """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"><channel><title>x</title><item><title>a - b</title></item></channel></rss>"""
+
+        def fetcher(url: str) -> str:
+            calls.append(url)
+            return feed_xml
+
+        cached = RssFeedChartProviderAdapter(
+            feeds=[{"id": "feed-enabled", "enabled": True, "url": "https://rsshub.app/163/music/playlist/9345476"}],
+            fetcher=fetcher,
+            cache_enabled=True,
+            cache_ttl_seconds=900,
+        )
+        cached.list_charts()
+        cached.list_charts()
+        self.assertEqual(len(calls), 1)
+
+        uncached = RssFeedChartProviderAdapter(
+            feeds=[{"id": "feed-enabled", "enabled": True, "url": "https://rsshub.app/163/music/playlist/9345476"}],
+            fetcher=fetcher,
+            cache_enabled=False,
+        )
+        uncached.list_charts()
+        uncached.list_charts()
+        self.assertEqual(len(calls), 3)
+
+    def test_parse_error_is_isolated_with_warning_and_unknown_errors_are_not_silenced(self) -> None:
+        def fetcher(url: str) -> str:
+            if "badxml" in url:
+                return "<rss><channel><title>bad"
+            if "boom" in url:
+                raise RuntimeError("boom")
+            return """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"><channel><title>x</title><item><title>a - b</title></item></channel></rss>"""
+
+        with self.assertLogs("app.adapters.chart_provider", level="WARNING") as logs:
+            adapter = RssFeedChartProviderAdapter(
+                feeds=[
+                    {"id": "badxml", "enabled": True, "url": "https://rsshub.app/163/music/playlist/badxml"},
+                    {"id": "good", "enabled": True, "url": "https://rsshub.app/163/music/playlist/9345476"},
+                ],
+                fetcher=fetcher,
+            )
+            charts = adapter.list_charts()
+        self.assertEqual(len(charts), 1)
+        self.assertIn("Skipping RSS feed", "\n".join(logs.output))
+
+        adapter_with_bug = RssFeedChartProviderAdapter(
+            feeds=[{"id": "boom", "enabled": True, "url": "https://rsshub.app/163/music/playlist/boom"}],
+            fetcher=fetcher,
+            cache_enabled=False,
+        )
+        with self.assertRaises(RuntimeError):
+            adapter_with_bug.list_charts()
+
+
+class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
+    def test_create_from_chart_entry_preserves_entry_target_payload(self) -> None:
+        service = SubscriptionService(session=SimpleNamespace(), metadata_service=SimpleNamespace())
+        captured: dict = {}
+
+        class FakeRepository:
+            def create_subscription(self, **kwargs):  # noqa: ANN003
+                captured.update(kwargs)
+                now = datetime.now(timezone.utc)
+                return SimpleNamespace(
+                    id="sub-1",
+                    subscription_type=SubscriptionType.CHART_ENTRY.value,
+                    target_id=kwargs["target_id"],
+                    target_name=kwargs["target_name"],
+                    target_entity_type=kwargs["target_entity_type"],
+                    chart_source=kwargs["chart_source"],
+                    chart_name=kwargs["chart_name"],
+                    status="active",
+                    mode=kwargs["mode"],
+                    preference_json=kwargs["preference_json"],
+                    target_payload_json=kwargs["target_payload_json"],
+                    latest_run_status=None,
+                    last_run_at=None,
+                    mock=False,
+                    note=kwargs["note"],
+                    created_at=now,
+                    updated_at=now,
+                )
+
+        class FakeSession:
+            def commit(self):  # noqa: ANN201
+                return None
+
+            def refresh(self, _obj):  # noqa: ANN001
+                return None
+
+        service.repository = FakeRepository()
+        service.session = FakeSession()
+
+        entry = ChartEntryInfo(
+            item_id="rss-item-001",
+            chart_id="rss-feed-n1",
+            chart_source="rss_feed",
+            chart_name="网易云喜欢",
+            rank=1,
+            item_type=EntityType.TRACK,
+            target_id="",
+            target_name="Wonderful Tonight",
+            subtitle="Eric Clapton",
+            provider="rss_feed",
+            source_type="rss_feed/netease_playlist_tracks",
+            target_payload={
+                "family": "netease_playlist_tracks",
+                "provider_origin_url": "https://music.163.com/#/song?id=100001",
+                "provider_origin_id": "100001",
+                "album_title": "Slowhand",
+            },
+            mock=False,
+            note="rss",
+        )
+
+        service.create_from_chart_entry(
+            entry=entry,
+            payload=CreateChartEntrySubscriptionRequest(chart_item_id="rss-item-001"),
+        )
+
+        self.assertEqual(captured["target_payload_json"]["family"], "netease_playlist_tracks")
+        self.assertEqual(captured["target_payload_json"]["provider_origin_id"], "100001")
+        self.assertEqual(captured["target_payload_json"]["entry_target_payload"]["album_title"], "Slowhand")
