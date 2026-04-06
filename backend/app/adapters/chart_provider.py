@@ -586,7 +586,7 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
     def __init__(
         self,
         *,
-        feeds: list[dict[str, str]] | None = None,
+        feeds: list[dict[str, Any]] | None = None,
         fetcher: Callable[[str], str] | None = None,
         client: httpx.Client | None = None,
         user_agent: str = "MusicPilot/0.1.0 (local)",
@@ -651,59 +651,69 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
 
     def _build_chart_cache(self) -> dict[str, ChartDetailData]:
         charts: dict[str, ChartDetailData] = {}
-        for feed_index, feed in enumerate(self.feeds, start=1):
-            url = (feed.get("url") or "").strip()
-            if not url:
-                raise ValueError("RSS feed settings item is missing url.")
-            family = detect_rss_feed_family(url)
-            payload = parse_rss_feed(url, self._fetch_feed(url))
-            chart_id = self._chart_id(feed=feed, feed_index=feed_index, family=family, url=url)
-            chart_name = (feed.get("name") or "").strip() or payload["chart_name"]
-            items = self._build_entries(
-                feed=feed,
-                chart_id=chart_id,
-                chart_name=chart_name,
-                parsed_items=payload["items"],
-                family=family,
-                chart_type=payload["chart_type"],
-            )
-            charts[chart_id] = ChartDetailData(
-                chart=ChartInfo(
-                    id=chart_id,
-                    chart_source=self.provider,
+        for feed in self.feeds:
+            if not self._feed_enabled(feed):
+                continue
+            try:
+                feed_id = self._feed_id(feed)
+                if not feed_id:
+                    continue
+                url = self._feed_str(feed, "url")
+                if not url:
+                    continue
+                family = detect_rss_feed_family(url)
+                payload = parse_rss_feed(url, self._fetch_feed(url))
+                chart_id = self._chart_id(feed_id=feed_id)
+                chart_name = self._feed_str(feed, "label") or payload["chart_name"]
+                chart_region = self._feed_str(feed, "region") or "Global"
+                chart_category = self._feed_str(feed, "category") or family
+                items = self._build_entries(
+                    feed=feed,
+                    chart_id=chart_id,
                     chart_name=chart_name,
+                    parsed_items=payload["items"],
+                    family=family,
                     chart_type=payload["chart_type"],
-                    region="Global",
-                    category=family,
-                    refresh_hint="rss-feed",
+                )
+                charts[chart_id] = ChartDetailData(
+                    chart=ChartInfo(
+                        id=chart_id,
+                        chart_source=self.provider,
+                        chart_name=chart_name,
+                        chart_type=payload["chart_type"],
+                        region=chart_region,
+                        category=chart_category,
+                        refresh_hint="rss-feed",
+                        item_count=len(items),
+                        updated_at=utc_now(),
+                        mock=False,
+                        note=self.note,
+                    ),
+                    items=items,
                     item_count=len(items),
-                    updated_at=utc_now(),
                     mock=False,
                     note=self.note,
-                ),
-                items=items,
-                item_count=len(items),
-                mock=False,
-                note=self.note,
-                integration_point=self.integration_point,
-            )
+                    integration_point=self.integration_point,
+                )
+            except Exception:
+                continue
         return charts
 
     def _build_entries(
         self,
         *,
-        feed: dict[str, str],
+        feed: dict[str, Any],
         chart_id: str,
         chart_name: str,
         parsed_items: list[dict[str, Any]],
         family: str,
         chart_type: EntityType,
     ) -> list[ChartEntryInfo]:
-        explicit_seed = (feed.get("id") or "").strip()
+        explicit_seed = self._feed_str(feed, "id")
         if explicit_seed:
             chart_id_seed = explicit_seed
         else:
-            url_seed = (feed.get("url") or "").strip()
+            url_seed = self._feed_str(feed, "url")
             chart_id_seed = f"rss-{sha1(url_seed.encode('utf-8')).hexdigest()[:10]}"
         entries: list[ChartEntryInfo] = []
         for rank, item in enumerate(parsed_items, start=1):
@@ -746,9 +756,23 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
         return response.text
 
     @staticmethod
-    def _chart_id(*, feed: dict[str, str], feed_index: int, family: str, url: str) -> str:
-        explicit_id = (feed.get("id") or "").strip()
-        if explicit_id:
-            return explicit_id
-        slug = sha1(url.encode("utf-8")).hexdigest()[:10]
-        return f"chart-rss-feed-{feed_index:03d}-{family}-{slug}"
+    def _feed_str(feed: dict[str, Any], key: str) -> str:
+        value = feed.get(key)
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    def _feed_enabled(self, feed: dict[str, Any]) -> bool:
+        value = feed.get("enabled")
+        if value is None:
+            return True
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() not in {"0", "false", "no", "off"}
+
+    def _feed_id(self, feed: dict[str, Any]) -> str:
+        return self._feed_str(feed, "id")
+
+    @staticmethod
+    def _chart_id(*, feed_id: str) -> str:
+        return f"rss-feed-{feed_id}"

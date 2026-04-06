@@ -36,6 +36,11 @@ class RssFeedParserTest(unittest.TestCase):
 
         self.assertEqual(family, "youtube_top_artists")
 
+    def test_detect_rss_feed_family_maps_netease_artist_route_to_albums(self) -> None:
+        family = detect_rss_feed_family("https://rsshub.app/163/music/artist/6452")
+
+        self.assertEqual(family, "netease_artist_albums")
+
     def test_parse_netease_playlist_feed_normalizes_track_entry(self) -> None:
         parsed = parse_rss_feed(
             "https://rsshub.app/163/music/playlist/9345476",
@@ -50,3 +55,62 @@ class RssFeedParserTest(unittest.TestCase):
         self.assertEqual(item["subtitle"], "Eric Clapton")
         self.assertEqual(item["album_title"], "Slowhand")
 
+    def test_parse_netease_fragment_link_extracts_provider_origin_id_from_link_not_guid(self) -> None:
+        parsed = parse_rss_feed(
+            "https://rsshub.app/163/music/playlist/9345476",
+            """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>网易云音乐 - 我喜欢的音乐</title>
+    <item>
+      <title>Song A - Artist A</title>
+      <link>https://music.163.com/#/song?id=188888</link>
+      <description><![CDATA[歌曲：Song A<br/>歌手：Artist A]]></description>
+      <guid>guid-should-not-win</guid>
+    </item>
+  </channel>
+</rss>""",
+        )
+
+        self.assertEqual(parsed["items"][0]["provider_origin_id"], "188888")
+
+    def test_parse_netease_description_img_extracts_cover_url(self) -> None:
+        parsed = parse_rss_feed(
+            "https://rsshub.app/163/music/playlist/9345476",
+            """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>网易云音乐 - 我喜欢的音乐</title>
+    <item>
+      <title>Song B - Artist B</title>
+      <link>https://music.163.com/#/song?id=100002</link>
+      <description><![CDATA[<img src="https://p3.music.126.net/cover-from-description.jpg"/><br/>歌曲：Song B<br/>歌手：Artist B]]></description>
+    </item>
+  </channel>
+</rss>""",
+        )
+
+        self.assertEqual(
+            parsed["items"][0]["cover_url"],
+            "https://p3.music.126.net/cover-from-description.jpg",
+        )
+
+    def test_parse_youtube_top_songs_preserves_author_as_subtitle_and_raw_context(self) -> None:
+        parsed = parse_rss_feed(
+            "https://rsshub.app/youtube/charts/TopSongs/us",
+            """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>YouTube Top Songs</title>
+    <item>
+      <title>APT.</title>
+      <link>https://www.youtube.com/watch?v=abc123xyz00</link>
+      <author>ROSÉ &amp; Bruno Mars</author>
+    </item>
+  </channel>
+</rss>""",
+        )
+
+        item = parsed["items"][0]
+        self.assertEqual(item["subtitle"], "ROSÉ & Bruno Mars")
+        self.assertEqual(item["raw_context"]["author"], "ROSÉ & Bruno Mars")

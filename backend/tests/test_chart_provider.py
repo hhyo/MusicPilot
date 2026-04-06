@@ -313,7 +313,10 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
             feeds=[
                 {
                     "id": "feed-netease-playlist",
-                    "name": "网易云喜欢榜单",
+                    "label": "网易云喜欢榜单",
+                    "category": "liked",
+                    "region": "CN",
+                    "enabled": True,
                     "url": "https://rsshub.app/163/music/playlist/9345476",
                 }
             ],
@@ -325,6 +328,10 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         self.assertEqual(len(charts), 1)
         self.assertEqual(charts[0].chart_source, "rss_feed")
         self.assertEqual(charts[0].chart_type, EntityType.TRACK)
+        self.assertEqual(charts[0].id, "rss-feed-feed-netease-playlist")
+        self.assertEqual(charts[0].chart_name, "网易云喜欢榜单")
+        self.assertEqual(charts[0].category, "liked")
+        self.assertEqual(charts[0].region, "CN")
 
     def test_rss_entry_does_not_look_like_metadata_direct_id(self) -> None:
         feed_xml_by_url = {
@@ -347,7 +354,8 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
                 feeds=[
                     {
                         "id": "feed-netease-playlist",
-                        "name": "网易云喜欢榜单",
+                        "label": "网易云喜欢榜单",
+                        "enabled": True,
                         "url": "https://rsshub.app/163/music/playlist/9345476",
                     }
                 ],
@@ -356,7 +364,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
             discovery_assembler=DiscoveryAssembler(),
         )
 
-        detail = service.get_chart_detail("feed-netease-playlist")
+        detail = service.get_chart_detail("rss-feed-feed-netease-playlist")
 
         self.assertEqual(detail.items[0].target_id, "")
         self.assertIsNotNone(detail.hero_entry)
@@ -382,17 +390,63 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
             feeds=[
                 {
                     "id": "feed-netease-playlist",
-                    "name": "网易云喜欢榜单",
+                    "label": "网易云喜欢榜单",
+                    "enabled": True,
                     "url": "https://rsshub.app/163/music/playlist/9345476",
                 }
             ],
             fetcher=lambda url: feed_xml_by_url[url],
         )
 
-        detail = adapter.get_chart_detail("feed-netease-playlist")
-        note = detail.items[0].note
+        detail = adapter.get_chart_detail("rss-feed-feed-netease-playlist")
+        item = detail.items[0]
 
-        self.assertIn("netease_playlist_tracks", note)
-        self.assertIn("https://music.163.com/#/song?id=100001", note)
-        self.assertIn("song-100001", note)
-        self.assertIn("Slowhand", note)
+        self.assertIn('"family": "netease_playlist_tracks"', item.note)
+        self.assertIn('"provider_origin_url": "https://music.163.com/#/song?id=100001"', item.note)
+        self.assertIn('"provider_origin_id": "100001"', item.note)
+        self.assertIn('"album_title": "Slowhand"', item.note)
+
+    def test_list_charts_skips_disabled_and_unsupported_feeds(self) -> None:
+        feed_xml_by_url = {
+            "https://rsshub.app/163/music/playlist/9345476": """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>网易云音乐 - 我喜欢的音乐</title>
+    <item>
+      <title>Wonderful Tonight - Eric Clapton</title>
+      <link>https://music.163.com/#/song?id=100001</link>
+      <description><![CDATA[歌曲：Wonderful Tonight<br/>歌手：Eric Clapton<br/>专辑：Slowhand]]></description>
+    </item>
+  </channel>
+</rss>"""
+        }
+        adapter = RssFeedChartProviderAdapter(
+            feeds=[
+                {
+                    "id": "feed-disabled",
+                    "label": "Disabled Feed",
+                    "enabled": False,
+                    "url": "https://rsshub.app/163/music/playlist/9345476",
+                },
+                {
+                    "id": "feed-unsupported",
+                    "label": "Unsupported Feed",
+                    "enabled": True,
+                    "url": "https://rsshub.app/foo/bar",
+                },
+                {
+                    "id": "feed-enabled",
+                    "label": "Enabled Feed",
+                    "enabled": True,
+                    "category": "liked",
+                    "region": "CN",
+                    "url": "https://rsshub.app/163/music/playlist/9345476",
+                },
+            ],
+            fetcher=lambda url: feed_xml_by_url[url],
+        )
+
+        charts = adapter.list_charts()
+
+        self.assertEqual(len(charts), 1)
+        self.assertEqual(charts[0].id, "rss-feed-feed-enabled")
