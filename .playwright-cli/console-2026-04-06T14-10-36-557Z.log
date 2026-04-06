@@ -1,0 +1,12 @@
+[    2425ms] [LOG] Request optimizer initialized - all requests will be auto-managed @ http://127.0.0.1:5173/src/utils/requestOptimizer.ts:57
+[    2531ms] [LOG] PWA状态恢复插件已安装（路由 + 标签页） @ http://127.0.0.1:5173/src/plugins/stateRestore.ts:147
+[    2567ms] [LOG] Navigation started - aborting active requests @ http://127.0.0.1:5173/src/utils/requestOptimizer.ts:5
+[    2568ms] [LOG] Navigation started - aborting active requests @ http://127.0.0.1:5173/src/utils/requestOptimizer.ts:5
+[    2624ms] [LOG] 已注入远程模块: {id: musicpilot, url: /plugin/file/musicpilot/static/assets/remoteEntry.js, name: MusicPilot} @ http://127.0.0.1:5173/src/utils/federationLoader.ts:66
+[    2626ms] [LOG] Background: 添加定时器 background-rotation, 间隔 10000ms @ http://127.0.0.1:5173/src/utils/backgroundManager.ts:68
+[    2674ms] [LOG] [VersionChecker] 版本号一致，无需操作 @ http://127.0.0.1:5173/src/composables/useVersionChecker.ts:67
+[    2792ms] [WARNING] [PassKey] Conditional UI silenced error: SecurityError: This is an invalid domain. @ http://127.0.0.1:5173/src/pages/login.vue:139
+[    2827ms] Failed to register a ServiceWorker for scope ('http://127.0.0.1:5173/') with script ('http://127.0.0.1:5173/dev-sw.js?dev-sw'): ServiceWorker script evaluation failed
+[    2831ms] [ERROR] The script has an unsupported MIME type ('text/html'). @ :0
+[    2837ms] Failed to register a ServiceWorker for scope ('http://127.0.0.1:5173/') with script ('http://127.0.0.1:5173/service-worker.js'): The script has an unsupported MIME type ('text/html').
+[   44769ms] [LOG] Navigation started - aborting active requests @ http://127.0.0.1:5173/src/utils/requestOptimizer.ts:5

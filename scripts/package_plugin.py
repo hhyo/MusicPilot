@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import shutil
+from hashlib import sha256
 from pathlib import Path
 
 
@@ -68,6 +69,53 @@ def copy_frontend() -> None:
         else:
             shutil.copy2(item, target)
 
+    remote_entry_path = STATIC_DIR / "assets" / "remoteEntry.js"
+    normalize_remote_entry_asset_paths(remote_entry_path)
+    publish_versioned_remote_bundle(STATIC_DIR)
+
+
+def normalize_remote_entry_asset_paths(remote_entry_path: Path) -> None:
+    """Normalize vite federation asset paths for host-served plugin remotes.
+
+    `@originjs/vite-plugin-federation` currently emits `remoteEntry.js` that uses
+    `base: './'` in a way that breaks when the remote is served from a nested host
+    path like `/api/v1/plugin/file/.../assets/remoteEntry.js`.
+
+    Two concrete issues appear in MoviePilot:
+    - CSS hrefs become `.../assets./chunk.css`
+    - exposed JS chunks become `.../assets/assets/chunk.js`
+
+    Packaging is the narrowest place to correct this for the plugin runtime while
+    keeping the standalone frontend dev experience unchanged.
+    """
+    if not remote_entry_path.exists():
+        return
+
+    original = remote_entry_path.read_text(encoding="utf-8")
+    normalized = original.replace("a='./';", "a='';").replace('y("./assets/', 'y("./')
+
+    if normalized != original:
+        remote_entry_path.write_text(normalized, encoding="utf-8")
+
+
+def publish_versioned_remote_bundle(static_dir: Path) -> None:
+    """Copy federated assets into a content-addressed remote directory.
+
+    This changes the host remote URL on every relevant build output change and
+    avoids browsers reusing a stale `remoteEntry.js` from cache.
+    """
+    assets_dir = static_dir / "assets"
+    remote_entry_path = assets_dir / "remoteEntry.js"
+    if not remote_entry_path.exists():
+        return
+
+    remotes_dir = static_dir / "remotes"
+    reset_directory(remotes_dir)
+
+    remote_version = sha256(remote_entry_path.read_bytes()).hexdigest()[:12]
+    target_dir = remotes_dir / remote_version
+    shutil.copytree(assets_dir, target_dir)
+
 
 def main() -> None:
     copy_backend()
@@ -77,4 +125,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

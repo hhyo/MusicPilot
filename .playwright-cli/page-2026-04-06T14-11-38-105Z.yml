@@ -1,0 +1,29 @@
+- generic [ref=e20]:
+  - generic [ref=e21]:
+    - img [ref=e25]
+    - generic [ref=e27]: MoviePilot
+    - button "🇨🇳 简体中文" [ref=e28] [cursor=pointer]:
+      - generic [ref=e29]:
+        - generic [ref=e30]: 🇨🇳
+        - generic [ref=e31]: 简体中文
+  - generic [ref=e34]:
+    - generic [ref=e39]:
+      - generic: 用户名
+      - textbox "用户名 用户名" [ref=e40]
+    - generic [ref=e44]:
+      - generic [ref=e45]:
+        - generic: 密码
+        - textbox "密码 密码" [ref=e46]
+      - button "密码 appended action" [ref=e48] [cursor=pointer]
+    - generic [ref=e54]:
+      - generic [ref=e56]:
+        - img [ref=e57]
+        - checkbox "保持登录" [checked] [ref=e59] [cursor=pointer]
+      - generic [ref=e60] [cursor=pointer]: 保持登录
+    - generic [ref=e61]:
+      - button "登录" [ref=e62] [cursor=pointer]:
+        - img [ref=e64]
+        - generic [ref=e66]: 登录
+      - button "使用通行密钥登录" [ref=e67] [cursor=pointer]:
+        - img [ref=e69]
+        - generic [ref=e71]: 使用通行密钥登录

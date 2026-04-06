@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 try:
@@ -56,6 +57,18 @@ def _build_plugin_api_manifest() -> list[dict[str, Any]]:
     return apis
 
 
+def _resolve_remote_dist_path() -> str:
+    remotes_dir = Path(__file__).resolve().parent / "static" / "remotes"
+    if remotes_dir.exists():
+        remote_versions = sorted(
+            path.name for path in remotes_dir.iterdir()
+            if path.is_dir() and (path / "remoteEntry.js").exists()
+        )
+        if remote_versions:
+            return f"static/remotes/{remote_versions[-1]}"
+    return "static/assets"
+
+
 if _HostPluginBase is not None:
     class musicpilot(_HostPluginBase):
         """Minimal MoviePilot plugin entry for loading MusicPilot runtime in-process."""
@@ -91,7 +104,7 @@ if _HostPluginBase is not None:
 
         @staticmethod
         def get_render_mode():
-            return "vue", "static/assets"
+            return "vue", _resolve_remote_dist_path()
 
         def get_page(self):
             return None
