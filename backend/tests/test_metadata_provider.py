@@ -356,6 +356,63 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
 
         self.assertEqual(detail.id, "track-best-second")
 
+    def test_track_lookup_requires_album_match_when_album_hint_is_provided(self) -> None:
+        from app.adapters.metadata_provider import MetadataProviderAdapter
+
+        class AlbumMismatchAdapter(MetadataProviderAdapter):
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+                return MetadataSearchData(
+                    keyword=payload.keyword,
+                    entity_type=payload.type,
+                    page=payload.page,
+                    page_size=payload.page_size,
+                    total=1,
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    integration_point="fake.live.search",
+                    items=[
+                        MetadataSummary(
+                            entity_type=EntityType.TRACK,
+                            id="track-live-version",
+                            title="Hello",
+                            artist_name="Adele",
+                            album_title="Live at Royal Albert Hall",
+                            track_title="Hello",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="mismatch",
+                        )
+                    ],
+                )
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:  # pragma: no cover
+                raise NotImplementedError
+
+        service = MetadataService(session=self.session, adapter=AlbumMismatchAdapter())
+
+        with self.assertRaises(HTTPException) as ctx:
+            service.lookup_detail(
+                EntityType.TRACK,
+                {"artist_name": "Adele", "title": "Hello", "album_title": "25"},
+            )
+        self.assertEqual(ctx.exception.status_code, 404)
+
     def test_lookup_raises_404_when_search_has_items_but_none_match_minimum_criteria(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
@@ -501,6 +558,95 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                 {"artist_name": "Adele"},
             )
         self.assertEqual(ctx_detail.exception.status_code, 502)
+
+    def test_lookup_artist_credit_matches_common_connectors_and_featuring_forms(self) -> None:
+        from app.adapters.metadata_provider import MetadataProviderAdapter
+
+        class ArtistCreditAdapter(MetadataProviderAdapter):
+            def __init__(self) -> None:
+                self._items = [
+                    MetadataSummary(
+                        entity_type=EntityType.TRACK,
+                        id="track-1",
+                        title="Collab Song",
+                        artist_name="Artist A, Artist B",
+                        album_title="Collab Album",
+                        track_title="Collab Song",
+                        provider="fake_live",
+                        source_type="live_api",
+                        mock=False,
+                        note="ok",
+                    ),
+                    MetadataSummary(
+                        entity_type=EntityType.TRACK,
+                        id="track-2",
+                        title="Collab Song",
+                        artist_name="Artist A & Artist B",
+                        album_title="Collab Album",
+                        track_title="Collab Song",
+                        provider="fake_live",
+                        source_type="live_api",
+                        mock=False,
+                        note="ok",
+                    ),
+                ]
+
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+                return MetadataSearchData(
+                    keyword=payload.keyword,
+                    entity_type=payload.type,
+                    page=payload.page,
+                    page_size=payload.page_size,
+                    total=len(self._items),
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    integration_point="fake.live.search",
+                    items=self._items,
+                )
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+                return MetadataDetail(
+                    entity_type=entity_type,
+                    id=entity_id,
+                    title="Collab Song",
+                    artist_name="Artist A & Artist B",
+                    album_title="Collab Album",
+                    track_title="Collab Song",
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    mock=False,
+                    note="ok",
+                    integration_point="fake.live.detail",
+                )
+
+        service = MetadataService(session=self.session, adapter=ArtistCreditAdapter())
+
+        detail_amp = service.lookup_detail(
+            EntityType.TRACK,
+            {"artist_name": "Artist A & Artist B", "title": "Collab Song"},
+        )
+        self.assertEqual(detail_amp.id, "track-1")
+
+        detail_feat = service.lookup_detail(
+            EntityType.TRACK,
+            {"artist_name": "Artist A feat. Artist B", "title": "Collab Song"},
+        )
+        self.assertEqual(detail_feat.id, "track-1")
 
 
 class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
