@@ -119,7 +119,7 @@ class DiscoveryAssembler:
             hints["artist_name"] = payload.get("artist_name")
             hints["album_title"] = payload.get("album_title")
         elif entry.item_type == EntityType.ALBUM:
-            hints["album_title"] = payload.get("album_title") or entry.target_name
+            hints["album_title"] = payload.get("album_title")
             hints["artist_name"] = payload.get("artist_name")
         elif entry.item_type == EntityType.ARTIST:
             hints["artist_name"] = payload.get("artist_name")

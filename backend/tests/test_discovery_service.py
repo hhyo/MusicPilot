@@ -390,3 +390,93 @@ class DiscoveryAssemblerTests(TestCase):
         self.assertFalse(target.conversion_ready)
         self.assertEqual(target.resolution_mode, "search_lookup")
         self.assertIn("title + artist_name", target.conversion_note or "")
+
+    def test_rss_album_missing_album_title_is_not_lookup_ready(self) -> None:
+        detail = ChartDetailData(
+            chart=ChartInfo(
+                id="rss-feed-album-missing",
+                chart_source="rss_feed",
+                chart_name="Album RSS",
+                chart_type=EntityType.ALBUM,
+                updated_at=datetime.now(timezone.utc),
+                mock=False,
+                note="rss",
+            ),
+            items=[
+                ChartEntryInfo(
+                    item_id="rss-item-album-missing",
+                    chart_id="rss-feed-album-missing",
+                    chart_source="rss_feed",
+                    chart_name="Album RSS",
+                    rank=1,
+                    item_type=EntityType.ALBUM,
+                    target_id="",
+                    target_name="Display Only Album",
+                    subtitle="Eric Clapton",
+                    provider="rss_feed",
+                    source_type="rss_feed/netease_artist_albums",
+                    target_payload={
+                        "family": "netease_artist_albums",
+                        "artist_name": "Eric Clapton",
+                    },
+                    mock=False,
+                    note="rss",
+                )
+            ],
+            item_count=1,
+            mock=False,
+            note="rss",
+            integration_point="RssFeedChartProviderAdapter",
+        )
+
+        result = DiscoveryAssembler().build_detail(detail)
+        target = result.hero_entry.target
+
+        self.assertFalse(target.conversion_ready)
+        self.assertEqual(target.resolution_mode, "search_lookup")
+        self.assertIn("album_title + artist_name", target.conversion_note or "")
+
+    def test_rss_artist_missing_artist_name_is_not_lookup_ready(self) -> None:
+        detail = ChartDetailData(
+            chart=ChartInfo(
+                id="rss-feed-artist-missing",
+                chart_source="rss_feed",
+                chart_name="Artist RSS",
+                chart_type=EntityType.ARTIST,
+                updated_at=datetime.now(timezone.utc),
+                mock=False,
+                note="rss",
+            ),
+            items=[
+                ChartEntryInfo(
+                    item_id="rss-item-artist-missing",
+                    chart_id="rss-feed-artist-missing",
+                    chart_source="rss_feed",
+                    chart_name="Artist RSS",
+                    rank=1,
+                    item_type=EntityType.ARTIST,
+                    target_id="",
+                    target_name="Display Only Artist",
+                    subtitle=None,
+                    provider="rss_feed",
+                    source_type="rss_feed/youtube_top_artists",
+                    target_payload={
+                        "family": "youtube_top_artists",
+                        "provider_origin_id": "UCabc123",
+                    },
+                    mock=False,
+                    note="rss",
+                )
+            ],
+            item_count=1,
+            mock=False,
+            note="rss",
+            integration_point="RssFeedChartProviderAdapter",
+        )
+
+        result = DiscoveryAssembler().build_detail(detail)
+        target = result.hero_entry.target
+
+        self.assertFalse(target.conversion_ready)
+        self.assertEqual(target.resolution_mode, "search_lookup")
+        self.assertIn("artist_name", target.conversion_note or "")
