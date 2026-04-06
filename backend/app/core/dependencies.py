@@ -18,6 +18,7 @@ from ..adapters.chart_provider import (
     ChartProviderAdapter,
     ListenBrainzChartProviderAdapter,
     MockChartProviderAdapter,
+    RssFeedChartProviderAdapter,
 )
 from ..adapters.host_downloader_runtime import HostDownloaderRuntimeBridge
 from ..adapters.host_probe import HostProbeAdapter, MockHostProbeAdapter, RealHostProbeAdapter
@@ -101,6 +102,12 @@ def get_chart_provider_adapter() -> ChartProviderAdapter:
             cache_enabled=settings.chart_cache_enabled,
             cache_maxsize=settings.chart_cache_maxsize,
             cache_ttl_seconds=settings.chart_cache_ttl_seconds,
+        )
+    if settings.chart_provider_mode == "rss_feed":
+        return RssFeedChartProviderAdapter(
+            feeds=settings.chart_rss_feeds,
+            user_agent=settings.chart_provider_user_agent,
+            timeout_seconds=settings.chart_provider_timeout_seconds,
         )
     metadata_adapter = MockMetadataProviderAdapter()
     return MockChartProviderAdapter(metadata_adapter.load_seed_catalog())

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from app.adapters.chart_provider import ListenBrainzChartProviderAdapter
+from app.adapters.chart_provider import ListenBrainzChartProviderAdapter, RssFeedChartProviderAdapter
 from app.schemas.mvp import EntityType
 from app.schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo
 from app.services.charts import ChartService
@@ -290,3 +290,38 @@ class ChartServiceDiscoveryEnrichmentTest(unittest.TestCase):
         self.assertIsNotNone(detail.hero_entry)
         self.assertEqual(detail.hero_entry.target.provider_id, "rec-1")
         self.assertGreaterEqual(len(detail.entry_groups), 1)
+
+
+class RssFeedChartProviderAdapterTest(unittest.TestCase):
+    def test_list_charts_returns_rss_feed_chart(self) -> None:
+        feed_xml_by_url = {
+            "https://rsshub.app/163/music/playlist/9345476": """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>网易云音乐 - 我喜欢的音乐</title>
+    <item>
+      <title>Wonderful Tonight - Eric Clapton</title>
+      <link>https://music.163.com/#/song?id=100001</link>
+      <description><![CDATA[歌曲：Wonderful Tonight<br/>歌手：Eric Clapton<br/>专辑：Slowhand]]></description>
+      <pubDate>Mon, 31 Mar 2026 10:30:00 GMT</pubDate>
+      <guid>song-100001</guid>
+    </item>
+  </channel>
+</rss>"""
+        }
+        adapter = RssFeedChartProviderAdapter(
+            feeds=[
+                {
+                    "id": "feed-netease-playlist",
+                    "name": "网易云喜欢榜单",
+                    "url": "https://rsshub.app/163/music/playlist/9345476",
+                }
+            ],
+            fetcher=lambda url: feed_xml_by_url[url],
+        )
+
+        charts = adapter.list_charts()
+
+        self.assertEqual(len(charts), 1)
+        self.assertEqual(charts[0].chart_source, "rss_feed")
+        self.assertEqual(charts[0].chart_type, EntityType.TRACK)

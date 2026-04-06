@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     chart_cache_enabled: bool = Field(default=True)
     chart_cache_maxsize: int = Field(default=256, ge=1, le=10000)
     chart_cache_ttl_seconds: int = Field(default=900, ge=1, le=86400)
+    chart_rss_feeds: list[dict[str, str]] = Field(default_factory=list)
     subscription_scheduler_enabled: bool = Field(default=True)
     subscription_scheduler_poll_seconds: float = Field(default=30.0, ge=1.0, le=3600.0)
     subscription_scheduler_default_interval_minutes: int = Field(default=360, ge=1, le=10080)
