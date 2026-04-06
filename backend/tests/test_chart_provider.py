@@ -325,3 +325,74 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         self.assertEqual(len(charts), 1)
         self.assertEqual(charts[0].chart_source, "rss_feed")
         self.assertEqual(charts[0].chart_type, EntityType.TRACK)
+
+    def test_rss_entry_does_not_look_like_metadata_direct_id(self) -> None:
+        feed_xml_by_url = {
+            "https://rsshub.app/163/music/playlist/9345476": """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>网易云音乐 - 我喜欢的音乐</title>
+    <item>
+      <title>Wonderful Tonight - Eric Clapton</title>
+      <link>https://music.163.com/#/song?id=100001</link>
+      <description><![CDATA[歌曲：Wonderful Tonight<br/>歌手：Eric Clapton<br/>专辑：Slowhand]]></description>
+      <pubDate>Mon, 31 Mar 2026 10:30:00 GMT</pubDate>
+      <guid>song-100001</guid>
+    </item>
+  </channel>
+</rss>"""
+        }
+        service = ChartService(
+            adapter=RssFeedChartProviderAdapter(
+                feeds=[
+                    {
+                        "id": "feed-netease-playlist",
+                        "name": "网易云喜欢榜单",
+                        "url": "https://rsshub.app/163/music/playlist/9345476",
+                    }
+                ],
+                fetcher=lambda url: feed_xml_by_url[url],
+            ),
+            discovery_assembler=DiscoveryAssembler(),
+        )
+
+        detail = service.get_chart_detail("feed-netease-playlist")
+
+        self.assertEqual(detail.items[0].target_id, "")
+        self.assertIsNotNone(detail.hero_entry)
+        self.assertFalse(detail.hero_entry.target.conversion_ready)
+
+    def test_rss_entry_keeps_family_and_origin_hints_in_note(self) -> None:
+        feed_xml_by_url = {
+            "https://rsshub.app/163/music/playlist/9345476": """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>网易云音乐 - 我喜欢的音乐</title>
+    <item>
+      <title>Wonderful Tonight - Eric Clapton</title>
+      <link>https://music.163.com/#/song?id=100001</link>
+      <description><![CDATA[歌曲：Wonderful Tonight<br/>歌手：Eric Clapton<br/>专辑：Slowhand]]></description>
+      <pubDate>Mon, 31 Mar 2026 10:30:00 GMT</pubDate>
+      <guid>song-100001</guid>
+    </item>
+  </channel>
+</rss>"""
+        }
+        adapter = RssFeedChartProviderAdapter(
+            feeds=[
+                {
+                    "id": "feed-netease-playlist",
+                    "name": "网易云喜欢榜单",
+                    "url": "https://rsshub.app/163/music/playlist/9345476",
+                }
+            ],
+            fetcher=lambda url: feed_xml_by_url[url],
+        )
+
+        detail = adapter.get_chart_detail("feed-netease-playlist")
+        note = detail.items[0].note
+
+        self.assertIn("netease_playlist_tracks", note)
+        self.assertIn("https://music.163.com/#/song?id=100001", note)
+        self.assertIn("song-100001", note)
+        self.assertIn("Slowhand", note)

@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from hashlib import sha1
+import json
 from time import monotonic, sleep
 from typing import Any, Callable
 
@@ -706,11 +707,18 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
             chart_id_seed = f"rss-{sha1(url_seed.encode('utf-8')).hexdigest()[:10]}"
         entries: list[ChartEntryInfo] = []
         for rank, item in enumerate(parsed_items, start=1):
-            origin_id = (item.get("provider_origin_id") or "").strip()
-            target_id = origin_id or f"{chart_id_seed}-rank-{rank:03d}"
             subtitle = item.get("subtitle")
             if not subtitle and item.get("album_title"):
                 subtitle = str(item["album_title"])
+            rss_hints = {
+                "family": item.get("family"),
+                "provider_origin_url": item.get("provider_origin_url"),
+                "provider_origin_id": item.get("provider_origin_id"),
+                "album_title": item.get("album_title"),
+                "cover_url": item.get("cover_url"),
+                "published_at": item.get("published_at"),
+                "raw_context": item.get("raw_context"),
+            }
             entries.append(
                 ChartEntryInfo(
                     item_id=f"{chart_id_seed}-item-{rank:03d}",
@@ -719,13 +727,13 @@ class RssFeedChartProviderAdapter(ChartProviderAdapter):
                     chart_name=chart_name,
                     rank=rank,
                     item_type=chart_type,
-                    target_id=target_id,
-                    target_name=item.get("target_name") or target_id,
+                    target_id="",
+                    target_name=item.get("target_name") or f"{chart_id_seed}-rank-{rank:03d}",
                     subtitle=subtitle,
                     provider=self.provider,
                     source_type=f"rss_feed/{family}",
                     mock=False,
-                    note=self.note,
+                    note=f"{self.note} | rss_hints={json.dumps(rss_hints, ensure_ascii=False, sort_keys=True)}",
                 )
             )
         return entries
