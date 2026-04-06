@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
+import httpx
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -194,6 +196,107 @@ class MetadataService:
         if entity_type == EntityType.ALBUM:
             return self.get_album_detail(entity_id)
         return self.get_track_detail(entity_id)
+
+    def lookup_detail(self, entity_type: EntityType, hints: dict[str, Any]) -> MetadataDetail:
+        keyword = self._build_lookup_keyword(entity_type=entity_type, hints=hints)
+        if not keyword:
+            raise HTTPException(status_code=400, detail="Insufficient lookup hints for metadata lookup.")
+
+        try:
+            search_result = self.search(
+                MetadataSearchRequest(
+                    keyword=keyword,
+                    type=entity_type,
+                    page=1,
+                    page_size=10,
+                )
+            )
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail="Metadata provider search request failed.") from exc
+        if not search_result.items:
+            raise HTTPException(status_code=404, detail="No metadata match found for lookup hints.")
+
+        winner = self._select_lookup_winner(entity_type=entity_type, hints=hints, items=search_result.items)
+        if winner is None:
+            raise HTTPException(status_code=404, detail="No metadata match satisfied lookup hints.")
+
+        try:
+            return self.get_detail(entity_type, winner.id)
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail="Metadata provider detail request failed.") from exc
+
+    @staticmethod
+    def _build_lookup_keyword(*, entity_type: EntityType, hints: dict[str, Any]) -> str:
+        def _clean(value: Any) -> str:
+            return str(value).strip() if value is not None else ""
+
+        if entity_type == EntityType.TRACK:
+            parts = [
+                _clean(hints.get("artist_name")),
+                _clean(hints.get("title")),
+                _clean(hints.get("album_title")),
+            ]
+        elif entity_type == EntityType.ALBUM:
+            parts = [
+                _clean(hints.get("artist_name")),
+                _clean(hints.get("album_title")),
+            ]
+        else:
+            parts = [_clean(hints.get("artist_name"))]
+
+        return " ".join(part for part in parts if part)
+
+    @staticmethod
+    def _select_lookup_winner(
+        *,
+        entity_type: EntityType,
+        hints: dict[str, Any],
+        items: list[MetadataSummary],
+    ) -> MetadataSummary | None:
+        def _normalize(value: str | None) -> str:
+            if value is None:
+                return ""
+            return " ".join(value.strip().lower().split())
+
+        hint_artist = _normalize(str(hints.get("artist_name") or ""))
+        hint_title = _normalize(str(hints.get("title") or ""))
+        hint_album = _normalize(str(hints.get("album_title") or ""))
+
+        scored: list[tuple[int, int, MetadataSummary]] = []
+        for index, item in enumerate(items):
+            item_title = _normalize(item.track_title or item.title)
+            item_artist = _normalize(item.artist_name)
+            item_album = _normalize(item.album_title)
+
+            if entity_type == EntityType.TRACK:
+                if not hint_title or not hint_artist:
+                    continue
+                if item_title != hint_title or item_artist != hint_artist:
+                    continue
+                score = 2
+                if hint_album and item_album == hint_album:
+                    score += 1
+            elif entity_type == EntityType.ALBUM:
+                if not hint_album or not hint_artist:
+                    continue
+                item_album_title = _normalize(item.album_title or item.title)
+                if item_album_title != hint_album or item_artist != hint_artist:
+                    continue
+                score = 2
+            else:
+                if not hint_artist:
+                    continue
+                item_artist_name = _normalize(item.artist_name or item.title)
+                if item_artist_name != hint_artist:
+                    continue
+                score = 1
+
+            scored.append((score, -index, item))
+
+        if not scored:
+            return None
+        scored.sort(reverse=True)
+        return scored[0][2]
 
     def _build_summary(
         self,

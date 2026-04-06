@@ -4,11 +4,21 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
+from hashlib import sha1
+import logging
 from time import monotonic, sleep
+from typing import Any, Callable
+from xml.etree import ElementTree as ET
 
 import httpx
 
 from ..core.runtime_cache import RuntimeTTLCache, stable_cache_key
+from .rss_feed_parser import (
+    RssFeedParseError,
+    UnsupportedRssFeedError,
+    detect_rss_feed_family,
+    parse_rss_feed,
+)
 from ..schemas.metadata import MetadataSeedCatalog
 from ..schemas.mvp import EntityType
 from ..schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo, ChartProviderInfo
@@ -25,6 +35,9 @@ CHART_INTEGRATION_POINT = (
 CHART_NOTE = "当前榜单数据来自 local seed / mock chart source，不代表已接入真实榜单抓取。"
 LISTENBRAINZ_CHART_NOTE = "当前榜单数据来自真实 ListenBrainz sitewide stats。"
 LISTENBRAINZ_CHART_INTEGRATION_POINT = "ListenBrainzChartProviderAdapter"
+RSS_FEED_CHART_NOTE = "当前榜单数据来自已配置 RSS feed（按 URL family 自动识别）。"
+RSS_FEED_CHART_INTEGRATION_POINT = "RssFeedChartProviderAdapter"
+logger = logging.getLogger(__name__)
 
 
 class ChartProviderAdapter(ABC):
@@ -574,3 +587,246 @@ class ListenBrainzChartProviderAdapter(ChartProviderAdapter):
             seen.add(item_id)
             deduped.append(item)
         return deduped
+
+
+class RssFeedChartProviderAdapter(ChartProviderAdapter):
+    def __init__(
+        self,
+        *,
+        feeds: list[dict[str, Any]] | None = None,
+        fetcher: Callable[[str], str] | None = None,
+        client: httpx.Client | None = None,
+        user_agent: str = "MusicPilot/0.1.0 (local)",
+        timeout_seconds: float = 15.0,
+        cache_enabled: bool = True,
+        cache_maxsize: int = 256,
+        cache_ttl_seconds: int = 900,
+    ) -> None:
+        self.feeds = list(feeds or [])
+        self._fetcher = fetcher
+        self._client = client or httpx.Client(
+            headers={"User-Agent": user_agent},
+            timeout=timeout_seconds,
+        )
+        self._chart_cache = (
+            RuntimeTTLCache(
+                region="musicpilot_rss_feed_chart_cache",
+                maxsize=cache_maxsize,
+                ttl=cache_ttl_seconds,
+            )
+            if cache_enabled
+            else None
+        )
+
+    @property
+    def provider(self) -> str:
+        return "rss_feed"
+
+    @property
+    def source_type(self) -> str:
+        return "rss_feed"
+
+    @property
+    def mock(self) -> bool:
+        return False
+
+    @property
+    def note(self) -> str:
+        return RSS_FEED_CHART_NOTE
+
+    @property
+    def integration_point(self) -> str:
+        return RSS_FEED_CHART_INTEGRATION_POINT
+
+    def list_providers(self) -> list[ChartProviderInfo]:
+        return [
+            ChartProviderInfo(
+                id=self.provider,
+                chart_source=self.provider,
+                display_name="RSS Feed",
+                enabled=True,
+                mock=False,
+                note=self.note,
+                integration_point=self.integration_point,
+            )
+        ]
+
+    def list_charts(self) -> list[ChartInfo]:
+        return [detail.chart for detail in self._load_chart_cache().values()]
+
+    def get_chart_detail(self, chart_id: str) -> ChartDetailData:
+        chart_cache = self._load_chart_cache()
+        try:
+            return chart_cache[chart_id]
+        except KeyError as exc:
+            raise KeyError(f"Chart {chart_id} was not found in configured RSS feeds.") from exc
+
+    def get_chart_entry(self, chart_id: str, item_id: str) -> ChartEntryInfo:
+        detail = self.get_chart_detail(chart_id)
+        for item in detail.items:
+            if item.item_id == item_id:
+                return item
+        raise KeyError(f"Chart entry {item_id} was not found in chart {chart_id}.")
+
+    def _load_chart_cache(self) -> dict[str, ChartDetailData]:
+        cache_key = stable_cache_key("rss_feed_chart_catalog", feeds=self.feeds)
+        if self._chart_cache is not None:
+            cached = self._chart_cache.get(cache_key)
+            if cached is not None:
+                return cached
+
+        charts = self._build_chart_cache()
+        if self._chart_cache is not None:
+            self._chart_cache.set(cache_key, charts)
+        return charts
+
+    def _build_chart_cache(self) -> dict[str, ChartDetailData]:
+        charts: dict[str, ChartDetailData] = {}
+        for feed in self.feeds:
+            if not self._feed_enabled(feed):
+                continue
+            try:
+                feed_id = self._feed_id(feed)
+                if not feed_id:
+                    logger.warning("Skipping RSS feed without id: %s", feed)
+                    continue
+                url = self._feed_str(feed, "url")
+                if not url:
+                    logger.warning("Skipping RSS feed %s without url", feed_id)
+                    continue
+                family = detect_rss_feed_family(url)
+                payload = parse_rss_feed(url, self._fetch_feed(url))
+                chart_id = self._chart_id(feed_id=feed_id)
+                chart_name = self._feed_str(feed, "label") or payload["chart_name"]
+                chart_region = self._feed_str(feed, "region") or "Global"
+                chart_category = self._feed_str(feed, "category") or family
+                items = self._build_entries(
+                    feed=feed,
+                    chart_id=chart_id,
+                    chart_name=chart_name,
+                    parsed_items=payload["items"],
+                    family=family,
+                    chart_type=payload["chart_type"],
+                )
+                charts[chart_id] = ChartDetailData(
+                    chart=ChartInfo(
+                        id=chart_id,
+                        chart_source=self.provider,
+                        chart_name=chart_name,
+                        chart_type=payload["chart_type"],
+                        region=chart_region,
+                        category=chart_category,
+                        refresh_hint="rss-feed",
+                        item_count=len(items),
+                        updated_at=utc_now(),
+                        mock=False,
+                        note=self.note,
+                    ),
+                    items=items,
+                    item_count=len(items),
+                    mock=False,
+                    note=self.note,
+                    integration_point=self.integration_point,
+                )
+            except (UnsupportedRssFeedError, RssFeedParseError, ET.ParseError, httpx.HTTPError) as exc:
+                logger.warning(
+                    "Skipping RSS feed due to parse/fetch issue. feed_id=%s url=%s error=%s",
+                    self._feed_id(feed),
+                    self._feed_str(feed, "url"),
+                    exc,
+                )
+                continue
+        return charts
+
+    def _build_entries(
+        self,
+        *,
+        feed: dict[str, Any],
+        chart_id: str,
+        chart_name: str,
+        parsed_items: list[dict[str, Any]],
+        family: str,
+        chart_type: EntityType,
+    ) -> list[ChartEntryInfo]:
+        explicit_seed = self._feed_str(feed, "id")
+        if explicit_seed:
+            chart_id_seed = explicit_seed
+        else:
+            url_seed = self._feed_str(feed, "url")
+            chart_id_seed = f"rss-{sha1(url_seed.encode('utf-8')).hexdigest()[:10]}"
+        entries: list[ChartEntryInfo] = []
+        for rank, item in enumerate(parsed_items, start=1):
+            target_name = item.get("target_name") or f"{chart_id_seed}-rank-{rank:03d}"
+            subtitle = item.get("subtitle")
+            if not subtitle and item.get("album_title"):
+                subtitle = str(item["album_title"])
+            rss_hints: dict[str, Any] = {
+                "family": item.get("family"),
+                "provider_origin_url": item.get("provider_origin_url"),
+                "provider_origin_id": item.get("provider_origin_id"),
+                "album_title": item.get("album_title"),
+                "cover_url": item.get("cover_url"),
+                "published_at": item.get("published_at"),
+                "raw_context": item.get("raw_context"),
+            }
+            if chart_type == EntityType.TRACK:
+                rss_hints["title"] = item.get("target_name")
+                rss_hints["artist_name"] = item.get("subtitle")
+                rss_hints["album_title"] = item.get("album_title")
+            elif chart_type == EntityType.ALBUM:
+                rss_hints["album_title"] = item.get("album_title")
+                rss_hints["artist_name"] = item.get("subtitle")
+            elif chart_type == EntityType.ARTIST:
+                structured_artist_name = item.get("target_name")
+                if isinstance(structured_artist_name, str):
+                    normalized = structured_artist_name.strip()
+                    if normalized and normalized.lower() != "unknown artist":
+                        rss_hints["artist_name"] = normalized
+            entries.append(
+                ChartEntryInfo(
+                    item_id=f"{chart_id_seed}-item-{rank:03d}",
+                    chart_id=chart_id,
+                    chart_source=self.provider,
+                    chart_name=chart_name,
+                    rank=rank,
+                    item_type=chart_type,
+                    target_id="",
+                    target_name=target_name,
+                    subtitle=subtitle,
+                    provider=self.provider,
+                    source_type=f"rss_feed/{family}",
+                    target_payload=rss_hints,
+                    mock=False,
+                    note=self.note,
+                )
+            )
+        return entries
+
+    def _fetch_feed(self, url: str) -> str:
+        if self._fetcher is not None:
+            return self._fetcher(url)
+        response = self._client.get(url)
+        response.raise_for_status()
+        return response.text
+
+    @staticmethod
+    def _feed_str(feed: dict[str, Any], key: str) -> str:
+        value = feed.get(key)
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    def _feed_enabled(self, feed: dict[str, Any]) -> bool:
+        value = feed.get("enabled")
+        if value is None:
+            return True
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() not in {"0", "false", "no", "off"}
+
+    def _feed_id(self, feed: dict[str, Any]) -> str:
+        return self._feed_str(feed, "id")
+
+    @staticmethod
+    def _chart_id(*, feed_id: str) -> str:
+        return f"rss-feed-{feed_id}"

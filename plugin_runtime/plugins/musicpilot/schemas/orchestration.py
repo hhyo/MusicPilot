@@ -101,6 +101,7 @@ class ChartEntryInfo(BaseModel):
     subtitle: str | None = None
     provider: str
     source_type: str
+    target_payload: dict[str, Any] = Field(default_factory=dict)
     mock: bool = True
     note: str
 
@@ -122,6 +123,8 @@ class DiscoveryTarget(BaseModel):
     source_context: DiscoverySourceContext
     conversion_ready: bool
     conversion_note: str | None = None
+    resolution_mode: str = "direct_id"
+    resolution_hints: dict[str, Any] = Field(default_factory=dict)
     discovery_badges: list[str] = Field(default_factory=list)
 
 

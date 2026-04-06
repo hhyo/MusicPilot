@@ -387,6 +387,128 @@ const rssDetailResponse = {
   },
 };
 
+const directReadyDetailResponse = {
+  success: true,
+  data: {
+    chart: chartListResponse.data.items[0],
+    items: [],
+    item_count: 1,
+    mock: false,
+    note: '',
+    integration_point: 'runtime',
+    hero_entry: null,
+    summary_stats: { items: 1 },
+    entry_groups: [
+      {
+        group_key: 'tracks',
+        group_label: 'Tracks',
+        items: [
+          {
+            entry: {
+              item_id: 'direct-ready-entry',
+              chart_id: 'chart-1',
+              chart_source: 'listenbrainz',
+              chart_name: 'Top Tracks',
+              rank: 1,
+              item_type: 'track',
+              target_id: 'recording-999',
+              target_name: 'Set Fire to the Rain',
+              provider: 'musicbrainz',
+              source_type: 'listenbrainz_sitewide_stats',
+              target_payload: {},
+              mock: false,
+              note: '',
+            },
+            target: {
+              target_kind: 'track',
+              provider: 'musicbrainz',
+              provider_id: 'recording-999',
+              display_title: 'Set Fire to the Rain',
+              display_subtitle: 'Adele',
+              source_context: {
+                chart_source: 'listenbrainz',
+                chart_id: 'chart-1',
+                chart_name: 'Top Tracks',
+                rank: 1,
+                chart_type: 'track',
+              },
+              conversion_ready: true,
+              conversion_note: null,
+              resolution_mode: 'direct_id',
+              resolution_hints: {},
+              discovery_badges: ['top_track'],
+            },
+            entry_summary: 'summary',
+            badges: ['top_track'],
+          },
+        ],
+      },
+    ],
+    conversion_summary: { ready: 1, not_ready: 0 },
+  },
+};
+
+const rssNotReadyDetailResponse = {
+  success: true,
+  data: {
+    chart: rssChartListResponse.data.items[0],
+    items: [],
+    item_count: 1,
+    mock: false,
+    note: '',
+    integration_point: 'runtime',
+    hero_entry: null,
+    summary_stats: { items: 1 },
+    entry_groups: [
+      {
+        group_key: 'tracks',
+        group_label: 'Tracks',
+        items: [
+          {
+            entry: {
+              item_id: 'rss-not-ready-entry',
+              chart_id: 'rss-feed-feed-1',
+              chart_source: 'rss_feed',
+              chart_name: '网易云喜欢',
+              rank: 1,
+              item_type: 'track',
+              target_id: '',
+              target_name: 'Unknown',
+              provider: 'rss_feed',
+              source_type: 'rss_feed/netease_playlist_tracks',
+              target_payload: {},
+              mock: false,
+              note: '',
+            },
+            target: {
+              target_kind: 'track',
+              provider: 'musicbrainz',
+              provider_id: '',
+              display_title: 'Unknown',
+              display_subtitle: null,
+              source_context: {
+                chart_source: 'rss_feed',
+                chart_id: 'rss-feed-feed-1',
+                chart_name: '网易云喜欢',
+                rank: 1,
+                chart_type: 'track',
+              },
+              conversion_ready: false,
+              conversion_note: 'Missing RSS lookup hints',
+              resolution_mode: 'search_lookup',
+              resolution_hints: {},
+              discovery_badges: ['rss'],
+            },
+            entry_summary: 'summary',
+            badges: ['rss'],
+          },
+        ],
+      },
+    ],
+    conversion_summary: { ready: 0, not_ready: 1 },
+  },
+};
+
 function mountView() {
   return mount(ChartsView, {
     global: {
@@ -573,5 +695,25 @@ describe('ChartsView discovery metadata drawer', () => {
     );
     const drawer = wrapper.findComponent({ name: 'MetadataDetailDrawer' });
     expect(drawer.props('modelValue')).toBe(true);
+  });
+
+  it('shows direct-id ready status text as 已可查看详情', async () => {
+    fetchCharts.mockReset().mockResolvedValue(chartListResponse);
+    fetchChartDetail.mockReset().mockResolvedValue(directReadyDetailResponse);
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('.entry-card__conversion').text()).toContain('已可查看详情');
+  });
+
+  it('shows search_lookup not-ready status text as 解析信息不足', async () => {
+    fetchCharts.mockReset().mockResolvedValue(rssChartListResponse);
+    fetchChartDetail.mockReset().mockResolvedValue(rssNotReadyDetailResponse);
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('.entry-card__conversion').text()).toContain('解析信息不足');
   });
 });
