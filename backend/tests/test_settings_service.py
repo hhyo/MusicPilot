@@ -80,6 +80,32 @@ class SettingsServiceTest(unittest.TestCase):
         self.assertEqual(result.chart_rss_feeds[0].label, "网易云热歌榜")
         self.assertEqual(result.metadata_provider_mode, "seed")
 
+    def test_get_provider_settings_falls_back_to_builtin_default_feeds_when_store_and_env_empty(self) -> None:
+        service = SettingsService(
+            session=self.session,
+            env_settings=SimpleNamespace(
+                chart_provider_mode="mock",
+                chart_rss_feeds=[],
+                metadata_provider_mode="seed",
+            ),
+        )
+
+        result = service.get_provider_settings()
+
+        self.assertEqual(result.chart_provider_mode, ChartProviderMode.MOCK)
+        self.assertEqual(
+            [feed.id for feed in result.chart_rss_feeds],
+            [
+                "netease-hot-tracks",
+                "netease-new-tracks",
+                "netease-original-tracks",
+                "youtube-top-songs",
+                "youtube-top-artists",
+            ],
+        )
+        self.assertEqual(result.chart_rss_feeds[0].label, "网易云热歌榜")
+        self.assertEqual(result.chart_rss_feeds[-1].label, "YouTube 热门歌手榜")
+
     def test_get_provider_settings_falls_back_to_env_mode_for_invalid_persisted_mode(self) -> None:
         self.session.add(
             AppSettingModel(key="chart_provider_mode", value_json="bogus_mode")

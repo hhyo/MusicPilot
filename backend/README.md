@@ -43,7 +43,7 @@ python -m app.db_init --reseed
 - `charts/*` 当前支持三种模式：
   - `mock`：本地 chart seed
   - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings；当前 detail 输出已补 discovery 产品化字段，如 chart summary、hero entry、entry groups，以及稳定的 `DiscoveryTarget` 转化层
-  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取，运行时优先读取项目 settings，环境变量仅作为 fallback；当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，`item_count` 分别可写为 `200`、`100`、`100`。RSS 条目在 discovery 层统一映射为 `search_lookup`，通过 `/metadata/lookup` 做 metadata 下钻；条目点击会进入 metadata drawer，但在 `metadata provider mode=seed` 的运行态下，示例 lookup 可能返回“未匹配到 metadata”
+  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取，运行时优先读取项目 settings，环境变量仅作为 fallback；当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，`item_count` 分别可写为 `200`、`100`、`100`。若项目 settings 和环境都未提供 `chart_rss_feeds`，fresh install 默认会带出 5 条内置 RSS feed：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。RSS 条目在 discovery 层统一映射为 `search_lookup`，通过 `/metadata/lookup` 做 metadata 下钻；条目点击会进入 metadata drawer，但在 `metadata provider mode=seed` 的运行态下，示例 lookup 可能返回“未匹配到 metadata”
 - `downloads/dispatch` 当前支持三类 host 语义：
   - 可靠 `media_in` -> `/api/v1/download/`
   - torrent-only 但已具备宿主媒体参考 -> `/api/v1/download/add`

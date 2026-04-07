@@ -132,7 +132,32 @@ class SettingsProvidersRouteTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["data"]["chart_provider_mode"], "mock")
-        self.assertEqual(response.json()["data"]["chart_rss_feeds"], [])
+        self.assertEqual(
+            [feed["id"] for feed in response.json()["data"]["chart_rss_feeds"]],
+            [
+                "netease-hot-tracks",
+                "netease-new-tracks",
+                "netease-original-tracks",
+                "youtube-top-songs",
+                "youtube-top-artists",
+            ],
+        )
+
+    def test_get_provider_settings_returns_builtin_default_rss_feeds_for_fresh_install(self) -> None:
+        response = self.client.get("/api/v1/plugin/musicpilot/settings/providers")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["chart_provider_mode"], "mock")
+        self.assertEqual(
+            [feed["id"] for feed in response.json()["data"]["chart_rss_feeds"]],
+            [
+                "netease-hot-tracks",
+                "netease-new-tracks",
+                "netease-original-tracks",
+                "youtube-top-songs",
+                "youtube-top-artists",
+            ],
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

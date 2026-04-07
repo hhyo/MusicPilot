@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from ..core.config import settings
+from ..core.config import DEFAULT_CHART_RSS_FEEDS, settings
 from ..repositories.settings import SettingsRepository
 from ..schemas.mvp import (
     ChartRssFeedSettings,
@@ -70,7 +70,11 @@ class SettingsService:
             return persisted
 
         env_feeds = getattr(self.env_settings, "chart_rss_feeds", [])
-        return self._coerce_valid_chart_rss_feeds(env_feeds)
+        configured = self._coerce_valid_chart_rss_feeds(env_feeds)
+        if configured:
+            return configured
+
+        return self._coerce_valid_chart_rss_feeds(DEFAULT_CHART_RSS_FEEDS)
 
     def _coerce_valid_chart_rss_feeds(
         self,

@@ -13,6 +13,48 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATABASE_PATH = BACKEND_ROOT / "data" / "musicpilot.db"
+DEFAULT_CHART_RSS_FEEDS: list[dict[str, Any]] = [
+    {
+        "id": "netease-hot-tracks",
+        "label": "网易云热歌榜",
+        "url": "https://rsshub.rssforever.com/163/music/playlist/3778678",
+        "category": "hot",
+        "region": "CN",
+        "enabled": True,
+    },
+    {
+        "id": "netease-new-tracks",
+        "label": "网易云新歌榜",
+        "url": "https://rsshub.rssforever.com/163/music/playlist/3779629",
+        "category": "new",
+        "region": "CN",
+        "enabled": True,
+    },
+    {
+        "id": "netease-original-tracks",
+        "label": "网易云原创榜",
+        "url": "https://rsshub.rssforever.com/163/music/playlist/2884035",
+        "category": "original",
+        "region": "CN",
+        "enabled": True,
+    },
+    {
+        "id": "youtube-top-songs",
+        "label": "YouTube 热门歌曲榜",
+        "url": "https://rsshub.rssforever.com/youtube/charts/TopSongs",
+        "category": "hot",
+        "region": "Global",
+        "enabled": True,
+    },
+    {
+        "id": "youtube-top-artists",
+        "label": "YouTube 热门歌手榜",
+        "url": "https://rsshub.rssforever.com/youtube/charts/TopArtists",
+        "category": "hot",
+        "region": "Global",
+        "enabled": True,
+    },
+]
 
 
 def _is_plugin_runtime_module(module_name: str) -> bool:
@@ -84,7 +126,9 @@ class Settings(BaseSettings):
     chart_cache_enabled: bool = Field(default=True)
     chart_cache_maxsize: int = Field(default=256, ge=1, le=10000)
     chart_cache_ttl_seconds: int = Field(default=900, ge=1, le=86400)
-    chart_rss_feeds: list[dict[str, Any]] = Field(default_factory=list)
+    chart_rss_feeds: list[dict[str, Any]] = Field(
+        default_factory=lambda: [dict(feed) for feed in DEFAULT_CHART_RSS_FEEDS]
+    )
     subscription_scheduler_enabled: bool = Field(default=True)
     subscription_scheduler_poll_seconds: float = Field(default=30.0, ge=1.0, le=3600.0)
     subscription_scheduler_default_interval_minutes: int = Field(default=360, ge=1, le=10080)
