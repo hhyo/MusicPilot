@@ -92,7 +92,12 @@ def normalize_remote_entry_asset_paths(remote_entry_path: Path) -> None:
         return
 
     original = remote_entry_path.read_text(encoding="utf-8")
-    normalized = original.replace("a='./';", "a='';").replace('y("./assets/', 'y("./')
+    normalized = (
+        original
+        .replace("a='./';", "a='';")
+        .replace('y("./assets/', 'y("./')
+        .replace('w("./assets/', 'w("./')
+    )
 
     if normalized != original:
         remote_entry_path.write_text(normalized, encoding="utf-8")

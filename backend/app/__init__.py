@@ -109,5 +109,23 @@ if _HostPluginBase is not None:
         def get_page(self):
             return None
 
+        @staticmethod
+        def get_dashboard_meta():
+            return [{"key": "home", "name": "MusicPilot"}]
+
+        def get_dashboard(self, key: str = "", **kwargs):
+            del kwargs
+            if key and key != "home":
+                return {"cols": 12, "md": 6, "lg": 4}, {
+                    "border": False,
+                    "title": PLUGIN_NAME,
+                    "subtitle": "音乐发现、元数据与整理工作台",
+                }, None
+            return {"cols": 12, "md": 6, "lg": 4}, {
+                "border": False,
+                "title": PLUGIN_NAME,
+                "subtitle": "音乐发现、元数据与整理工作台",
+            }, None
+
         def stop_service(self):
             return None

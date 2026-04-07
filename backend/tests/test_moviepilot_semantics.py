@@ -1143,7 +1143,8 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
             plugin = plugin_module.musicpilot()
 
             self.assertIsNone(plugin.get_page())
-            self.assertEqual(plugin.get_render_mode(), ("vue", "static/assets"))
+            with patch.object(plugin_module, "_resolve_remote_dist_path", return_value="static/remotes/test123"):
+                self.assertEqual(plugin.get_render_mode(), ("vue", "static/remotes/test123"))
         finally:
             sys.modules.pop(module_name, None)
             if previous_plugins_module is not None:
@@ -1173,8 +1174,54 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
             spec.loader.exec_module(plugin_module)  # type: ignore[union-attr]
             plugin = plugin_module.musicpilot()
 
-            self.assertEqual(plugin.get_render_mode(), ("vue", "static/assets"))
+            with patch.object(plugin_module, "_resolve_remote_dist_path", return_value="static/remotes/test123"):
+                self.assertEqual(plugin.get_render_mode(), ("vue", "static/remotes/test123"))
             self.assertIsNone(plugin.get_page())
+        finally:
+            sys.modules.pop(module_name, None)
+            if previous_plugins_module is not None:
+                sys.modules["app.plugins"] = previous_plugins_module
+            else:
+                sys.modules.pop("app.plugins", None)
+
+    def test_plugin_entry_exposes_dashboard_meta_and_layout(self) -> None:
+        module_path = Path(__file__).resolve().parents[1] / "app" / "__init__.py"
+        fake_plugins_module = type(sys)("app.plugins")
+
+        class FakePluginBase:
+            def __init__(self):
+                pass
+
+        fake_plugins_module._PluginBase = FakePluginBase  # type: ignore[attr-defined]
+        previous_plugins_module = sys.modules.get("app.plugins")
+        module_name = "musicpilot_host_entry_dashboard_test"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        plugin_module = importlib.util.module_from_spec(spec)
+
+        sys.modules["app.plugins"] = fake_plugins_module
+        sys.modules.pop(module_name, None)
+        try:
+            spec.loader.exec_module(plugin_module)  # type: ignore[union-attr]
+            plugin = plugin_module.musicpilot()
+
+            self.assertEqual(
+                plugin.get_dashboard_meta(),
+                [{"key": "home", "name": "MusicPilot"}],
+            )
+
+            cols, attrs, elements = plugin.get_dashboard("home")
+            self.assertEqual(cols, {"cols": 12, "md": 6, "lg": 4})
+            self.assertEqual(
+                attrs,
+                {
+                    "border": False,
+                    "title": "MusicPilot",
+                    "subtitle": "音乐发现、元数据与整理工作台",
+                },
+            )
+            self.assertIsNone(elements)
         finally:
             sys.modules.pop(module_name, None)
             if previous_plugins_module is not None:

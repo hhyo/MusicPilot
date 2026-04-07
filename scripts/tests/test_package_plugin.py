@@ -10,7 +10,7 @@ from scripts.package_plugin import (
 
 class NormalizeRemoteEntryAssetPathsTests(unittest.TestCase):
     def test_normalizes_broken_federation_asset_paths(self) -> None:
-        remote_entry = """const i=o.substring(0,o.lastIndexOf("remoteEntry.js")),a='./';'assets',e.forEach(l=>{});y("./assets/__federation_expose_Page.js");"""
+        remote_entry = """const i=o.substring(0,o.lastIndexOf("remoteEntry.js")),a='./';'assets',e.forEach(l=>{});y("./assets/__federation_expose_Page.js");w("./assets/__federation_expose_Dashboard.js");"""
 
         with tempfile.TemporaryDirectory() as tmpdir:
             remote_entry_path = Path(tmpdir) / "remoteEntry.js"
@@ -21,8 +21,10 @@ class NormalizeRemoteEntryAssetPathsTests(unittest.TestCase):
             normalized = remote_entry_path.read_text(encoding="utf-8")
             self.assertIn("a='';", normalized)
             self.assertIn('y("./__federation_expose_Page.js")', normalized)
+            self.assertIn('w("./__federation_expose_Dashboard.js")', normalized)
             self.assertNotIn("a='./';", normalized)
             self.assertNotIn('y("./assets/', normalized)
+            self.assertNotIn('w("./assets/', normalized)
 
     def test_missing_remote_entry_is_ignored(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
