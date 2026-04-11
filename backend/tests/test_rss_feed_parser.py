@@ -114,3 +114,51 @@ class RssFeedParserTest(unittest.TestCase):
         item = parsed["items"][0]
         self.assertEqual(item["subtitle"], "ROSÉ & Bruno Mars")
         self.assertEqual(item["raw_context"]["author"], "ROSÉ & Bruno Mars")
+
+    def test_parse_youtube_top_songs_adds_candidate_hints_from_title_and_author(self) -> None:
+        parsed = parse_rss_feed(
+            "https://rsshub.app/youtube/charts/TopSongs",
+            """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>YouTube Top Songs</title>
+    <item>
+      <title>Lady Gaga, Bruno Mars - Die With A Smile (Official Video)</title>
+      <link>https://www.youtube.com/watch?v=abc123xyz00</link>
+      <author>Lady Gaga &amp; Bruno Mars</author>
+    </item>
+  </channel>
+</rss>""",
+        )
+
+        item = parsed["items"][0]
+        self.assertEqual(item["target_name"], "Die With A Smile (Official Video)")
+        self.assertEqual(item["subtitle"], "Lady Gaga & Bruno Mars")
+        self.assertEqual(
+            item["title_candidates"],
+            ["Die With A Smile (Official Video)", "Die With A Smile"],
+        )
+        self.assertEqual(
+            item["artist_name_candidates"],
+            ["Lady Gaga & Bruno Mars", "Lady Gaga, Bruno Mars"],
+        )
+
+    def test_parse_netease_artist_albums_adds_album_title_candidates_without_promoting_display_only_title(self) -> None:
+        parsed = parse_rss_feed(
+            "https://rsshub.app/163/music/artist/6452",
+            """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>周杰伦</title>
+    <item>
+      <title>十一月的萧邦 (典藏版)</title>
+      <link>https://music.163.com/#/album?id=200002</link>
+      <description><![CDATA[专辑：十一月的萧邦<br/>歌手：周杰伦]]></description>
+    </item>
+  </channel>
+</rss>""",
+        )
+
+        item = parsed["items"][0]
+        self.assertEqual(item["album_title"], "十一月的萧邦")
+        self.assertEqual(item["album_title_candidates"], ["十一月的萧邦", "十一月的萧邦 (典藏版)"])

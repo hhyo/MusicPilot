@@ -79,6 +79,15 @@ def parse_rss_feed(feed_url: str, feed_xml: str) -> dict[str, Any]:
             author=author,
             parsed_fields=parsed_fields,
         )
+        candidate_hints = _build_candidate_hints(
+            family=family,
+            title=title,
+            author=author,
+            target_name=target_name,
+            subtitle=subtitle,
+            album_title=album_title,
+            parsed_fields=parsed_fields,
+        )
         origin_id = _derive_origin_id(link=link, guid=guid)
 
         normalized_items.append(
@@ -100,6 +109,7 @@ def parse_rss_feed(feed_url: str, feed_xml: str) -> dict[str, Any]:
                     "album_title": album_title,
                     "parsed_fields": parsed_fields,
                 },
+                **candidate_hints,
             }
         )
 
@@ -159,11 +169,12 @@ def _derive_target_fields(
         return target_name, subtitle, album_title
 
     if family == "netease_artist_albums":
-        return title or parsed_fields.get("album_title") or "Unknown Album", parsed_fields.get("artist_name"), None
+        target_name = title or parsed_fields.get("album_title") or "Unknown Album"
+        return target_name, parsed_fields.get("artist_name"), parsed_fields.get("album_title")
 
     if family == "youtube_top_songs":
-        track_title, artist_name = _split_title_track_artist(title)
-        return track_title or title, author or artist_name, None
+        track_title, artist_name = _derive_youtube_song_fields(title=title, author=author)
+        return track_title or title, artist_name, None
 
     if family == "youtube_top_artists":
         return title or "Unknown Artist", None, None
@@ -176,6 +187,23 @@ def _split_title_track_artist(title: str) -> tuple[str, str | None]:
         return title.strip(), None
     left, right = title.split(" - ", 1)
     return left.strip(), right.strip() or None
+
+
+def _derive_youtube_song_fields(*, title: str, author: str | None) -> tuple[str, str | None]:
+    track_title, split_artist = _split_title_track_artist(title)
+    if " - " not in title:
+        return title.strip(), author or split_artist
+
+    left, right = title.split(" - ", 1)
+    left = left.strip()
+    right = right.strip()
+    author_clean = (author or "").strip()
+
+    if author_clean and _normalized_artist_credit_text(left) == _normalized_artist_credit_text(author_clean):
+        return right or title.strip(), author_clean
+    if author_clean and _normalized_artist_credit_text(right) == _normalized_artist_credit_text(author_clean):
+        return left or title.strip(), author_clean
+    return track_title or title.strip(), author or split_artist
 
 
 def _derive_origin_id(*, link: str | None, guid: str | None) -> str:
@@ -209,6 +237,102 @@ def _extract_origin_id_from_link(link: str) -> str | None:
         if fragment_path:
             return fragment_path
     return None
+
+
+def _build_candidate_hints(
+    *,
+    family: str,
+    title: str,
+    author: str | None,
+    target_name: str,
+    subtitle: str | None,
+    album_title: str | None,
+    parsed_fields: dict[str, str],
+) -> dict[str, list[str]]:
+    if family in {"netease_playlist_tracks", "netease_artist_songs"}:
+        return {
+            "title_candidates": _dedupe_candidates(parsed_fields.get("track_title"), target_name),
+            "artist_name_candidates": _dedupe_candidates(parsed_fields.get("artist_name"), subtitle, author),
+            "album_title_candidates": _dedupe_candidates(parsed_fields.get("album_title"), album_title),
+        }
+
+    if family == "netease_artist_albums":
+        structured_album = parsed_fields.get("album_title")
+        candidates = _dedupe_candidates(structured_album)
+        if structured_album and target_name and target_name != structured_album:
+            candidates = _dedupe_candidates(*candidates, target_name)
+        return {
+            "album_title_candidates": candidates,
+            "artist_name_candidates": _dedupe_candidates(parsed_fields.get("artist_name"), subtitle, author),
+        }
+
+    if family == "youtube_top_songs":
+        left, right = _split_title_track_artist(title)
+        author_clean = (author or "").strip()
+        artist_candidates = _dedupe_candidates(subtitle, author_clean)
+        if left and author_clean and _normalized_music_text(left) != _normalized_music_text(author_clean):
+            artist_candidates = _dedupe_candidates(*artist_candidates, left)
+        elif left:
+            artist_candidates = _dedupe_candidates(*artist_candidates, left)
+        return {
+            "title_candidates": _dedupe_candidates(target_name, _strip_video_suffix(target_name), right if right != target_name else None),
+            "artist_name_candidates": artist_candidates,
+        }
+
+    if family == "youtube_top_artists":
+        return {
+            "artist_name_candidates": _dedupe_candidates(target_name, author),
+        }
+
+    return {}
+
+
+def _dedupe_candidates(*values: str | None) -> list[str]:
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value is None:
+            continue
+        normalized = str(value).strip()
+        if not normalized:
+            continue
+        key = _normalized_music_text(normalized)
+        if not key or key in seen:
+            continue
+        candidates.append(normalized)
+        seen.add(key)
+    return candidates
+
+
+def _normalized_music_text(value: str) -> str:
+    text = value.strip().lower()
+    text = re.sub(r"[‐‑‒–—−]+", " ", text)
+    text = re.sub(r"[“”\"'`]+", "", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def _normalized_artist_credit_text(value: str) -> str:
+    text = _normalized_music_text(value)
+    text = re.sub(r"\b(featuring|feat\.?|ft\.?|with)\b", ",", text)
+    text = text.replace("&", ",")
+    text = re.sub(r"\band\b", ",", text)
+    text = text.replace("/", ",").replace(" x ", ",")
+    parts = [part.strip(" .-_") for part in text.split(",")]
+    parts = [part for part in parts if part]
+    return ",".join(parts)
+
+
+def _strip_video_suffix(value: str) -> str | None:
+    if not value:
+        return None
+    stripped = re.sub(
+        r"\s*[\(\[]\s*(?:official\s+)?(?:video|audio|mv|lyrics?|lyric video|performance)\s*[\)\]]\s*$",
+        "",
+        value,
+        flags=re.IGNORECASE,
+    ).strip()
+    return stripped or None
 
 
 def _extract_cover_url(item: ET.Element, description_raw: str) -> str | None:

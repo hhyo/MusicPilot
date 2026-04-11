@@ -134,6 +134,8 @@ class DiscoveryAssemblerTests(TestCase):
                         "title": "Wonderful Tonight",
                         "artist_name": "Eric Clapton",
                         "album_title": "Slowhand",
+                        "title_candidates": ["Wonderful Tonight", "Wonderful Tonight - Live"],
+                        "artist_name_candidates": ["Eric Clapton"],
                     },
                     mock=False,
                     note="rss",
@@ -156,6 +158,8 @@ class DiscoveryAssemblerTests(TestCase):
         self.assertEqual(target.resolution_hints["provider_origin_url"], "https://music.163.com/#/song?id=100001")
         self.assertEqual(target.resolution_hints["provider_origin_id"], "100001")
         self.assertEqual(target.resolution_hints["family"], "netease_playlist_tracks")
+        self.assertEqual(target.resolution_hints["title_candidates"], ["Wonderful Tonight", "Wonderful Tonight - Live"])
+        self.assertEqual(target.resolution_hints["artist_name_candidates"], ["Eric Clapton"])
 
     def test_builds_rss_album_target_with_search_lookup_hints(self) -> None:
         detail = ChartDetailData(
@@ -258,6 +262,57 @@ class DiscoveryAssemblerTests(TestCase):
         self.assertEqual(target.resolution_hints["provider_origin_url"], "https://www.youtube.com/channel/UCabc123")
         self.assertEqual(target.resolution_hints["provider_origin_id"], "UCabc123")
         self.assertEqual(target.resolution_hints["family"], "youtube_top_artists")
+
+    def test_builds_rss_youtube_track_target_with_candidate_hints(self) -> None:
+        detail = ChartDetailData(
+            chart=ChartInfo(
+                id="rss-feed-y-song-1",
+                chart_source="rss_feed",
+                chart_name="YouTube Top Songs",
+                chart_type=EntityType.TRACK,
+                updated_at=datetime.now(timezone.utc),
+                mock=False,
+                note="rss",
+            ),
+            items=[
+                ChartEntryInfo(
+                    item_id="rss-item-y-song-001",
+                    chart_id="rss-feed-y-song-1",
+                    chart_source="rss_feed",
+                    chart_name="YouTube Top Songs",
+                    rank=1,
+                    item_type=EntityType.TRACK,
+                    target_id="",
+                    target_name="Die With A Smile (Official Video)",
+                    subtitle="Lady Gaga & Bruno Mars",
+                    provider="rss_feed",
+                    source_type="rss_feed/youtube_top_songs",
+                    target_payload={
+                        "family": "youtube_top_songs",
+                        "provider_origin_url": "https://www.youtube.com/watch?v=abc123xyz00",
+                        "provider_origin_id": "abc123xyz00",
+                        "title": "Die With A Smile (Official Video)",
+                        "artist_name": "Lady Gaga & Bruno Mars",
+                        "title_candidates": ["Die With A Smile (Official Video)", "Die With A Smile"],
+                        "artist_name_candidates": ["Lady Gaga & Bruno Mars", "Lady Gaga, Bruno Mars"],
+                    },
+                    mock=False,
+                    note="rss",
+                )
+            ],
+            item_count=1,
+            mock=False,
+            note="rss",
+            integration_point="RssFeedChartProviderAdapter",
+        )
+
+        result = DiscoveryAssembler().build_detail(detail)
+        target = result.hero_entry.target
+
+        self.assertTrue(target.conversion_ready)
+        self.assertEqual(target.resolution_mode, "search_lookup")
+        self.assertEqual(target.resolution_hints["title_candidates"], ["Die With A Smile (Official Video)", "Die With A Smile"])
+        self.assertEqual(target.resolution_hints["artist_name_candidates"], ["Lady Gaga & Bruno Mars", "Lady Gaga, Bruno Mars"])
 
     def test_non_rss_entry_keeps_direct_id_resolution_mode(self) -> None:
         detail = ChartDetailData(

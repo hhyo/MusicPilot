@@ -242,24 +242,58 @@ class MetadataService:
 
     @staticmethod
     def _build_lookup_keywords(*, entity_type: EntityType, hints: dict[str, Any]) -> list[str]:
-        artist = MetadataService._clean_lookup_text(hints.get("artist_name"))
-        title = MetadataService._clean_lookup_title(hints.get("title"))
-        album = MetadataService._clean_lookup_text(hints.get("album_title"))
-
         if entity_type == EntityType.TRACK:
-            candidates = [
-                [artist, title, album],
-                [artist, title],
-                [title, artist],
-            ]
+            artists = MetadataService._build_lookup_text_candidates(
+                primary=hints.get("artist_name"),
+                extras=hints.get("artist_name_candidates"),
+                title_mode=False,
+            )
+            titles = MetadataService._build_lookup_text_candidates(
+                primary=hints.get("title"),
+                extras=hints.get("title_candidates"),
+                title_mode=True,
+            )
+            albums = MetadataService._build_lookup_text_candidates(
+                primary=hints.get("album_title"),
+                extras=hints.get("album_title_candidates"),
+                title_mode=False,
+            )
+            candidates: list[list[str]] = []
+            for artist in artists:
+                for title in titles:
+                    for album in albums[:2]:
+                        if album:
+                            candidates.append([artist, title, album])
+                    candidates.append([artist, title])
+            for title in titles:
+                for artist in artists:
+                    candidates.append([title, artist])
         elif entity_type == EntityType.ALBUM:
-            candidates = [
-                [artist, album],
-                [album, artist],
-                [album],
-            ]
+            artists = MetadataService._build_lookup_text_candidates(
+                primary=hints.get("artist_name"),
+                extras=hints.get("artist_name_candidates"),
+                title_mode=False,
+            )
+            albums = MetadataService._build_lookup_text_candidates(
+                primary=hints.get("album_title"),
+                extras=hints.get("album_title_candidates"),
+                title_mode=False,
+            )
+            candidates = []
+            for artist in artists:
+                for album in albums:
+                    candidates.append([artist, album])
+            for album in albums:
+                for artist in artists:
+                    candidates.append([album, artist])
+                candidates.append([album])
         else:
-            candidates = [[artist]]
+            artists = MetadataService._build_lookup_text_candidates(
+                primary=hints.get("artist_name"),
+                extras=hints.get("artist_name_candidates"),
+                title_mode=False,
+            )
+            candidates = [[artist] for artist in artists]
 
         keywords: list[str] = []
         seen: set[str] = set()
@@ -278,6 +312,40 @@ class MetadataService:
         text = str(value).replace("\u00A0", " ").strip()
         text = re.sub(r"\s+", " ", text)
         return text.strip()
+
+    @classmethod
+    def _build_lookup_text_candidates(
+        cls,
+        *,
+        primary: Any,
+        extras: Any,
+        title_mode: bool,
+    ) -> list[str]:
+        values: list[str] = []
+
+        def _append(raw: Any) -> None:
+            if raw is None:
+                return
+            if isinstance(raw, (list, tuple, set)):
+                for item in raw:
+                    _append(item)
+                return
+            cleaned = cls._clean_lookup_title(raw) if title_mode else cls._clean_lookup_text(raw)
+            if cleaned:
+                values.append(cleaned)
+
+        _append(primary)
+        _append(extras)
+
+        deduped: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            key = cls._normalize_lookup_text(value)
+            if not key or key in seen:
+                continue
+            deduped.append(value)
+            seen.add(key)
+        return deduped
 
     @classmethod
     def _clean_lookup_title(cls, value: Any) -> str:
@@ -381,10 +449,28 @@ class MetadataService:
         hint_title_raw = str(hints.get("title") or "")
         hint_album_raw = str(hints.get("album_title") or "")
 
+        hint_artist_candidates_raw = MetadataService._build_lookup_text_candidates(
+            primary=hint_artist_raw,
+            extras=hints.get("artist_name_candidates"),
+            title_mode=False,
+        )
+        hint_title_candidates_raw = MetadataService._build_lookup_text_candidates(
+            primary=hint_title_raw,
+            extras=hints.get("title_candidates"),
+            title_mode=True,
+        )
+        hint_album_candidates_raw = MetadataService._build_lookup_text_candidates(
+            primary=hint_album_raw,
+            extras=hints.get("album_title_candidates"),
+            title_mode=False,
+        )
+
         hint_artist = _normalize(hint_artist_raw)
         hint_title = _normalize_title(hint_title_raw)
         hint_title_exact = _normalize(hint_title_raw)
         hint_album = _normalize(hint_album_raw)
+        hint_title_candidates = {_normalize_title(value) for value in hint_title_candidates_raw if value}
+        hint_album_candidates = {_normalize(value) for value in hint_album_candidates_raw if value}
 
         scored: list[tuple[int, int, MetadataSummary]] = []
         for index, item in enumerate(items):
@@ -393,29 +479,33 @@ class MetadataService:
             item_album = _normalize(item.album_title)
 
             if entity_type == EntityType.TRACK:
-                if not hint_title or not hint_artist:
+                if not hint_title_candidates or not hint_artist_candidates_raw:
                     continue
-                if item_title != hint_title or not _artist_credit_matches(hint_artist_raw, item.artist_name):
+                if item_title not in hint_title_candidates:
+                    continue
+                if not any(_artist_credit_matches(candidate, item.artist_name) for candidate in hint_artist_candidates_raw):
                     continue
                 score = 2
                 if item_title_exact == hint_title_exact:
                     score += 2
-                if hint_album:
-                    if item_album != hint_album:
+                if hint_album_candidates:
+                    if item_album not in hint_album_candidates:
                         continue
                     score += 1
             elif entity_type == EntityType.ALBUM:
-                if not hint_album or not hint_artist:
+                if not hint_album_candidates or not hint_artist_candidates_raw:
                     continue
                 item_album_title = _normalize(item.album_title or item.title)
-                if item_album_title != hint_album or not _artist_credit_matches(hint_artist_raw, item.artist_name):
+                if item_album_title not in hint_album_candidates:
+                    continue
+                if not any(_artist_credit_matches(candidate, item.artist_name) for candidate in hint_artist_candidates_raw):
                     continue
                 score = 2
             else:
-                if not hint_artist:
+                if not hint_artist_candidates_raw:
                     continue
                 item_artist_name = item.artist_name or item.title
-                if not _artist_credit_matches(hint_artist_raw, item_artist_name):
+                if not any(_artist_credit_matches(candidate, item_artist_name) for candidate in hint_artist_candidates_raw):
                     continue
                 score = 1
 

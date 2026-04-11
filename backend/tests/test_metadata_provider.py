@@ -864,6 +864,90 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
 
         self.assertEqual(detail.id, "artist-tyler")
 
+    def test_track_lookup_uses_candidate_arrays_when_primary_rss_hints_are_weaker(self) -> None:
+        from app.adapters.metadata_provider import MetadataProviderAdapter
+
+        class CandidateArrayAdapter(MetadataProviderAdapter):
+            def __init__(self) -> None:
+                self.keywords: list[str] = []
+
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+                self.keywords.append(payload.keyword)
+                items: list[MetadataSummary] = []
+                if payload.keyword == "Lady Gaga Bruno Mars Die With A Smile":
+                    items = [
+                        MetadataSummary(
+                            entity_type=EntityType.TRACK,
+                            id="track-die-with-a-smile",
+                            title="Die With A Smile",
+                            artist_name="Lady Gaga Bruno Mars",
+                            album_title="Die With A Smile",
+                            track_title="Die With A Smile",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="ok",
+                        )
+                    ]
+                return MetadataSearchData(
+                    keyword=payload.keyword,
+                    entity_type=payload.type,
+                    page=payload.page,
+                    page_size=payload.page_size,
+                    total=len(items),
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    integration_point="fake.live.search",
+                    items=items,
+                )
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+                return MetadataDetail(
+                    entity_type=entity_type,
+                    id=entity_id,
+                    title="Die With A Smile",
+                    artist_name="Lady Gaga Bruno Mars",
+                    album_title="Die With A Smile",
+                    track_title="Die With A Smile",
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    mock=False,
+                    note="ok",
+                    integration_point="fake.live.detail",
+                )
+
+        adapter = CandidateArrayAdapter()
+        service = MetadataService(session=self.session, adapter=adapter)
+
+        detail = service.lookup_detail(
+            EntityType.TRACK,
+            {
+                "artist_name": "Lady Gaga & Bruno Mars",
+                "title": "Die With A Smile (Official Video)",
+                "title_candidates": ["Die With A Smile (Official Video)", "Die With A Smile"],
+                "artist_name_candidates": ["Lady Gaga & Bruno Mars", "Lady Gaga Bruno Mars"],
+            },
+        )
+
+        self.assertEqual(detail.id, "track-die-with-a-smile")
+        self.assertIn("Lady Gaga & Bruno Mars Die With A Smile", adapter.keywords)
+        self.assertIn("Lady Gaga Bruno Mars Die With A Smile", adapter.keywords)
+
 
 class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
     def test_search_reuses_cached_result_for_identical_payload(self) -> None:

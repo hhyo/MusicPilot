@@ -417,6 +417,9 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         self.assertEqual(item.target_payload["title"], "Wonderful Tonight")
         self.assertEqual(item.target_payload["artist_name"], "Eric Clapton")
         self.assertEqual(item.target_payload["album_title"], "Slowhand")
+        self.assertEqual(item.target_payload["title_candidates"], ["Wonderful Tonight"])
+        self.assertEqual(item.target_payload["artist_name_candidates"], ["Eric Clapton"])
+        self.assertEqual(item.target_payload["album_title_candidates"], ["Slowhand"])
         self.assertIn("raw_context", item.target_payload)
         self.assertEqual(item.note, adapter.note)
 
@@ -456,8 +459,9 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         album_item = adapter.get_chart_detail("rss-feed-feed-album").items[0]
         artist_item = adapter.get_chart_detail("rss-feed-feed-artist").items[0]
 
-        self.assertIsNone(album_item.target_payload["album_title"])
+        self.assertEqual(album_item.target_payload["album_title"], "Slowhand")
         self.assertEqual(album_item.target_payload["artist_name"], "Eric Clapton")
+        self.assertEqual(album_item.target_payload["album_title_candidates"], ["Slowhand"])
         self.assertEqual(artist_item.target_payload["artist_name"], "Bruno Mars")
 
     def test_rss_album_entry_without_structured_album_title_does_not_fallback_to_target_name(self) -> None:

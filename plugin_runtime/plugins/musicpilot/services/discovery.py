@@ -124,7 +124,14 @@ class DiscoveryAssembler:
         elif entry.item_type == EntityType.ARTIST:
             hints["artist_name"] = payload.get("artist_name")
 
-        for key in ("cover_url", "published_at", "raw_context"):
+        for key in (
+            "cover_url",
+            "published_at",
+            "raw_context",
+            "title_candidates",
+            "artist_name_candidates",
+            "album_title_candidates",
+        ):
             if key in payload:
                 hints[key] = payload.get(key)
         return {key: value for key, value in hints.items() if value is not None}
