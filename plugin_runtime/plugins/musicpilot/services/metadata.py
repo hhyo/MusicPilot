@@ -199,27 +199,36 @@ class MetadataService:
         return self.get_track_detail(entity_id)
 
     def lookup_detail(self, entity_type: EntityType, hints: dict[str, Any]) -> MetadataDetail:
-        keyword = self._build_lookup_keyword(entity_type=entity_type, hints=hints)
-        if not keyword:
+        keywords = self._build_lookup_keywords(entity_type=entity_type, hints=hints)
+        if not keywords:
             raise HTTPException(status_code=400, detail="Insufficient lookup hints for metadata lookup.")
 
-        try:
-            search_result = self.search(
-                MetadataSearchRequest(
-                    keyword=keyword,
-                    type=entity_type,
-                    page=1,
-                    page_size=10,
+        saw_items = False
+        winner: MetadataSummary | None = None
+        for keyword in keywords:
+            try:
+                search_result = self.search(
+                    MetadataSearchRequest(
+                        keyword=keyword,
+                        type=entity_type,
+                        page=1,
+                        page_size=10,
+                    )
                 )
-            )
-        except httpx.HTTPError as exc:
-            raise HTTPException(status_code=502, detail="Metadata provider search request failed.") from exc
-        if not search_result.items:
-            raise HTTPException(status_code=404, detail="No metadata match found for lookup hints.")
+            except httpx.HTTPError as exc:
+                raise HTTPException(status_code=502, detail="Metadata provider search request failed.") from exc
+            if not search_result.items:
+                continue
 
-        winner = self._select_lookup_winner(entity_type=entity_type, hints=hints, items=search_result.items)
+            saw_items = True
+            winner = self._select_lookup_winner(entity_type=entity_type, hints=hints, items=search_result.items)
+            if winner is not None:
+                break
+
         if winner is None:
-            raise HTTPException(status_code=404, detail="No metadata match satisfied lookup hints.")
+            if saw_items:
+                raise HTTPException(status_code=404, detail="No metadata match satisfied lookup hints.")
+            raise HTTPException(status_code=404, detail="No metadata match found for lookup hints.")
 
         try:
             return self.get_detail(entity_type, winner.id)
@@ -228,24 +237,103 @@ class MetadataService:
 
     @staticmethod
     def _build_lookup_keyword(*, entity_type: EntityType, hints: dict[str, Any]) -> str:
-        def _clean(value: Any) -> str:
-            return str(value).strip() if value is not None else ""
+        keywords = MetadataService._build_lookup_keywords(entity_type=entity_type, hints=hints)
+        return keywords[0] if keywords else ""
+
+    @staticmethod
+    def _build_lookup_keywords(*, entity_type: EntityType, hints: dict[str, Any]) -> list[str]:
+        artist = MetadataService._clean_lookup_text(hints.get("artist_name"))
+        title = MetadataService._clean_lookup_title(hints.get("title"))
+        album = MetadataService._clean_lookup_text(hints.get("album_title"))
 
         if entity_type == EntityType.TRACK:
-            parts = [
-                _clean(hints.get("artist_name")),
-                _clean(hints.get("title")),
-                _clean(hints.get("album_title")),
+            candidates = [
+                [artist, title, album],
+                [artist, title],
+                [title, artist],
             ]
         elif entity_type == EntityType.ALBUM:
-            parts = [
-                _clean(hints.get("artist_name")),
-                _clean(hints.get("album_title")),
+            candidates = [
+                [artist, album],
+                [album, artist],
+                [album],
             ]
         else:
-            parts = [_clean(hints.get("artist_name"))]
+            candidates = [[artist]]
 
-        return " ".join(part for part in parts if part)
+        keywords: list[str] = []
+        seen: set[str] = set()
+        for parts in candidates:
+            keyword = " ".join(part for part in parts if part).strip()
+            if not keyword or keyword in seen:
+                continue
+            keywords.append(keyword)
+            seen.add(keyword)
+        return keywords
+
+    @staticmethod
+    def _clean_lookup_text(value: Any) -> str:
+        if value is None:
+            return ""
+        text = str(value).replace("\u00A0", " ").strip()
+        text = re.sub(r"\s+", " ", text)
+        return text.strip()
+
+    @classmethod
+    def _clean_lookup_title(cls, value: Any) -> str:
+        text = cls._clean_lookup_text(value)
+        if not text:
+            return ""
+
+        previous = None
+        while text != previous:
+            previous = text
+            text = re.sub(
+                r"\s*[\(\[][^)\]]*\b(?:live|remaster(?:ed)?|version|edit|mono|stereo|instrumental|acoustic|karaoke|bonus track)\b[^)\]]*[\)\]]\s*$",
+                "",
+                text,
+                flags=re.IGNORECASE,
+            )
+            text = re.sub(
+                r"\s*[-:]\s*.*\b(?:live|remaster(?:ed)?|version|edit|mono|stereo|instrumental|acoustic|karaoke|bonus track)\b.*$",
+                "",
+                text,
+                flags=re.IGNORECASE,
+            )
+
+        return cls._clean_lookup_text(text)
+
+    @classmethod
+    def _normalize_lookup_text(cls, value: str | None) -> str:
+        text = cls._clean_lookup_text(value).lower()
+        if not text:
+            return ""
+        text = re.sub(r"[‐‑‒–—−]+", " ", text)
+        text = re.sub(r"[“”\"'`]+", "", text)
+        text = re.sub(r"[,:;!?]+", " ", text)
+        text = re.sub(r"\s+", " ", text)
+        return text.strip()
+
+    @classmethod
+    def _normalize_lookup_title(cls, value: str | None) -> str:
+        return cls._normalize_lookup_text(cls._clean_lookup_title(value))
+
+    @classmethod
+    def _normalize_artist_simple(cls, value: str | None) -> str:
+        normalized = cls._normalize_lookup_text(value)
+        normalized = re.sub(r"[\W_]+", " ", normalized, flags=re.UNICODE)
+        normalized = re.sub(r"\s+", " ", normalized)
+        return normalized.strip()
+
+    @classmethod
+    def _normalize_artist_credit_text(cls, value: str | None) -> str:
+        text = cls._clean_lookup_text(value).lower()
+        if not text:
+            return ""
+        text = re.sub(r"[‐‑‒–—−]+", " ", text)
+        text = re.sub(r"[“”\"'`]+", "", text)
+        text = re.sub(r"\s+", " ", text)
+        return text.strip()
 
     @staticmethod
     def _select_lookup_winner(
@@ -255,12 +343,13 @@ class MetadataService:
         items: list[MetadataSummary],
     ) -> MetadataSummary | None:
         def _normalize(value: str | None) -> str:
-            if value is None:
-                return ""
-            return " ".join(value.strip().lower().split())
+            return MetadataService._normalize_lookup_text(value)
+
+        def _normalize_title(value: str | None) -> str:
+            return MetadataService._normalize_lookup_title(value)
 
         def _artist_tokens(value: str | None) -> list[str]:
-            normalized = _normalize(value)
+            normalized = MetadataService._normalize_artist_credit_text(value)
             if not normalized:
                 return []
 
@@ -272,10 +361,12 @@ class MetadataService:
             return [part for part in parts if part]
 
         def _artist_credit_matches(hint_value: str | None, candidate_value: str | None) -> bool:
-            hint_normalized = _normalize(hint_value)
-            candidate_normalized = _normalize(candidate_value)
+            hint_normalized = MetadataService._normalize_artist_credit_text(hint_value)
+            candidate_normalized = MetadataService._normalize_artist_credit_text(candidate_value)
             if not hint_normalized:
                 return False
+            if MetadataService._normalize_artist_simple(hint_value) == MetadataService._normalize_artist_simple(candidate_value):
+                return True
 
             hint_parts = _artist_tokens(hint_value)
             candidate_parts = _artist_tokens(candidate_value)
@@ -286,22 +377,29 @@ class MetadataService:
                 return hint_normalized == candidate_normalized
             return set(hint_parts) == set(candidate_parts)
 
-        hint_artist = _normalize(str(hints.get("artist_name") or ""))
-        hint_title = _normalize(str(hints.get("title") or ""))
-        hint_album = _normalize(str(hints.get("album_title") or ""))
+        hint_artist_raw = str(hints.get("artist_name") or "")
+        hint_title_raw = str(hints.get("title") or "")
+        hint_album_raw = str(hints.get("album_title") or "")
+
+        hint_artist = _normalize(hint_artist_raw)
+        hint_title = _normalize_title(hint_title_raw)
+        hint_title_exact = _normalize(hint_title_raw)
+        hint_album = _normalize(hint_album_raw)
 
         scored: list[tuple[int, int, MetadataSummary]] = []
         for index, item in enumerate(items):
-            item_title = _normalize(item.track_title or item.title)
-            item_artist = _normalize(item.artist_name)
+            item_title = _normalize_title(item.track_title or item.title)
+            item_title_exact = _normalize(item.track_title or item.title)
             item_album = _normalize(item.album_title)
 
             if entity_type == EntityType.TRACK:
                 if not hint_title or not hint_artist:
                     continue
-                if item_title != hint_title or not _artist_credit_matches(hint_artist, item_artist):
+                if item_title != hint_title or not _artist_credit_matches(hint_artist_raw, item.artist_name):
                     continue
                 score = 2
+                if item_title_exact == hint_title_exact:
+                    score += 2
                 if hint_album:
                     if item_album != hint_album:
                         continue
@@ -310,14 +408,14 @@ class MetadataService:
                 if not hint_album or not hint_artist:
                     continue
                 item_album_title = _normalize(item.album_title or item.title)
-                if item_album_title != hint_album or not _artist_credit_matches(hint_artist, item_artist):
+                if item_album_title != hint_album or not _artist_credit_matches(hint_artist_raw, item.artist_name):
                     continue
                 score = 2
             else:
                 if not hint_artist:
                     continue
-                item_artist_name = _normalize(item.artist_name or item.title)
-                if not _artist_credit_matches(hint_artist, item_artist_name):
+                item_artist_name = item.artist_name or item.title
+                if not _artist_credit_matches(hint_artist_raw, item_artist_name):
                     continue
                 score = 1
 

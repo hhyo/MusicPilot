@@ -413,6 +413,157 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
             )
         self.assertEqual(ctx.exception.status_code, 404)
 
+    def test_track_lookup_normalizes_title_noise_before_searching(self) -> None:
+        from app.adapters.metadata_provider import MetadataProviderAdapter
+
+        class NoisyTitleAdapter(MetadataProviderAdapter):
+            def __init__(self) -> None:
+                self.keywords: list[str] = []
+
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+                self.keywords.append(payload.keyword)
+                items: list[MetadataSummary] = []
+                if payload.keyword == "Adele Hello 25":
+                    items = [
+                        MetadataSummary(
+                            entity_type=EntityType.TRACK,
+                            id="track-clean-title",
+                            title="Hello",
+                            artist_name="Adele",
+                            album_title="25",
+                            track_title="Hello",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="ok",
+                        )
+                    ]
+                return MetadataSearchData(
+                    keyword=payload.keyword,
+                    entity_type=payload.type,
+                    page=payload.page,
+                    page_size=payload.page_size,
+                    total=len(items),
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    integration_point="fake.live.search",
+                    items=items,
+                )
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+                return MetadataDetail(
+                    entity_type=entity_type,
+                    id=entity_id,
+                    title="Hello",
+                    artist_name="Adele",
+                    album_title="25",
+                    track_title="Hello",
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    mock=False,
+                    note="ok",
+                    integration_point="fake.live.detail",
+                )
+
+        adapter = NoisyTitleAdapter()
+        service = MetadataService(session=self.session, adapter=adapter)
+
+        detail = service.lookup_detail(
+            EntityType.TRACK,
+            {"artist_name": "Adele", "title": "Hello - Remastered 2015", "album_title": "25"},
+        )
+
+        self.assertEqual(detail.id, "track-clean-title")
+        self.assertEqual(adapter.keywords, ["Adele Hello 25"])
+
+    def test_album_lookup_tries_fallback_keyword_order_until_match(self) -> None:
+        from app.adapters.metadata_provider import MetadataProviderAdapter
+
+        class AlbumFallbackAdapter(MetadataProviderAdapter):
+            def __init__(self) -> None:
+                self.keywords: list[str] = []
+
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+                self.keywords.append(payload.keyword)
+                items: list[MetadataSummary] = []
+                if payload.keyword == "25 Adele":
+                    items = [
+                        MetadataSummary(
+                            entity_type=EntityType.ALBUM,
+                            id="album-fallback-match",
+                            title="25",
+                            artist_name="Adele",
+                            album_title="25",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="ok",
+                        )
+                    ]
+                return MetadataSearchData(
+                    keyword=payload.keyword,
+                    entity_type=payload.type,
+                    page=payload.page,
+                    page_size=payload.page_size,
+                    total=len(items),
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    integration_point="fake.live.search",
+                    items=items,
+                )
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+                return MetadataDetail(
+                    entity_type=entity_type,
+                    id=entity_id,
+                    title="25",
+                    artist_name="Adele",
+                    album_title="25",
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    mock=False,
+                    note="ok",
+                    integration_point="fake.live.detail",
+                )
+
+        adapter = AlbumFallbackAdapter()
+        service = MetadataService(session=self.session, adapter=adapter)
+
+        detail = service.lookup_detail(EntityType.ALBUM, {"artist_name": "Adele", "album_title": "25"})
+
+        self.assertEqual(detail.id, "album-fallback-match")
+        self.assertEqual(adapter.keywords, ["Adele 25", "25 Adele"])
+
     def test_lookup_raises_404_when_search_has_items_but_none_match_minimum_criteria(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
@@ -647,6 +798,71 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
             {"artist_name": "Artist A feat. Artist B", "title": "Collab Song"},
         )
         self.assertEqual(detail_feat.id, "track-1")
+
+    def test_artist_lookup_normalizes_single_artist_punctuation_variants(self) -> None:
+        from app.adapters.metadata_provider import MetadataProviderAdapter
+
+        class ArtistPunctuationAdapter(MetadataProviderAdapter):
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+                return MetadataSearchData(
+                    keyword=payload.keyword,
+                    entity_type=payload.type,
+                    page=payload.page,
+                    page_size=payload.page_size,
+                    total=1,
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    integration_point="fake.live.search",
+                    items=[
+                        MetadataSummary(
+                            entity_type=EntityType.ARTIST,
+                            id="artist-tyler",
+                            title="Tyler The Creator",
+                            artist_name="Tyler The Creator",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="ok",
+                        )
+                    ],
+                )
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+                return MetadataDetail(
+                    entity_type=entity_type,
+                    id=entity_id,
+                    title="Tyler The Creator",
+                    artist_name="Tyler The Creator",
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    mock=False,
+                    note="ok",
+                    integration_point="fake.live.detail",
+                )
+
+        service = MetadataService(session=self.session, adapter=ArtistPunctuationAdapter())
+
+        detail = service.lookup_detail(
+            EntityType.ARTIST,
+            {"artist_name": "Tyler, The Creator"},
+        )
+
+        self.assertEqual(detail.id, "artist-tyler")
 
 
 class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
