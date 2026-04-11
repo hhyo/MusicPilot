@@ -14,6 +14,7 @@ FastAPI 工程目录。当前已完成：
 - `/settings` 最小可用设置页与 `/settings/providers` 真实读写接口
 - 宿主插件中心 `vue` 远程组件页面入口
 - 宿主首页 dashboard `vue` 远程组件入口
+- 宿主侧边栏导航与 `plugin-app` 独立页面入口
 - 真实 MoviePilot search / downloader runtime / transfer 语义收敛与差异记录
 - 真实宿主插件 API 下的音乐 `preview_ready -> applied` 成功样例
 - Phase 8 多样例真实验证矩阵与 path handoff 稳定性收敛
@@ -121,7 +122,7 @@ export MUSICPILOT_CHART_RSS_FEEDS='[
 - 真正运行在宿主插件进程内时，优先复用 MoviePilot 推荐缓存接口
 - backend 本地运行态与测试环境会自动回退到本地内存 TTL cache
 - 第一阶段不包含复杂 RSS 可视化 CRUD
-- 当前宿主会通过 `/api/v1/plugin/remotes` 加载 `static/remotes/<hash>/remoteEntry.js`，进入 MusicPilot 的远程 `Page` 与 `Dashboard` 组件；本地独立前端开发页仍然保留用于日常开发。首页 dashboard 是否显示该卡片，仍受宿主 `Dashboard` 启用配置控制。
+- 当前宿主会通过 `/api/v1/plugin/remotes` 加载 `static/remotes/<hash>/remoteEntry.js`，进入 MusicPilot 的远程 `Page`、`Dashboard` 与 `AppPage` 组件；本地独立前端开发页仍然保留用于日常开发。首页 dashboard 是否显示该卡片，仍受宿主 `Dashboard` 启用配置控制；宿主侧边栏入口则依赖 `/api/v1/plugin/sidebar_nav` 聚合已启用 Vue 插件的导航声明。
 
 若没有真实宿主，可运行：
 

@@ -60,12 +60,13 @@ def _build_plugin_api_manifest() -> list[dict[str, Any]]:
 def _resolve_remote_dist_path() -> str:
     remotes_dir = Path(__file__).resolve().parent / "static" / "remotes"
     if remotes_dir.exists():
-        remote_versions = sorted(
-            path.name for path in remotes_dir.iterdir()
+        remote_dirs = [
+            path for path in remotes_dir.iterdir()
             if path.is_dir() and (path / "remoteEntry.js").exists()
-        )
-        if remote_versions:
-            return f"static/remotes/{remote_versions[-1]}"
+        ]
+        if remote_dirs:
+            latest_remote = max(remote_dirs, key=lambda path: path.stat().st_mtime)
+            return f"static/remotes/{latest_remote.name}"
     return "static/assets"
 
 
@@ -108,6 +109,19 @@ if _HostPluginBase is not None:
 
         def get_page(self):
             return None
+
+        @staticmethod
+        def get_sidebar_nav():
+            return [
+                {
+                    "nav_key": "main",
+                    "title": "MusicPilot",
+                    "icon": "mdi-music-note-outline",
+                    "section": "discovery",
+                    "permission": "discovery",
+                    "order": 90,
+                }
+            ]
 
         @staticmethod
         def get_dashboard_meta():

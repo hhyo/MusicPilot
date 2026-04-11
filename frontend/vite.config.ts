@@ -12,6 +12,7 @@ export default defineConfig({
       name: 'musicpilot',
       filename: 'remoteEntry.js',
       exposes: {
+        './AppPage': './src/plugin/AppPage.vue',
         './Dashboard': './src/plugin/Dashboard.vue',
         './Page': './src/plugin/Page.vue',
       },

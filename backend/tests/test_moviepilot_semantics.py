@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -1222,6 +1223,93 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
                 },
             )
             self.assertIsNone(elements)
+        finally:
+            sys.modules.pop(module_name, None)
+            if previous_plugins_module is not None:
+                sys.modules["app.plugins"] = previous_plugins_module
+            else:
+                sys.modules.pop("app.plugins", None)
+
+    def test_plugin_entry_exposes_sidebar_nav(self) -> None:
+        module_path = Path(__file__).resolve().parents[1] / "app" / "__init__.py"
+        fake_plugins_module = type(sys)("app.plugins")
+
+        class FakePluginBase:
+            def __init__(self):
+                pass
+
+        fake_plugins_module._PluginBase = FakePluginBase  # type: ignore[attr-defined]
+        previous_plugins_module = sys.modules.get("app.plugins")
+        module_name = "musicpilot_host_entry_sidebar_nav_test"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        plugin_module = importlib.util.module_from_spec(spec)
+
+        sys.modules["app.plugins"] = fake_plugins_module
+        sys.modules.pop(module_name, None)
+        try:
+            spec.loader.exec_module(plugin_module)  # type: ignore[union-attr]
+            plugin = plugin_module.musicpilot()
+
+            self.assertEqual(
+                plugin.get_sidebar_nav(),
+                [
+                    {
+                        "nav_key": "main",
+                        "title": "MusicPilot",
+                        "icon": "mdi-music-note-outline",
+                        "section": "discovery",
+                        "permission": "discovery",
+                        "order": 90,
+                    }
+                ],
+            )
+        finally:
+            sys.modules.pop(module_name, None)
+            if previous_plugins_module is not None:
+                sys.modules["app.plugins"] = previous_plugins_module
+            else:
+                sys.modules.pop("app.plugins", None)
+
+    def test_resolve_remote_dist_path_prefers_newest_remote_bundle(self) -> None:
+        module_path = Path(__file__).resolve().parents[1] / "app" / "__init__.py"
+        fake_plugins_module = type(sys)("app.plugins")
+        fake_plugins_module._PluginBase = type("FakePluginBase", (), {})  # type: ignore[attr-defined]
+        previous_plugins_module = sys.modules.get("app.plugins")
+        module_name = "musicpilot_remote_dist_path_test"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        plugin_module = importlib.util.module_from_spec(spec)
+
+        sys.modules["app.plugins"] = fake_plugins_module
+        sys.modules.pop(module_name, None)
+        try:
+            spec.loader.exec_module(plugin_module)  # type: ignore[union-attr]
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                app_dir = Path(tmpdir) / "app"
+                remotes_dir = app_dir / "static" / "remotes"
+                remotes_dir.mkdir(parents=True)
+                older = remotes_dir / "zzzzzzzzzzzz"
+                newer = remotes_dir / "111111111111"
+                older.mkdir()
+                newer.mkdir()
+                (older / "remoteEntry.js").write_text("old", encoding="utf-8")
+                (newer / "remoteEntry.js").write_text("new", encoding="utf-8")
+                older_stat = older.stat()
+                newer_stat = newer.stat()
+                # 字典序更大的目录不一定是最新构建产物；应按修改时间选择。
+                import os
+                os.utime(older, (older_stat.st_atime, older_stat.st_mtime))
+                os.utime(newer, (newer_stat.st_atime + 10, newer_stat.st_mtime + 10))
+                plugin_module.__file__ = str(app_dir / "__init__.py")
+
+                self.assertEqual(
+                    plugin_module._resolve_remote_dist_path(),
+                    "static/remotes/111111111111",
+                )
         finally:
             sys.modules.pop(module_name, None)
             if previous_plugins_module is not None:

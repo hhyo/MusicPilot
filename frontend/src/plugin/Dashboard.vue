@@ -43,7 +43,30 @@ const summaryItems = [
 ];
 
 function openMusicPilot(): void {
-  window.location.hash = '#/plugins?id=musicpilot';
+  const openStandalone = () => {
+    window.location.hash = '#/plugin-app/musicpilot/main';
+  };
+  const openDialog = () => {
+    window.location.hash = '#/plugins?id=musicpilot';
+  };
+
+  const get = props.api?.get;
+  if (!get) {
+    openDialog();
+    return;
+  }
+
+  Promise.resolve(get('plugin/sidebar_nav'))
+    .then((result) => {
+      if (Array.isArray(result)) {
+        openStandalone();
+        return;
+      }
+      openDialog();
+    })
+    .catch(() => {
+      openDialog();
+    });
 }
 </script>
 

@@ -4,9 +4,9 @@ MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩
 
 ## 项目简介
 
-- `frontend/`：基于 Vue 3 + TypeScript + Vite 的前端工程，当前既可作为独立开发页运行，也可通过宿主插件中心的 `vue` 远程组件模式加载；已提供首页工作台、metadata 搜索页、榜单页、订阅页、最小可用 `/settings` 设置页，以及真实可读写的 `/settings/providers` 接口页面；同时已新增宿主首页 dashboard 入口卡片，可从 MoviePilot 首页快速打开 MusicPilot。前端支持从 metadata / chart item 创建订阅、执行一次 run、查看 organize backend / status / handoff 的最小前端闭环。
+- `frontend/`：基于 Vue 3 + TypeScript + Vite 的前端工程，当前既可作为独立开发页运行，也可通过宿主插件中心的 `vue` 远程组件模式加载；已提供首页工作台、metadata 搜索页、榜单页、订阅页、最小可用 `/settings` 设置页，以及真实可读写的 `/settings/providers` 接口页面；同时已新增宿主首页 dashboard 入口卡片，以及宿主侧边栏导航与独立页面入口，可从 MoviePilot 首页或侧栏快速打开 MusicPilot。前端支持从 metadata / chart item 创建订阅、执行一次 run、查看 organize backend / status / handoff 的最小前端闭环。
 - `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、search/dispatch 模式选择、SubscriptionService、真实 settings 读写接口、RSS / ListenBrainz chart discovery，以及音乐 organize preview/apply 最小闭环。
-- `plugin_runtime/`：面向 MoviePilot 宿主的运行时装配目录，当前已完成本地宿主真实加载验证，并已通过宿主插件中心 `vue` 远程组件模式打开 MusicPilot 页面；同时支持宿主首页 dashboard 远程组件入口。目录中保留静态资源、后端挂载说明和打包边界。
+- `plugin_runtime/`：面向 MoviePilot 宿主的运行时装配目录，当前已完成本地宿主真实加载验证，并已通过宿主插件中心 `vue` 远程组件模式、首页 dashboard 远程组件，以及宿主侧边栏 `plugin-app` 独立页面入口打开 MusicPilot 页面。目录中保留静态资源、后端挂载说明和打包边界。
 - `scripts/`：前端开发、后端开发、前端构建、插件装配、版本同步脚本。
 - `docs/`：产品方案、架构方案、规范与任务拆解文档，按要求保持原位不变。
 

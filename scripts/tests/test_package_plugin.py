@@ -26,6 +26,20 @@ class NormalizeRemoteEntryAssetPathsTests(unittest.TestCase):
             self.assertNotIn('y("./assets/', normalized)
             self.assertNotIn('w("./assets/', normalized)
 
+    def test_normalizes_exposed_chunk_loader_paths(self) -> None:
+        remote_entry = """const P={},g=new Set(["Module","__esModule","default","_export_sfc"]);let y={"./AppPage":()=>(p(["__federation_expose_AppPage.css","createApp.css"],!1,"./AppPage"),b("./assets/__federation_expose_AppPage.js").then(e=>e)),"./Page":()=>(p(["__federation_expose_Page.css"],!1,"./Page"),b("./assets/__federation_expose_Page.js").then(e=>e))};"""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            remote_entry_path = Path(tmpdir) / "remoteEntry.js"
+            remote_entry_path.write_text(remote_entry, encoding="utf-8")
+
+            normalize_remote_entry_asset_paths(remote_entry_path)
+
+            normalized = remote_entry_path.read_text(encoding="utf-8")
+            self.assertIn('b("./__federation_expose_AppPage.js")', normalized)
+            self.assertIn('b("./__federation_expose_Page.js")', normalized)
+            self.assertNotIn('b("./assets/', normalized)
+
     def test_missing_remote_entry_is_ignored(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             remote_entry_path = Path(tmpdir) / "missing-remoteEntry.js"

@@ -97,6 +97,7 @@ def normalize_remote_entry_asset_paths(remote_entry_path: Path) -> None:
         .replace("a='./';", "a='';")
         .replace('y("./assets/', 'y("./')
         .replace('w("./assets/', 'w("./')
+        .replace('b("./assets/', 'b("./')
     )
 
     if normalized != original:

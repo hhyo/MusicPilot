@@ -50,6 +50,7 @@ describe('plugin/Dashboard.vue', () => {
   });
 
   it('navigates to plugin dialog route when open button is clicked', async () => {
+    const get = vi.fn().mockResolvedValue([{ plugin_id: 'musicpilot', nav_key: 'main' }]);
     const wrapper = mount(Dashboard, {
       props: {
         config: {
@@ -65,7 +66,7 @@ describe('plugin/Dashboard.vue', () => {
           render_mode: 'vue',
         },
         allowRefresh: true,
-        api: { get: () => undefined },
+        api: { get },
       },
       global: {
         stubs: vuetifyStubs,
@@ -73,6 +74,39 @@ describe('plugin/Dashboard.vue', () => {
     });
 
     await wrapper.get('button.musicpilot-dashboard__open').trigger('click');
+    await Promise.resolve();
+
+    expect(get).toHaveBeenCalledWith('plugin/sidebar_nav');
+    expect(window.location.hash).toBe('#/plugin-app/musicpilot/main');
+  });
+
+  it('falls back to plugin dialog when standalone page API is unavailable', async () => {
+    const get = vi.fn().mockRejectedValue(new Error('404'));
+    const wrapper = mount(Dashboard, {
+      props: {
+        config: {
+          id: 'musicpilot',
+          name: 'MusicPilot',
+          key: 'home',
+          attrs: {
+            title: 'MusicPilot',
+            subtitle: '音乐发现、元数据与整理工作台',
+          },
+          cols: {},
+          elements: [],
+          render_mode: 'vue',
+        },
+        allowRefresh: true,
+        api: { get },
+      },
+      global: {
+        stubs: vuetifyStubs,
+      },
+    });
+
+    await wrapper.get('button.musicpilot-dashboard__open').trigger('click');
+    await Promise.resolve();
+    await Promise.resolve();
 
     expect(window.location.hash).toBe('#/plugins?id=musicpilot');
   });
