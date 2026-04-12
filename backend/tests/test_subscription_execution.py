@@ -310,9 +310,49 @@ class DummyMusicMediaChain:
         self.calls.append(payload)
         return self.resolved_media
 
+    def resolve_from_target_payload_ref(
+        self,
+        *,
+        entity_type,
+        target_id: str,
+        target_payload: dict | None,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicMediaInfo:
+        payload = self.input_from_target_payload_ref(
+            entity_type=entity_type,
+            target_id=target_id,
+            target_payload=target_payload,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+        return self.resolve(payload)
+
     def resolve_detail(self, payload: MusicMediaInput):
         self.calls.append(payload)
         return SimpleNamespace(detail=build_artist_detail())
+
+    def resolve_detail_from_target_payload_ref(
+        self,
+        *,
+        entity_type,
+        target_id: str,
+        target_payload: dict | None,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ):
+        payload = self.input_from_target_payload_ref(
+            entity_type=entity_type,
+            target_id=target_id,
+            target_payload=target_payload,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+        return self.resolve_detail(payload)
 
 
 class SubscriptionExecutionServiceTest(unittest.TestCase):

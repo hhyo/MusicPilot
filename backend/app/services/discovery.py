@@ -46,17 +46,15 @@ class DiscoveryAssembler:
         return detail
 
     def _build_entry_view(self, chart: ChartInfo, entry: ChartEntryInfo) -> DiscoveryEntryView:
-        media_input = self.music_media_chain.input_from_discovery_entry(chart, entry)
-        meta_base = self.music_media_chain.build_base(media_input)
-        assessment = self.music_media_chain.assess(meta_base)
+        prepared = self.music_media_chain.prepare_from_discovery_entry(chart, entry)
         return DiscoveryEntryView(
             entry=entry,
-            media_input=media_input,
-            meta_base=meta_base,
+            media_input=prepared.input,
+            meta_base=prepared.base,
             entry_summary=self._entry_summary(entry),
             badges=self._build_badges(chart, entry),
             highlight_reason=self._highlight_reason(chart, entry),
-            recognition_assessment=assessment,
+            recognition_assessment=prepared.assessment,
         )
 
     def _build_badges(self, chart: ChartInfo, entry: ChartEntryInfo) -> list[str]:

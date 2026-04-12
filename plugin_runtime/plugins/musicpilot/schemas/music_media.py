@@ -100,6 +100,14 @@ class MusicResolveRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class MusicPrepareResponse(BaseModel):
+    input: MusicMediaInput
+    base: MusicMetaBase
+    assessment: MusicRecognitionAssessment
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class MusicResolveResponse(BaseModel):
     base: MusicMetaBase
     assessment: MusicRecognitionAssessment

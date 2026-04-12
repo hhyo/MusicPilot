@@ -18,18 +18,6 @@ def _is_mock_source(source_type: str) -> bool:
     return source_type in {"mock", "local_seed"}
 
 
-def _resolve_detail_from_provider_ref(*, chain, entity_type: EntityType, provider_id: str):
-    input_payload = chain.input_from_provider_ref(
-        entity_type=entity_type,
-        provider="musicbrainz",
-        provider_id=provider_id,
-        source_kind="detail",
-        source_context={"entrypoint": "metadata_detail_route"},
-        raw_context={},
-    )
-    return chain.resolve_detail(input_payload).detail
-
-
 @router.post("/search", summary="Metadata search")
 @router.post("/metadata/search", summary="Metadata search")
 async def search(
@@ -62,11 +50,14 @@ async def artist_detail(
     request: Request,
     chain=Depends(get_music_media_chain),
 ) -> ApiResponse:
-    detail = _resolve_detail_from_provider_ref(
-        chain=chain,
+    detail = chain.resolve_detail_from_provider_ref(
         entity_type=EntityType.ARTIST,
+        provider="musicbrainz",
         provider_id=artist_id,
-    )
+        source_kind="detail",
+        source_context={"entrypoint": "metadata_detail_route"},
+        raw_context={},
+    ).detail
     return success_response(
         request,
         data=detail,
@@ -88,11 +79,14 @@ async def album_detail(
     request: Request,
     chain=Depends(get_music_media_chain),
 ) -> ApiResponse:
-    detail = _resolve_detail_from_provider_ref(
-        chain=chain,
+    detail = chain.resolve_detail_from_provider_ref(
         entity_type=EntityType.ALBUM,
+        provider="musicbrainz",
         provider_id=album_id,
-    )
+        source_kind="detail",
+        source_context={"entrypoint": "metadata_detail_route"},
+        raw_context={},
+    ).detail
     return success_response(
         request,
         data=detail,
@@ -114,11 +108,14 @@ async def track_detail(
     request: Request,
     chain=Depends(get_music_media_chain),
 ) -> ApiResponse:
-    detail = _resolve_detail_from_provider_ref(
-        chain=chain,
+    detail = chain.resolve_detail_from_provider_ref(
         entity_type=EntityType.TRACK,
+        provider="musicbrainz",
         provider_id=track_id,
-    )
+        source_kind="detail",
+        source_context={"entrypoint": "metadata_detail_route"},
+        raw_context={},
+    ).detail
     return success_response(
         request,
         data=detail,

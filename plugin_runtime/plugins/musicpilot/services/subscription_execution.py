@@ -238,12 +238,19 @@ class SubscriptionExecutionService:
                     source_context={"subscription_id": subscription.id},
                     raw_context={"target_id": subscription.target_id},
                 )
-        if media_input is None:
-            media_input = self._build_subscription_provider_input(
-                subscription,
-                source_kind="subscription_detail",
-            )
-        return self.music_media_chain.resolve_detail(media_input).detail
+        if media_input is not None:
+            return self.music_media_chain.resolve_detail(media_input).detail
+        return self.music_media_chain.resolve_detail_from_target_payload_ref(
+            entity_type=EntityType(subscription.target_entity_type or subscription.subscription_type),
+            target_id=subscription.target_id,
+            target_payload=subscription.target_payload_json or {},
+            source_kind="subscription_detail",
+            source_context={
+                "subscription_id": subscription.id,
+                "subscription_type": subscription.subscription_type,
+            },
+            raw_context={"target_id": subscription.target_id},
+        ).detail
 
     def _resolve_or_build_music_media_info(self, subscription) -> MusicMediaInfo | None:
         media_info = self._resolve_music_media_info_snapshot(subscription)
@@ -252,12 +259,24 @@ class SubscriptionExecutionService:
 
         media_input = self._resolve_music_media_input_snapshot(subscription)
         if media_input is None:
+            resolved = self.music_media_chain.resolve_from_target_payload_ref(
+                entity_type=EntityType(subscription.target_entity_type or subscription.subscription_type),
+                target_id=subscription.target_id,
+                target_payload=subscription.target_payload_json or {},
+                source_kind="subscription_resolution",
+                source_context={
+                    "subscription_id": subscription.id,
+                    "subscription_type": subscription.subscription_type,
+                },
+                raw_context={"target_id": subscription.target_id},
+            )
             media_input = self._build_subscription_provider_input(
                 subscription,
                 source_kind="subscription_resolution",
             )
+        else:
+            resolved = self.music_media_chain.resolve(media_input)
 
-        resolved = self.music_media_chain.resolve(media_input)
         payload = dict(subscription.target_payload_json or {})
         payload["music_media_input"] = media_input.model_dump(mode="json")
         payload["music_media_info"] = resolved.model_dump(mode="json")

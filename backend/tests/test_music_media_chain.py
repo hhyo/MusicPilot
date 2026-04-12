@@ -169,6 +169,27 @@ class MusicMediaChainTests(unittest.TestCase):
         self.assertEqual(result.media.provider_id, "recording-hello")
         self.assertEqual(metadata_service.last_provider_ref["provider"], "musicbrainz")
 
+    def test_chain_prepare_from_provider_ref_returns_input_base_and_assessment(self) -> None:
+        from app.services.music_media_chain import MusicMediaChain
+
+        chain = MusicMediaChain(
+            metadata_service=FakeMetadataService(),
+            metadata_adapter=FakeMetadataAdapter(),
+        )
+
+        prepared = chain.prepare_from_provider_ref(
+            entity_type=EntityType.ARTIST,
+            provider="musicbrainz",
+            provider_id="artist-adele",
+            source_kind="detail",
+            source_context={"entrypoint": "artist_detail_route"},
+            raw_context={},
+        )
+
+        self.assertEqual(prepared.input.external_refs["musicbrainz_artist_id"], "artist-adele")
+        self.assertEqual(prepared.base.entity_type, EntityType.ARTIST)
+        self.assertEqual(prepared.assessment.state, "direct")
+
     def test_chain_resolves_generic_provider_ref_without_search(self) -> None:
         from app.schemas.music_media import MusicMediaInput
         from app.services.music_media_chain import MusicMediaChain
@@ -194,6 +215,53 @@ class MusicMediaChainTests(unittest.TestCase):
         self.assertEqual(result.media.provider_id, "album-42")
         self.assertEqual(metadata_service.last_provider_ref["provider"], "external_feed")
         self.assertEqual(metadata_service.last_provider_ref["provider_id"], "album-42")
+
+    def test_chain_resolve_detail_from_provider_ref_uses_chain_convenience_entrypoint(self) -> None:
+        from app.services.music_media_chain import MusicMediaChain
+
+        metadata_service = FakeMetadataService()
+        chain = MusicMediaChain(
+            metadata_service=metadata_service,
+            metadata_adapter=FakeMetadataAdapter(),
+        )
+
+        result = chain.resolve_detail_from_provider_ref(
+            entity_type=EntityType.TRACK,
+            provider="musicbrainz",
+            provider_id="recording-hello",
+            source_kind="detail",
+            source_context={"entrypoint": "metadata_detail_route"},
+            raw_context={},
+        )
+
+        self.assertEqual(result.base.entity_type, EntityType.TRACK)
+        self.assertEqual(result.detail.id, "recording-hello")
+        self.assertEqual(metadata_service.last_provider_ref["provider_id"], "recording-hello")
+
+    def test_chain_resolve_from_target_payload_ref_uses_snapshot_ref(self) -> None:
+        from app.services.music_media_chain import MusicMediaChain
+
+        chain = MusicMediaChain(
+            metadata_service=FakeMetadataService(),
+            metadata_adapter=FakeExternalProviderAdapter(),
+        )
+
+        result = chain.resolve_from_target_payload_ref(
+            entity_type=EntityType.ALBUM,
+            target_id="fallback-id",
+            target_payload={
+                "provider_ref": {
+                    "provider": "external_feed",
+                    "provider_id": "album-99",
+                }
+            },
+            source_kind="subscription_resolution",
+            source_context={"subscription_id": "sub-1"},
+            raw_context={},
+        )
+
+        self.assertEqual(result.provider, "external_feed")
+        self.assertEqual(result.provider_id, "album-99")
 
 
 if __name__ == "__main__":

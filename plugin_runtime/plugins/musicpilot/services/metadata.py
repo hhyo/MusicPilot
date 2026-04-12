@@ -90,78 +90,78 @@ class MetadataService:
             items=summaries,
         )
 
-    def get_artist_detail(self, artist_id: str) -> MetadataDetail:
+    def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
         if self.adapter.supports_live_queries:
-            return self.adapter.get_detail(EntityType.ARTIST, artist_id)
+            return self.adapter.get_detail(entity_type, entity_id)
 
-        artist = self.repository.get_artist(artist_id)
-        if artist is None:
-            raise HTTPException(status_code=404, detail=f"Artist {artist_id} was not found in the local seed catalog.")
-        detail = self._build_summary(artist, EntityType.ARTIST)
-        return MetadataDetail(
-            **detail.model_dump(),
-            country=artist.country,
-            integration_point=INTEGRATION_POINT,
-            related_albums=[
-                MetadataReference(
-                    id=album.id,
-                    title=album.title,
-                    entity_type=EntityType.ALBUM,
-                    subtitle=album.artist_name,
+        if entity_type == EntityType.ARTIST:
+            artist = self.repository.get_artist(entity_id)
+            if artist is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Artist {entity_id} was not found in the local seed catalog.",
                 )
-                for album in artist.albums
-            ],
-            tracks=[
-                MetadataReference(
-                    id=track.id,
-                    title=track.title,
-                    entity_type=EntityType.TRACK,
-                    subtitle=track.album_title,
+            detail = self._build_summary(artist, EntityType.ARTIST)
+            return MetadataDetail(
+                **detail.model_dump(),
+                country=artist.country,
+                integration_point=INTEGRATION_POINT,
+                related_albums=[
+                    MetadataReference(
+                        id=album.id,
+                        title=album.title,
+                        entity_type=EntityType.ALBUM,
+                        subtitle=album.artist_name,
+                    )
+                    for album in artist.albums
+                ],
+                tracks=[
+                    MetadataReference(
+                        id=track.id,
+                        title=track.title,
+                        entity_type=EntityType.TRACK,
+                        subtitle=track.album_title,
+                    )
+                    for track in artist.tracks
+                ],
+                todo=DETAIL_TODO,
+            )
+
+        if entity_type == EntityType.ALBUM:
+            album = self.repository.get_album(entity_id)
+            if album is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Album {entity_id} was not found in the local seed catalog.",
                 )
-                for track in artist.tracks
-            ],
-            todo=DETAIL_TODO,
-        )
+            detail = self._build_summary(album, EntityType.ALBUM)
+            return MetadataDetail(
+                **detail.model_dump(),
+                integration_point=INTEGRATION_POINT,
+                related_artists=[
+                    MetadataReference(
+                        id=artist.id,
+                        title=artist.name,
+                        entity_type=EntityType.ARTIST,
+                        subtitle=artist.country,
+                    )
+                    for artist in album.artists
+                ],
+                tracks=[
+                    MetadataReference(
+                        id=track.id,
+                        title=track.title,
+                        entity_type=EntityType.TRACK,
+                        subtitle=track.artist_name,
+                    )
+                    for track in album.tracks
+                ],
+                todo=DETAIL_TODO,
+            )
 
-    def get_album_detail(self, album_id: str) -> MetadataDetail:
-        if self.adapter.supports_live_queries:
-            return self.adapter.get_detail(EntityType.ALBUM, album_id)
-
-        album = self.repository.get_album(album_id)
-        if album is None:
-            raise HTTPException(status_code=404, detail=f"Album {album_id} was not found in the local seed catalog.")
-        detail = self._build_summary(album, EntityType.ALBUM)
-        return MetadataDetail(
-            **detail.model_dump(),
-            integration_point=INTEGRATION_POINT,
-            related_artists=[
-                MetadataReference(
-                    id=artist.id,
-                    title=artist.name,
-                    entity_type=EntityType.ARTIST,
-                    subtitle=artist.country,
-                )
-                for artist in album.artists
-            ],
-            tracks=[
-                MetadataReference(
-                    id=track.id,
-                    title=track.title,
-                    entity_type=EntityType.TRACK,
-                    subtitle=track.artist_name,
-                )
-                for track in album.tracks
-            ],
-            todo=DETAIL_TODO,
-        )
-
-    def get_track_detail(self, track_id: str) -> MetadataDetail:
-        if self.adapter.supports_live_queries:
-            return self.adapter.get_detail(EntityType.TRACK, track_id)
-
-        track = self.repository.get_track(track_id)
+        track = self.repository.get_track(entity_id)
         if track is None:
-            raise HTTPException(status_code=404, detail=f"Track {track_id} was not found in the local seed catalog.")
+            raise HTTPException(status_code=404, detail=f"Track {entity_id} was not found in the local seed catalog.")
         detail = self._build_summary(track, EntityType.TRACK)
         related_album = None
         if track.album is not None:
@@ -187,13 +187,6 @@ class MetadataService:
             related_album=related_album,
             todo=DETAIL_TODO,
         )
-
-    def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
-        if entity_type == EntityType.ARTIST:
-            return self.get_artist_detail(entity_id)
-        if entity_type == EntityType.ALBUM:
-            return self.get_album_detail(entity_id)
-        return self.get_track_detail(entity_id)
 
     def get_detail_by_provider_ref(
         self,
