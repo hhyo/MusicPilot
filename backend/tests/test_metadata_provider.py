@@ -948,6 +948,92 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
         self.assertIn("Lady Gaga & Bruno Mars Die With A Smile", adapter.keywords)
         self.assertIn("Lady Gaga Bruno Mars Die With A Smile", adapter.keywords)
 
+    def test_track_lookup_prefers_full_artist_credit_match_over_weaker_primary_artist_fallback(self) -> None:
+        from app.adapters.metadata_provider import MetadataProviderAdapter
+
+        class ArtistFallbackAdapter(MetadataProviderAdapter):
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:
+                return MetadataSearchData(
+                    keyword=payload.keyword,
+                    entity_type=payload.type,
+                    page=payload.page,
+                    page_size=payload.page_size,
+                    total=2,
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    integration_point="fake.live.search",
+                    items=[
+                        MetadataSummary(
+                            entity_type=EntityType.TRACK,
+                            id="track-solo",
+                            title="Die With A Smile",
+                            artist_name="Lady Gaga",
+                            album_title="Solo Single",
+                            track_title="Die With A Smile",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="solo",
+                        ),
+                        MetadataSummary(
+                            entity_type=EntityType.TRACK,
+                            id="track-duet",
+                            title="Die With A Smile",
+                            artist_name="Lady Gaga & Bruno Mars",
+                            album_title="Duet Single",
+                            track_title="Die With A Smile",
+                            provider=self.provider,
+                            source_type=self.source_type,
+                            mock=False,
+                            note="duet",
+                        ),
+                    ],
+                )
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+                artist_name = "Lady Gaga" if entity_id == "track-solo" else "Lady Gaga & Bruno Mars"
+                return MetadataDetail(
+                    entity_type=entity_type,
+                    id=entity_id,
+                    title="Die With A Smile",
+                    artist_name=artist_name,
+                    album_title="Duet Single" if entity_id == "track-duet" else "Solo Single",
+                    track_title="Die With A Smile",
+                    provider=self.provider,
+                    source_type=self.source_type,
+                    mock=False,
+                    note="ok",
+                    integration_point="fake.live.detail",
+                )
+
+        service = MetadataService(session=self.session, adapter=ArtistFallbackAdapter())
+
+        detail = service.lookup_detail(
+            EntityType.TRACK,
+            {
+                "artist_name": "Lady Gaga feat. Bruno Mars",
+                "artist_name_candidates": ["Lady Gaga feat. Bruno Mars", "Lady Gaga"],
+                "title": "Die With A Smile [Official Lyric Video]",
+            },
+        )
+
+        self.assertEqual(detail.id, "track-duet")
+
 
 class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
     def test_search_reuses_cached_result_for_identical_payload(self) -> None:

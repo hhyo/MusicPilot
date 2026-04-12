@@ -363,7 +363,19 @@ class MetadataService:
                 flags=re.IGNORECASE,
             )
             text = re.sub(
+                r"\s*[\(\[][^)\]]*\b(?:official\s+)?(?:video|audio|mv|lyrics?|lyric video|performance)\b[^)\]]*[\)\]]\s*$",
+                "",
+                text,
+                flags=re.IGNORECASE,
+            )
+            text = re.sub(
                 r"\s*[-:]\s*.*\b(?:live|remaster(?:ed)?|version|edit|mono|stereo|instrumental|acoustic|karaoke|bonus track)\b.*$",
+                "",
+                text,
+                flags=re.IGNORECASE,
+            )
+            text = re.sub(
+                r"\s*[-:]\s*.*\b(?:official\s+)?(?:video|audio|mv|lyrics?|lyric video|performance)\b.*$",
                 "",
                 text,
                 flags=re.IGNORECASE,
@@ -445,6 +457,27 @@ class MetadataService:
                 return hint_normalized == candidate_normalized
             return set(hint_parts) == set(candidate_parts)
 
+        def _artist_credit_score(hint_candidates: list[str], candidate_value: str | None) -> int:
+            best = -1
+            candidate_simple = MetadataService._normalize_artist_simple(candidate_value)
+            candidate_parts = _artist_tokens(candidate_value)
+            for index, candidate in enumerate(hint_candidates):
+                if not _artist_credit_matches(candidate, candidate_value):
+                    continue
+                score = max(0, 100 - index * 10)
+                candidate_simple_hint = MetadataService._normalize_artist_simple(candidate)
+                hint_parts = _artist_tokens(candidate)
+                if hint_parts and candidate_parts and set(hint_parts) == set(candidate_parts):
+                    score += 30
+                    if len(hint_parts) > 1:
+                        score += 20
+                elif candidate_simple_hint == candidate_simple:
+                    score += 15
+                elif len(hint_parts) == 1:
+                    score += 5
+                best = max(best, score)
+            return best
+
         hint_artist_raw = str(hints.get("artist_name") or "")
         hint_title_raw = str(hints.get("title") or "")
         hint_album_raw = str(hints.get("album_title") or "")
@@ -483,9 +516,10 @@ class MetadataService:
                     continue
                 if item_title not in hint_title_candidates:
                     continue
-                if not any(_artist_credit_matches(candidate, item.artist_name) for candidate in hint_artist_candidates_raw):
+                artist_score = _artist_credit_score(hint_artist_candidates_raw, item.artist_name)
+                if artist_score < 0:
                     continue
-                score = 2
+                score = 20 + artist_score
                 if item_title_exact == hint_title_exact:
                     score += 2
                 if hint_album_candidates:
@@ -498,16 +532,18 @@ class MetadataService:
                 item_album_title = _normalize(item.album_title or item.title)
                 if item_album_title not in hint_album_candidates:
                     continue
-                if not any(_artist_credit_matches(candidate, item.artist_name) for candidate in hint_artist_candidates_raw):
+                artist_score = _artist_credit_score(hint_artist_candidates_raw, item.artist_name)
+                if artist_score < 0:
                     continue
-                score = 2
+                score = 20 + artist_score
             else:
                 if not hint_artist_candidates_raw:
                     continue
                 item_artist_name = item.artist_name or item.title
-                if not any(_artist_credit_matches(candidate, item_artist_name) for candidate in hint_artist_candidates_raw):
+                artist_score = _artist_credit_score(hint_artist_candidates_raw, item_artist_name)
+                if artist_score < 0:
                     continue
-                score = 1
+                score = 10 + artist_score
 
             scored.append((score, -index, item))
 

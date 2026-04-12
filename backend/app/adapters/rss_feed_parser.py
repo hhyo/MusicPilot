@@ -269,13 +269,9 @@ def _build_candidate_hints(
     if family == "youtube_top_songs":
         left, right = _split_title_track_artist(title)
         author_clean = (author or "").strip()
-        artist_candidates = _dedupe_candidates(subtitle, author_clean)
-        if left and author_clean and _normalized_music_text(left) != _normalized_music_text(author_clean):
-            artist_candidates = _dedupe_candidates(*artist_candidates, left)
-        elif left:
-            artist_candidates = _dedupe_candidates(*artist_candidates, left)
+        artist_candidates = _build_artist_credit_candidates(subtitle, author_clean, left)
         return {
-            "title_candidates": _dedupe_candidates(target_name, _strip_video_suffix(target_name), right if right != target_name else None),
+            "title_candidates": _build_title_candidates(target_name, right if right != target_name else None),
             "artist_name_candidates": artist_candidates,
         }
 
@@ -302,6 +298,60 @@ def _dedupe_candidates(*values: str | None) -> list[str]:
         candidates.append(normalized)
         seen.add(key)
     return candidates
+
+
+def _build_title_candidates(*values: str | None) -> list[str]:
+    candidates: list[str] = []
+    for value in values:
+        if not value:
+            continue
+        stripped = _strip_video_suffix(value)
+        candidates.extend(_dedupe_candidates(value, stripped))
+    return _dedupe_candidates(*candidates)
+
+
+def _build_artist_credit_candidates(*values: str | None) -> list[str]:
+    candidates: list[str] = []
+    tokens: list[str] = []
+    allow_primary_fallback = False
+    for value in values:
+        if not value:
+            continue
+        normalized_value = value.strip()
+        if normalized_value:
+            candidates.append(normalized_value)
+        if re.search(r"\b(featuring|feat\.?|ft\.?|with)\b|\sx\s", normalized_value, flags=re.IGNORECASE):
+            allow_primary_fallback = True
+        parts = _split_artist_credit_parts_display(normalized_value)
+        for part in parts:
+            if _normalized_music_text(part) not in {_normalized_music_text(token) for token in tokens}:
+                tokens.append(part)
+
+    if len(tokens) >= 2:
+        candidates.extend(
+            [
+                " & ".join(tokens),
+                ", ".join(tokens),
+            ]
+        )
+        if allow_primary_fallback:
+            candidates.append(tokens[0])
+    elif tokens:
+        candidates.append(tokens[0])
+    return _dedupe_candidates(*candidates)
+
+
+def _split_artist_credit_parts_display(value: str | None) -> list[str]:
+    text = (value or "").strip()
+    if not text:
+        return []
+    text = re.sub(r"\b(featuring|feat\.?|ft\.?|with)\b", ",", text, flags=re.IGNORECASE)
+    text = text.replace("&", ",")
+    text = re.sub(r"\band\b", ",", text, flags=re.IGNORECASE)
+    text = text.replace("/", ",")
+    text = re.sub(r"\sx\s", ",", text, flags=re.IGNORECASE)
+    parts = [part.strip(" .-_") for part in text.split(",")]
+    return [part for part in parts if part]
 
 
 def _normalized_music_text(value: str) -> str:

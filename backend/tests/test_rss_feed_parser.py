@@ -143,6 +143,32 @@ class RssFeedParserTest(unittest.TestCase):
             ["Lady Gaga & Bruno Mars", "Lady Gaga, Bruno Mars"],
         )
 
+    def test_parse_youtube_top_songs_enriches_candidates_for_credit_and_video_noise_variants(self) -> None:
+        parsed = parse_rss_feed(
+            "https://rsshub.app/youtube/charts/TopSongs",
+            """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>YouTube Top Songs</title>
+    <item>
+      <title>Lady Gaga x Bruno Mars - Die With A Smile [Official Lyric Video]</title>
+      <link>https://www.youtube.com/watch?v=abc123xyz00</link>
+      <author>Lady Gaga feat. Bruno Mars</author>
+    </item>
+  </channel>
+</rss>""",
+        )
+
+        item = parsed["items"][0]
+        self.assertEqual(
+            item["title_candidates"],
+            ["Die With A Smile [Official Lyric Video]", "Die With A Smile"],
+        )
+        self.assertEqual(
+            item["artist_name_candidates"],
+            ["Lady Gaga feat. Bruno Mars", "Lady Gaga x Bruno Mars", "Lady Gaga & Bruno Mars", "Lady Gaga, Bruno Mars", "Lady Gaga"],
+        )
+
     def test_parse_netease_artist_albums_adds_album_title_candidates_without_promoting_display_only_title(self) -> None:
         parsed = parse_rss_feed(
             "https://rsshub.app/163/music/artist/6452",
