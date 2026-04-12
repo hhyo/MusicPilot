@@ -23,5 +23,5 @@ async def dashboard_summary(
         message="Dashboard summary loaded.",
         code="DASHBOARD_SUMMARY_OK",
         mock=False,
-        note="当前 dashboard 摘要直接聚合 subscription、search job、download binding 与 organize record 的真实持久化计数。",
+        note="当前 dashboard 摘要只聚合现有 provider、discovery、handoff、organize 与 scheduler 状态，不伪造探测成功。",
     )

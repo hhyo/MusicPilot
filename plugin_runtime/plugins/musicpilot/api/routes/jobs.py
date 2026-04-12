@@ -10,6 +10,9 @@ from ...schemas.acquisition import (
     QueryBuildRequest,
     QueryBuildResult,
     SearchCandidateListData,
+    SearchCandidateActionResult,
+    SearchCandidateConfirmRequest,
+    SearchCandidateRejectRequest,
     SearchJobCreateRequest,
     SearchJobSummary,
     MutationResult,
@@ -50,9 +53,16 @@ async def list_jobs(
     request: Request,
     status: str | None = Query(default=None),
     trigger_source: str | None = Query(default=None),
+    decision: str | None = Query(default=None),
+    has_dispatch: bool | None = Query(default=None),
     service: SearchJobService = Depends(get_search_job_service),
 ) -> TypedApiResponse[list[SearchJobSummary]]:
-    jobs = service.list_jobs(status=status, trigger_source=trigger_source)
+    jobs = service.list_jobs(
+        status=status,
+        trigger_source=trigger_source,
+        decision=decision,
+        has_dispatch=has_dispatch,
+    )
     return success_response(
         request,
         data=jobs,
@@ -147,6 +157,26 @@ async def retry_job(
     )
 
 
+@router.post(
+    "/{job_id}/cancel",
+    summary="Cancel queued or running search job",
+    response_model=TypedApiResponse[SearchJobSummary],
+)
+async def cancel_job(
+    job_id: str,
+    request: Request,
+    service: SearchJobService = Depends(get_search_job_service),
+) -> TypedApiResponse[SearchJobSummary]:
+    job = service.cancel_job(job_id)
+    return success_response(
+        request,
+        data=job,
+        message="Search job cancelled.",
+        code="SEARCH_JOB_CANCELLED",
+        mock=job.mock,
+    )
+
+
 @router.delete(
     "/{job_id}",
     summary="Delete search job",
@@ -164,6 +194,50 @@ async def delete_job(
         message="Search job deleted.",
         code="SEARCH_JOB_DELETED",
         mock=False,
+    )
+
+
+@router.post(
+    "/{job_id}/candidates/{candidate_id}/confirm",
+    summary="Confirm candidate and dispatch it",
+    response_model=TypedApiResponse[SearchCandidateActionResult],
+)
+async def confirm_candidate(
+    job_id: str,
+    candidate_id: str,
+    payload: SearchCandidateConfirmRequest,
+    request: Request,
+    service: SearchJobService = Depends(get_search_job_service),
+) -> TypedApiResponse[SearchCandidateActionResult]:
+    result = service.confirm_candidate(job_id, candidate_id, payload)
+    return success_response(
+        request,
+        data=result,
+        message="Candidate confirmed.",
+        code="SEARCH_CANDIDATE_CONFIRMED",
+        mock=result.job.mock,
+    )
+
+
+@router.post(
+    "/{job_id}/candidates/{candidate_id}/reject",
+    summary="Reject candidate",
+    response_model=TypedApiResponse[SearchCandidateActionResult],
+)
+async def reject_candidate(
+    job_id: str,
+    candidate_id: str,
+    payload: SearchCandidateRejectRequest,
+    request: Request,
+    service: SearchJobService = Depends(get_search_job_service),
+) -> TypedApiResponse[SearchCandidateActionResult]:
+    result = service.reject_candidate(job_id, candidate_id, payload)
+    return success_response(
+        request,
+        data=result,
+        message="Candidate rejected.",
+        code="SEARCH_CANDIDATE_REJECTED",
+        mock=result.job.mock,
     )
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from types import SimpleNamespace
+from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -80,6 +81,26 @@ class DashboardRouteTest(unittest.TestCase):
             )
         )
         self.session.add(
+            SubscriptionModel(
+                id="sub-002",
+                subscription_type="album",
+                target_id="album-001",
+                target_name="25",
+                status="active",
+                mode="scheduled",
+                preference_json={"schedule_interval_minutes": 5},
+                target_payload_json={},
+                music_media_input={},
+                music_meta_base={},
+                music_recognition_assessment={},
+                music_media_info={},
+                latest_run_status="queued",
+                last_run_at=datetime.now(timezone.utc) - timedelta(hours=1),
+                mock=False,
+                note="scheduled",
+            )
+        )
+        self.session.add(
             SearchJobModel(
                 id="job-001",
                 trigger_source="manual",
@@ -153,10 +174,14 @@ class DashboardRouteTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertFalse(body["mock"])
-        self.assertEqual(body["data"]["subscriptions_total"], 1)
-        self.assertEqual(body["data"]["jobs_running"], 1)
-        self.assertEqual(body["data"]["downloads_pending"], 1)
-        self.assertEqual(body["data"]["organize_failed"], 1)
+        self.assertEqual(body["data"]["provider"]["chart_provider_mode"], "mock")
+        self.assertEqual(body["data"]["provider"]["metadata_provider_mode"], "seed")
+        self.assertEqual(body["data"]["discovery"]["subscriptions_total"], 2)
+        self.assertEqual(body["data"]["discovery"]["jobs_running"], 1)
+        self.assertEqual(body["data"]["handoff"]["downloads_pending"], 1)
+        self.assertEqual(body["data"]["organize"]["organize_failed"], 1)
+        self.assertEqual(body["data"]["scheduler"]["scheduled_active_total"], 1)
+        self.assertEqual(body["data"]["scheduler"]["scheduled_due_total"], 1)
 
 
 class SettingsProfilesRouteTest(unittest.TestCase):

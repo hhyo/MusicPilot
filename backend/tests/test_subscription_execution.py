@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from sqlalchemy import create_engine
@@ -649,6 +649,96 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
 
         self.assertEqual(result.execution_status, SubscriptionRunStatus.NO_RESULT)
         self.assertEqual(result.summary_json.get("search_outcome_reason"), "host_search_no_result")
+
+    def test_execute_preview_only_records_plan_without_search_job(self) -> None:
+        previous_last_run_at = utc_now() - timedelta(days=1)
+        self.subscription.last_run_at = previous_last_run_at
+        self.subscription.latest_run_status = SubscriptionRunStatus.FAILED.value
+        self.session.commit()
+
+        previous_run = self.repository.create_run(self.subscription, note="previous")
+        self.repository.mark_run_running(previous_run)
+        self.repository.mark_run_finished(
+            previous_run,
+            execution_status=SubscriptionRunStatus.FAILED.value,
+            matched_candidates_count=0,
+            summary_json={"candidate_count": 0},
+            touch_subscription=False,
+        )
+        self.session.commit()
+
+        search_job_service = DummySearchJobService(
+            executed_job=build_search_job_summary(status=JobStatus.MANUAL_PENDING),
+            candidates=[
+                build_candidate(candidate_id="cand-auto", decision=DecisionStatus.AUTO_DOWNLOAD, score_total=95.0),
+            ],
+        )
+        organize_service = DummyOrganizeService()
+        service = SubscriptionExecutionService(
+            self.session,
+            search_job_service=search_job_service,
+            organize_service=organize_service,
+            music_media_chain=DummyMusicMediaChain(),
+            dispatch_service=None,
+        )
+
+        result = service.execute(
+            self.subscription.id,
+            preview_only=True,
+            retry_run_id=previous_run.id,
+        )
+
+        self.assertEqual(search_job_service.created_payloads, [])
+        self.assertIsNone(result.search_job_id)
+        self.assertEqual(result.execution_status, SubscriptionRunStatus.MANUAL_PENDING)
+        self.assertTrue(result.summary_json["preview_only"])
+        self.assertEqual(result.summary_json["retry_run_id"], previous_run.id)
+        self.assertEqual(result.summary_json["candidate_count"], 0)
+        self.session.refresh(self.subscription)
+        self.assertEqual(
+            self.subscription.last_run_at.replace(tzinfo=None) if self.subscription.last_run_at else None,
+            previous_last_run_at.replace(tzinfo=None),
+        )
+        self.assertEqual(self.subscription.latest_run_status, SubscriptionRunStatus.FAILED.value)
+
+    def test_list_runs_can_filter_by_status_and_limit(self) -> None:
+        first_run = self.repository.create_run(self.subscription, note="first")
+        second_run = self.repository.create_run(self.subscription, note="second")
+        self.repository.mark_run_running(first_run)
+        self.repository.mark_run_finished(
+            first_run,
+            execution_status=SubscriptionRunStatus.FAILED.value,
+            matched_candidates_count=0,
+            summary_json={"candidate_count": 0},
+        )
+        self.repository.mark_run_running(second_run)
+        self.repository.mark_run_finished(
+            second_run,
+            execution_status=SubscriptionRunStatus.APPLIED.value,
+            matched_candidates_count=1,
+            summary_json={"candidate_count": 1},
+        )
+        self.session.commit()
+
+        service = SubscriptionExecutionService(
+            self.session,
+            search_job_service=DummySearchJobService(
+                executed_job=build_search_job_summary(status=JobStatus.NO_RESULT),
+                candidates=[],
+            ),
+            organize_service=DummyOrganizeService(),
+            music_media_chain=DummyMusicMediaChain(),
+            dispatch_service=None,
+        )
+
+        result = service.list_runs(
+            self.subscription.id,
+            execution_status=SubscriptionRunStatus.APPLIED,
+            limit=1,
+        )
+
+        self.assertEqual(result.total, 1)
+        self.assertEqual(result.items[0].id, second_run.id)
 
     def test_execute_chart_entry_subscription_resolves_music_media_input_before_search(self) -> None:
         subscription = self.repository.create_subscription(

@@ -14,8 +14,9 @@ FastAPI 工程目录。当前已完成：
 - `/settings` 最小可用设置页与 `/settings/providers` 真实读写接口
 - `/settings/profiles` 真实读写接口
 - `/dashboard/summary` 真实聚合接口
-- `downloads/bindings` 列表与详情接口
-- SearchJob `retry/delete` 与 organize job `retry` 最小管理动作
+- `downloads/bindings`、`downloads/tasks` 列表与详情接口
+- SearchJob `retry/delete/cancel`、candidate `confirm/reject`
+- organize job `retry/rebuild-preview/repair-source-path`
 - 宿主插件中心 `vue` 远程组件页面入口
 - 宿主首页 dashboard `vue` 远程组件入口
 - 宿主侧边栏导航与 `plugin-app` 独立页面入口
@@ -55,10 +56,12 @@ python -m app.db_init --reseed
   - 可靠 `media_in` -> `/api/v1/download/`
   - torrent-only 但已具备宿主媒体参考 -> `/api/v1/download/add`
   - 音乐 torrent-only 候选 -> 宿主 downloader runtime 直接提交下载器
-- `/dashboard/summary` 当前已经是真实聚合接口，会汇总 subscription、job、binding 与 organize 状态，不再返回 placeholder 数据
+- `/dashboard/summary` 当前已经是真实聚合接口，会汇总 provider、discovery、handoff、organize、scheduler 五块诊断摘要，不再返回 placeholder 数据
 - `/settings/profiles` 当前已进入真实持久化阶段，用于保存规则 profile 列表
-- `/downloads/bindings` 与 `/downloads/bindings/{binding_id}` 当前已提供下载绑定列表与详情，供后续下载工作台复用
-- `jobs/{job_id}/retry|DELETE` 与 `organize/jobs/{record_id}/retry` 当前已提供最小管理动作
+- `/charts/{chart_id}/refresh` 与 `/charts/{chart_id}/runtime` 当前已提供 discovery source 刷新与运行态接口
+- `/downloads/bindings`、`/downloads/tasks` 及各自 detail 当前已提供下载绑定/下载任务工作台接口，同时支持 binding `retry-dispatch` 与 `retry-handoff`
+- `jobs/{job_id}/retry|cancel|DELETE`、`jobs/{job_id}/candidates/{candidate_id}/confirm|reject` 与 `organize/jobs/{record_id}/retry|rebuild-preview|repair-source-path` 当前已提供管理动作
+- `subscriptions/{id}/run` 当前支持 `preview_only` 和 `retry_run_id`，`subscriptions/{id}/runs` 支持 `execution_status` 与 `limit` 过滤
 - `organize/preview` 当前是 MusicPilot 本地音乐路径预览；`organize/apply` 当前通过宿主底层 file/storage 执行音乐文件整理。metadata 识别优先使用显式 detail，其次使用已有上下文、嵌入标签与 `source_path` 线索
 - `jobs/*` 与 `downloads/dispatch` 会根据 host integration settings 在 mock 与 host 模式间切换
 - 当前真实运行时不再根据验证矩阵决定业务路径；矩阵只保留为验证产物

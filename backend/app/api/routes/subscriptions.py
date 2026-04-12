@@ -10,6 +10,7 @@ from ...schemas.common import ApiResponse
 from ...schemas.orchestration import (
     CreateSubscriptionRequest,
     SubscriptionState,
+    SubscriptionRunStatus,
     SubscriptionType,
     UpdateSubscriptionRequest,
 )
@@ -124,29 +125,45 @@ async def archive_subscription(
 async def run_subscription(
     subscription_id: str,
     request: Request,
+    preview_only: bool = Query(default=False),
+    retry_run_id: str | None = Query(default=None),
     service: SubscriptionExecutionService = Depends(get_subscription_execution_service),
 ) -> ApiResponse:
+    result = service.execute(
+        subscription_id,
+        preview_only=preview_only,
+        retry_run_id=retry_run_id,
+    )
     return success_response(
         request,
-        data=service.execute(subscription_id),
-        message="Subscription executed once.",
-        code="SUBSCRIPTION_RUN_EXECUTED",
+        data=result,
+        message="Subscription preview generated." if preview_only else "Subscription executed once.",
+        code="SUBSCRIPTION_RUN_PREVIEWED" if preview_only else "SUBSCRIPTION_RUN_EXECUTED",
         mock=False,
-        note="当前执行器会同步创建 SearchJob，并沿用固定的 search/dispatch/organize 调用语义。",
+        note=(
+            "preview_only 只生成订阅执行计划与诊断，不触发真实 SearchJob / dispatch / organize。"
+            if preview_only
+            else "当前执行器会同步创建 SearchJob，并沿用固定的 search/dispatch/organize 调用语义。"
+        ),
     )
- 
 
 @router.get("/{subscription_id}/runs", summary="List subscription runs")
 async def list_subscription_runs(
     subscription_id: str,
     request: Request,
+    execution_status: SubscriptionRunStatus | None = Query(default=None),
+    limit: int | None = Query(default=None, ge=1),
     service: SubscriptionExecutionService = Depends(get_subscription_execution_service),
 ) -> ApiResponse:
     return success_response(
         request,
-        data=service.list_runs(subscription_id),
+        data=service.list_runs(
+            subscription_id,
+            execution_status=execution_status,
+            limit=limit,
+        ),
         message="Subscription runs loaded.",
         code="SUBSCRIPTION_RUNS_OK",
         mock=False,
-        note="当前 run 列表可回看手动或 scheduler 触发的 candidate summary 与 organize 状态。",
+        note="当前 run 列表支持按 execution_status 与 limit 聚合回看手动或 scheduler 触发的结果。",
     )

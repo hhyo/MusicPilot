@@ -42,6 +42,7 @@ class SubscriptionStatus(str, Enum):
 class JobStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
+    CANCELLED = "cancelled"
     MATCHED = "matched"
     MANUAL_PENDING = "manual_pending"
     DISPATCHED = "dispatched"

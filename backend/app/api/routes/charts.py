@@ -74,6 +74,40 @@ async def chart_detail(
     )
 
 
+@router.get("/{chart_id}/runtime", summary="Get chart runtime status")
+async def chart_runtime(
+    chart_id: str,
+    request: Request,
+    service: ChartService = Depends(get_chart_service),
+) -> ApiResponse:
+    data = service.get_chart_runtime(chart_id)
+    return success_response(
+        request,
+        data=data,
+        message="Chart runtime loaded.",
+        code="CHART_RUNTIME_OK",
+        mock=data.mock,
+        note=data.note,
+    )
+
+
+@router.post("/{chart_id}/refresh", summary="Refresh chart runtime and detail snapshot")
+async def refresh_chart(
+    chart_id: str,
+    request: Request,
+    service: ChartService = Depends(get_chart_service),
+) -> ApiResponse:
+    data = service.refresh_chart(chart_id)
+    return success_response(
+        request,
+        data=data,
+        message="Chart refreshed.",
+        code="CHART_REFRESH_OK",
+        mock=data.mock,
+        note=data.note,
+    )
+
+
 @router.post("/{chart_id}/subscribe", summary="Create subscription from chart entry")
 async def subscribe_chart(
     chart_id: str,

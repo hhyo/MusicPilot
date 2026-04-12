@@ -76,6 +76,13 @@ class ChartProviderInfo(BaseModel):
     integration_point: str
 
 
+class ChartRuntimeStatus(BaseModel):
+    last_refreshed_at: datetime | None = None
+    last_refresh_status: str = "unknown"
+    last_error: str | None = None
+    stale: bool = True
+
+
 class ChartInfo(BaseModel):
     id: str
     chart_source: str
@@ -93,6 +100,7 @@ class ChartInfo(BaseModel):
     chart_scope: str | None = None
     freshness_label: str | None = None
     supports_subscription: bool = True
+    runtime: ChartRuntimeStatus = Field(default_factory=ChartRuntimeStatus)
 
 
 class ChartEntryInfo(BaseModel):
@@ -222,6 +230,58 @@ class OrganizePlan(BaseModel):
     strategy_note: str
 
 
+class DashboardProviderDiagnostics(BaseModel):
+    chart_provider_mode: str
+    metadata_provider_mode: str | None = None
+    host_integration_enabled: bool = False
+    host_search_mode: str
+    host_dispatch_mode: str
+    host_organize_mode: str
+    chart_rss_feed_total: int = 0
+    chart_rss_feed_enabled_total: int = 0
+
+
+class DashboardDiscoveryDiagnostics(BaseModel):
+    subscriptions_total: int = 0
+    subscriptions_active_total: int = 0
+    search_jobs_total: int = 0
+    jobs_running: int = 0
+    search_candidates_total: int = 0
+
+
+class DashboardHandoffDiagnostics(BaseModel):
+    download_bindings_total: int = 0
+    downloads_pending: int = 0
+    downloads_resolved: int = 0
+    bindings_with_path_handoff: int = 0
+
+
+class DashboardOrganizeDiagnostics(BaseModel):
+    organize_records_total: int = 0
+    organize_preview_ready: int = 0
+    organize_applied: int = 0
+    organize_failed: int = 0
+    organize_with_binding: int = 0
+    organize_with_failure_reason: int = 0
+
+
+class DashboardSchedulerDiagnostics(BaseModel):
+    scheduler_enabled: bool = False
+    scheduled_active_total: int = 0
+    scheduled_due_total: int = 0
+    running_runs_total: int = 0
+    default_interval_minutes: int = 0
+    poll_seconds: float = 0.0
+
+
+class DashboardSummary(BaseModel):
+    provider: DashboardProviderDiagnostics
+    discovery: DashboardDiscoveryDiagnostics
+    handoff: DashboardHandoffDiagnostics
+    organize: DashboardOrganizeDiagnostics
+    scheduler: DashboardSchedulerDiagnostics
+
+
 class OrganizePreviewResult(BaseModel):
     id: str
     subscription_run_id: str | None = None
@@ -273,6 +333,45 @@ class SubscriptionRunSummary(BaseModel):
     error_message: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class SubscriptionSchedulerDiagnostic(BaseModel):
+    subscription_id: str
+    mode: str
+    status: str
+    reason: str
+    due: bool
+    interval_minutes: int
+    last_run_at: datetime | None = None
+    next_run_at: datetime | None = None
+    error_message: str | None = None
+
+
+class SubscriptionSchedulerWindow(BaseModel):
+    started_at: datetime
+    finished_at: datetime
+    duration_seconds: float
+
+
+class SubscriptionSchedulerSummary(BaseModel):
+    considered: int = 0
+    executed: int = 0
+    skipped: int = 0
+    errors: int = 0
+    handoff_applied: int = 0
+    handoff_unresolved: int = 0
+
+
+class SubscriptionSchedulerRunResult(BaseModel):
+    executed_ids: list[str] = Field(default_factory=list)
+    skipped_ids: list[str] = Field(default_factory=list)
+    error_ids: list[str] = Field(default_factory=list)
+    errors: dict[str, str] = Field(default_factory=dict)
+    summary: SubscriptionSchedulerSummary
+    reason_counts: dict[str, int] = Field(default_factory=dict)
+    window: SubscriptionSchedulerWindow
+    diagnostics: list[SubscriptionSchedulerDiagnostic] = Field(default_factory=list)
+    handoff_reconcile: dict[str, Any] = Field(default_factory=dict)
 
 
 class SubscriptionDetail(SubscriptionSummary):

@@ -26,9 +26,23 @@ router = APIRouter(prefix="/organize", tags=["Organize"])
 async def organize_jobs(
     request: Request,
     status: str | None = Query(default=None),
+    organize_backend: str | None = Query(default=None),
+    verification_state: str | None = Query(default=None),
+    candidate_id: str | None = Query(default=None),
+    binding_id: str | None = Query(default=None),
+    search_job_id: str | None = Query(default=None),
+    subscription_run_id: str | None = Query(default=None),
     service: OrganizeService = Depends(get_organize_service),
 ) -> TypedApiResponse[OrganizeRecordListData]:
-    records = service.list_records(status=status)
+    records = service.list_records(
+        status=status,
+        organize_backend=organize_backend,
+        verification_state=verification_state,
+        candidate_id=candidate_id,
+        binding_id=binding_id,
+        search_job_id=search_job_id,
+        subscription_run_id=subscription_run_id,
+    )
     return success_response(
         request,
         data=records,
@@ -120,4 +134,46 @@ async def retry_organize_job(
         code="ORGANIZE_RETRY_OK",
         mock=result.mock,
         note="retry 会直接复用既有 organize record 的上下文和 preview 计划重新 apply。",
+    )
+
+
+@router.post(
+    "/jobs/{record_id}/rebuild-preview",
+    summary="Rebuild organize preview from an existing record",
+    response_model=TypedApiResponse[OrganizePreviewResult],
+)
+async def rebuild_organize_preview(
+    record_id: str,
+    request: Request,
+    service: OrganizeService = Depends(get_organize_service),
+) -> TypedApiResponse[OrganizePreviewResult]:
+    result = service.rebuild_preview(record_id)
+    return success_response(
+        request,
+        data=result,
+        message="Organize preview rebuilt.",
+        code="ORGANIZE_REBUILD_PREVIEW_OK",
+        mock=result.mock,
+        note="rebuild-preview 会基于当前 record 的 candidate/binding 上下文重建 preview，不会切换到新的业务语义。",
+    )
+
+
+@router.post(
+    "/jobs/{record_id}/repair-source-path",
+    summary="Repair source path and rebuild organize preview",
+    response_model=TypedApiResponse[OrganizePreviewResult],
+)
+async def repair_organize_source_path(
+    record_id: str,
+    request: Request,
+    service: OrganizeService = Depends(get_organize_service),
+) -> TypedApiResponse[OrganizePreviewResult]:
+    result = service.repair_source_path(record_id)
+    return success_response(
+        request,
+        data=result,
+        message="Organize source path repaired.",
+        code="ORGANIZE_REPAIR_SOURCE_PATH_OK",
+        mock=result.mock,
+        note="repair-source-path 会尝试补回现有 candidate/binding 的 source path 语义，再重建 preview。",
     )

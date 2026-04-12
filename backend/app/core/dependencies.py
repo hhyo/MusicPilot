@@ -82,7 +82,14 @@ def get_dashboard_service(session: Session = Depends(get_db_session)) -> Dashboa
 def get_downloads_workspace_service(
     session: Session = Depends(get_db_session),
 ) -> DownloadsWorkspaceService:
-    return DownloadsWorkspaceService(session=session)
+    return DownloadsWorkspaceService(
+        session=session,
+        dispatch_service=DispatchService(
+            session=session,
+            resolver=get_dispatch_adapter_resolver(),
+        ),
+        path_handoff_service=get_host_path_handoff_service(),
+    )
 
 
 @lru_cache
@@ -233,8 +240,9 @@ def get_discovery_assembler(
 def get_chart_service(
     adapter: ChartProviderAdapter = Depends(get_chart_provider_adapter),
     discovery_assembler: DiscoveryAssembler = Depends(get_discovery_assembler),
+    settings_service: SettingsService = Depends(get_settings_service),
 ) -> ChartService:
-    return ChartService(adapter=adapter, discovery_assembler=discovery_assembler)
+    return ChartService(adapter=adapter, discovery_assembler=discovery_assembler, settings_service=settings_service)
 
 
 def get_query_builder_service(
@@ -279,6 +287,10 @@ def get_search_job_service(
         music_media_chain=music_media_chain,
         host_search_resolver=host_search_resolver,
         scorer=scorer,
+        dispatch_service=DispatchService(
+            session=session,
+            resolver=get_dispatch_adapter_resolver(),
+        ),
     )
 
 
@@ -405,6 +417,10 @@ def build_subscription_execution_service(session: Session) -> SubscriptionExecut
         music_media_chain=music_media_chain,
         host_search_resolver=get_host_search_adapter_resolver(),
         scorer=get_candidate_scorer(),
+        dispatch_service=DispatchService(
+            session=session,
+            resolver=get_dispatch_adapter_resolver(),
+        ),
     )
     return SubscriptionExecutionService(
         session=session,

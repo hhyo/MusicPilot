@@ -50,6 +50,11 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
 
         self.assertEqual(executed_ids, ["sub-1"])
         self.assertEqual(result["executed_ids"], ["sub-1"])
+        self.assertEqual(result["summary"]["executed"], 1)
+        self.assertEqual(result["reason_counts"]["executed"], 1)
+        self.assertTrue(result["diagnostics"][0]["due"])
+        self.assertIn("started_at", result["window"])
+        self.assertIn("finished_at", result["window"])
 
     def test_manual_subscription_is_ignored(self) -> None:
         executed_ids: list[str] = []
@@ -72,6 +77,7 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
 
         self.assertEqual(executed_ids, [])
         self.assertEqual(result["executed_ids"], [])
+        self.assertEqual(result["reason_counts"]["not_scheduled"], 1)
 
     def test_running_subscription_is_ignored(self) -> None:
         executed_ids: list[str] = []
@@ -94,6 +100,7 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
 
         self.assertEqual(executed_ids, [])
         self.assertEqual(result["executed_ids"], [])
+        self.assertEqual(result["reason_counts"]["running"], 1)
 
     def test_naive_sqlite_timestamp_is_normalized(self) -> None:
         executed_ids: list[str] = []
@@ -116,6 +123,7 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
 
         self.assertEqual(executed_ids, ["sub-1"])
         self.assertEqual(result["executed_ids"], ["sub-1"])
+        self.assertGreaterEqual(result["summary"]["considered"], 1)
 
     def test_run_pending_once_also_reconciles_pending_handoffs(self) -> None:
         reconciled = {"applied_run_ids": ["srun-1"], "unresolved_run_ids": [], "skipped_record_ids": []}

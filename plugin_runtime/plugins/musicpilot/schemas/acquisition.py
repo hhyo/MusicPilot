@@ -190,6 +190,24 @@ class SearchCandidateListData(BaseModel):
     adapter_resolution: AdapterResolution | None = None
 
 
+class SearchCandidateConfirmRequest(BaseModel):
+    downloader_id: str = "mock-downloader"
+    save_path_policy: Literal["auto", "manual"] = "auto"
+    manual_confirm: bool = True
+    reason: str | None = None
+
+
+class SearchCandidateRejectRequest(BaseModel):
+    reason: str = Field(min_length=1)
+
+
+class SearchCandidateActionResult(BaseModel):
+    job: SearchJobSummary
+    candidate: SearchCandidateDetail
+    binding: "DownloadBindingDetail | None" = None
+    note: str
+
+
 class DownloadBindingSummary(BaseModel):
     id: str
     job_id: str
@@ -213,6 +231,28 @@ class DownloadBindingDetail(DownloadBindingSummary):
 
 class DownloadBindingListData(BaseModel):
     items: list[DownloadBindingSummary] = Field(default_factory=list)
+    total: int = 0
+    mock: bool = True
+    note: str
+
+
+class DownloadTaskSummary(BaseModel):
+    task_id: str
+    target_downloader: str
+    binding_count: int = 0
+    latest_dispatch_status: str
+    latest_dispatched_at: datetime
+    mock: bool = True
+    path_handoff: PathHandoffInfo | None = None
+    host_response_summary: dict[str, Any] = Field(default_factory=dict)
+
+
+class DownloadTaskDetail(DownloadTaskSummary):
+    bindings: list[DownloadBindingSummary] = Field(default_factory=list)
+
+
+class DownloadTaskListData(BaseModel):
+    items: list[DownloadTaskSummary] = Field(default_factory=list)
     total: int = 0
     mock: bool = True
     note: str
@@ -249,6 +289,18 @@ class DispatchResult(BaseModel):
     path_handoff: PathHandoffInfo | None = None
     host_response_summary: dict[str, Any] = Field(default_factory=dict)
     adapter_resolution: AdapterResolution | None = None
+
+
+class BindingRetryDispatchRequest(BaseModel):
+    downloader_id: str = "mock-downloader"
+    save_path_policy: Literal["auto", "manual"] = "auto"
+    manual_confirm: bool = True
+
+
+class BindingRetryHandoffResult(BaseModel):
+    binding: DownloadBindingDetail
+    resolved: bool
+    note: str
 
 
 class DispatchAdapterResult(BaseModel):

@@ -7,10 +7,14 @@ from fastapi import APIRouter, Depends, Query, Request
 from ...core.dependencies import get_dispatch_service, get_downloads_workspace_service
 from ...core.responses import success_response
 from ...schemas.acquisition import (
+    BindingRetryDispatchRequest,
+    BindingRetryHandoffResult,
     DispatchRequest,
     DispatchResult,
     DownloadBindingDetail,
     DownloadBindingListData,
+    DownloadTaskDetail,
+    DownloadTaskListData,
 )
 from ...schemas.common import TypedApiResponse
 from ...services.dispatch import DispatchService
@@ -42,6 +46,46 @@ async def list_download_bindings(
 
 
 @router.get(
+    "/tasks",
+    summary="List grouped download tasks",
+    response_model=TypedApiResponse[DownloadTaskListData],
+)
+async def list_download_tasks(
+    request: Request,
+    service: DownloadsWorkspaceService = Depends(get_downloads_workspace_service),
+) -> TypedApiResponse[DownloadTaskListData]:
+    result = service.list_tasks()
+    return success_response(
+        request,
+        data=result,
+        message="Download tasks loaded.",
+        code="DOWNLOAD_TASKS_OK",
+        mock=result.mock,
+        note="当前 download tasks 按 downloader task 聚合 bindings，便于查看 handoff 与重试。",
+    )
+
+
+@router.get(
+    "/tasks/{task_id}",
+    summary="Get grouped download task detail",
+    response_model=TypedApiResponse[DownloadTaskDetail],
+)
+async def get_download_task(
+    task_id: str,
+    request: Request,
+    service: DownloadsWorkspaceService = Depends(get_downloads_workspace_service),
+) -> TypedApiResponse[DownloadTaskDetail]:
+    result = service.get_task(task_id)
+    return success_response(
+        request,
+        data=result,
+        message="Download task detail loaded.",
+        code="DOWNLOAD_TASK_DETAIL_OK",
+        mock=result.mock,
+    )
+
+
+@router.get(
     "/bindings/{binding_id}",
     summary="Get download binding detail",
     response_model=TypedApiResponse[DownloadBindingDetail],
@@ -59,6 +103,51 @@ async def get_download_binding(
         code="DOWNLOAD_BINDING_DETAIL_OK",
         mock=result.mock,
         note="当前 binding detail 会暴露候选、downloader、path handoff 与宿主响应摘要。",
+    )
+
+
+@router.post(
+    "/bindings/{binding_id}/retry-dispatch",
+    summary="Retry a binding dispatch from the original candidate",
+    response_model=TypedApiResponse[DownloadBindingDetail],
+)
+async def retry_dispatch_binding(
+    binding_id: str,
+    payload: BindingRetryDispatchRequest,
+    request: Request,
+    service: DownloadsWorkspaceService = Depends(get_downloads_workspace_service),
+) -> TypedApiResponse[DownloadBindingDetail]:
+    result = service.retry_dispatch(
+        binding_id,
+        downloader_id=payload.downloader_id,
+        manual_confirm=payload.manual_confirm,
+    )
+    return success_response(
+        request,
+        data=result,
+        message="Binding re-dispatched.",
+        code="DOWNLOAD_BINDING_REDISPATCHED",
+        mock=result.mock,
+    )
+
+
+@router.post(
+    "/bindings/{binding_id}/retry-handoff",
+    summary="Retry path handoff resolution for a binding",
+    response_model=TypedApiResponse[BindingRetryHandoffResult],
+)
+async def retry_binding_handoff(
+    binding_id: str,
+    request: Request,
+    service: DownloadsWorkspaceService = Depends(get_downloads_workspace_service),
+) -> TypedApiResponse[BindingRetryHandoffResult]:
+    result = service.retry_handoff(binding_id)
+    return success_response(
+        request,
+        data=result,
+        message="Binding handoff refreshed.",
+        code="DOWNLOAD_BINDING_HANDOFF_REFRESHED",
+        mock=result.binding.mock,
     )
 
 

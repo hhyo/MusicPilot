@@ -51,30 +51,42 @@ class SubscriptionExecutionService:
         self.dispatch_service = dispatch_service
         self.repository = OrchestrationRepository(session)
 
-    def execute(self, subscription_id: str) -> SubscriptionRunDetail:
+    def execute(
+        self,
+        subscription_id: str,
+        *,
+        preview_only: bool = False,
+        retry_run_id: str | None = None,
+    ) -> SubscriptionRunDetail:
         subscription = self.repository.get_subscription(subscription_id)
         if subscription is None:
             raise HTTPException(status_code=404, detail=f"Subscription {subscription_id} was not found.")
         if subscription.status == SubscriptionState.ARCHIVED.value:
             raise HTTPException(status_code=400, detail="Archived subscription can not be executed.")
 
-        run = self.repository.create_run(subscription, note=RUN_NOTE)
+        retry_run = None
+        if retry_run_id is not None:
+            retry_run = self.repository.get_run(retry_run_id)
+            if retry_run is None:
+                raise HTTPException(status_code=404, detail=f"Subscription run {retry_run_id} was not found.")
+            if retry_run.subscription_id != subscription_id:
+                raise HTTPException(status_code=400, detail="retry_run_id must belong to the target subscription.")
+
+        run = self.repository.create_run(subscription, note=self._build_run_note(preview_only, retry_run_id))
         self.repository.mark_run_running(run)
         self.session.flush()
 
         try:
-            job_payload = self._build_job_request(subscription)
-            created_job = self.search_job_service.create_job(job_payload)
-            executed_job = self.search_job_service.execute_job(created_job.id)
-            candidates_data = self.search_job_service.list_candidates(executed_job.id)
-
-            organize_preview = None
-            execution_status = self._map_run_status(executed_job.status).value
+            job_payload = self._build_job_request(subscription, persist_resolution=not preview_only)
             summary = {
-                "best_score": executed_job.summary.get("best_score", 0.0),
-                "candidate_count": candidates_data.total,
-                "mock_host_search": executed_job.mock,
-                "search_outcome_reason": None,
+                "execution_mode": "preview" if preview_only else "execute",
+                "preview_only": preview_only,
+                "retry_run_id": retry_run_id,
+                "planned_job": job_payload.model_dump(mode="json"),
+                "best_score": 0.0,
+                "candidate_count": 0,
+                "mock_host_search": None,
+                "search_outcome_reason": "preview_only" if preview_only else None,
                 "organize_preview_id": None,
                 "organize_backend": None,
                 "organize_fallback_reason": None,
@@ -83,6 +95,35 @@ class SubscriptionExecutionService:
                 "binding_id": None,
                 "last_dispatched_candidate_id": None,
             }
+            if retry_run is not None:
+                summary["retry_run"] = serialize_run_summary(retry_run).model_dump(mode="json")
+
+            if preview_only:
+                self.repository.mark_run_finished(
+                    run,
+                    execution_status=SubscriptionRunStatus.MANUAL_PENDING.value,
+                    matched_candidates_count=0,
+                    summary_json=summary,
+                    search_job_id=None,
+                    organize_record_id=None,
+                    touch_subscription=False,
+                )
+                self.session.commit()
+                return self.get_run_detail(run.id)
+
+            created_job = self.search_job_service.create_job(job_payload)
+            executed_job = self.search_job_service.execute_job(created_job.id)
+            candidates_data = self.search_job_service.list_candidates(executed_job.id)
+
+            organize_preview = None
+            execution_status = self._map_run_status(executed_job.status).value
+            summary.update(
+                {
+                    "best_score": executed_job.summary.get("best_score", 0.0),
+                    "candidate_count": candidates_data.total,
+                    "mock_host_search": executed_job.mock,
+                }
+            )
             if candidates_data.total == 0:
                 summary["search_outcome_reason"] = self._search_outcome_reason(executed_job)
             if candidates_data.items:
@@ -159,17 +200,32 @@ class SubscriptionExecutionService:
 
         return self.get_run_detail(run.id)
 
-    def list_runs(self, subscription_id: str) -> SubscriptionRunListData:
+    def list_runs(
+        self,
+        subscription_id: str,
+        *,
+        execution_status: SubscriptionRunStatus | None = None,
+        limit: int | None = None,
+    ) -> SubscriptionRunListData:
         subscription = self.repository.get_subscription(subscription_id)
         if subscription is None:
             raise HTTPException(status_code=404, detail=f"Subscription {subscription_id} was not found.")
-        items = [serialize_run_summary(run) for run in self.repository.list_runs(subscription_id)]
+        if limit is not None and limit <= 0:
+            raise HTTPException(status_code=400, detail="limit must be greater than 0.")
+        items = [
+            serialize_run_summary(run)
+            for run in self.repository.list_runs(
+                subscription_id,
+                execution_status=execution_status.value if execution_status else None,
+                limit=limit,
+            )
+        ]
         return SubscriptionRunListData(
             subscription_id=subscription_id,
             items=items,
             total=len(items),
             mock=False,
-            note="当前 run 记录反映的是手动或最小应用内 scheduler 触发的同步执行结果。",
+            note="当前 run 记录支持按 execution_status 与 limit 聚合回看手动、preview_only、retry 或 scheduler 触发的同步执行结果。",
         )
 
     def get_run_detail(self, run_id: str) -> SubscriptionRunDetail:
@@ -198,11 +254,11 @@ class SubscriptionExecutionService:
             organize_preview=organize_preview,
         )
 
-    def _build_job_request(self, subscription) -> SearchJobCreateRequest:
+    def _build_job_request(self, subscription, *, persist_resolution: bool = True) -> SearchJobCreateRequest:
         preferences = QueryPreferences.model_validate(subscription.preference_json or {})
         media_input = self._load_persisted_music_media_input(subscription)
         if media_input is None:
-            media_info = self._resolve_or_build_music_media_info(subscription)
+            media_info = self._resolve_or_build_music_media_info(subscription, persist=persist_resolution)
             if media_info is not None:
                 media_input = self.music_media_chain.input_from_music_media_info(
                     media_info,
@@ -226,6 +282,12 @@ class SubscriptionExecutionService:
             mode="manual" if subscription.mode == "manual" else "auto",
             preferences=preferences,
         )
+
+    @staticmethod
+    def _build_run_note(preview_only: bool, retry_run_id: str | None) -> str:
+        mode_label = "preview" if preview_only else "run"
+        retry_label = f" retry from {retry_run_id}" if retry_run_id else ""
+        return f"{RUN_NOTE} Current action is {mode_label}.{retry_label}".strip()
 
     def _resolve_metadata_target(self, subscription) -> MetadataDetail | None:
         media_input = self._load_persisted_music_media_input(subscription)
@@ -252,7 +314,7 @@ class SubscriptionExecutionService:
             raw_context={"target_id": subscription.target_id},
         ).detail
 
-    def _resolve_or_build_music_media_info(self, subscription) -> MusicMediaInfo | None:
+    def _resolve_or_build_music_media_info(self, subscription, *, persist: bool = True) -> MusicMediaInfo | None:
         media_info = self._load_persisted_music_media_info(subscription)
         if media_info is not None and media_info.provider_id:
             return media_info
@@ -277,11 +339,12 @@ class SubscriptionExecutionService:
         else:
             resolved = self.music_media_chain.resolve_response(media_input)
 
-        subscription.music_media_input = media_input.model_dump(mode="json")
-        subscription.music_meta_base = resolved.base.model_dump(mode="json")
-        subscription.music_recognition_assessment = resolved.assessment.model_dump(mode="json")
-        subscription.music_media_info = resolved.media.model_dump(mode="json")
-        self.session.flush()
+        if persist:
+            subscription.music_media_input = media_input.model_dump(mode="json")
+            subscription.music_meta_base = resolved.base.model_dump(mode="json")
+            subscription.music_recognition_assessment = resolved.assessment.model_dump(mode="json")
+            subscription.music_media_info = resolved.media.model_dump(mode="json")
+            self.session.flush()
         return resolved.media
 
     @staticmethod

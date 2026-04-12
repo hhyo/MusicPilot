@@ -92,9 +92,68 @@ class OrganizeService:
         return serialize_organize_record(record)
 
     def apply(self, payload: OrganizeApplyRequest) -> OrganizePreviewResult:
-        record = self.repository.get_organize_record(payload.organize_job_id)
+        return self._apply_record(payload.organize_job_id)
+
+    def rebuild_preview(self, record_id: str) -> OrganizePreviewResult:
+        return self._preview_record(record_id, persist_repaired_context=False)
+
+    def repair_source_path(self, record_id: str) -> OrganizePreviewResult:
+        return self._preview_record(record_id, persist_repaired_context=True)
+
+    def preview_for_candidate(
+        self,
+        *,
+        candidate_id: str,
+        subscription_run_id: str | None = None,
+    ) -> OrganizePreviewResult:
+        return self.preview(
+            OrganizePreviewRequest(candidate_id=candidate_id),
+            subscription_run_id=subscription_run_id,
+        )
+
+    def list_records(
+        self,
+        *,
+        status: str | None = None,
+        organize_backend: str | None = None,
+        verification_state: str | None = None,
+        candidate_id: str | None = None,
+        binding_id: str | None = None,
+        search_job_id: str | None = None,
+        subscription_run_id: str | None = None,
+    ) -> OrganizeRecordListData:
+        items = [
+            serialize_organize_record(record)
+            for record in self.repository.list_organize_records(
+                organize_status=status,
+                organize_backend=organize_backend,
+                verification_state=verification_state,
+                candidate_id=candidate_id,
+                binding_id=binding_id,
+                search_job_id=search_job_id,
+                subscription_run_id=subscription_run_id,
+            )
+        ]
+        return OrganizeRecordListData(
+            items=items,
+            total=len(items),
+            mock=all(item.mock for item in items) if items else True,
+            note="当前 organize records 会显示 backend、status、verification state、handoff source 与 fallback 信息。",
+        )
+
+    def get_record(self, record_id: str) -> OrganizePreviewResult:
+        record = self.repository.get_organize_record(record_id)
         if record is None:
-            raise HTTPException(status_code=404, detail=f"Organize job {payload.organize_job_id} was not found.")
+            raise HTTPException(status_code=404, detail=f"Organize job {record_id} was not found.")
+        return serialize_organize_record(record)
+
+    def retry(self, record_id: str) -> OrganizePreviewResult:
+        return self.apply(OrganizeApplyRequest(organize_job_id=record_id))
+
+    def _apply_record(self, record_id: str) -> OrganizePreviewResult:
+        record = self.repository.get_organize_record(record_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail=f"Organize job {record_id} was not found.")
 
         context = self._resolve_context(candidate_id=record.candidate_id, binding_id=record.binding_id)
         plan = self._plan_from_record(record) or self.strategy_service.build_plan(
@@ -125,7 +184,7 @@ class OrganizeService:
             self.session.commit()
         except Exception as exc:
             self.session.rollback()
-            failed_record = self.repository.get_organize_record(payload.organize_job_id)
+            failed_record = self.repository.get_organize_record(record_id)
             if failed_record is not None:
                 failed_result = self._build_failed_result(
                     record=failed_record,
@@ -139,39 +198,53 @@ class OrganizeService:
         self.session.refresh(record)
         return serialize_organize_record(record)
 
-    def preview_for_candidate(
-        self,
-        *,
-        candidate_id: str,
-        subscription_run_id: str | None = None,
-    ) -> OrganizePreviewResult:
-        return self.preview(
-            OrganizePreviewRequest(candidate_id=candidate_id),
-            subscription_run_id=subscription_run_id,
-        )
-
-    def list_records(self, *, status: str | None = None) -> OrganizeRecordListData:
-        items = [
-            serialize_organize_record(record)
-            for record in self.repository.list_organize_records(organize_status=status)
-        ]
-        return OrganizeRecordListData(
-            items=items,
-            total=len(items),
-            mock=all(item.mock for item in items) if items else True,
-            note="当前 organize records 会显示 backend、status、verification state、handoff source 与 fallback 信息。",
-        )
-
-    def get_record(self, record_id: str) -> OrganizePreviewResult:
+    def _preview_record(self, record_id: str, *, persist_repaired_context: bool) -> OrganizePreviewResult:
         record = self.repository.get_organize_record(record_id)
         if record is None:
             raise HTTPException(status_code=404, detail=f"Organize job {record_id} was not found.")
+
+        context = self._resolve_context(
+            candidate_id=record.candidate_id,
+            binding_id=record.binding_id,
+            persist_repaired_context=persist_repaired_context,
+        )
+        plan = self.strategy_service.build_plan(
+            candidate=context["candidate"],
+            metadata_detail=context["metadata_detail"],
+        )
+        organize_execution = self.resolver.preview(
+            candidate=context["candidate"],
+            metadata_detail=context["metadata_detail"],
+            binding_id=context["binding_id"],
+            plan=plan,
+        )
+        self.repository.update_organize_record(
+            record,
+            result=organize_execution.result,
+            music_media_input=context["music_media_input"].model_dump(mode="json")
+            if context["music_media_input"]
+            else record.music_media_input or {},
+            music_meta_base=context["music_meta_base"].model_dump(mode="json")
+            if context["music_meta_base"]
+            else record.music_meta_base or {},
+            music_recognition_assessment=context["music_recognition_assessment"].model_dump(mode="json")
+            if context["music_recognition_assessment"]
+            else record.music_recognition_assessment or {},
+            music_media_info=context["music_media_info"].model_dump(mode="json")
+            if context["music_media_info"]
+            else record.music_media_info or {},
+        )
+        self.session.commit()
+        self.session.refresh(record)
         return serialize_organize_record(record)
 
-    def retry(self, record_id: str) -> OrganizePreviewResult:
-        return self.apply(OrganizeApplyRequest(organize_job_id=record_id))
-
-    def _resolve_context(self, *, candidate_id: str | None, binding_id: str | None) -> dict:
+    def _resolve_context(
+        self,
+        *,
+        candidate_id: str | None,
+        binding_id: str | None,
+        persist_repaired_context: bool = True,
+    ) -> dict:
         candidate_model = None
         binding_model = None
 
@@ -222,12 +295,13 @@ class OrganizeService:
             )
             if resolved_payload is not None:
                 candidate_payload = resolved_payload
-                candidate_model.raw_payload = candidate_payload
-                if binding_model is not None:
-                    binding_model.raw_payload = {
-                        **binding_payload,
-                        **self._binding_payload_patch_from_candidate(candidate_payload),
-                    }
+                if persist_repaired_context:
+                    candidate_model.raw_payload = candidate_payload
+                    if binding_model is not None:
+                        binding_model.raw_payload = {
+                            **binding_payload,
+                            **self._binding_payload_patch_from_candidate(candidate_payload),
+                        }
         if "host_response_summary" not in candidate_payload and isinstance(binding_payload.get("host_response_summary"), dict):
             candidate_payload["host_response_summary"] = binding_payload["host_response_summary"]
         candidate = serialize_candidate(candidate_model)

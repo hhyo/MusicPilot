@@ -15,6 +15,7 @@ from app.schemas.orchestration import (
     ChartInfo,
     CreateChartEntrySubscriptionRequest,
     DiscoveryEntryView,
+    ChartRuntimeStatus,
     SubscriptionType,
 )
 from app.services.charts import ChartService
@@ -26,6 +27,18 @@ from app.services.subscriptions import SubscriptionService
 def build_discovery_assembler() -> DiscoveryAssembler:
     chain = MusicMediaChain(metadata_service=object(), metadata_adapter=object())
     return DiscoveryAssembler(music_media_chain=chain)
+
+
+class FakeSettingsService:
+    def __init__(self) -> None:
+        self.snapshots: dict[str, ChartRuntimeStatus] = {}
+
+    def get_chart_runtime_snapshot(self, chart_id: str) -> ChartRuntimeStatus:
+        return self.snapshots.get(chart_id, ChartRuntimeStatus())
+
+    def update_chart_runtime_snapshot(self, chart_id: str, snapshot: ChartRuntimeStatus) -> ChartRuntimeStatus:
+        self.snapshots[chart_id] = snapshot
+        return snapshot
 
 
 class FakeResponse:
@@ -250,7 +263,11 @@ class FakeLiveChartAdapter:
 
 class ChartServiceLiveModeTest(unittest.TestCase):
     def test_chart_service_live_mode_is_not_mock(self) -> None:
-        service = ChartService(adapter=FakeLiveChartAdapter(), discovery_assembler=build_discovery_assembler())
+        service = ChartService(
+            adapter=FakeLiveChartAdapter(),
+            discovery_assembler=build_discovery_assembler(),
+            settings_service=FakeSettingsService(),
+        )
 
         result = service.list_charts()
 
@@ -300,7 +317,11 @@ class FakeDetailChartAdapter(FakeLiveChartAdapter):
 
 class ChartServiceDiscoveryEnrichmentTest(unittest.TestCase):
     def test_chart_service_enriches_detail(self) -> None:
-        service = ChartService(adapter=FakeDetailChartAdapter(), discovery_assembler=build_discovery_assembler())
+        service = ChartService(
+            adapter=FakeDetailChartAdapter(),
+            discovery_assembler=build_discovery_assembler(),
+            settings_service=FakeSettingsService(),
+        )
 
         detail = service.get_chart_detail("chart-listenbrainz-top-tracks-week")
 
@@ -380,6 +401,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
                 fetcher=lambda url: feed_xml_by_url[url],
             ),
             discovery_assembler=build_discovery_assembler(),
+            settings_service=FakeSettingsService(),
         )
 
         detail = service.get_chart_detail("rss-feed-feed-netease-playlist")
@@ -543,6 +565,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
                 cache_enabled=False,
             ),
             discovery_assembler=build_discovery_assembler(),
+            settings_service=FakeSettingsService(),
         )
 
         detail = service.get_chart_detail("rss-feed-feed-artist-no-name")

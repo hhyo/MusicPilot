@@ -10,11 +10,15 @@ from sqlalchemy.orm import Session
 from ..models.acquisition import SearchCandidateModel, SearchJobModel
 from ..repositories.acquisition import AcquisitionRepository
 from ..schemas.acquisition import (
+    DispatchRequest,
     PathHandoffInfo,
     MutationResult,
     QueryBuildResult,
+    SearchCandidateActionResult,
+    SearchCandidateConfirmRequest,
     SearchCandidateDetail,
     SearchCandidateListData,
+    SearchCandidateRejectRequest,
     SearchJobCreateRequest,
     SearchJobSummary,
 )
@@ -47,12 +51,14 @@ class SearchJobService:
         music_media_chain,
         host_search_resolver: HostSearchAdapterResolver,
         scorer: MusicCandidateScorer,
+        dispatch_service=None,
     ):
         self.session = session
         self.query_builder = query_builder
         self.music_media_chain = music_media_chain
         self.host_search_resolver = host_search_resolver
         self.scorer = scorer
+        self.dispatch_service = dispatch_service
         self.repository = AcquisitionRepository(session)
 
     def create_job(self, payload: SearchJobCreateRequest) -> SearchJobSummary:
@@ -81,10 +87,17 @@ class SearchJobService:
         *,
         status: str | None = None,
         trigger_source: str | None = None,
+        decision: str | None = None,
+        has_dispatch: bool | None = None,
     ) -> list[SearchJobSummary]:
         return [
             serialize_job(job)
-            for job in self.repository.list_jobs(status=status, trigger_source=trigger_source)
+            for job in self.repository.list_jobs(
+                status=status,
+                trigger_source=trigger_source,
+                decision=decision,
+                has_dispatch=has_dispatch,
+            )
         ]
 
     def get_job(self, job_id: str) -> SearchJobSummary:
@@ -195,12 +208,111 @@ class SearchJobService:
     def retry_job(self, job_id: str) -> SearchJobSummary:
         return self.execute_job(job_id)
 
+    def cancel_job(self, job_id: str) -> SearchJobSummary:
+        job = self.repository.get_job(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} was not found.")
+        if job.status not in {JobStatus.QUEUED.value, JobStatus.RUNNING.value}:
+            raise HTTPException(status_code=409, detail=f"Job {job_id} is not cancellable from status {job.status}.")
+        self.repository.mark_job_finished(
+            job,
+            status=JobStatus.CANCELLED.value,
+            summary_json={
+                **(job.summary_json or {}),
+                "cancelled": True,
+            },
+            error_message=None,
+        )
+        self.session.commit()
+        self.session.refresh(job)
+        return serialize_job(job)
+
     def delete_job(self, job_id: str) -> MutationResult:
         deleted = self.repository.delete_job(job_id)
         if not deleted:
             raise HTTPException(status_code=404, detail=f"Job {job_id} was not found.")
         self.session.commit()
         return MutationResult(id=job_id, deleted=True)
+
+    def confirm_candidate(
+        self,
+        job_id: str,
+        candidate_id: str,
+        payload: SearchCandidateConfirmRequest,
+    ) -> SearchCandidateActionResult:
+        job = self.repository.get_job(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} was not found.")
+        candidate = self.repository.get_candidate(candidate_id)
+        if candidate is None or candidate.job_id != job_id:
+            raise HTTPException(status_code=404, detail=f"Candidate {candidate_id} was not found for job {job_id}.")
+        if not candidate.dispatchable:
+            raise HTTPException(status_code=409, detail=f"Candidate {candidate_id} is not dispatchable.")
+        if self.dispatch_service is None:
+            raise HTTPException(status_code=500, detail="Dispatch service is not configured for candidate confirmation.")
+
+        reason_codes = list(candidate.reason_codes or [])
+        if payload.reason:
+            reason_codes.append(payload.reason)
+        self.repository.update_candidate_decision(
+            candidate,
+            decision=DecisionStatus.AUTO_DOWNLOAD.value,
+            reason_codes=reason_codes,
+            dispatch_status="confirming",
+            note="candidate confirmed for dispatch",
+        )
+        self.session.flush()
+
+        dispatch_result = self.dispatch_service.dispatch(
+            DispatchRequest(
+                result_id=candidate.id,
+                downloader_id=payload.downloader_id,
+                save_path_policy=payload.save_path_policy,
+                manual_confirm=payload.manual_confirm,
+            )
+        )
+        self.session.refresh(job)
+        binding = self.repository.get_binding(dispatch_result.binding_id) if dispatch_result.binding_id else None
+        return SearchCandidateActionResult(
+            job=serialize_job(job),
+            candidate=serialize_candidate(candidate),
+            binding=DownloadsWorkspaceBridge.serialize_binding(binding, include_candidate=False) if binding else None,
+            note="Candidate confirmed and dispatched.",
+        )
+
+    def reject_candidate(
+        self,
+        job_id: str,
+        candidate_id: str,
+        payload: SearchCandidateRejectRequest,
+    ) -> SearchCandidateActionResult:
+        job = self.repository.get_job(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} was not found.")
+        candidate = self.repository.get_candidate(candidate_id)
+        if candidate is None or candidate.job_id != job_id:
+            raise HTTPException(status_code=404, detail=f"Candidate {candidate_id} was not found for job {job_id}.")
+        if candidate.dispatch_status not in {"pending", "rejected"}:
+            raise HTTPException(status_code=409, detail=f"Candidate {candidate_id} can no longer be rejected.")
+
+        self.repository.update_candidate_decision(
+            candidate,
+            decision=DecisionStatus.REJECT.value,
+            reason_codes=list(dict.fromkeys([*(candidate.reason_codes or []), payload.reason])),
+            dispatchable=False,
+            dispatch_status="rejected",
+            note="candidate rejected by operator",
+        )
+        job.status = self._infer_job_status(job).value
+        self.session.commit()
+        self.session.refresh(job)
+        self.session.refresh(candidate)
+        return SearchCandidateActionResult(
+            job=serialize_job(job),
+            candidate=serialize_candidate(candidate),
+            binding=None,
+            note="Candidate rejected.",
+        )
 
     def list_candidates(self, job_id: str) -> SearchCandidateListData:
         job = self.repository.get_job(job_id)
@@ -216,6 +328,24 @@ class SearchJobService:
             note="当前候选列表会显示 search adapter、capability source、path handoff 与 fallback reason。",
             adapter_resolution=_extract_resolution(job.summary_json or {}),
         )
+
+    def _infer_job_status(self, job: SearchJobModel) -> JobStatus:
+        if job.bindings:
+            return JobStatus.DISPATCHED
+        decisions = {candidate.decision for candidate in job.candidates}
+        if not decisions or decisions == {DecisionStatus.REJECT.value}:
+            return JobStatus.NO_RESULT
+        if DecisionStatus.MANUAL_CONFIRM.value in decisions or DecisionStatus.PENDING.value in decisions:
+            return JobStatus.MANUAL_PENDING
+        return JobStatus.MATCHED
+
+
+class DownloadsWorkspaceBridge:
+    @staticmethod
+    def serialize_binding(binding, *, include_candidate: bool = False):
+        from .downloads_workspace import DownloadsWorkspaceService
+
+        return DownloadsWorkspaceService.serialize_binding_static(binding, include_candidate=include_candidate)
 
 
 def serialize_job(job: SearchJobModel) -> SearchJobSummary:

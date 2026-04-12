@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from sqlalchemy import create_engine
@@ -13,6 +14,7 @@ from pydantic import ValidationError
 from app.adapters.chart_provider import RssFeedChartProviderAdapter
 from app.core.dependencies import get_chart_provider_adapter
 from app.models import AppSettingModel, Base
+from app.schemas.orchestration import ChartRuntimeStatus
 from app.schemas.shared import (
     ChartRssFeedSettings,
     ChartProviderMode,
@@ -223,6 +225,56 @@ class SettingsServiceTest(unittest.TestCase):
             [payload.chart_rss_feeds[0].model_dump(mode="json")],
         )
         self.assertEqual(service.get_provider_settings().metadata_provider_mode, "seed")
+
+    def test_update_chart_runtime_snapshot_keeps_chart_rss_feeds_intact(self) -> None:
+        service = SettingsService(
+            session=self.session,
+            env_settings=SimpleNamespace(
+                chart_provider_mode="mock",
+                chart_rss_feeds=[
+                    {
+                        "id": "netease-hot-tracks",
+                        "label": "网易云热歌榜",
+                        "url": "https://rsshub.rssforever.com/163/music/playlist/3778678",
+                        "category": "hot",
+                        "region": "CN",
+                        "enabled": True,
+                    }
+                ],
+                metadata_provider_mode="seed",
+                chart_cache_ttl_seconds=900,
+            ),
+        )
+        payload = ProviderSettingsUpdatePayload(
+            chart_provider_mode="rss_feed",
+            chart_rss_feeds=[
+                ChartRssFeedSettings(
+                    id="netease-hot-tracks",
+                    label="网易云热歌榜",
+                    url="https://rsshub.rssforever.com/163/music/playlist/3778678",
+                    category="hot",
+                    region="CN",
+                    enabled=True,
+                )
+            ],
+        )
+
+        service.update_provider_settings(payload)
+        service.update_chart_runtime_snapshot(
+            "chart-001",
+            ChartRuntimeStatus(
+                last_refreshed_at=datetime.now(timezone.utc),
+                last_refresh_status="success",
+                last_error=None,
+                stale=False,
+            ),
+        )
+
+        self.assertEqual(
+            self.session.get(AppSettingModel, "chart_rss_feeds").value_json,
+            [payload.chart_rss_feeds[0].model_dump(mode="json")],
+        )
+        self.assertEqual(service.get_provider_settings().chart_rss_feeds[0].id, "netease-hot-tracks")
 
     def test_chart_provider_adapter_prefers_persisted_project_settings_over_env(self) -> None:
         service = SettingsService(

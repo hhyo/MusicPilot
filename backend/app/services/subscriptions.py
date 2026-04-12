@@ -23,8 +23,8 @@ from .subscription_scheduler import normalize_subscription_mode
 
 
 SUBSCRIPTION_NOTE = (
-    "当前订阅模型已落库，可切换手动执行或最小应用内 scheduler；"
-    "production 级 cron、失败重试和增量检测仍待后续补齐。"
+    "当前订阅模型已落库，可切换手动执行、preview_only 预览、retry 回放或最小应用内 scheduler；"
+    "production 级 cron 与更细的增量检测仍待后续补齐。"
 )
 
 
@@ -51,7 +51,7 @@ class SubscriptionService:
             items=items,
             total=len(items),
             mock=False,
-            note="当前订阅列表反映的是手动 run 与最小应用内 scheduler 的真实状态。",
+            note="当前订阅列表反映的是手动 run、preview_only、retry 与最小应用内 scheduler 的真实状态。",
         )
 
     def get_subscription(self, subscription_id: str) -> SubscriptionDetail:

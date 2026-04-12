@@ -62,13 +62,31 @@ class AcquisitionRepository:
         *,
         status: str | None = None,
         trigger_source: str | None = None,
+        decision: str | None = None,
+        has_dispatch: bool | None = None,
     ) -> list[SearchJobModel]:
-        statement = select(SearchJobModel).order_by(SearchJobModel.created_at.desc())
+        statement = (
+            select(SearchJobModel)
+            .options(
+                selectinload(SearchJobModel.candidates),
+                selectinload(SearchJobModel.bindings),
+            )
+            .order_by(SearchJobModel.created_at.desc())
+        )
         if status:
             statement = statement.where(SearchJobModel.status == status)
         if trigger_source:
             statement = statement.where(SearchJobModel.trigger_source == trigger_source)
-        return list(self.session.scalars(statement).all())
+        jobs = list(self.session.scalars(statement).all())
+        if decision:
+            jobs = [
+                job
+                for job in jobs
+                if any(candidate.decision == decision for candidate in job.candidates)
+            ]
+        if has_dispatch is not None:
+            jobs = [job for job in jobs if bool(job.bindings) is has_dispatch]
+        return jobs
 
     def delete_job(self, job_id: str) -> bool:
         job = self.session.get(SearchJobModel, job_id)
@@ -193,6 +211,18 @@ class AcquisitionRepository:
             statement = statement.where(DownloadBindingModel.dispatch_status == dispatch_status)
         return list(self.session.scalars(statement).all())
 
+    def list_bindings_for_task(self, task_id: str) -> list[DownloadBindingModel]:
+        statement = (
+            select(DownloadBindingModel)
+            .options(
+                selectinload(DownloadBindingModel.candidate).selectinload(SearchCandidateModel.job),
+                selectinload(DownloadBindingModel.job),
+            )
+            .where(DownloadBindingModel.downloader_task_id == task_id)
+            .order_by(DownloadBindingModel.dispatched_at.desc())
+        )
+        return list(self.session.scalars(statement).all())
+
     def create_binding(
         self,
         *,
@@ -215,3 +245,23 @@ class AcquisitionRepository:
         candidate.dispatch_status = dispatch_result.dispatch_status
         self.session.add(binding)
         return binding
+
+    def update_candidate_decision(
+        self,
+        candidate: SearchCandidateModel,
+        *,
+        decision: str,
+        reason_codes: list[str] | None = None,
+        dispatchable: bool | None = None,
+        dispatch_status: str | None = None,
+        note: str | None = None,
+    ) -> None:
+        candidate.decision = decision
+        if reason_codes is not None:
+            candidate.reason_codes = reason_codes
+        if dispatchable is not None:
+            candidate.dispatchable = dispatchable
+        if dispatch_status is not None:
+            candidate.dispatch_status = dispatch_status
+        if note is not None:
+            candidate.note = note

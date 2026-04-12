@@ -130,6 +130,7 @@ class OrchestrationRepository:
         search_job_id: str | None = None,
         organize_record_id: str | None = None,
         error_message: str | None = None,
+        touch_subscription: bool = True,
     ) -> None:
         run.search_job_id = search_job_id
         run.execution_status = execution_status
@@ -139,18 +140,29 @@ class OrchestrationRepository:
         run.error_message = error_message
         run.finished_at = utc_now()
 
-        subscription = run.subscription or self.session.get(SubscriptionModel, run.subscription_id)
-        if subscription is not None:
-            subscription.latest_run_status = execution_status
-            subscription.last_run_at = run.finished_at
+        if touch_subscription:
+            subscription = run.subscription or self.session.get(SubscriptionModel, run.subscription_id)
+            if subscription is not None:
+                subscription.latest_run_status = execution_status
+                subscription.last_run_at = run.finished_at
 
-    def list_runs(self, subscription_id: str) -> list[SubscriptionRunModel]:
+    def list_runs(
+        self,
+        subscription_id: str,
+        *,
+        execution_status: str | None = None,
+        limit: int | None = None,
+    ) -> list[SubscriptionRunModel]:
         statement = (
             select(SubscriptionRunModel)
             .options(selectinload(SubscriptionRunModel.subscription))
             .where(SubscriptionRunModel.subscription_id == subscription_id)
             .order_by(SubscriptionRunModel.created_at.desc())
         )
+        if execution_status:
+            statement = statement.where(SubscriptionRunModel.execution_status == execution_status)
+        if limit is not None:
+            statement = statement.limit(limit)
         return list(self.session.scalars(statement).all())
 
     def get_run(self, run_id: str) -> SubscriptionRunModel | None:
@@ -247,10 +259,32 @@ class OrchestrationRepository:
         record.updated_at = utc_now()
         return record
 
-    def list_organize_records(self, *, organize_status: str | None = None) -> list[OrganizeRecordModel]:
+    def list_organize_records(
+        self,
+        *,
+        organize_status: str | None = None,
+        organize_backend: str | None = None,
+        verification_state: str | None = None,
+        candidate_id: str | None = None,
+        binding_id: str | None = None,
+        search_job_id: str | None = None,
+        subscription_run_id: str | None = None,
+    ) -> list[OrganizeRecordModel]:
         statement = select(OrganizeRecordModel).order_by(OrganizeRecordModel.created_at.desc())
         if organize_status:
             statement = statement.where(OrganizeRecordModel.organize_status == organize_status)
+        if organize_backend:
+            statement = statement.where(OrganizeRecordModel.organize_backend == organize_backend)
+        if verification_state:
+            statement = statement.where(OrganizeRecordModel.verification_state == verification_state)
+        if candidate_id:
+            statement = statement.where(OrganizeRecordModel.candidate_id == candidate_id)
+        if binding_id:
+            statement = statement.where(OrganizeRecordModel.binding_id == binding_id)
+        if search_job_id:
+            statement = statement.where(OrganizeRecordModel.search_job_id == search_job_id)
+        if subscription_run_id:
+            statement = statement.where(OrganizeRecordModel.subscription_run_id == subscription_run_id)
         return list(self.session.scalars(statement).all())
 
     def list_pending_handoff_records(self) -> list[OrganizeRecordModel]:
