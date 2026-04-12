@@ -46,6 +46,7 @@
 ## Architecture Rules
 
 - MusicPilot 维护自己的音乐业务语义，不把 MoviePilot 的影视业务语义直接当成默认主语义。
+- 统一音乐媒体解析链是上层业务的基础语义；涉及发现、详情、搜索、订阅、获取、库内线索等输入时，优先收敛到 `MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`，而不是在各模块各自维护零散 hints 或来源特判。
 - 优先复用宿主底层能力与明确接口语义，不把宿主现有业务语义直接硬套到音乐场景。
 - 每个场景优先对应一个清晰主调用语义，不引入 recommendation / strategy / matrix 驱动的运行时业务 fallback。
 - 新能力接入时优先保持扩展点统一，不按单一来源或单一模块临时拼接主结构。

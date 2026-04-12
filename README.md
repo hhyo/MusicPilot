@@ -2,6 +2,8 @@
 
 MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已经完成插件壳层、metadata 搜索、手动订阅执行，以及音乐 organize `preview -> apply` 的真实宿主最小闭环，并继续沿“接口语义明确、场景调用明确、数据来源明确”的方向推进，不再扩展通用策略、推荐或矩阵决策层。
 
+当前项目已经明确下一阶段的上层统一语义：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`。这是一条参考 MoviePilot 统一媒体解析链设计方法、但保持音乐领域模型独立的长期基线。它用于后续统一 discovery、detail、search、subscription、acquisition 与 organize 上游识别；截至当前版本，这条链仍属于明确设计基线，尚未完成一次性全局迁移。
+
 ## 项目简介
 
 - `frontend/`：基于 Vue 3 + TypeScript + Vite 的前端工程，当前既可作为独立开发页运行，也可通过宿主插件中心的 `vue` 远程组件模式加载；已提供首页工作台、metadata 搜索页、榜单页、订阅页、最小可用 `/settings` 设置页，以及真实可读写的 `/settings/providers` 接口页面；同时已新增宿主首页 dashboard 入口卡片，以及宿主侧边栏导航与独立页面入口，可从 MoviePilot 首页或侧栏快速打开 MusicPilot。前端支持从 metadata / chart item 创建订阅、执行一次 run、查看 organize backend / status / handoff 的最小前端闭环。
