@@ -72,6 +72,17 @@ class SubscriptionService:
             )
 
         resolved_type = payload.target_entity_type or EntityType(payload.subscription_type.value)
+        resolved = self.music_media_chain.resolve_detail_from_target_payload_ref(
+            entity_type=resolved_type,
+            target_id=payload.target_id,
+            target_payload=payload.target_payload,
+            source_kind="subscription",
+            source_context={
+                "subscription_type": payload.subscription_type.value,
+                "target_id": payload.target_id,
+            },
+            raw_context={"target_payload": payload.target_payload},
+        )
         media_input = self.music_media_chain.input_from_target_payload_ref(
             entity_type=resolved_type,
             target_id=payload.target_id,
@@ -83,7 +94,6 @@ class SubscriptionService:
             },
             raw_context={"target_payload": payload.target_payload},
         )
-        resolved = self.music_media_chain.resolve_detail(media_input)
         target_payload = dict(payload.target_payload)
         target_payload.update(
             {
