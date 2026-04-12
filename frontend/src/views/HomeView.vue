@@ -1,248 +1,191 @@
 <template>
-  <div class="home-view">
-    <section class="hero-panel">
-      <div class="hero-panel__content">
-        <p class="hero-panel__eyebrow">MusicPilot Home</p>
-        <h2>你的音乐工作台</h2>
-        <p class="hero-panel__description">
-          当前仓库已经完成真实插件加载、音乐 organize preview/apply 最小闭环，以及订阅手动执行与最小自动调度。
-          搜索页可创建订阅与 SearchJob，榜单页可从 mock 或真实榜单项创建订阅，订阅页可回看 run 结果与
-          organize 状态。接下来的重点不再是整理执行，而是补齐真实 metadata、真实 discovery 与自动调度。
-        </p>
-        <div class="hero-panel__actions">
-          <RouterLink class="hero-panel__action hero-panel__action--primary" to="/search">
-            查看搜索入口
-          </RouterLink>
-          <RouterLink class="hero-panel__action" to="/subscriptions">
-            查看订阅入口
-          </RouterLink>
+  <div class="page-shell">
+    <VCard class="hero-card">
+      <VCardText class="pa-6">
+        <div class="home-view__hero">
+          <div>
+            <p class="eyebrow">MusicPilot Home</p>
+            <h2 class="section-title">统一音乐工作台</h2>
+            <p class="section-note">
+              当前前端基线围绕统一音乐媒体解析链、榜单发现、订阅执行与获取链路重建，
+              不再使用旧的过渡态页面语义。
+            </p>
+          </div>
+          <div class="home-view__hero-actions">
+            <VBtn color="primary" to="/charts">打开 Discovery</VBtn>
+            <VBtn variant="tonal" color="secondary" to="/search">打开 Metadata</VBtn>
+          </div>
         </div>
-      </div>
-      <div class="hero-panel__grid">
-        <article v-for="item in dashboardStats" :key="item.label" class="stat-card">
-          <span class="stat-card__label">{{ item.label }}</span>
-          <strong class="stat-card__value">{{ item.value }}</strong>
-          <p class="stat-card__note">{{ item.note }}</p>
-        </article>
-      </div>
-    </section>
+      </VCardText>
+    </VCard>
 
-    <section class="section">
-      <header class="section__header">
-        <div>
-          <p class="section__eyebrow">Current Scope</p>
-          <h3>当前模块状态</h3>
-        </div>
-        <el-tag type="success" effect="plain">真实插件 API 与音乐整理闭环已验证</el-tag>
-      </header>
+    <VAlert
+      v-if="loadError"
+      type="warning"
+      variant="tonal"
+      density="comfortable"
+      :text="loadError"
+    />
 
-      <div class="module-grid">
-        <ModuleEntryCard
-          v-for="module in featureModules"
-          :key="module.key"
-          :module="module"
-        />
-      </div>
-    </section>
+    <div class="stats-grid">
+      <VCard
+        v-for="item in dashboardStats"
+        :key="item.label"
+        class="metric-card"
+      >
+        <VCardText class="pa-5">
+          <p class="eyebrow">{{ item.label }}</p>
+          <h3 class="home-view__metric-value">{{ item.value }}</h3>
+          <p class="section-note">{{ item.note }}</p>
+        </VCardText>
+      </VCard>
+    </div>
 
-    <section class="section section--compact">
-      <header class="section__header">
-        <div>
-          <p class="section__eyebrow">Current Notes</p>
-          <h3>当前边界说明</h3>
-        </div>
-      </header>
+    <div class="surface-grid home-view__modules">
+      <VCard class="panel-card">
+        <VCardText class="pa-6 stack">
+          <div>
+            <p class="eyebrow">Primary Modules</p>
+            <h3 class="section-title">主要工作入口</h3>
+          </div>
+          <div class="surface-grid home-view__module-grid">
+            <ModuleEntryCard
+              v-for="module in featureModules"
+              :key="module.key"
+              :module="module"
+            />
+          </div>
+        </VCardText>
+      </VCard>
 
-      <div class="notes-grid">
-        <article class="note-card">
-          <h4>已完成</h4>
-          <ul>
-            <li>App Shell、基础路由与插件 API 命名空间。</li>
-            <li>metadata 搜索、SearchJob、候选评分与从详情创建订阅。</li>
-            <li>mock / ListenBrainz 榜单发现与从 chart entry 创建订阅。</li>
-            <li>四类订阅 CRUD、手动 run、最小自动调度与 run 结果回看。</li>
-            <li>音乐 organize preview/apply 与真实宿主插件 API 最小闭环。</li>
-          </ul>
-        </article>
-        <article class="note-card">
-          <h4>待后续接入</h4>
-          <ul>
-            <li>更多真实第三方 metadata provider。</li>
-            <li>更多真实榜单抓取、增量 discovery 与真实获取链路。</li>
-            <li>生产级 scheduler 能力、失败重试与下载后自动整理闭环。</li>
-          </ul>
-        </article>
-      </div>
-    </section>
+      <VCard class="panel-card">
+        <VCardText class="pa-6 stack">
+          <div>
+            <p class="eyebrow">Runtime Notes</p>
+            <h3 class="section-title">当前运行状态</h3>
+          </div>
+          <div class="soft-block">
+            <p class="section-note">
+              Health: {{ healthSummary }}
+            </p>
+          </div>
+          <div class="soft-block">
+            <p class="section-note">
+              Dashboard summary:
+              {{ dashboardSummaryText }}
+            </p>
+          </div>
+        </VCardText>
+      </VCard>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { RouterLink } from 'vue-router';
+import { computed, onMounted, ref } from 'vue';
 
 import ModuleEntryCard from '@/components/ModuleEntryCard.vue';
+import { fetchChartProviders } from '@/services/discovery';
+import { fetchProviderSettings } from '@/services/settings';
+import { fetchSubscriptions } from '@/services/subscriptions';
+import { fetchDashboardSummary, fetchHealth } from '@/services/runtime';
 import { navigationModules } from '@/types/module';
 
-const dashboardStats = [
-  { label: 'Metadata Provider', value: '2', note: '当前支持 seed 与 MusicBrainz 两种模式。' },
-  { label: '可搜索实体', value: '3', note: 'Artist / Album / Track 已接通统一搜索页。' },
-  { label: '订阅类型', value: '4', note: 'artist / album / track / chart_entry 已可落库、手动执行与最小自动调度。' },
-  { label: '榜单源', value: '2', note: '当前支持 mock 与 ListenBrainz 两种 discovery 模式。' },
-  { label: '整理闭环', value: '1', note: '真实插件 API 下的音乐 preview / apply 已验证通过。' },
-  { label: '真实自动化', value: '1', note: 'metadata、discovery 与最小应用内 scheduler 已接通，生产级自动化仍待完善。' },
-];
+const healthSummary = ref('加载中');
+const dashboardSummaryText = ref('加载中');
+const subscriptionCount = ref<number | null>(null);
+const chartProviderCount = ref<number | null>(null);
+const rssFeedCount = ref<number | null>(null);
+const providerMode = ref<string | null>(null);
+const loadError = ref('');
 
 const featureModules = computed(() => navigationModules.filter((item) => item.key !== 'home'));
+
+const dashboardStats = computed(() => [
+  {
+    label: 'Subscriptions',
+    value: subscriptionCount.value == null ? '--' : String(subscriptionCount.value),
+    note: '当前已落库的订阅数量。',
+  },
+  {
+    label: 'Chart Providers',
+    value: chartProviderCount.value == null ? '--' : String(chartProviderCount.value),
+    note: '当前后端可见的榜单 provider。',
+  },
+  {
+    label: 'RSS Feeds',
+    value: rssFeedCount.value == null ? '--' : String(rssFeedCount.value),
+    note: 'settings 中的结构化 RSS feed 数量。',
+  },
+  {
+    label: 'Provider Mode',
+    value: providerMode.value || '--',
+    note: '当前运行时 discovery 主模式。',
+  },
+]);
+
+onMounted(() => {
+  void loadDashboard();
+});
+
+async function loadDashboard() {
+  loadError.value = '';
+  try {
+    const [health, dashboard, subscriptions, providers, settings] = await Promise.all([
+      fetchHealth(),
+      fetchDashboardSummary(),
+      fetchSubscriptions(),
+      fetchChartProviders(),
+      fetchProviderSettings(),
+    ]);
+
+    healthSummary.value = `${health.data.status} · ${health.data.version}`;
+    dashboardSummaryText.value = dashboard.note || dashboard.message;
+    subscriptionCount.value = subscriptions.data.total;
+    chartProviderCount.value = providers.data.length;
+    rssFeedCount.value = settings.data.chart_rss_feeds.length;
+    providerMode.value = settings.data.chart_provider_mode;
+  } catch (error) {
+    loadError.value = error instanceof Error ? error.message : '首页摘要加载失败。';
+  }
+}
 </script>
 
 <style scoped lang="scss">
-.home-view {
-  display: grid;
-  gap: 1.5rem;
-}
-
-.hero-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  gap: 1.25rem;
-  padding: 1.5rem;
-  border: 1px solid var(--mp-line);
-  border-radius: 30px;
-  background:
-    radial-gradient(circle at top right, rgba(126, 94, 248, 0.18), transparent 34%),
-    rgba(255, 255, 255, 0.82);
-  box-shadow: 0 20px 44px rgba(52, 37, 122, 0.08);
-}
-
-.hero-panel__content h2 {
-  margin: 0.3rem 0 0.8rem;
-  font-size: clamp(1.8rem, 3vw, 2.5rem);
-}
-
-.hero-panel__eyebrow,
-.section__eyebrow {
-  margin: 0;
-  color: var(--mp-accent);
-  font-size: 0.84rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.hero-panel__description {
-  max-width: 62ch;
-  margin: 0;
-  color: var(--mp-muted);
-  line-height: 1.8;
-}
-
-.hero-panel__actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-top: 1.5rem;
-}
-
-.hero-panel__action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.82rem 1.1rem;
-  border: 1px solid var(--mp-line);
-  border-radius: 14px;
-  background: #fff;
-  color: var(--mp-text);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.hero-panel__action--primary {
-  border-color: transparent;
-  background: var(--mp-accent);
-  color: #fff;
-}
-
-.hero-panel__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.stat-card,
-.note-card {
-  padding: 1.1rem;
-  border: 1px solid var(--mp-line);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.84);
-}
-
-.stat-card__label {
-  color: var(--mp-muted);
-  font-size: 0.88rem;
-}
-
-.stat-card__value {
-  display: block;
-  margin-top: 0.45rem;
-  font-size: 1.8rem;
-}
-
-.stat-card__note {
-  margin: 0.7rem 0 0;
-  color: var(--mp-muted);
-  line-height: 1.65;
-}
-
-.section {
-  display: grid;
-  gap: 1rem;
-  padding: 1.4rem;
-  border: 1px solid var(--mp-line);
-  border-radius: 30px;
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 18px 40px rgba(52, 37, 122, 0.06);
-}
-
-.section--compact {
-  padding-bottom: 1.2rem;
-}
-
-.section__header {
+.home-view__hero,
+.home-view__hero-actions {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
 }
 
-.section__header h3 {
-  margin: 0.35rem 0 0;
-  font-size: 1.35rem;
+.home-view__hero-actions {
+  flex-wrap: wrap;
 }
 
-.module-grid,
-.notes-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+.home-view__metric-value {
+  margin: 0.4rem 0 0;
+  font-size: 1.8rem;
 }
 
-.note-card h4 {
-  margin: 0 0 0.7rem;
+.home-view__modules {
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
 }
 
-.note-card ul {
-  margin: 0;
-  padding-left: 1.1rem;
-  color: var(--mp-muted);
-  line-height: 1.8;
+.home-view__module-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
-@media (max-width: 960px) {
-  .hero-panel,
-  .module-grid,
-  .notes-grid {
+@media (max-width: 1100px) {
+  .home-view__modules {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .home-view__hero {
+    flex-direction: column;
   }
 }
 </style>

@@ -10,7 +10,7 @@ const vuetifyStubs = {
   VCardSubtitle: { template: '<div><slot /></div>' },
   VCardText: { template: '<div><slot /></div>' },
   VChip: { template: '<span><slot /></span>' },
-  VBtn: { template: '<button><slot /></button>' },
+  VBtn: { emits: ['click'], template: '<button @click="$emit(\'click\')"><slot /></button>' },
   VIcon: { template: '<i><slot /></i>' },
 };
 
@@ -73,7 +73,7 @@ describe('plugin/Dashboard.vue', () => {
       },
     });
 
-    await wrapper.get('button.musicpilot-dashboard__open').trigger('click');
+    await wrapper.get('button').trigger('click');
     await Promise.resolve();
 
     expect(get).toHaveBeenCalledWith('plugin/sidebar_nav');
@@ -104,7 +104,7 @@ describe('plugin/Dashboard.vue', () => {
       },
     });
 
-    await wrapper.get('button.musicpilot-dashboard__open').trigger('click');
+    await wrapper.get('button').trigger('click');
     await Promise.resolve();
     await Promise.resolve();
 

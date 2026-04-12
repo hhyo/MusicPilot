@@ -6,714 +6,242 @@ const {
   fetchCharts,
   fetchChartDetail,
   subscribeFromChartEntry,
-  fetchDiscoveryTargetDetail,
+  resolveMusicMediaDetail,
   createSubscription,
   createSearchJob,
-  executeSearchJob,
-  elMessageSuccess,
-  elMessageWarning,
 } = vi.hoisted(() => ({
   fetchChartProviders: vi.fn(),
   fetchCharts: vi.fn(),
   fetchChartDetail: vi.fn(),
   subscribeFromChartEntry: vi.fn(),
-  fetchDiscoveryTargetDetail: vi.fn(),
+  resolveMusicMediaDetail: vi.fn(),
   createSubscription: vi.fn(),
   createSearchJob: vi.fn(),
-  executeSearchJob: vi.fn(),
-  elMessageSuccess: vi.fn(),
-  elMessageWarning: vi.fn(),
 }));
 
-vi.mock('@/services/orchestration', () => ({
+vi.mock('@/services/discovery', () => ({
   fetchChartProviders,
   fetchCharts,
   fetchChartDetail,
   subscribeFromChartEntry,
-  createSubscription,
 }));
 
-vi.mock('@/services/discovery-metadata', () => ({
-  fetchDiscoveryTargetDetail,
+vi.mock('@/services/music-media', () => ({
+  resolveMusicMediaDetail,
+}));
+
+vi.mock('@/services/subscriptions', () => ({
+  createSubscription,
 }));
 
 vi.mock('@/services/acquisition', () => ({
   createSearchJob,
-  executeSearchJob,
 }));
 
-vi.mock('element-plus', async () => {
-  const actual = await vi.importActual<typeof import('element-plus')>('element-plus');
-  return {
-    ...actual,
-    ElMessage: {
-      success: elMessageSuccess,
-      warning: elMessageWarning,
-      error: vi.fn(),
-    },
-  };
-});
+vi.mock('@/components/MetadataDetailDrawer.vue', () => ({
+  default: {
+    props: ['modelValue', 'detail', 'loading', 'errorMessage'],
+    template: '<div class="metadata-drawer-stub">{{ detail?.title }}</div>',
+  },
+}));
 
 import ChartsView from '@/views/ChartsView.vue';
 
-const chartListResponse = {
-  success: true,
-  data: {
-    items: [
-      {
-        id: 'chart-1',
-        chart_source: 'listenbrainz',
-        chart_name: 'Top Tracks',
-        chart_type: 'track',
-        item_count: 1,
-        updated_at: '2026-04-05T10:00:00Z',
-        mock: false,
-        note: 'live',
-        summary: 'summary',
-        chart_group: 'Tracks',
-        chart_scope: 'sitewide',
-        freshness_label: 'weekly',
-        supports_subscription: true,
-      },
-      {
-        id: 'chart-2',
-        chart_source: 'listenbrainz',
-        chart_name: 'Top Artists',
-        chart_type: 'artist',
-        item_count: 1,
-        updated_at: '2026-04-05T11:00:00Z',
-        mock: false,
-        note: 'live',
-        summary: 'artist summary',
-        chart_group: 'Artists',
-        chart_scope: 'sitewide',
-        freshness_label: 'weekly',
-        supports_subscription: true,
-      },
-    ],
-    total: 2,
+const chart = {
+  id: 'rss-feed-1',
+  chart_source: 'rss_feed',
+  chart_name: '网易云热歌榜',
+  chart_type: 'track',
+  item_count: 2,
+  updated_at: '2026-04-12T10:00:00Z',
+  mock: false,
+  note: 'live',
+  summary: '热门歌曲发现入口',
+  chart_group: 'tracks',
+  chart_scope: 'sitewide',
+  freshness_label: 'daily',
+  supports_subscription: true,
+};
+
+const entry = {
+  entry: {
+    item_id: 'entry-1',
+    chart_id: 'rss-feed-1',
+    chart_source: 'rss_feed',
+    chart_name: '网易云热歌榜',
+    rank: 1,
+    item_type: 'track',
+    target_id: 'track-1',
+    target_name: 'Hello',
+    subtitle: 'Adele',
+    provider: 'rss_feed',
+    source_type: 'rss_feed',
+    target_payload: { provider: 'musicbrainz', provider_id: 'track-1' },
     mock: false,
-    note: '',
-    integration_point: 'runtime',
+    note: 'ok',
+  },
+  media_input: {
+    entity_hint: 'track',
+    source_kind: 'discovery',
+    title: 'Hello',
+    subtitle: 'Adele',
+    artist_names: ['Adele'],
+    album_title: '25',
+    album_artist_names: ['Adele'],
+    release_date: null,
+    year: 2015,
+    track_number: null,
+    disc_number: null,
+    external_refs: {},
+    source_context: {},
+    raw_context: {},
+  },
+  meta_base: {
+    entity_type: 'track',
+    canonical_title: 'Hello',
+    canonical_artist_names: ['Adele'],
+    canonical_album_title: '25',
+    canonical_album_artist_names: ['Adele'],
+    canonical_release_date: null,
+    canonical_year: 2015,
+    track_number: null,
+    disc_number: null,
+    alias_titles: [],
+    alias_artist_names: [],
+    alias_album_titles: [],
+    featuring_artist_names: [],
+    external_refs: {},
+    source_refs: {},
+    evidence: [],
+    normalization_notes: [],
+    confidence_hint: 0.98,
+  },
+  entry_summary: '统一音乐媒体解析链已准备好该条目的识别输入。',
+  badges: ['track'],
+  highlight_reason: 'hero',
+  recognition_assessment: {
+    state: 'ready',
+    note: '可直接进入 detail 解析。',
   },
 };
 
-const artistDetailResponse = {
-  success: true,
-  data: {
-    chart: chartListResponse.data.items[1],
-    items: [],
-    item_count: 1,
-    mock: false,
-    note: '',
-    integration_point: 'runtime',
-    hero_entry: {
-      entry: {
-        item_id: 'artist-entry-1',
-        chart_id: 'chart-2',
-        chart_source: 'listenbrainz',
-        chart_name: 'Top Artists',
-        rank: 1,
-        item_type: 'artist',
-        target_id: 'artist-123',
-        target_name: 'Adele',
+beforeEach(() => {
+  fetchChartProviders.mockResolvedValue({
+    data: [{ id: 'rss_feed', display_name: 'RSS Feed', chart_source: 'rss_feed', enabled: true, mock: false, note: '', integration_point: 'runtime' }],
+  });
+  fetchCharts.mockResolvedValue({ data: { items: [chart], total: 1, mock: false, note: '', integration_point: 'runtime' } });
+  fetchChartDetail.mockResolvedValue({
+    data: {
+      chart,
+      items: [],
+      item_count: 1,
+      mock: false,
+      note: '',
+      integration_point: 'runtime',
+      hero_entry: entry,
+      summary_stats: { items: 1 },
+      entry_groups: [{ group_key: 'tracks', group_label: 'Tracks', items: [entry] }],
+      recognition_summary: { ready: 1, partial: 0, insufficient: 0 },
+    },
+  });
+  resolveMusicMediaDetail.mockResolvedValue({
+    data: {
+      base: entry.meta_base,
+      assessment: entry.recognition_assessment,
+      media: {
+        entity_type: 'track',
+        provider: 'musicbrainz',
+        provider_id: 'track-1',
+        title: 'Hello',
+        artist_names: ['Adele'],
+        album_title: '25',
+        album_artist_names: ['Adele'],
+        release_date: null,
+        year: 2015,
+        track_number: null,
+        disc_number: null,
+        related_artist_ids: [],
+        related_album_id: null,
+        related_track_ids: [],
+        external_refs: {},
+        match_confidence: 0.99,
+        match_strategy: 'provider_ref',
+        match_evidence: [],
+        diagnostics: [],
+        cover_url: null,
+        disambiguation: null,
+        release_context: {},
+      },
+      detail: {
+        entity_type: 'track',
+        id: 'track-1',
+        title: 'Hello',
+        artist_name: 'Adele',
+        album_title: '25',
+        aliases: [],
+        year: 2015,
+        release_type: 'single',
+        genres: [],
+        external_ids: {},
         provider: 'musicbrainz',
         source_type: 'runtime',
         mock: false,
-        note: '',
+        note: 'detail loaded',
+        label_names: [],
+        secondary_types: [],
+        primary_release_types: [],
+        featured_albums: [],
+        featured_singles: [],
+        featured_other_releases: [],
+        featured_release_group_counts: {},
+        metadata_stage: 'resolved',
+        integration_point: 'runtime',
+        related_artists: [],
+        related_albums: [],
+        tracks: [],
+        todo: [],
       },
-      target: {
-        target_kind: 'artist',
-        provider: 'musicbrainz',
-        provider_id: 'artist-123',
-        display_title: 'Adele',
-        display_subtitle: 'UK',
-        source_context: {
-          chart_source: 'listenbrainz',
-          chart_id: 'chart-2',
-          chart_name: 'Top Artists',
-          rank: 1,
-          chart_type: 'artist',
-        },
-        conversion_ready: true,
-        conversion_note: null,
-        resolution_mode: 'direct_id',
-        resolution_hints: {},
-        discovery_badges: ['top_artist'],
-      },
-      entry_summary: 'artist summary',
-      badges: ['top_artist'],
     },
-    summary_stats: { items: 1 },
-    entry_groups: [],
-    conversion_summary: { ready: 1, not_ready: 0 },
-  },
-};
-
-const readyDetailResponse = {
-  success: true,
-  data: {
-    chart: chartListResponse.data.items[0],
-    items: [],
-    item_count: 1,
-    mock: false,
-    note: '',
-    integration_point: 'runtime',
-    hero_entry: {
-      entry: {
-        item_id: 'entry-1',
-        chart_id: 'chart-1',
-        chart_source: 'listenbrainz',
-        chart_name: 'Top Tracks',
-        rank: 1,
-        item_type: 'track',
-        target_id: 'recording-123',
-        target_name: 'Hello',
-        provider: 'musicbrainz',
-        source_type: 'runtime',
-        mock: false,
-        note: '',
-      },
-      target: {
-        target_kind: 'track',
-        provider: 'musicbrainz',
-        provider_id: 'recording-123',
-        display_title: 'Hello',
-        display_subtitle: 'Adele',
-        source_context: {
-          chart_source: 'listenbrainz',
-          chart_id: 'chart-1',
-          chart_name: 'Top Tracks',
-          rank: 1,
-          chart_type: 'track',
-        },
-        conversion_ready: true,
-        conversion_note: null,
-        resolution_mode: 'direct_id',
-        resolution_hints: {},
-        discovery_badges: ['top_track'],
-      },
-      entry_summary: 'summary',
-      badges: ['top_track'],
-    },
-    summary_stats: { items: 1 },
-    entry_groups: [
-      {
-        group_key: 'tracks',
-        group_label: 'Tracks',
-        items: [
-          {
-            entry: {
-              item_id: 'entry-2',
-              chart_id: 'chart-1',
-              chart_source: 'listenbrainz',
-              chart_name: 'Top Tracks',
-              rank: 2,
-              item_type: 'track',
-              target_id: 'recording-456',
-              target_name: 'Skyfall',
-              provider: 'musicbrainz',
-              source_type: 'runtime',
-              mock: false,
-              note: '',
-            },
-            target: {
-              target_kind: 'track',
-              provider: 'musicbrainz',
-              provider_id: 'recording-456',
-              display_title: 'Skyfall',
-              display_subtitle: 'Adele',
-              source_context: {
-                chart_source: 'listenbrainz',
-                chart_id: 'chart-1',
-                chart_name: 'Top Tracks',
-                rank: 2,
-                chart_type: 'track',
-              },
-              conversion_ready: false,
-              conversion_note: '需要补充 provider id',
-              resolution_mode: 'direct_id',
-              resolution_hints: {},
-              discovery_badges: [],
-            },
-            entry_summary: 'summary',
-            badges: ['top_track'],
-          },
-        ],
-      },
-    ],
-    conversion_summary: { ready: 1, not_ready: 1 },
-  },
-};
-
-const rssChartListResponse = {
-  success: true,
-  data: {
-    items: [
-      {
-        id: 'rss-feed-feed-1',
-        chart_source: 'rss_feed',
-        chart_name: '网易云喜欢',
-        chart_type: 'track',
-        item_count: 1,
-        updated_at: '2026-04-05T10:00:00Z',
-        mock: false,
-        note: 'rss',
-        summary: 'summary',
-        chart_group: 'tracks',
-        chart_scope: 'liked',
-        freshness_label: 'rss-feed',
-        supports_subscription: true,
-      },
-    ],
-    total: 1,
-    mock: false,
-    note: '',
-    integration_point: 'runtime',
-  },
-};
-
-const rssDetailResponse = {
-  success: true,
-  data: {
-    chart: rssChartListResponse.data.items[0],
-    items: [],
-    item_count: 1,
-    mock: false,
-    note: '',
-    integration_point: 'runtime',
-    hero_entry: {
-      entry: {
-        item_id: 'rss-entry-1',
-        chart_id: 'rss-feed-feed-1',
-        chart_source: 'rss_feed',
-        chart_name: '网易云喜欢',
-        rank: 1,
-        item_type: 'track',
-        target_id: '',
-        target_name: 'Hello',
-        provider: 'rss_feed',
-        source_type: 'rss_feed/netease_playlist_tracks',
-        target_payload: {
-          title: 'Hello',
-          artist_name: 'Adele',
-          album_title: '25',
-        },
-        mock: false,
-        note: '',
-      },
-      target: {
-        target_kind: 'track',
-        provider: 'musicbrainz',
-        provider_id: '',
-        display_title: 'Hello',
-        display_subtitle: 'Adele',
-        source_context: {
-          chart_source: 'rss_feed',
-          chart_id: 'rss-feed-feed-1',
-          chart_name: '网易云喜欢',
-          rank: 1,
-          chart_type: 'track',
-        },
-        conversion_ready: true,
-        conversion_note: null,
-        resolution_mode: 'search_lookup',
-        resolution_hints: {
-          title: 'Hello',
-          artist_name: 'Adele',
-          album_title: '25',
-        },
-        discovery_badges: ['rss'],
-      },
-      entry_summary: 'summary',
-      badges: ['rss'],
-    },
-    summary_stats: { items: 1 },
-    entry_groups: [
-      {
-        group_key: 'tracks',
-        group_label: 'Tracks',
-        items: [
-          {
-            entry: {
-              item_id: 'rss-entry-1',
-              chart_id: 'rss-feed-feed-1',
-              chart_source: 'rss_feed',
-              chart_name: '网易云喜欢',
-              rank: 1,
-              item_type: 'track',
-              target_id: '',
-              target_name: 'Hello',
-              provider: 'rss_feed',
-              source_type: 'rss_feed/netease_playlist_tracks',
-              target_payload: {
-                title: 'Hello',
-                artist_name: 'Adele',
-                album_title: '25',
-              },
-              mock: false,
-              note: '',
-            },
-            target: {
-              target_kind: 'track',
-              provider: 'musicbrainz',
-              provider_id: '',
-              display_title: 'Hello',
-              display_subtitle: 'Adele',
-              source_context: {
-                chart_source: 'rss_feed',
-                chart_id: 'rss-feed-feed-1',
-                chart_name: '网易云喜欢',
-                rank: 1,
-                chart_type: 'track',
-              },
-              conversion_ready: true,
-              conversion_note: null,
-              resolution_mode: 'search_lookup',
-              resolution_hints: {
-                title: 'Hello',
-                artist_name: 'Adele',
-                album_title: '25',
-              },
-              discovery_badges: ['rss'],
-            },
-            entry_summary: 'summary',
-            badges: ['rss'],
-          },
-        ],
-      },
-    ],
-    conversion_summary: { ready: 1, not_ready: 0 },
-  },
-};
-
-const directReadyDetailResponse = {
-  success: true,
-  data: {
-    chart: chartListResponse.data.items[0],
-    items: [],
-    item_count: 1,
-    mock: false,
-    note: '',
-    integration_point: 'runtime',
-    hero_entry: null,
-    summary_stats: { items: 1 },
-    entry_groups: [
-      {
-        group_key: 'tracks',
-        group_label: 'Tracks',
-        items: [
-          {
-            entry: {
-              item_id: 'direct-ready-entry',
-              chart_id: 'chart-1',
-              chart_source: 'listenbrainz',
-              chart_name: 'Top Tracks',
-              rank: 1,
-              item_type: 'track',
-              target_id: 'recording-999',
-              target_name: 'Set Fire to the Rain',
-              provider: 'musicbrainz',
-              source_type: 'listenbrainz_sitewide_stats',
-              target_payload: {},
-              mock: false,
-              note: '',
-            },
-            target: {
-              target_kind: 'track',
-              provider: 'musicbrainz',
-              provider_id: 'recording-999',
-              display_title: 'Set Fire to the Rain',
-              display_subtitle: 'Adele',
-              source_context: {
-                chart_source: 'listenbrainz',
-                chart_id: 'chart-1',
-                chart_name: 'Top Tracks',
-                rank: 1,
-                chart_type: 'track',
-              },
-              conversion_ready: true,
-              conversion_note: null,
-              resolution_mode: 'direct_id',
-              resolution_hints: {},
-              discovery_badges: ['top_track'],
-            },
-            entry_summary: 'summary',
-            badges: ['top_track'],
-          },
-        ],
-      },
-    ],
-    conversion_summary: { ready: 1, not_ready: 0 },
-  },
-};
-
-const rssNotReadyDetailResponse = {
-  success: true,
-  data: {
-    chart: rssChartListResponse.data.items[0],
-    items: [],
-    item_count: 1,
-    mock: false,
-    note: '',
-    integration_point: 'runtime',
-    hero_entry: null,
-    summary_stats: { items: 1 },
-    entry_groups: [
-      {
-        group_key: 'tracks',
-        group_label: 'Tracks',
-        items: [
-          {
-            entry: {
-              item_id: 'rss-not-ready-entry',
-              chart_id: 'rss-feed-feed-1',
-              chart_source: 'rss_feed',
-              chart_name: '网易云喜欢',
-              rank: 1,
-              item_type: 'track',
-              target_id: '',
-              target_name: 'Unknown',
-              provider: 'rss_feed',
-              source_type: 'rss_feed/netease_playlist_tracks',
-              target_payload: {},
-              mock: false,
-              note: '',
-            },
-            target: {
-              target_kind: 'track',
-              provider: 'musicbrainz',
-              provider_id: '',
-              display_title: 'Unknown',
-              display_subtitle: null,
-              source_context: {
-                chart_source: 'rss_feed',
-                chart_id: 'rss-feed-feed-1',
-                chart_name: '网易云喜欢',
-                rank: 1,
-                chart_type: 'track',
-              },
-              conversion_ready: false,
-              conversion_note: 'Missing RSS lookup hints',
-              resolution_mode: 'search_lookup',
-              resolution_hints: {},
-              discovery_badges: ['rss'],
-            },
-            entry_summary: 'summary',
-            badges: ['rss'],
-          },
-        ],
-      },
-    ],
-    conversion_summary: { ready: 0, not_ready: 1 },
-  },
-};
+  });
+});
 
 function mountView() {
   return mount(ChartsView, {
     global: {
       stubs: {
-        'el-tag': { template: '<span><slot /></span>' },
-        'el-alert': { template: '<div><slot /></div>', props: ['title'] },
-        'el-skeleton': { template: '<div class="skeleton" />' },
-        'el-empty': { template: '<div class="empty"><slot /></div>' },
-        'el-button': {
-          template: '<button @click="$emit(\'click\', $event)"><slot /></button>',
-          props: ['loading', 'type', 'plain', 'text'],
-          emits: ['click'],
-        },
-        'el-pagination': { template: '<div class="pagination" />' },
-        MetadataDetailDrawer: {
-          name: 'MetadataDetailDrawer',
-          props: ['modelValue', 'loading', 'detail', 'errorMessage'],
-          emits: ['update:modelValue', 'create-subscription', 'search-resources'],
-          template: '<div data-test="metadata-drawer-stub" />',
-        },
+        VCard: { template: '<div><slot /></div>' },
+        VCardText: { template: '<div><slot /></div>' },
+        VAlert: { props: ['text'], template: '<div>{{ text }}</div>' },
+        VBtn: { emits: ['click'], template: '<button @click="$emit(\'click\', $event)"><slot /></button>' },
+        VChip: { template: '<span><slot /></span>' },
+        VChipGroup: { template: '<div><slot /></div>' },
+        VSkeletonLoader: { template: '<div>loading</div>' },
       },
     },
   });
 }
 
-describe('ChartsView discovery metadata drawer', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    fetchChartProviders.mockReset().mockResolvedValue({
-      success: true,
-      data: [
-        {
-          id: 'listenbrainz',
-          chart_source: 'listenbrainz',
-          display_name: 'ListenBrainz',
-          enabled: true,
-          mock: false,
-          note: '',
-          integration_point: 'runtime',
-        },
-      ],
-    });
-    fetchCharts.mockReset().mockResolvedValue(chartListResponse);
-    fetchChartDetail
-      .mockReset()
-      .mockResolvedValueOnce(readyDetailResponse)
-      .mockResolvedValueOnce(artistDetailResponse);
-    fetchDiscoveryTargetDetail.mockReset().mockResolvedValue({
-      success: true,
-      data: {
-        id: 'recording-123',
-        entity_type: 'track',
-        title: 'Hello',
-        artist_name: 'Adele',
-        provider: 'musicbrainz',
-        source_type: 'runtime',
-        note: 'detail',
-        integration_point: 'runtime',
-        todo: [],
-        aliases: [],
-        genres: [],
-        related_artists: [],
-        related_albums: [],
-        featured_albums: [],
-        featured_singles: [],
-        featured_other_releases: [],
-        featured_release_group_counts: {},
-        tracks: [],
-        external_ids: {},
-        primary_release_types: [],
-        secondary_types: [],
-        label_names: [],
-      },
-    });
-    subscribeFromChartEntry.mockReset().mockResolvedValue({
-      success: true,
-      data: {
-        dispatch_status: 'accepted',
-      },
-    });
-    createSubscription.mockReset().mockResolvedValue({
-      success: true,
-      data: {
-        id: 'sub-1',
-        subscription_type: 'track',
-        target_id: 'recording-123',
-        target_name: 'Hello',
-        target_entity_type: 'track',
-        status: 'active',
-        mode: 'manual',
-        preference_json: {},
-        target_payload: {},
-        mock: false,
-        created_at: '2026-04-05T10:00:00Z',
-        updated_at: '2026-04-05T10:00:00Z',
-      },
-    });
-    createSearchJob.mockReset().mockResolvedValue({
-      success: true,
-      data: { id: 'job-1' },
-    });
-    executeSearchJob.mockReset().mockResolvedValue({
-      success: true,
-      data: { id: 'job-1' },
-    });
-  });
-
-  it('opens metadata drawer from hero entry click', async () => {
+describe('ChartsView', () => {
+  it('loads charts and chart detail using the new discovery contract', async () => {
     const wrapper = mountView();
     await flushPromises();
 
-    await wrapper.get('[data-test="discovery-hero-entry"]').trigger('click');
-    await flushPromises();
-
-    expect(fetchDiscoveryTargetDetail).toHaveBeenCalledWith(
-      readyDetailResponse.data.hero_entry.target,
-    );
-    const drawer = wrapper.findComponent({ name: 'MetadataDetailDrawer' });
-    expect(drawer.props('modelValue')).toBe(true);
-    expect(drawer.props('detail')).toMatchObject({
-      id: 'recording-123',
-      title: 'Hello',
-    });
+    expect(fetchCharts).toHaveBeenCalledTimes(1);
+    expect(fetchChartDetail).toHaveBeenCalledWith('rss-feed-1');
+    expect(wrapper.text()).toContain('榜单发现与媒体识别');
+    expect(wrapper.text()).toContain('网易云热歌榜');
+    expect(wrapper.text()).toContain('统一音乐媒体解析链已准备好该条目的识别输入。');
   });
 
-  it('does not fetch metadata when conversion is not ready', async () => {
+  it('opens chart entry detail through media resolve detail', async () => {
     const wrapper = mountView();
     await flushPromises();
 
-    await wrapper.get('[data-test="discovery-entry-entry-2"]').trigger('click');
+    const buttons = wrapper.findAll('button');
+    await buttons.find((button) => button.text().includes('打开详情'))!.trigger('click');
     await flushPromises();
 
-    expect(fetchDiscoveryTargetDetail).not.toHaveBeenCalledWith(
-      readyDetailResponse.data.entry_groups[0].items[0].target,
-    );
-    expect(elMessageWarning).toHaveBeenCalledWith('当前暂不支持详情下钻');
-  });
-
-  it('keeps subscribe button behavior isolated from metadata click', async () => {
-    const wrapper = mountView();
-    await flushPromises();
-
-    await wrapper.get('[data-test="subscribe-entry-entry-2"]').trigger('click');
-    await flushPromises();
-
-    expect(subscribeFromChartEntry).toHaveBeenCalledTimes(1);
-    expect(fetchDiscoveryTargetDetail).not.toHaveBeenCalled();
-  });
-
-  it('clears stale active entry and drawer state when switching charts', async () => {
-    const wrapper = mountView();
-    await flushPromises();
-
-    await wrapper.get('[data-test="discovery-hero-entry"]').trigger('click');
-    await flushPromises();
-
-    expect(wrapper.findComponent({ name: 'MetadataDetailDrawer' }).props('modelValue')).toBe(true);
-
-    await wrapper.get('[data-test="open-chart-chart-2"]').trigger('click');
-    await flushPromises();
-
-    const drawer = wrapper.findComponent({ name: 'MetadataDetailDrawer' });
-    expect(drawer.props('modelValue')).toBe(false);
-    expect(drawer.props('detail')).toBe(null);
-    expect(wrapper.find('[data-test="discovery-hero-entry"]').classes()).not.toContain('hero-entry-card--active');
-  });
-
-  it('renders rss search_lookup entry status and opens drawer through lookup target', async () => {
-    fetchCharts.mockReset().mockResolvedValue(rssChartListResponse);
-    fetchChartDetail.mockReset().mockResolvedValue(rssDetailResponse);
-
-    const wrapper = mountView();
-    await flushPromises();
-
-    const statusText = wrapper.find('.entry-card__conversion').text();
-    expect(statusText).toContain('需要检索详情');
-
-    await wrapper.get('[data-test="discovery-entry-rss-entry-1"]').trigger('click');
-    await flushPromises();
-
-    expect(fetchDiscoveryTargetDetail).toHaveBeenCalledWith(
-      rssDetailResponse.data.entry_groups[0].items[0].target,
-    );
-    const drawer = wrapper.findComponent({ name: 'MetadataDetailDrawer' });
-    expect(drawer.props('modelValue')).toBe(true);
-  });
-
-  it('shows direct-id ready status text as 已可查看详情', async () => {
-    fetchCharts.mockReset().mockResolvedValue(chartListResponse);
-    fetchChartDetail.mockReset().mockResolvedValue(directReadyDetailResponse);
-
-    const wrapper = mountView();
-    await flushPromises();
-
-    expect(wrapper.find('.entry-card__conversion').text()).toContain('已可查看详情');
-  });
-
-  it('shows search_lookup not-ready status text as 解析信息不足', async () => {
-    fetchCharts.mockReset().mockResolvedValue(rssChartListResponse);
-    fetchChartDetail.mockReset().mockResolvedValue(rssNotReadyDetailResponse);
-
-    const wrapper = mountView();
-    await flushPromises();
-
-    expect(wrapper.find('.entry-card__conversion').text()).toContain('解析信息不足');
+    expect(resolveMusicMediaDetail).toHaveBeenCalled();
+    expect(wrapper.text()).toContain('Hello');
   });
 });

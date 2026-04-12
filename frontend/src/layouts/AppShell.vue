@@ -1,26 +1,34 @@
 <template>
   <div class="shell">
     <aside class="shell__sidebar">
-      <div class="brand-card">
-        <p class="brand-card__phase">{{ app.phaseLabel }}</p>
-        <h1>{{ app.appName }}</h1>
-        <p class="brand-card__description">
-          独立音乐插件入口壳。当前已接通 metadata 搜索、SearchJob、订阅手动执行，以及音乐
-          organize preview/apply 的真实宿主最小闭环。
-        </p>
-      </div>
+      <VCard class="brand-card" rounded="xl">
+        <VCardText class="pa-6">
+          <p class="brand-card__phase">{{ app.phaseLabel }}</p>
+          <h1>{{ app.appName }}</h1>
+          <p class="brand-card__description">
+            统一围绕音乐媒体解析链组织 discovery、metadata、subscription 和 acquisition，
+            作为 MoviePilot 的音乐工作台入口。
+          </p>
+          <div class="brand-card__chips">
+            <VChip color="primary" variant="flat">Music Media Chain</VChip>
+            <VChip color="success" variant="flat">Plugin Runtime</VChip>
+          </div>
+        </VCardText>
+      </VCard>
 
       <AppNav :items="app.modules" />
     </aside>
 
     <main class="shell__content">
-      <header class="topbar">
-        <div>
-          <p class="topbar__eyebrow">MoviePilot Music Plugin</p>
-          <h2>MusicPilot 当前实现状态</h2>
-        </div>
-        <el-tag type="success" effect="plain">真实预览 / 整理最小闭环已验证</el-tag>
-      </header>
+      <VCard class="topbar" rounded="xl">
+        <VCardText class="topbar__inner">
+          <div>
+            <p class="topbar__eyebrow">MoviePilot Music Plugin</p>
+            <h2>MusicPilot 工作台</h2>
+          </div>
+          <VChip color="success" variant="flat">统一音乐媒体解析链已接入后端主线</VChip>
+        </VCardText>
+      </VCard>
 
       <RouterView />
     </main>
@@ -52,11 +60,11 @@ const app = useAppStore();
 }
 
 .brand-card {
-  padding: 1.5rem;
-  border-radius: 28px;
-  background: linear-gradient(145deg, #2b255d, #7e5ef8 62%, #d8cdfd);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background:
+    linear-gradient(145deg, rgba(17, 24, 39, 0.96), rgba(31, 111, 235, 0.92) 68%, rgba(14, 165, 233, 0.82));
   color: #fff;
-  box-shadow: 0 22px 50px rgba(55, 37, 122, 0.24);
+  box-shadow: 0 24px 54px rgba(15, 23, 42, 0.24);
 }
 
 .brand-card h1 {
@@ -79,21 +87,30 @@ const app = useAppStore();
   color: rgba(255, 255, 255, 0.88);
 }
 
+.brand-card__chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1.1rem;
+}
+
 .shell__content {
   min-width: 0;
 }
 
 .topbar {
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--mp-line);
+  background: var(--mp-panel);
+  box-shadow: var(--mp-shadow);
+}
+
+.topbar__inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.25rem;
-  padding: 1.4rem 1.5rem;
-  border: 1px solid var(--mp-line);
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.76);
-  box-shadow: 0 16px 40px rgba(52, 37, 122, 0.08);
+  padding: 1.2rem 1.4rem;
 }
 
 .topbar h2 {
@@ -122,8 +139,10 @@ const app = useAppStore();
   }
 
   .topbar {
-    align-items: flex-start;
-    flex-direction: column;
+    .topbar__inner {
+      align-items: flex-start;
+      flex-direction: column;
+    }
   }
 }
 </style>

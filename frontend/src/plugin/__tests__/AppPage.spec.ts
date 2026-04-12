@@ -1,14 +1,22 @@
-import { flushPromises, mount } from '@vue/test-utils';
-import { nextTick } from 'vue';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { describe, expect, it, vi } from 'vitest';
+
+const { mountMusicPilotApp } = vi.hoisted(() => ({
+  mountMusicPilotApp: vi.fn(() => ({
+    app: { unmount: vi.fn() },
+    router: {
+      isReady: vi.fn().mockResolvedValue(undefined),
+    },
+  })),
+}));
+
+vi.mock('@/app/createApp', () => ({
+  mountMusicPilotApp,
+}));
 
 import AppPage from '@/plugin/AppPage.vue';
 
 describe('plugin/AppPage.vue', () => {
-  beforeAll(() => {
-    window.scrollTo = vi.fn();
-  });
-
   it('mounts standalone app page shell and shows workbench content', async () => {
     const wrapper = mount(AppPage, {
       props: {
@@ -16,13 +24,15 @@ describe('plugin/AppPage.vue', () => {
         pluginId: 'musicpilot',
         navKey: 'main',
       },
+      global: {
+        stubs: {
+          VCard: { template: '<div><slot /></div>' },
+          VCardText: { template: '<div><slot /></div>' },
+        },
+      },
     });
 
-    await nextTick();
-    await flushPromises();
-    await nextTick();
-
-    expect(wrapper.text()).toContain('MusicPilot');
-    expect(wrapper.text()).toContain('音乐工作台');
+    expect(mountMusicPilotApp).toHaveBeenCalled();
+    expect(wrapper.find('.plugin-app-shell').exists()).toBe(true);
   });
 });

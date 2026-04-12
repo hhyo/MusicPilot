@@ -3,17 +3,20 @@ import type {
   ApiDispatchResponse,
   ApiQueryBuildResponse,
   ApiSearchCandidatesResponse,
+  ApiSearchJobListResponse,
   ApiSearchJobResponse,
   DispatchPayload,
+  QueryBuildPayload,
   SearchJobCreatePayload,
 } from '@/types/acquisition';
-import type { EntityType } from '@/types/metadata';
 
-export async function previewQueryBuild(querySourceType: EntityType, querySourceId: string): Promise<ApiQueryBuildResponse> {
-  const { data } = await http.post<ApiQueryBuildResponse>('/jobs/query-preview', {
-    query_source_type: querySourceType,
-    query_source_id: querySourceId,
-  });
+export async function previewQueryBuild(payload: QueryBuildPayload): Promise<ApiQueryBuildResponse> {
+  const { data } = await http.post<ApiQueryBuildResponse>('/jobs/query-preview', payload);
+  return data;
+}
+
+export async function fetchSearchJobs(): Promise<ApiSearchJobListResponse> {
+  const { data } = await http.get<ApiSearchJobListResponse>('/jobs');
   return data;
 }
 

@@ -1,395 +1,268 @@
 <template>
-  <div class="subscriptions-view">
-    <section class="hero-panel">
-      <div>
-        <p class="hero-panel__eyebrow">Subscriptions</p>
-        <h2>订阅与执行记录最小闭环</h2>
-        <p class="hero-panel__description">
-          当前页面展示的是收缩后的最小订阅闭环：可创建和管理四类订阅、手动执行一次 run 或启用最小自动调度、
-          回看 SearchJob 摘要与 organize preview/apply。页面只展示当前真实采用的 backend、handoff 来源和明确错误；
-          但生产级 scheduler、真实榜单增量与完整获取自动化链路仍未完成。
+  <div class="page-shell">
+    <VCard class="hero-card">
+      <VCardText class="pa-6">
+        <p class="eyebrow">Subscriptions</p>
+        <h2 class="section-title">订阅、执行记录与主链结果</h2>
+        <p class="section-note">
+          当前页面直接回看统一音乐媒体解析链固化后的订阅快照、SearchJob、候选和 organize 状态，
+          不再围绕旧的“阶段说明页”来组织。
         </p>
-      </div>
-      <el-tag type="info" effect="plain">manual or scheduled run / music preview / host file execute</el-tag>
-    </section>
+      </VCardText>
+    </VCard>
 
-    <el-alert
-      title="当前 organize 只遵循固定音乐语义：preview 是 MusicPilot 本地路径预览，apply 是宿主底层 file/storage 执行；若缺少明确 source_path 或目标路径，就直接失败并暴露原因。"
-      type="warning"
-      :closable="false"
-      show-icon
+    <VAlert
+      v-if="listError"
+      type="error"
+      variant="tonal"
+      density="comfortable"
+      :text="listError"
     />
 
-    <section class="filters-panel">
-      <div class="filters-panel__group">
-        <span>订阅类型</span>
-        <div class="pill-row">
-          <button
-            v-for="item in typeOptions"
-            :key="item.value"
-            type="button"
-            class="pill-button"
-            :class="{ 'pill-button--active': typeFilter === item.value }"
-            @click="changeTypeFilter(item.value)"
-          >
-            {{ item.label }}
-          </button>
-        </div>
-      </div>
-
-      <div class="filters-panel__group">
-        <span>状态</span>
-        <div class="pill-row">
-          <button
-            v-for="item in statusOptions"
-            :key="item.value"
-            type="button"
-            class="pill-button"
-            :class="{ 'pill-button--active': statusFilter === item.value }"
-            @click="changeStatusFilter(item.value)"
-          >
-            {{ item.label }}
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <div class="layout-grid">
-      <section class="list-panel">
-        <header class="section-header">
-          <div>
-            <p class="section-header__eyebrow">Subscription List</p>
-            <h3>订阅对象</h3>
-          </div>
-          <el-button text @click="loadSubscriptions">刷新</el-button>
-        </header>
-
-        <el-alert
-          v-if="listError"
-          :title="listError"
-          type="error"
-          :closable="false"
-          show-icon
-        />
-
-        <div v-else-if="listLoading" class="loading-grid">
-          <el-skeleton v-for="index in 4" :key="index" animated :rows="4" />
-        </div>
-
-        <el-empty
-          v-else-if="subscriptions.length === 0"
-          description="当前还没有订阅。可以先到搜索页或榜单页创建一个。"
-        />
-
-        <div v-else class="subscription-list">
-          <article
-            v-for="item in subscriptions"
-            :key="item.id"
-            class="subscription-card"
-            :class="{ 'subscription-card--active': selectedSubscriptionId === item.id }"
-            @click="selectSubscription(item.id)"
-          >
-            <div class="subscription-card__header">
-              <div>
-                <p class="subscription-card__eyebrow">{{ item.subscription_type }}</p>
-                <h4>{{ item.target_name }}</h4>
-              </div>
-              <el-tag :type="subscriptionStatusTag(item.status)" effect="plain">
-                {{ item.status }}
-              </el-tag>
+    <div class="split-layout">
+      <VCard class="panel-card">
+        <VCardText class="pa-6 stack">
+          <div class="subscriptions-view__header">
+            <div>
+              <p class="eyebrow">Subscriptions</p>
+              <h3 class="section-title">订阅列表</h3>
             </div>
-
-            <p class="subscription-card__meta">
-              {{ item.chart_source || item.target_entity_type || 'metadata' }}
-              <span v-if="item.chart_name"> · {{ item.chart_name }}</span>
-            </p>
-            <p class="subscription-card__note">{{ item.note }}</p>
-
-            <div class="subscription-card__footer">
-              <div>
-                <p>最近执行：{{ formatDate(item.last_run_at) }}</p>
-                <p>最近状态：{{ item.latest_run_status || '尚未执行' }}</p>
-              </div>
-              <div class="subscription-card__actions">
-                <el-button
-                  size="small"
-                  type="primary"
-                  plain
-                  :loading="runningSubscriptionId === item.id"
-                  @click.stop="handleRun(item.id)"
-                >
-                  立即执行
-                </el-button>
-                <el-button
-                  size="small"
-                  @click.stop="toggleSubscriptionStatus(item)"
-                >
-                  {{ item.status === 'active' ? '暂停' : '启用' }}
-                </el-button>
-                <el-button
-                  size="small"
-                  @click.stop="toggleSubscriptionMode(item)"
-                >
-                  {{ normalizedMode(item.mode) === 'scheduled' ? '切回手动' : '启用自动' }}
-                </el-button>
-                <el-button
-                  size="small"
-                  type="danger"
-                  plain
-                  @click.stop="handleArchive(item.id)"
-                >
-                  归档
-                </el-button>
-              </div>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="detail-panel">
-        <header class="section-header">
-          <div>
-            <p class="section-header__eyebrow">Execution Detail</p>
-            <h3>{{ selectedSubscription?.target_name || '订阅详情与 run 结果' }}</h3>
+            <VBtn variant="tonal" color="secondary" @click="loadSubscriptions">刷新</VBtn>
           </div>
-          <el-button
-            v-if="selectedSubscriptionId"
-            text
-            @click="refreshSelectedSubscription"
-          >
-            刷新
-          </el-button>
-        </header>
 
-        <el-alert
-          v-if="detailError"
-          :title="detailError"
-          type="error"
-          :closable="false"
-          show-icon
-        />
+          <div class="subscriptions-view__filters">
+            <VChipGroup v-model="typeFilter" mandatory>
+              <VChip v-for="item in typeOptions" :key="item.value" :value="item.value" filter variant="outlined">
+                {{ item.label }}
+              </VChip>
+            </VChipGroup>
 
-        <div v-else-if="detailLoading" class="loading-grid">
-          <el-skeleton v-for="index in 3" :key="index" animated :rows="6" />
-        </div>
+            <VChipGroup v-model="statusFilter" mandatory>
+              <VChip v-for="item in statusOptions" :key="item.value" :value="item.value" filter variant="outlined">
+                {{ item.label }}
+              </VChip>
+            </VChipGroup>
+          </div>
 
-        <el-empty
-          v-else-if="!selectedSubscription"
-          description="选择订阅后，这里会显示 run 历史、候选摘要和 organize 状态。"
-        />
+          <template v-if="listLoading">
+            <VSkeletonLoader type="article, article, article" />
+          </template>
 
-        <template v-else>
-          <section class="summary-grid">
-            <article class="summary-card">
-              <span>类型</span>
-              <strong>{{ selectedSubscription.subscription_type }}</strong>
-              <p>{{ normalizedMode(selectedSubscription.mode) }}</p>
-            </article>
-            <article class="summary-card">
-              <span>状态</span>
-              <strong>{{ selectedSubscription.status }}</strong>
-              <p>{{ selectedSubscription.latest_run_status || '尚未执行' }}</p>
-            </article>
-            <article class="summary-card">
-              <span>目标</span>
-              <strong>{{ selectedSubscription.target_name }}</strong>
-              <p>{{ selectedSubscription.chart_name || selectedSubscription.target_entity_type || 'metadata' }}</p>
-            </article>
-          </section>
-
-          <section class="runs-panel">
-            <header class="runs-panel__header">
-              <h4>Run 历史</h4>
-              <p>手动与最小 scheduler 执行结果都可回看，当前不启用生产级调度系统。</p>
-            </header>
-
-            <el-empty
-              v-if="runs.length === 0"
-              description="当前订阅还没有 run 记录。"
+          <template v-else-if="subscriptions.length === 0">
+            <VAlert
+              type="info"
+              variant="tonal"
+              density="comfortable"
+              text="当前没有订阅。可以先从 Discovery 或 Search 页面创建。"
             />
+          </template>
 
-            <div v-else class="run-list">
-              <article
+          <div v-else class="stack">
+            <VCard
+              v-for="item in subscriptions"
+              :key="item.id"
+              class="subscriptions-view__item"
+              :class="{ 'subscriptions-view__item--active': selectedSubscriptionId === item.id }"
+              rounded="xl"
+              elevation="0"
+              @click="selectSubscription(item.id)"
+            >
+              <VCardText class="stack">
+                <div class="subscriptions-view__header">
+                  <div>
+                    <p class="eyebrow">{{ item.subscription_type }}</p>
+                    <h4 class="subscriptions-view__title">{{ item.target_name }}</h4>
+                  </div>
+                  <VChip color="primary" variant="tonal">{{ item.status }}</VChip>
+                </div>
+                <p class="section-note">
+                  {{ item.chart_name || item.target_entity_type || 'metadata' }} ·
+                  {{ item.latest_run_status || '尚未执行' }}
+                </p>
+                <div class="subscriptions-view__actions">
+                  <VBtn
+                    color="primary"
+                    variant="flat"
+                    :loading="runningSubscriptionId === item.id"
+                    @click.stop="handleRun(item.id)"
+                  >
+                    立即执行
+                  </VBtn>
+                  <VBtn variant="tonal" @click.stop="toggleSubscriptionStatus(item)">
+                    {{ item.status === 'active' ? '暂停' : '启用' }}
+                  </VBtn>
+                  <VBtn variant="outlined" color="error" @click.stop="handleArchive(item.id)">
+                    归档
+                  </VBtn>
+                </div>
+              </VCardText>
+            </VCard>
+          </div>
+        </VCardText>
+      </VCard>
+
+      <VCard class="panel-card">
+        <VCardText class="pa-6 stack">
+          <div class="subscriptions-view__header">
+            <div>
+              <p class="eyebrow">Execution Detail</p>
+              <h3 class="section-title">{{ selectedSubscription?.target_name || '选择一个订阅' }}</h3>
+            </div>
+            <VBtn
+              v-if="selectedSubscriptionId"
+              variant="tonal"
+              color="secondary"
+              @click="refreshSelectedSubscription"
+            >
+              刷新
+            </VBtn>
+          </div>
+
+          <VAlert
+            v-if="detailError"
+            type="error"
+            variant="tonal"
+            density="comfortable"
+            :text="detailError"
+          />
+
+          <template v-else-if="detailLoading">
+            <VSkeletonLoader type="article, article, article" />
+          </template>
+
+          <template v-else-if="!selectedSubscription">
+            <VAlert
+              type="info"
+              variant="tonal"
+              density="comfortable"
+              text="选择订阅后，这里会显示 run 历史、SearchJob 摘要和 organize 状态。"
+            />
+          </template>
+
+          <template v-else>
+            <div class="meta-pairs">
+              <div class="meta-pair">
+                <span class="meta-pair__label">Mode</span>
+                <span class="meta-pair__value">{{ selectedSubscription.mode }}</span>
+              </div>
+              <div class="meta-pair">
+                <span class="meta-pair__label">Latest Run</span>
+                <span class="meta-pair__value">{{ selectedSubscription.latest_run_status || '-' }}</span>
+              </div>
+              <div class="meta-pair">
+                <span class="meta-pair__label">Last Run At</span>
+                <span class="meta-pair__value">{{ formatDate(selectedSubscription.last_run_at) }}</span>
+              </div>
+              <div class="meta-pair">
+                <span class="meta-pair__label">Entity Type</span>
+                <span class="meta-pair__value">{{ selectedSubscription.target_entity_type || '-' }}</span>
+              </div>
+            </div>
+
+            <div class="soft-block">
+              <p class="eyebrow">Recognition Snapshot</p>
+              <p class="section-note">
+                {{ recognitionSnapshotText }}
+              </p>
+            </div>
+
+            <div class="stack">
+              <div class="subscriptions-view__header">
+                <div>
+                  <p class="eyebrow">Runs</p>
+                  <h4 class="subscriptions-view__title">执行历史</h4>
+                </div>
+              </div>
+
+              <VCard
                 v-for="run in runs"
                 :key="run.id"
-                class="run-card"
-                :class="{ 'run-card--active': selectedRunId === run.id }"
+                class="subscriptions-view__item"
+                :class="{ 'subscriptions-view__item--active': selectedRunId === run.id }"
+                rounded="xl"
+                elevation="0"
                 @click="selectRun(run.id)"
               >
-                <div>
-                  <strong>{{ run.execution_status }}</strong>
-                  <p>{{ run.matched_candidates_count }} candidates</p>
-                </div>
-                <span>{{ formatDate(run.finished_at || run.started_at) }}</span>
-              </article>
-            </div>
-          </section>
-
-          <section class="run-detail-panel">
-            <header class="runs-panel__header">
-              <h4>Run 摘要</h4>
-              <p>候选、评分与 organize 会明确展示当前 backend、verification state、handoff 与错误原因。</p>
-            </header>
-
-            <el-empty
-              v-if="!selectedRunDetail"
-              description="选择一条 run 记录后查看详情。"
-            />
-
-            <template v-else>
-              <section class="summary-grid">
-                <article class="summary-card">
-                  <span>Run</span>
-                  <strong>{{ selectedRunDetail.execution_status }}</strong>
-                  <p>{{ selectedRunDetail.id }}</p>
-                </article>
-                <article class="summary-card">
-                  <span>SearchJob</span>
-                  <strong>{{ selectedRunDetail.search_job?.status || '-' }}</strong>
-                  <p>{{ selectedRunDetail.search_job?.id || '未生成' }}</p>
-                </article>
-                <article class="summary-card">
-                  <span>Candidates</span>
-                  <strong>{{ selectedRunDetail.matched_candidates_count }}</strong>
-                  <p>{{ selectedRunDetail.matched_candidates_count }} candidates</p>
-                </article>
-                <article
-                  v-if="selectedRunDetail.summary_json.search_outcome_reason"
-                  class="summary-card"
-                >
-                  <span>Search Outcome</span>
-                  <strong>{{ selectedRunDetail.summary_json.search_outcome_reason }}</strong>
-                  <p>当前执行链显式暴露搜索结果原因，便于区分 host 无结果与其它失败。</p>
-                </article>
-                <article v-if="selectedRunDetail.organize_preview" class="summary-card">
-                  <span>Organize Backend</span>
-                  <strong>{{ selectedRunDetail.organize_preview.organize_backend }}</strong>
-                  <p>{{ selectedRunDetail.organize_preview.organize_status }}</p>
-                </article>
-              </section>
-
-              <section class="candidate-panel">
-                <h4>候选摘要</h4>
-                <el-empty
-                  v-if="selectedRunDetail.candidates.length === 0"
-                  description="当前 run 没有候选。"
-                />
-                <el-alert
-                  v-if="selectedRunDetail.candidates.length === 0 && selectedRunDetail.summary_json.search_outcome_reason"
-                  :title="`search_outcome: ${selectedRunDetail.summary_json.search_outcome_reason}`"
-                  type="warning"
-                  :closable="false"
-                  show-icon
-                />
-
-                <div v-else class="candidate-list">
-                  <article
-                    v-for="candidate in selectedRunDetail.candidates.slice(0, 3)"
-                    :key="candidate.id"
-                    class="candidate-card"
-                  >
+                <VCardText class="stack">
+                  <div class="subscriptions-view__header">
                     <div>
-                      <h5>{{ candidate.title }}</h5>
-                      <p>{{ candidate.site_name }} · {{ candidate.decision }}</p>
+                      <p class="eyebrow">{{ run.execution_status }}</p>
+                      <h5 class="subscriptions-view__title">{{ run.id }}</h5>
                     </div>
-                    <div class="candidate-card__stats">
-                      <span>{{ candidate.score_total }}</span>
-                      <span>{{ candidate.format_tag || '-' }}</span>
-                      <span>{{ candidate.seeders }} seeders</span>
+                    <VChip variant="outlined">{{ run.matched_candidates_count }} candidates</VChip>
+                  </div>
+                  <p class="section-note">{{ formatDate(run.finished_at || run.started_at) }}</p>
+                </VCardText>
+              </VCard>
+            </div>
+
+            <div v-if="selectedRunDetail" class="stack">
+              <div class="soft-block">
+                <p class="eyebrow">Run Summary</p>
+                <p class="section-note">
+                  {{ selectedRunDetail.execution_status }} ·
+                  {{ selectedRunDetail.search_job?.status || 'no search job' }} ·
+                  {{ selectedRunDetail.organize_preview?.organize_status || 'no organize preview' }}
+                </p>
+              </div>
+
+              <div v-if="selectedRunDetail.search_job" class="soft-block">
+                <p class="eyebrow">Search Job</p>
+                <p class="section-note">
+                  {{ selectedRunDetail.search_job.id }} · {{ selectedRunDetail.search_job.music_media_info.title || '-' }}
+                </p>
+              </div>
+
+              <div v-if="selectedRunDetail.candidates.length > 0" class="stack">
+                <p class="eyebrow">Candidates</p>
+                <VCard
+                  v-for="candidate in selectedRunDetail.candidates"
+                  :key="candidate.id"
+                  class="subscriptions-view__item"
+                  rounded="xl"
+                  elevation="0"
+                >
+                  <VCardText class="stack">
+                    <div class="subscriptions-view__header">
+                      <div>
+                        <h5 class="subscriptions-view__title">{{ candidate.title }}</h5>
+                        <p class="section-note">{{ candidate.site_name }} · {{ candidate.score_total }}</p>
+                      </div>
+                      <VChip variant="outlined">{{ candidate.dispatch_status }}</VChip>
                     </div>
-                  </article>
-                </div>
-              </section>
+                  </VCardText>
+                </VCard>
+              </div>
 
-              <section class="organize-panel">
-                <header class="runs-panel__header">
-                  <h4>Organize Record</h4>
-                  <div class="organize-actions">
-                    <el-button
-                      v-if="selectedRunDetail.candidates[0]"
-                      size="small"
-                      :loading="organizeLoading"
-                      @click="handleOrganizePreview(selectedRunDetail.candidates[0].id)"
-                    >
-                      刷新 organize preview
-                    </el-button>
-                    <el-button
-                      v-if="selectedRunDetail.organize_preview"
-                      size="small"
-                      type="primary"
-                      plain
-                      :loading="organizeApplying"
-                      :disabled="!selectedRunDetail.organize_preview.organizeable"
-                      @click="handleOrganizeApply(selectedRunDetail.organize_preview.id)"
-                    >
-                      执行 organize apply
-                    </el-button>
-                  </div>
-                </header>
-
-                <el-empty
-                  v-if="!selectedRunDetail.organize_preview"
-                  description="当前 run 还没有 organize preview。"
-                />
-
-                <article v-else class="organize-card">
-                  <div>
-                    <strong>{{ selectedRunDetail.organize_preview.organize_status }}</strong>
-                    <p>{{ selectedRunDetail.organize_preview.target_library_path }}</p>
-                  </div>
-                  <div class="organize-card__body">
-                    <p>backend: {{ selectedRunDetail.organize_preview.organize_backend }}</p>
-                    <p>verification: {{ selectedRunDetail.organize_preview.verification_state }}</p>
-                    <p>relative_path: {{ selectedRunDetail.organize_preview.target_relative_path }}</p>
-                    <p>layout: {{ selectedRunDetail.organize_preview.strategy }}</p>
-                    <p>conflict_policy: {{ selectedRunDetail.organize_preview.strategy_snapshot.conflict_policy }}</p>
-                    <p v-if="selectedRunDetail.organize_preview.path_handoff?.source_path">
-                      source_path: {{ selectedRunDetail.organize_preview.path_handoff.source_path }}
-                    </p>
-                    <p v-if="selectedRunDetail.organize_preview.path_handoff">
-                      path_handoff: {{ selectedRunDetail.organize_preview.path_handoff.handoff_status }}
-                      / {{ selectedRunDetail.organize_preview.path_handoff.handoff_source }}
-                    </p>
-                    <p v-if="selectedRunDetail.organize_preview.path_handoff">
-                      handoff verification: {{ selectedRunDetail.organize_preview.path_handoff.verification_state }}
-                    </p>
-                    <p v-if="selectedRunDetail.organize_preview.fallback_reason">
-                      fallback: {{ selectedRunDetail.organize_preview.fallback_reason }}
-                    </p>
-                    <p v-if="selectedRunDetail.organize_preview.failure_reason">
-                      failure: {{ selectedRunDetail.organize_preview.failure_reason }}
-                    </p>
-                    <p>layout_note: {{ selectedRunDetail.organize_preview.strategy_note }}</p>
-                  </div>
-                </article>
-              </section>
-            </template>
-          </section>
-        </template>
-      </section>
+              <div v-if="selectedRunDetail.organize_preview" class="soft-block">
+                <p class="eyebrow">Organize</p>
+                <p class="section-note">
+                  {{ selectedRunDetail.organize_preview.organize_status }} ·
+                  {{ selectedRunDetail.organize_preview.target_relative_path }}
+                </p>
+              </div>
+            </div>
+          </template>
+        </VCardText>
+      </VCard>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import axios from 'axios';
 import { computed, onMounted, ref } from 'vue';
-import { ElMessage } from 'element-plus';
 
 import {
-  applyOrganize,
   archiveSubscription,
   fetchSubscription,
   fetchSubscriptionRun,
-  fetchSubscriptionRuns,
   fetchSubscriptions,
-  previewOrganize,
+  fetchSubscriptionRuns,
   runSubscription,
   updateSubscription,
-} from '@/services/orchestration';
+} from '@/services/subscriptions';
 import type {
   SubscriptionDetail,
-  SubscriptionMode,
   SubscriptionRunDetail,
   SubscriptionRunSummary,
   SubscriptionState,
@@ -399,22 +272,20 @@ import type {
 
 const typeFilter = ref<'all' | SubscriptionType>('all');
 const statusFilter = ref<'all' | SubscriptionState>('all');
+const listLoading = ref(false);
+const listError = ref('');
 const subscriptions = ref<SubscriptionSummary[]>([]);
 const selectedSubscriptionId = ref('');
-const selectedRunId = ref('');
 const selectedSubscription = ref<SubscriptionDetail | null>(null);
-const selectedRunDetail = ref<SubscriptionRunDetail | null>(null);
-const runs = ref<SubscriptionRunSummary[]>([]);
-const listLoading = ref(false);
 const detailLoading = ref(false);
-const organizeLoading = ref(false);
-const organizeApplying = ref(false);
-const listError = ref('');
 const detailError = ref('');
 const runningSubscriptionId = ref('');
+const runs = ref<SubscriptionRunSummary[]>([]);
+const selectedRunId = ref('');
+const selectedRunDetail = ref<SubscriptionRunDetail | null>(null);
 
 const typeOptions = [
-  { value: 'all', label: '全部' },
+  { value: 'all', label: '全部类型' },
   { value: 'artist', label: '艺人' },
   { value: 'album', label: '专辑' },
   { value: 'track', label: '歌曲' },
@@ -422,11 +293,21 @@ const typeOptions = [
 ] as const;
 
 const statusOptions = [
-  { value: 'all', label: '全部' },
-  { value: 'active', label: '启用' },
-  { value: 'paused', label: '暂停' },
-  { value: 'archived', label: '归档' },
+  { value: 'all', label: '全部状态' },
+  { value: 'active', label: 'active' },
+  { value: 'paused', label: 'paused' },
+  { value: 'archived', label: 'archived' },
 ] as const;
+
+const recognitionSnapshotText = computed(() => {
+  const payload = selectedSubscription.value?.target_payload || {};
+  const assessment = payload.music_recognition_assessment as { state?: string; note?: string } | undefined;
+  const media = payload.music_media_info as { provider?: string; provider_id?: string } | undefined;
+  if (!assessment && !media) return '当前订阅没有固化的识别快照。';
+  return `${assessment?.state || 'unknown'} · ${assessment?.note || '无附加说明'} · ${media?.provider || 'unknown'} / ${
+    media?.provider_id || '-'
+  }`;
+});
 
 onMounted(() => {
   void loadSubscriptions();
@@ -435,34 +316,17 @@ onMounted(() => {
 async function loadSubscriptions() {
   listLoading.value = true;
   listError.value = '';
-
   try {
     const response = await fetchSubscriptions({
       subscription_type: typeFilter.value === 'all' ? undefined : typeFilter.value,
       status: statusFilter.value === 'all' ? undefined : statusFilter.value,
     });
-
-    if (!response.success) {
-      throw new Error(response.message);
-    }
-
     subscriptions.value = response.data.items;
-
-    if (response.data.items.length > 0) {
-      const nextId = response.data.items.some((item) => item.id === selectedSubscriptionId.value)
-        ? selectedSubscriptionId.value
-        : response.data.items[0].id;
-      await selectSubscription(nextId);
-    } else {
-      selectedSubscriptionId.value = '';
-      selectedRunId.value = '';
-      selectedSubscription.value = null;
-      selectedRunDetail.value = null;
-      runs.value = [];
+    if (subscriptions.value.length > 0 && !selectedSubscriptionId.value) {
+      await selectSubscription(subscriptions.value[0].id);
     }
   } catch (error) {
-    subscriptions.value = [];
-    listError.value = resolveErrorMessage(error, '订阅列表加载失败，请确认后端已启动。');
+    listError.value = error instanceof Error ? error.message : '订阅列表加载失败。';
   } finally {
     listLoading.value = false;
   }
@@ -472,422 +336,102 @@ async function selectSubscription(subscriptionId: string) {
   selectedSubscriptionId.value = subscriptionId;
   detailLoading.value = true;
   detailError.value = '';
-
   try {
     const [detailResponse, runsResponse] = await Promise.all([
       fetchSubscription(subscriptionId),
       fetchSubscriptionRuns(subscriptionId),
     ]);
-
-    if (!detailResponse.success) {
-      throw new Error(detailResponse.message);
-    }
-    if (!runsResponse.success) {
-      throw new Error(runsResponse.message);
-    }
-
     selectedSubscription.value = detailResponse.data;
     runs.value = runsResponse.data.items;
-
-    if (runsResponse.data.items.length > 0) {
-      const nextRunId = runsResponse.data.items.some((item) => item.id === selectedRunId.value)
-        ? selectedRunId.value
-        : runsResponse.data.items[0].id;
-      await selectRun(nextRunId);
+    if (runs.value.length > 0) {
+      await selectRun(runs.value[0].id);
     } else {
       selectedRunId.value = '';
       selectedRunDetail.value = null;
     }
   } catch (error) {
-    detailError.value = resolveErrorMessage(error, '订阅详情加载失败。');
+    detailError.value = error instanceof Error ? error.message : '订阅详情加载失败。';
   } finally {
     detailLoading.value = false;
   }
 }
 
+async function refreshSelectedSubscription() {
+  if (!selectedSubscriptionId.value) return;
+  await selectSubscription(selectedSubscriptionId.value);
+}
+
 async function selectRun(runId: string) {
   selectedRunId.value = runId;
-
   try {
     const response = await fetchSubscriptionRun(runId);
-    if (!response.success) {
-      throw new Error(response.message);
-    }
     selectedRunDetail.value = response.data;
   } catch (error) {
-    detailError.value = resolveErrorMessage(error, 'run 详情加载失败。');
+    detailError.value = error instanceof Error ? error.message : '运行详情加载失败。';
   }
 }
 
 async function handleRun(subscriptionId: string) {
   runningSubscriptionId.value = subscriptionId;
-  detailError.value = '';
-
   try {
-    const response = await runSubscription(subscriptionId);
-    if (!response.success) {
-      throw new Error(response.message);
-    }
-
-    selectedRunDetail.value = response.data;
-    selectedRunId.value = response.data.id;
-    ElMessage.success('订阅已执行一次最小闭环。');
-    await loadSubscriptions();
+    await runSubscription(subscriptionId);
     await selectSubscription(subscriptionId);
   } catch (error) {
-    ElMessage.error(resolveErrorMessage(error, '执行订阅失败。'));
+    detailError.value = error instanceof Error ? error.message : '执行订阅失败。';
   } finally {
     runningSubscriptionId.value = '';
   }
 }
 
 async function toggleSubscriptionStatus(item: SubscriptionSummary) {
-  if (item.status === 'archived') {
-    return;
-  }
-
   const nextStatus: SubscriptionState = item.status === 'active' ? 'paused' : 'active';
-
-  try {
-    const response = await updateSubscription(item.id, { status: nextStatus });
-    if (!response.success) {
-      throw new Error(response.message);
-    }
-    ElMessage.success(`订阅已切换为 ${nextStatus}。`);
-    await loadSubscriptions();
-  } catch (error) {
-    ElMessage.error(resolveErrorMessage(error, '更新订阅状态失败。'));
-  }
-}
-
-function normalizedMode(mode: SubscriptionMode): 'manual' | 'scheduled' {
-  return mode === 'scheduled_placeholder' ? 'scheduled' : mode;
-}
-
-async function toggleSubscriptionMode(item: SubscriptionSummary) {
-  if (item.status === 'archived') {
-    return;
-  }
-
-  const nextMode: SubscriptionMode = normalizedMode(item.mode) === 'scheduled' ? 'manual' : 'scheduled';
-
-  try {
-    const response = await updateSubscription(item.id, { mode: nextMode });
-    if (!response.success) {
-      throw new Error(response.message);
-    }
-    ElMessage.success(`订阅已切换为 ${nextMode === 'scheduled' ? '自动' : '手动'}模式。`);
-    await loadSubscriptions();
-  } catch (error) {
-    ElMessage.error(resolveErrorMessage(error, '更新订阅模式失败。'));
+  await updateSubscription(item.id, { status: nextStatus });
+  await loadSubscriptions();
+  if (selectedSubscriptionId.value === item.id) {
+    await selectSubscription(item.id);
   }
 }
 
 async function handleArchive(subscriptionId: string) {
-  try {
-    const response = await archiveSubscription(subscriptionId);
-    if (!response.success) {
-      throw new Error(response.message);
-    }
-    ElMessage.success('订阅已归档。');
-    await loadSubscriptions();
-  } catch (error) {
-    ElMessage.error(resolveErrorMessage(error, '归档订阅失败。'));
-  }
-}
-
-async function handleOrganizePreview(candidateId: string) {
-  organizeLoading.value = true;
-
-  try {
-    const response = await previewOrganize({ candidate_id: candidateId });
-    if (!response.success) {
-      throw new Error(response.message);
-    }
-
-    if (selectedRunDetail.value) {
-      selectedRunDetail.value = {
-        ...selectedRunDetail.value,
-        organize_preview: response.data,
-      };
-    }
-
-    ElMessage.success('已刷新 organize preview。');
-  } catch (error) {
-    ElMessage.error(resolveErrorMessage(error, '刷新 organize preview 失败。'));
-  } finally {
-    organizeLoading.value = false;
-  }
-}
-
-async function handleOrganizeApply(recordId: string) {
-  organizeApplying.value = true;
-
-  try {
-    const response = await applyOrganize({ organize_job_id: recordId });
-    if (!response.success) {
-      throw new Error(response.message);
-    }
-
-    if (selectedRunDetail.value) {
-      selectedRunDetail.value = {
-        ...selectedRunDetail.value,
-        organize_preview: response.data,
-      };
-    }
-
-    ElMessage.success('已执行 organize apply。');
-  } catch (error) {
-    ElMessage.error(resolveErrorMessage(error, '执行 organize apply 失败。'));
-  } finally {
-    organizeApplying.value = false;
-  }
-}
-
-async function refreshSelectedSubscription() {
-  if (!selectedSubscriptionId.value) {
-    return;
-  }
-  await selectSubscription(selectedSubscriptionId.value);
-}
-
-function changeTypeFilter(value: 'all' | SubscriptionType) {
-  typeFilter.value = value;
-  void loadSubscriptions();
-}
-
-function changeStatusFilter(value: 'all' | SubscriptionState) {
-  statusFilter.value = value;
-  void loadSubscriptions();
-}
-
-function subscriptionStatusTag(status: SubscriptionState) {
-  if (status === 'active') {
-    return 'success';
-  }
-  if (status === 'paused') {
-    return 'warning';
-  }
-  return 'info';
+  await archiveSubscription(subscriptionId);
+  selectedSubscriptionId.value = '';
+  selectedSubscription.value = null;
+  selectedRunId.value = '';
+  selectedRunDetail.value = null;
+  await loadSubscriptions();
 }
 
 function formatDate(value?: string | null) {
-  if (!value) {
-    return '尚未执行';
-  }
-
-  return new Date(value).toLocaleString('zh-CN', {
-    hour12: false,
-  });
-}
-
-function resolveErrorMessage(error: unknown, fallback: string) {
-  if (axios.isAxiosError(error)) {
-    return error.response?.data?.message ?? fallback;
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return fallback;
+  if (!value) return '-';
+  return new Date(value).toLocaleString();
 }
 </script>
 
 <style scoped lang="scss">
-.subscriptions-view {
-  display: grid;
-  gap: 1.2rem;
-}
-
-.hero-panel,
-.filters-panel,
-.list-panel,
-.detail-panel {
-  padding: 1.4rem;
-  border: 1px solid var(--mp-line);
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: 0 18px 40px rgba(52, 37, 122, 0.06);
-}
-
-.hero-panel,
-.section-header,
-.subscription-card__header,
-.subscription-card__footer,
-.runs-panel__header,
-.run-card,
-.organize-card {
+.subscriptions-view__header,
+.subscriptions-view__filters,
+.subscriptions-view__actions {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-.organize-actions {
-  display: flex;
-  gap: 0.6rem;
+.subscriptions-view__filters,
+.subscriptions-view__actions {
   flex-wrap: wrap;
 }
 
-.hero-panel__eyebrow,
-.section-header__eyebrow,
-.subscription-card__eyebrow {
-  margin: 0;
-  color: var(--mp-accent);
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.hero-panel h2,
-.section-header h3,
-.subscription-card h4,
-.subscription-card__meta,
-.subscription-card__note,
-.hero-panel__description,
-.run-card p,
-.organize-card p,
-.summary-card p {
-  margin: 0;
-}
-
-.hero-panel__description,
-.subscription-card__meta,
-.subscription-card__note,
-.run-card p,
-.organize-card p,
-.summary-card p,
-.runs-panel__header p {
-  color: var(--mp-muted);
-  line-height: 1.7;
-}
-
-.filters-panel,
-.filters-panel__group,
-.pill-row,
-.summary-grid,
-.loading-grid,
-.subscription-list,
-.run-list,
-.candidate-list,
-.candidate-card,
-.detail-panel,
-.runs-panel,
-.run-detail-panel {
-  display: grid;
-  gap: 1rem;
-}
-
-.filters-panel__group span {
-  font-weight: 700;
-}
-
-.pill-row {
-  grid-auto-flow: column;
-  grid-auto-columns: max-content;
-  overflow-x: auto;
-  padding-bottom: 0.2rem;
-}
-
-.pill-button {
-  padding: 0.6rem 0.95rem;
+.subscriptions-view__item {
   border: 1px solid var(--mp-line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--mp-text);
-  cursor: pointer;
+  background: var(--mp-panel-soft);
 }
 
-.pill-button--active {
-  border-color: transparent;
-  background: var(--mp-accent);
-  color: #fff;
+.subscriptions-view__item--active {
+  border-color: var(--mp-line-strong);
 }
 
-.layout-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: 1.2rem;
-}
-
-.subscription-card,
-.summary-card,
-.run-card,
-.candidate-card,
-.organize-card {
-  padding: 1rem;
-  border: 1px solid var(--mp-line);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.subscription-card {
-  cursor: pointer;
-}
-
-.subscription-card--active,
-.run-card--active {
-  border-color: rgba(126, 94, 248, 0.4);
-  box-shadow: 0 12px 30px rgba(126, 94, 248, 0.12);
-}
-
-.subscription-card__actions {
-  display: flex;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.summary-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
-.summary-card span {
-  color: var(--mp-muted);
-  font-size: 0.88rem;
-}
-
-.summary-card strong {
-  display: block;
-  margin-top: 0.45rem;
-  font-size: 1.05rem;
-}
-
-.run-card {
-  cursor: pointer;
-  align-items: center;
-}
-
-.candidate-card h5 {
-  margin: 0;
-}
-
-.candidate-card__stats {
-  display: flex;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-  color: var(--mp-muted);
-}
-
-.organize-card__body {
-  display: grid;
-  gap: 0.35rem;
-}
-
-@media (max-width: 1040px) {
-  .hero-panel,
-  .section-header,
-  .subscription-card__header,
-  .subscription-card__footer,
-  .runs-panel__header,
-  .run-card,
-  .organize-card {
-    flex-direction: column;
-  }
-
-  .layout-grid,
-  .summary-grid {
-    grid-template-columns: 1fr;
-  }
+.subscriptions-view__title {
+  margin: 0.25rem 0 0;
 }
 </style>

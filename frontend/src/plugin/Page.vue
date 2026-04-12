@@ -26,23 +26,25 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="plugin-page-shell">
-    <header class="plugin-page-shell__header">
-      <div>
-        <p class="plugin-page-shell__eyebrow">MoviePilot Plugin</p>
-        <h2>MusicPilot</h2>
-      </div>
-      <div class="plugin-page-shell__actions">
-        <button
-          v-if="show_switch"
-          class="plugin-page-shell__switch"
-          type="button"
-          @click="emit('switch')"
-        >
-          插件设置
-        </button>
-        <button class="plugin-page-shell__close" type="button" @click="emit('close')">关闭</button>
-      </div>
-    </header>
+    <VCard class="plugin-page-shell__header" rounded="xl">
+      <VCardText class="plugin-page-shell__header-inner">
+        <div>
+          <p class="plugin-page-shell__eyebrow">MoviePilot Plugin</p>
+          <h2>MusicPilot</h2>
+        </div>
+        <div class="plugin-page-shell__actions">
+          <VBtn
+            v-if="show_switch"
+            color="primary"
+            variant="tonal"
+            @click="emit('switch')"
+          >
+            插件设置
+          </VBtn>
+          <VBtn color="secondary" variant="flat" @click="emit('close')">关闭</VBtn>
+        </div>
+      </VCardText>
+    </VCard>
 
     <div ref="rootEl" class="plugin-page-shell__body"></div>
   </section>
@@ -56,14 +58,16 @@ onBeforeUnmount(() => {
 }
 
 .plugin-page-shell__header {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: linear-gradient(140deg, #ffffff, #f7fbff 62%, #eef4ff);
+}
+
+.plugin-page-shell__header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.25rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 22px;
-  background: linear-gradient(140deg, #ffffff, #f4f7ff 62%, #e9f0ff);
 }
 
 .plugin-page-shell__eyebrow {
@@ -80,28 +84,10 @@ onBeforeUnmount(() => {
   font-size: 1.4rem;
 }
 
-.plugin-page-shell__close {
-  padding: 0.65rem 1rem;
-  border: 0;
-  border-radius: 999px;
-  background: #101828;
-  color: #fff;
-  cursor: pointer;
-}
-
 .plugin-page-shell__actions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-}
-
-.plugin-page-shell__switch {
-  padding: 0.65rem 1rem;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #101828;
-  cursor: pointer;
 }
 
 .plugin-page-shell__body {

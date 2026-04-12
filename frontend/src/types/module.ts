@@ -4,6 +4,7 @@ export interface NavigationModule {
   route: string;
   description: string;
   status: string;
+  icon: string;
 }
 
 export const navigationModules: NavigationModule[] = [
@@ -13,27 +14,31 @@ export const navigationModules: NavigationModule[] = [
     route: '/',
     description: '音乐工作台与快捷入口',
     status: '可用',
+    icon: 'mdi-view-dashboard-outline',
   },
   {
     key: 'charts',
     title: '榜单',
     route: '/charts',
-    description: '榜单入口与从榜单项创建订阅，支持 mock 或真实榜单源',
-    status: '可用（mock/live）',
+    description: '发现入口、识别状态和从榜单项创建订阅',
+    status: '可用',
+    icon: 'mdi-chart-line',
   },
   {
     key: 'search',
     title: '搜索',
     route: '/search',
-    description: 'metadata 搜索、搜索任务与从详情创建订阅，当前以 seed/provider 骨架为主',
-    status: '可用（seed）',
+    description: '元数据搜索、媒体识别结果与获取入口',
+    status: '可用',
+    icon: 'mdi-magnify',
   },
   {
     key: 'subscriptions',
     title: '订阅',
     route: '/subscriptions',
-    description: '四类订阅管理、手动执行记录与音乐 organize 状态',
-    status: '可用（手动 run）',
+    description: '订阅、执行记录与主链运行状态',
+    status: '可用',
+    icon: 'mdi-rss',
   },
   {
     key: 'downloads',
@@ -41,6 +46,7 @@ export const navigationModules: NavigationModule[] = [
     route: '/downloads',
     description: '候选评分、人工确认与下载派发边界，自动闭环仍待接入',
     status: '待接入',
+    icon: 'mdi-download-outline',
   },
   {
     key: 'organize',
@@ -48,6 +54,7 @@ export const navigationModules: NavigationModule[] = [
     route: '/organize',
     description: '音乐 preview/apply 已嵌入订阅执行流，独立整理工作台仍待补齐',
     status: '可用（嵌入订阅流）',
+    icon: 'mdi-folder-music-outline',
   },
   {
     key: 'settings',
@@ -55,5 +62,6 @@ export const navigationModules: NavigationModule[] = [
     route: '/settings',
     description: 'chart provider mode 与 RSS feed 配置',
     status: '可用（providers）',
+    icon: 'mdi-cog-outline',
   },
 ];
