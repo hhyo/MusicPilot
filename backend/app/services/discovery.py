@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from ..schemas.music_media import MusicMediaInput
 from ..schemas.mvp import EntityType
 from ..schemas.orchestration import (
     ChartDetailData,
@@ -13,16 +12,15 @@ from ..schemas.orchestration import (
     DiscoveryEntryGroup,
     DiscoveryEntryView,
 )
-from .music_media_input_adapter import MusicMediaInputAdapter
-from .music_media_recognizer import MusicMediaRecognizer
-from .music_meta_base_builder import MusicMetaBaseBuilder
+from .music_media_chain import MusicMediaChain
 
 
 class DiscoveryAssembler:
     def __init__(self, metadata_service=None, metadata_adapter=None) -> None:
-        self.input_adapter = MusicMediaInputAdapter()
-        self.base_builder = MusicMetaBaseBuilder()
-        self.recognizer = MusicMediaRecognizer(metadata_service=metadata_service, metadata_adapter=metadata_adapter)
+        self.music_media_chain = MusicMediaChain(
+            metadata_service=metadata_service,
+            metadata_adapter=metadata_adapter,
+        )
 
     def build_chart_info(self, chart: ChartInfo) -> ChartInfo:
         chart.summary = self._build_chart_summary(chart)
@@ -52,9 +50,9 @@ class DiscoveryAssembler:
         return detail
 
     def _build_entry_view(self, chart: ChartInfo, entry: ChartEntryInfo) -> DiscoveryEntryView:
-        media_input = self.input_adapter.from_discovery_entry(chart, entry)
-        meta_base = self.base_builder.build(media_input)
-        assessment = self.recognizer.assess(meta_base)
+        media_input = self.music_media_chain.input_from_discovery_entry(chart, entry)
+        meta_base = self.music_media_chain.build_base(media_input)
+        assessment = self.music_media_chain.assess(meta_base)
         return DiscoveryEntryView(
             entry=entry,
             media_input=media_input,

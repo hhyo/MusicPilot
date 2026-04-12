@@ -34,7 +34,6 @@ from app.schemas.orchestration import (
     SubscriptionType,
 )
 from app.services.subscription_execution import SubscriptionExecutionService
-from app.services.music_media_input_adapter import MusicMediaInputAdapter
 
 from test_query_builder import build_artist_detail, build_artist_media
 
@@ -227,7 +226,51 @@ class DummyMusicMediaChain:
     def __init__(self, resolved_media: MusicMediaInfo | None = None) -> None:
         self.resolved_media = resolved_media
         self.calls: list[MusicMediaInput] = []
-        self.input_adapter = MusicMediaInputAdapter()
+
+    def input_from_music_media_info(
+        self,
+        payload: MusicMediaInfo,
+        *,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicMediaInput:
+        return MusicMediaInput(
+            entity_hint=payload.entity_type,
+            source_kind=source_kind,
+            title=payload.title,
+            artist_names=list(payload.artist_names),
+            album_title=payload.album_title,
+            album_artist_names=list(payload.album_artist_names),
+            release_date=payload.release_date,
+            year=payload.year,
+            track_number=payload.track_number,
+            disc_number=payload.disc_number,
+            external_refs=dict(payload.external_refs),
+            source_context=source_context or {},
+            raw_context=raw_context or {},
+        )
+
+    def input_from_metadata_detail(
+        self,
+        payload: MetadataDetail,
+        *,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicMediaInput:
+        return MusicMediaInput(
+            entity_hint=payload.entity_type,
+            source_kind=source_kind,
+            title=payload.track_title or payload.title,
+            artist_names=[payload.artist_name] if payload.artist_name else [],
+            album_title=payload.album_title,
+            album_artist_names=[],
+            year=payload.year,
+            external_refs=dict(payload.external_ids),
+            source_context=source_context or {},
+            raw_context=raw_context or {},
+        )
 
     def resolve(self, payload: MusicMediaInput) -> MusicMediaInfo:
         self.calls.append(payload)

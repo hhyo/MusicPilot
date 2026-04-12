@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from ..schemas.metadata import MetadataDetail
 from ..schemas.music_media import MusicMediaInput, MusicResolveDetailResponse, MusicResolveResponse
+from ..schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicRecognitionAssessment
+from ..schemas.orchestration import ChartEntryInfo, ChartInfo
 from .music_media_info_hydrator import MusicMediaInfoHydrator
 from .music_media_input_adapter import MusicMediaInputAdapter
 from .music_media_recognizer import MusicMediaRecognizer
@@ -24,6 +27,42 @@ class MusicMediaChain:
     def build_base(self, input: MusicMediaInput):
         normalized = self.input_adapter.from_input(input)
         return self.base_builder.build(normalized)
+
+    def assess(self, base: MusicMetaBase) -> MusicRecognitionAssessment:
+        return self.recognizer.assess(base)
+
+    def input_from_discovery_entry(self, chart: ChartInfo, entry: ChartEntryInfo) -> MusicMediaInput:
+        return self.input_adapter.from_discovery_entry(chart, entry)
+
+    def input_from_music_media_info(
+        self,
+        payload: MusicMediaInfo,
+        *,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicMediaInput:
+        return self.input_adapter.from_music_media_info(
+            payload,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+
+    def input_from_metadata_detail(
+        self,
+        payload: MetadataDetail,
+        *,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicMediaInput:
+        return self.input_adapter.from_metadata_detail(
+            payload,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
 
     def resolve(self, input: MusicMediaInput):
         base = self.build_base(input)

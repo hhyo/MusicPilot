@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
+from app.schemas.metadata import MetadataDetail
 from app.schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicRecognitionAssessment, MusicResolveResponse
 from app.schemas.orchestration import CreateSubscriptionRequest, SubscriptionType
-from app.services.music_media_input_adapter import MusicMediaInputAdapter
 from app.services.subscriptions import SubscriptionService
 from test_query_builder import build_artist_detail, build_artist_media
 
@@ -22,8 +23,38 @@ class DummyMetadataService:
 
 class DummyMusicMediaChain:
     def __init__(self) -> None:
-        self.input_adapter = MusicMediaInputAdapter()
         self.calls = []
+
+    def input_from_metadata_detail(
+        self,
+        payload: MetadataDetail,
+        *,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ):
+        return SimpleNamespace(
+            entity_hint=payload.entity_type,
+            source_kind=source_kind,
+            title=payload.track_title or payload.title,
+            artist_names=[payload.artist_name] if payload.artist_name else [],
+            album_title=payload.album_title,
+            album_artist_names=[],
+            external_refs=dict(payload.external_ids),
+            source_context=source_context or {},
+            raw_context=raw_context or {},
+            model_dump=lambda mode="json": {
+                "entity_hint": payload.entity_type.value,
+                "source_kind": source_kind,
+                "title": payload.track_title or payload.title,
+                "artist_names": [payload.artist_name] if payload.artist_name else [],
+                "album_title": payload.album_title,
+                "album_artist_names": [],
+                "external_refs": dict(payload.external_ids),
+                "source_context": source_context or {},
+                "raw_context": raw_context or {},
+            },
+        )
 
     def resolve(self, payload):
         self.calls.append(payload)

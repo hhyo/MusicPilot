@@ -76,7 +76,7 @@ class SubscriptionService:
 
         resolved_type = payload.target_entity_type or EntityType(payload.subscription_type.value)
         detail = self.metadata_service.get_detail(resolved_type, payload.target_id)
-        media_input = self.music_media_chain.input_adapter.from_metadata_detail(
+        media_input = self.music_media_chain.input_from_metadata_detail(
             detail,
             source_kind="subscription",
             source_context={

@@ -205,7 +205,7 @@ class SubscriptionExecutionService:
         if media_input is None:
             media_info = self._resolve_or_build_music_media_info(subscription)
             if media_info is not None:
-                media_input = self.music_media_chain.input_adapter.from_music_media_info(
+                media_input = self.music_media_chain.input_from_music_media_info(
                     media_info,
                     source_kind="subscription",
                     source_context={
@@ -220,7 +220,7 @@ class SubscriptionExecutionService:
                 EntityType(subscription.target_entity_type or subscription.subscription_type),
                 subscription.target_id,
             )
-            media_input = self.music_media_chain.input_adapter.from_metadata_detail(
+            media_input = self.music_media_chain.input_from_metadata_detail(
                 detail,
                 source_kind="subscription",
                 source_context={
@@ -242,7 +242,7 @@ class SubscriptionExecutionService:
         if media_input is None:
             media_info = self._resolve_or_build_music_media_info(subscription)
             if media_info is not None:
-                media_input = self.music_media_chain.input_adapter.from_music_media_info(
+                media_input = self.music_media_chain.input_from_music_media_info(
                     media_info,
                     source_kind="subscription_detail",
                     source_context={"subscription_id": subscription.id},
