@@ -126,7 +126,7 @@ def publish_versioned_remote_bundle(static_dir: Path) -> None:
 def main() -> None:
     copy_backend()
     copy_frontend()
-    print("Packaged MusicPilot placeholder runtime into plugin_runtime/plugins/musicpilot")
+    print("Packaged MusicPilot runtime into plugin_runtime/plugins/musicpilot")
 
 
 if __name__ == "__main__":

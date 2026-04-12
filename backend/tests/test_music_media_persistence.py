@@ -10,7 +10,7 @@ from app.repositories.acquisition import AcquisitionRepository
 from app.repositories.orchestration import OrchestrationRepository
 from app.schemas.acquisition import QueryPreferences, SearchJobCreateRequest
 from app.schemas.music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase, MusicRecognitionAssessment
-from app.schemas.mvp import EntityType, TriggerSource
+from app.schemas.shared import EntityType, TriggerSource
 from app.schemas.orchestration import (
     OrganizeAdapterResult,
     OrganizeConflictPolicy,

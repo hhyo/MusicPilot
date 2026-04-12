@@ -1,14 +1,13 @@
-"""Settings route placeholders."""
+"""Settings routes."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 
-from ...core.dependencies import get_mvp_placeholder_service, get_settings_service
+from ...core.dependencies import get_settings_service
 from ...core.responses import success_response
 from ...schemas.common import ApiResponse
-from ...schemas.mvp import ProviderSettingsUpdatePayload, RuleProfile
-from ...services.mvp_placeholder import MvpPlaceholderService
+from ...schemas.shared import ProviderSettingsUpdatePayload, RuleProfile
 from ...services.settings import SettingsService
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
@@ -43,32 +42,30 @@ async def update_provider_settings(
     )
 
 
-@router.get("/profiles", summary="Get rule profiles placeholder")
+@router.get("/profiles", summary="Get rule profiles")
 async def rule_profiles(
     request: Request,
-    service: MvpPlaceholderService = Depends(get_mvp_placeholder_service),
+    service: SettingsService = Depends(get_settings_service),
 ) -> ApiResponse:
     return success_response(
         request,
-        data=service.profiles(),
-        message="Rule profiles placeholder is callable.",
-        code="SETTINGS_PROFILES_PLACEHOLDER",
-        mock=True,
-        note="当前规则 profile 为 mock 数据，未连接真实配置持久化。",
+        data=service.get_rule_profiles(),
+        message="Rule profiles loaded.",
+        code="SETTINGS_PROFILES_OK",
+        mock=False,
     )
 
 
-@router.put("/profiles", summary="Update rule profile placeholder")
+@router.put("/profiles", summary="Update rule profile")
 async def update_rule_profile(
     payload: RuleProfile,
     request: Request,
-    service: MvpPlaceholderService = Depends(get_mvp_placeholder_service),
+    service: SettingsService = Depends(get_settings_service),
 ) -> ApiResponse:
     return success_response(
         request,
-        data=service.update_profile(payload),
-        message="Update rule profile placeholder accepted the payload.",
-        code="UPDATE_SETTINGS_PROFILE_PLACEHOLDER",
-        mock=True,
-        note="当前只回显 profile 配置，不会写入真实配置存储。",
+        data=service.update_rule_profile(payload),
+        message="Rule profile updated.",
+        code="UPDATE_SETTINGS_PROFILE_OK",
+        mock=False,
     )

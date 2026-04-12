@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from ...core.dependencies import get_chart_service, get_subscription_service
 from ...core.responses import success_response
 from ...schemas.common import ApiResponse
-from ...schemas.mvp import EntityType
+from ...schemas.shared import EntityType
 from ...schemas.orchestration import CreateChartEntrySubscriptionRequest
 from ...services.charts import ChartService
 from ...services.subscriptions import SubscriptionService

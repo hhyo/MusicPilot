@@ -18,7 +18,7 @@ from .music_media import (
     MusicRecognitionAssessment,
     MusicRecognitionState,
 )
-from .mvp import EntityType
+from .shared import EntityType
 
 
 class SubscriptionType(str, Enum):
@@ -37,7 +37,6 @@ class SubscriptionState(str, Enum):
 class SubscriptionMode(str, Enum):
     MANUAL = "manual"
     SCHEDULED = "scheduled"
-    SCHEDULED_PLACEHOLDER = "scheduled_placeholder"
 
 
 class SubscriptionRunStatus(str, Enum):

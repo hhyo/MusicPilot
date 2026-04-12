@@ -36,8 +36,10 @@ from ..core.runtime_cache import stable_cache_key
 from ..repositories.orchestration import OrchestrationRepository
 from ..services.charts import ChartService
 from ..services.host_capabilities import HostCapabilitiesService
+from ..services.dashboard import DashboardService
 from ..services.dispatch import DispatchService
 from ..services.discovery import DiscoveryAssembler
+from ..services.downloads_workspace import DownloadsWorkspaceService
 from ..services.host_integration import (
     DispatchAdapterResolver,
     HostIntegrationService,
@@ -47,7 +49,6 @@ from ..services.host_integration import (
 from ..services.host_path_handoff import HostPathHandoffService
 from ..services.metadata import MetadataService
 from ..services.music_media_chain import MusicMediaChain
-from ..services.mvp_placeholder import MvpPlaceholderService
 from ..services.settings import SettingsService
 from ..services.organize import OrganizeService
 from ..services.organize_strategy import OrganizeStrategyService
@@ -70,13 +71,18 @@ def get_host_capabilities_service() -> HostCapabilitiesService:
     )
 
 
-@lru_cache
-def get_mvp_placeholder_service() -> MvpPlaceholderService:
-    return MvpPlaceholderService()
-
-
 def get_settings_service(session: Session = Depends(get_db_session)) -> SettingsService:
     return SettingsService(session=session, env_settings=settings)
+
+
+def get_dashboard_service(session: Session = Depends(get_db_session)) -> DashboardService:
+    return DashboardService(session=session)
+
+
+def get_downloads_workspace_service(
+    session: Session = Depends(get_db_session),
+) -> DownloadsWorkspaceService:
+    return DownloadsWorkspaceService(session=session)
 
 
 @lru_cache

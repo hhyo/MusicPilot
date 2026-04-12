@@ -7,7 +7,7 @@ MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩
 ## 项目简介
 
 - `frontend/`：基于 Vue 3 + TypeScript + Vite 的前端工程，当前已切换到 `Vuetify` 组件体系并按 MoviePilot 风格重建页面结构；既可作为独立开发页运行，也可通过宿主插件中心的 `vue` 远程组件模式加载。当前已提供首页工作台、Discovery 榜单页、Metadata 搜索页、订阅执行页、最小可用 `/settings` 设置页，以及真实可读写的 `/settings/providers` 接口页面；同时已新增宿主首页 dashboard 入口卡片，以及宿主侧边栏导航与独立页面入口，可从 MoviePilot 首页或侧栏快速打开 MusicPilot。前端支持从 metadata / chart entry 打开统一 detail、创建订阅、创建并执行 SearchJob、查看 run / candidate / organize 状态。
-- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、search/dispatch 模式选择、SubscriptionService、真实 settings 读写接口、RSS / ListenBrainz chart discovery，以及音乐 organize preview/apply 最小闭环。
+- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、search/dispatch 模式选择、SubscriptionService、真实 settings 与 rule profiles 读写接口、真实 dashboard 聚合、downloads workspace API、RSS / ListenBrainz chart discovery，以及音乐 organize preview/apply 最小闭环。
 - `plugin_runtime/`：面向 MoviePilot 宿主的运行时装配目录，当前已完成本地宿主真实加载验证，并已通过宿主插件中心 `vue` 远程组件模式、首页 dashboard 远程组件，以及宿主侧边栏 `plugin-app` 独立页面入口打开 MusicPilot 页面。目录中保留静态资源、后端挂载说明和打包边界。
 - `scripts/`：前端开发、后端开发、前端构建、插件装配、版本同步脚本。
 - `docs/`：产品方案、架构方案、规范与任务拆解文档，按要求保持原位不变。
@@ -96,6 +96,7 @@ python -m app.db_init --reseed
 - Metadata provider：当前支持 `seed` 与 `musicbrainz` 两种模式。`seed` 继续作为默认开发数据；`musicbrainz` 提供 Artist / Album / Track 的实时搜索与详情。当前 detail 已补齐最小结构化增强：album detail 会从最佳 release 读取真实 track listing，track detail 的 related album 会对齐到 release-group 语义，并带出可选的 `disambiguation` / `release_count` / `track_number` / `disc_number`。普通 keyword search 会按 MusicBrainz 官方 plain indexed search 方式带 `dismax=true`；recording detail 会直接请求 `release-groups`。album / track detail 会补充最佳 release 的发行上下文，例如 `status`、`country`、`barcode`、`label_names`、`media_format`、`track_count`、`disc_count` 和 `secondary_types`；artist detail 则会补 discovery 更关心的上下文，例如 `sort_name`、`artist_type`、`area_name`、`begin_area_name`、`ended`、`release_group_count`、`primary_release_types`，以及面向 discovery 的 `featured_albums / featured_singles / featured_other_releases` 分类摘要。
 - Subscription 执行模式：当前支持手动触发一次同步 run，以及最小应用内 scheduler 自动触发 due subscription。执行链已能对最佳 `AUTO_DOWNLOAD` 候选自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则会继续自动 apply。对于 `path_handoff.handoff_status=pending_history_sync` 的已派发 run，后台 scheduler 现在也会继续轮询宿主 download history：一旦回填到明确本地源路径，就会自动续跑 organize apply；若超过 `host_handoff_pending_ttl_seconds` 仍未命中，则会把 organize record 标记为 `failed`，并在 run 摘要中写入 `handoff_unresolved`。生产级 cron、消息队列、失败重试和分布式 scheduler 仍待后续补齐。
 - Chart discovery：当前支持 `mock`、`listenbrainz` 与 `rss_feed` 三种模式。运行时会优先读取项目 settings 里的 chart provider 配置，环境变量仅作为 fallback。`listenbrainz` 第一版已接入 sitewide artists / recordings 榜单；`rss_feed` 已能通过 settings 配置真实进入 discovery，当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，且 `item_count` 分别可写为 `200`、`100`、`100`。fresh install 时，`chart_rss_feeds` 还会带出 5 条内置默认源：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。discovery 条目现在统一先进入 `MusicMediaInput -> MusicMetaBase -> MusicRecognitionAssessment` 准备阶段，再经 `/media/resolve/detail` 下钻正式 metadata detail；后端不再保留 `direct_id / search_lookup / resolution_hints` 这类旧桥接模式。对于 RSS / 弱来源 chart entry，创建订阅时会直接持久化统一链显式字段，run 阶段再统一按正式 `MusicMediaInfo` 继续 search / organize。当前 metadata provider 仍可能在 `seed` 模式下返回“未匹配到 metadata”，这属于当前运行态结果，不是 discovery 接口缺失。
+- Settings / Dashboard / Downloads workspace：`/settings/providers` 与 `/settings/profiles` 都已经是真实读写接口；`/dashboard/summary` 已切到真实聚合实现；`/downloads/bindings` 与 `/downloads/bindings/{binding_id}` 已提供下载绑定列表与详情，供后续下载工作台直接复用。SearchJob 还额外补齐了 `retry`、`delete`，organize records 也补了最小 `retry` 管理动作。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
 - Dispatch：当前保留 `mock + host-backed selectable`。当存在可靠 `media_in` 时走 `/api/v1/download/`；只有 torrent 但已具备宿主媒体参考时走 `/api/v1/download/add`；音乐 torrent-only 候选则走宿主 downloader runtime 直接提交下载器。这几条路径是不同语义，不再由运行时策略层互相切换。
 - Organize：当前保留 `mock + host-backed selectable` 的 preview/apply 双阶段边界。`preview` 已切换为 MusicPilot 本地音乐路径预览；`apply` 当前通过宿主底层 file/storage transfer runtime 执行音乐文件整理。音乐 metadata 识别当前优先使用显式 `MetadataDetail`，其次使用已有上下文、嵌入音频标签与 `source_path` 线索。`history/download` 是新派发后的主 handoff 来源，`history/transfer` 只用于历史重放/补充来源，不再作为自动业务回退引擎。
@@ -172,7 +173,7 @@ export MUSICPILOT_CHART_RSS_FEEDS='[
 ]'
 ```
 
-当前运行态里，RSS feeds 也可以通过 `/settings/providers` 真实读写，且保存后的 `chart_rss_feeds` 会直接进入 charts discovery。若没有项目设置与环境覆盖，fresh install 默认会带出上述 5 条内置 RSS feed。
+当前运行态里，RSS feeds 也可以通过 `/settings/providers` 真实读写，保存后的 `chart_rss_feeds` 会直接进入 charts discovery；规则 profile 则通过 `/settings/profiles` 真实持久化。若没有项目设置与环境覆盖，fresh install 默认会带出上述 5 条内置 RSS feed。
 
 可选模式：
 

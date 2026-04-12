@@ -8,7 +8,7 @@ from ...core.dependencies import get_metadata_service, get_music_media_chain
 from ...core.responses import success_response
 from ...schemas.common import ApiResponse
 from ...schemas.metadata import MetadataSearchRequest
-from ...schemas.mvp import EntityType
+from ...schemas.shared import EntityType
 from ...services.metadata import MetadataService
 
 router = APIRouter(tags=["Search", "Metadata"])

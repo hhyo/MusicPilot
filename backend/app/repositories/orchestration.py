@@ -247,8 +247,10 @@ class OrchestrationRepository:
         record.updated_at = utc_now()
         return record
 
-    def list_organize_records(self) -> list[OrganizeRecordModel]:
+    def list_organize_records(self, *, organize_status: str | None = None) -> list[OrganizeRecordModel]:
         statement = select(OrganizeRecordModel).order_by(OrganizeRecordModel.created_at.desc())
+        if organize_status:
+            statement = statement.where(OrganizeRecordModel.organize_status == organize_status)
         return list(self.session.scalars(statement).all())
 
     def list_pending_handoff_records(self) -> list[OrganizeRecordModel]:

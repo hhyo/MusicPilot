@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 
 from ...core.dependencies import get_query_builder_service, get_search_job_service
 from ...core.responses import success_response
@@ -12,6 +12,7 @@ from ...schemas.acquisition import (
     SearchCandidateListData,
     SearchJobCreateRequest,
     SearchJobSummary,
+    MutationResult,
 )
 from ...schemas.common import TypedApiResponse
 from ...services.query_builder import QueryBuilderService
@@ -47,9 +48,11 @@ async def preview_query(
 )
 async def list_jobs(
     request: Request,
+    status: str | None = Query(default=None),
+    trigger_source: str | None = Query(default=None),
     service: SearchJobService = Depends(get_search_job_service),
 ) -> TypedApiResponse[list[SearchJobSummary]]:
-    jobs = service.list_jobs()
+    jobs = service.list_jobs(status=status, trigger_source=trigger_source)
     return success_response(
         request,
         data=jobs,
@@ -120,6 +123,47 @@ async def run_job(
         code="SEARCH_JOB_EXECUTED",
         mock=job.mock,
         note="当前执行链路只暴露真实采用的 search 语义与 adapter。",
+    )
+
+
+@router.post(
+    "/{job_id}/retry",
+    summary="Retry search job synchronously",
+    response_model=TypedApiResponse[SearchJobSummary],
+)
+async def retry_job(
+    job_id: str,
+    request: Request,
+    service: SearchJobService = Depends(get_search_job_service),
+) -> TypedApiResponse[SearchJobSummary]:
+    job = service.retry_job(job_id)
+    return success_response(
+        request,
+        data=job,
+        message="Search job retried.",
+        code="SEARCH_JOB_RETRIED",
+        mock=job.mock,
+        note="retry 会重置旧候选并按当前 host-aware search resolver 重新执行。",
+    )
+
+
+@router.delete(
+    "/{job_id}",
+    summary="Delete search job",
+    response_model=TypedApiResponse[MutationResult],
+)
+async def delete_job(
+    job_id: str,
+    request: Request,
+    service: SearchJobService = Depends(get_search_job_service),
+) -> TypedApiResponse[MutationResult]:
+    result = service.delete_job(job_id)
+    return success_response(
+        request,
+        data=result,
+        message="Search job deleted.",
+        code="SEARCH_JOB_DELETED",
+        mock=False,
     )
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from app.adapters.rss_feed_parser import detect_rss_feed_family, parse_rss_feed
-from app.schemas.mvp import EntityType
+from app.schemas.shared import EntityType
 
 
 NETEASE_PLAYLIST_XML = """<?xml version="1.0" encoding="utf-8"?>

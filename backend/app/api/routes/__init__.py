@@ -1,2 +1,1 @@
-"""Route modules for probe and MVP placeholders."""
-
+"""Route modules for plugin and probe APIs."""

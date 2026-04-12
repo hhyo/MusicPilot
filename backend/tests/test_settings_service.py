@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from app.adapters.chart_provider import RssFeedChartProviderAdapter
 from app.core.dependencies import get_chart_provider_adapter
 from app.models import AppSettingModel, Base
-from app.schemas.mvp import (
+from app.schemas.shared import (
     ChartRssFeedSettings,
     ChartProviderMode,
     ProviderSettingsUpdatePayload,

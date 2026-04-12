@@ -20,7 +20,7 @@ from .rss_feed_parser import (
     parse_rss_feed,
 )
 from ..schemas.metadata import MetadataSeedCatalog
-from ..schemas.mvp import EntityType
+from ..schemas.shared import EntityType
 from ..schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo, ChartProviderInfo
 
 
@@ -192,7 +192,7 @@ class MockChartProviderAdapter(ChartProviderAdapter):
             chart_type=EntityType.TRACK,
             region="CN",
             category="hot",
-            refresh_hint="daily-placeholder",
+            refresh_hint="daily",
             items=[
                 ChartEntryInfo(
                     item_id="chartitem-qq-hot-001",
@@ -231,7 +231,7 @@ class MockChartProviderAdapter(ChartProviderAdapter):
             chart_type=EntityType.ALBUM,
             region="Global",
             category="new",
-            refresh_hint="daily-placeholder",
+            refresh_hint="daily",
             items=[
                 ChartEntryInfo(
                     item_id="chartitem-netease-new-001",
@@ -270,7 +270,7 @@ class MockChartProviderAdapter(ChartProviderAdapter):
             chart_type=EntityType.ARTIST,
             region="Global",
             category="rising",
-            refresh_hint="daily-placeholder",
+            refresh_hint="daily",
             items=[
                 ChartEntryInfo(
                     item_id="chartitem-bilibili-rising-001",
@@ -309,7 +309,7 @@ class MockChartProviderAdapter(ChartProviderAdapter):
             chart_type=EntityType.TRACK,
             region="Studio",
             category="editor",
-            refresh_hint="manual-placeholder",
+            refresh_hint="manual",
             items=[
                 ChartEntryInfo(
                     item_id="chartitem-local-editor-001",

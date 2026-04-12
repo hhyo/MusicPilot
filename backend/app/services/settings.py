@@ -9,14 +9,29 @@ from sqlalchemy.orm import Session
 
 from ..core.config import DEFAULT_CHART_RSS_FEEDS, settings
 from ..repositories.settings import SettingsRepository
-from ..schemas.mvp import (
+from ..schemas.shared import (
+    AudioProfile,
     ChartRssFeedSettings,
     ChartProviderMode,
     ProviderSettingsResponse,
     ProviderSettingsUpdatePayload,
+    RuleProfile,
 )
 
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_RULE_PROFILES = [
+    RuleProfile(
+        id="default-lossless",
+        name="Default Lossless",
+        audio_profiles=[AudioProfile.FLAC],
+        allow_live=False,
+        allow_remaster=False,
+        auto_download_threshold=92.0,
+        manual_confirm_threshold=75.0,
+    )
+]
 
 
 class SettingsService:
@@ -48,6 +63,32 @@ class SettingsService:
         )
         self.session.commit()
         return self.get_provider_settings()
+
+    def get_rule_profiles(self) -> list[RuleProfile]:
+        stored_profiles = self.repository.get_value("rule_profiles")
+        profiles = self._coerce_valid_rule_profiles(stored_profiles)
+        if profiles:
+            return profiles
+        return [profile.model_copy(deep=True) for profile in DEFAULT_RULE_PROFILES]
+
+    def update_rule_profile(self, payload: RuleProfile) -> RuleProfile:
+        profiles = self.get_rule_profiles()
+        updated = False
+        next_profiles: list[RuleProfile] = []
+        for profile in profiles:
+            if profile.id == payload.id:
+                next_profiles.append(payload)
+                updated = True
+            else:
+                next_profiles.append(profile)
+        if not updated:
+            next_profiles.append(payload)
+        self.repository.set_value(
+            "rule_profiles",
+            [profile.model_dump(mode="json") for profile in next_profiles],
+        )
+        self.session.commit()
+        return payload
 
     def _resolve_chart_provider_mode(self, stored_value: Any) -> ChartProviderMode:
         fallback_value = getattr(self.env_settings, "chart_provider_mode", "mock")
@@ -90,4 +131,19 @@ class SettingsService:
                 parsed.append(item if isinstance(item, ChartRssFeedSettings) else ChartRssFeedSettings.model_validate(item))
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Skipping invalid chart RSS feed entry %r: %s", item, exc)
+        return parsed
+
+    def _coerce_valid_rule_profiles(
+        self,
+        profiles: list[dict[str, Any]] | list[RuleProfile] | None,
+    ) -> list[RuleProfile]:
+        if not isinstance(profiles, list):
+            return []
+
+        parsed: list[RuleProfile] = []
+        for item in profiles:
+            try:
+                parsed.append(item if isinstance(item, RuleProfile) else RuleProfile.model_validate(item))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Skipping invalid rule profile entry %r: %s", item, exc)
         return parsed

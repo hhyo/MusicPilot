@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..schemas.music_media import MusicMediaInput, MusicMetaBase
-from ..schemas.mvp import EntityType
+from ..schemas.shared import EntityType
 
 
 class MusicMetaBaseBuilder:

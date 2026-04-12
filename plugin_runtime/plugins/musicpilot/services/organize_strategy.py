@@ -43,7 +43,7 @@ class OrganizeStrategyService:
             track_file_template=self.settings.organize_track_file_template,
             conflict_policy=OrganizeConflictPolicy(self.settings.organize_conflict_policy),
             template_note=(
-                "Current organize mapping uses a small placeholder-safe template set and is designed "
+                "Current organize mapping uses a small built-in template set and is designed "
                 "to remain stable until a verified host organize contract is available."
             ),
         )

@@ -18,8 +18,6 @@ def normalize_timestamp(value: datetime, *, default_tz: timezone = timezone.utc)
 
 
 def normalize_subscription_mode(value: str | None) -> str:
-    if value == "scheduled_placeholder":
-        return "scheduled"
     return value or "manual"
 
 

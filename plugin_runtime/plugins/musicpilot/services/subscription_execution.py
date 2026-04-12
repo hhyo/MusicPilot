@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..repositories.orchestration import OrchestrationRepository
 from ..schemas.acquisition import DispatchRequest, QueryPreferences, SearchCandidateDetail, SearchJobCreateRequest
 from ..schemas.music_media import MusicMediaInfo, MusicMediaInput
-from ..schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
+from ..schemas.shared import DecisionStatus, EntityType, JobStatus, TriggerSource
 from ..schemas.orchestration import (
     OrganizeApplyRequest,
     OrganizeStatus,

@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 from xml.etree import ElementTree as ET
 
-from ..schemas.mvp import EntityType
+from ..schemas.shared import EntityType
 
 
 SUPPORTED_RSS_FEED_FAMILIES = {

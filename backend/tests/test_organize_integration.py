@@ -15,7 +15,7 @@ from app.adapters.organize import OrganizeAdapter
 from app.models.acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
 from app.models.base import Base
 from app.schemas.integration import AdapterMode
-from app.schemas.mvp import EntityType
+from app.schemas.shared import EntityType
 from app.schemas.music_media import MusicMediaInfo
 from app.schemas.orchestration import (
     OrganizeAdapterResult,

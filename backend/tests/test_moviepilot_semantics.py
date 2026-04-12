@@ -150,8 +150,8 @@ class FakeDownloaderHelper:
 
 
 class SubscriptionSchedulerSemanticsTest(unittest.TestCase):
-    def test_normalize_scheduled_placeholder_to_scheduled(self) -> None:
-        self.assertEqual(normalize_subscription_mode("scheduled_placeholder"), "scheduled")
+    def test_normalize_missing_mode_to_manual(self) -> None:
+        self.assertEqual(normalize_subscription_mode(None), "manual")
 
 
 class PluginRuntimeHostDefaultsTest(unittest.TestCase):

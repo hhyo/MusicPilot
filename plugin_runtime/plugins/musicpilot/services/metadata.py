@@ -21,7 +21,7 @@ from ..schemas.metadata import (
     MetadataSearchRequest,
     MetadataSummary,
 )
-from ..schemas.mvp import EntityType, ReleaseType
+from ..schemas.shared import EntityType, ReleaseType
 
 
 INTEGRATION_POINT = "Local metadata repository backed by the current provider mode."

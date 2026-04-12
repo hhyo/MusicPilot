@@ -20,7 +20,7 @@ from ..schemas.metadata import (
     SeedArtist,
     SeedTrack,
 )
-from ..schemas.mvp import EntityType, ReleaseType
+from ..schemas.shared import EntityType, ReleaseType
 
 
 class MetadataProviderAdapter(ABC):

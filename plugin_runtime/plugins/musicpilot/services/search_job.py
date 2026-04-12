@@ -11,6 +11,7 @@ from ..models.acquisition import SearchCandidateModel, SearchJobModel
 from ..repositories.acquisition import AcquisitionRepository
 from ..schemas.acquisition import (
     PathHandoffInfo,
+    MutationResult,
     QueryBuildResult,
     SearchCandidateDetail,
     SearchCandidateListData,
@@ -25,7 +26,7 @@ from ..schemas.music_media import (
     MusicRecognitionAssessment,
     MusicRecognitionState,
 )
-from ..schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
+from ..schemas.shared import DecisionStatus, EntityType, JobStatus, TriggerSource
 from .host_integration import HostSearchAdapterResolver
 from .query_builder import QueryBuilderService
 from .scoring import MusicCandidateScorer
@@ -75,8 +76,16 @@ class SearchJobService:
         self.session.refresh(job)
         return serialize_job(job)
 
-    def list_jobs(self) -> list[SearchJobSummary]:
-        return [serialize_job(job) for job in self.repository.list_jobs()]
+    def list_jobs(
+        self,
+        *,
+        status: str | None = None,
+        trigger_source: str | None = None,
+    ) -> list[SearchJobSummary]:
+        return [
+            serialize_job(job)
+            for job in self.repository.list_jobs(status=status, trigger_source=trigger_source)
+        ]
 
     def get_job(self, job_id: str) -> SearchJobSummary:
         job = self.repository.get_job(job_id)
@@ -183,6 +192,16 @@ class SearchJobService:
         self.session.refresh(job)
         return serialize_job(job)
 
+    def retry_job(self, job_id: str) -> SearchJobSummary:
+        return self.execute_job(job_id)
+
+    def delete_job(self, job_id: str) -> MutationResult:
+        deleted = self.repository.delete_job(job_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} was not found.")
+        self.session.commit()
+        return MutationResult(id=job_id, deleted=True)
+
     def list_candidates(self, job_id: str) -> SearchCandidateListData:
         job = self.repository.get_job(job_id)
         if job is None:
@@ -260,7 +279,10 @@ def _extract_resolution(payload: dict) -> AdapterResolution | None:
     resolution = payload.get("adapter_resolution")
     if not resolution:
         return None
-    return AdapterResolution.model_validate(resolution)
+    try:
+        return AdapterResolution.model_validate(resolution)
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _is_mock_resolution(resolution: AdapterResolution | None) -> bool:

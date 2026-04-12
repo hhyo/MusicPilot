@@ -2,15 +2,64 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 
-from ...core.dependencies import get_dispatch_service
+from ...core.dependencies import get_dispatch_service, get_downloads_workspace_service
 from ...core.responses import success_response
-from ...schemas.acquisition import DispatchRequest, DispatchResult
+from ...schemas.acquisition import (
+    DispatchRequest,
+    DispatchResult,
+    DownloadBindingDetail,
+    DownloadBindingListData,
+)
 from ...schemas.common import TypedApiResponse
 from ...services.dispatch import DispatchService
+from ...services.downloads_workspace import DownloadsWorkspaceService
 
 router = APIRouter(prefix="/downloads", tags=["Downloads"])
+
+
+@router.get(
+    "/bindings",
+    summary="List download bindings",
+    response_model=TypedApiResponse[DownloadBindingListData],
+)
+async def list_download_bindings(
+    request: Request,
+    job_id: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    service: DownloadsWorkspaceService = Depends(get_downloads_workspace_service),
+) -> TypedApiResponse[DownloadBindingListData]:
+    result = service.list_bindings(job_id=job_id, status=status)
+    return success_response(
+        request,
+        data=result,
+        message="Download bindings loaded.",
+        code="DOWNLOAD_BINDINGS_OK",
+        mock=result.mock,
+        note="当前 download bindings 列表支持按 job 和 dispatch status 过滤。",
+    )
+
+
+@router.get(
+    "/bindings/{binding_id}",
+    summary="Get download binding detail",
+    response_model=TypedApiResponse[DownloadBindingDetail],
+)
+async def get_download_binding(
+    binding_id: str,
+    request: Request,
+    service: DownloadsWorkspaceService = Depends(get_downloads_workspace_service),
+) -> TypedApiResponse[DownloadBindingDetail]:
+    result = service.get_binding(binding_id)
+    return success_response(
+        request,
+        data=result,
+        message="Download binding detail loaded.",
+        code="DOWNLOAD_BINDING_DETAIL_OK",
+        mock=result.mock,
+        note="当前 binding detail 会暴露候选、downloader、path handoff 与宿主响应摘要。",
+    )
 
 
 @router.post(

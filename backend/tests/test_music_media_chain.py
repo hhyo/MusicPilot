@@ -5,7 +5,7 @@ import unittest
 from fastapi import HTTPException
 
 from app.schemas.metadata import MetadataDetail
-from app.schemas.mvp import EntityType
+from app.schemas.shared import EntityType
 
 
 class MusicMediaSchemaTests(unittest.TestCase):

@@ -14,7 +14,7 @@ from ..schemas.acquisition import (
     QueryPreferences,
 )
 from ..schemas.music_media import MusicMediaInfo
-from ..schemas.mvp import EntityType
+from ..schemas.shared import EntityType
 
 
 DEFAULT_NEGATIVE_TERMS = ["karaoke", "instrumental", "tribute", "bootleg"]

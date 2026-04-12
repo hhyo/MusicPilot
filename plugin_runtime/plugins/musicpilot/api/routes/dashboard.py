@@ -1,29 +1,27 @@
-"""Dashboard route placeholders."""
+"""Dashboard routes."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 
-from ...core.dependencies import get_mvp_placeholder_service
+from ...core.dependencies import get_dashboard_service
 from ...core.responses import success_response
 from ...schemas.common import ApiResponse
-from ...services.mvp_placeholder import MvpPlaceholderService
+from ...services.dashboard import DashboardService
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 
-@router.get("/summary", summary="Get dashboard summary placeholder")
+@router.get("/summary", summary="Get dashboard summary")
 async def dashboard_summary(
     request: Request,
-    service: MvpPlaceholderService = Depends(get_mvp_placeholder_service),
+    service: DashboardService = Depends(get_dashboard_service),
 ) -> ApiResponse:
     return success_response(
         request,
-        data=service.dashboard_summary(),
-        message="Dashboard summary placeholder is callable.",
-        code="DASHBOARD_SUMMARY_PLACEHOLDER",
-        mock=True,
-        note="当前是 dashboard 模块的 mock 摘要数据，待后续接入真实聚合服务。",
-        todo=["Replace placeholder counters with aggregated task and subscription data."],
+        data=service.summary(),
+        message="Dashboard summary loaded.",
+        code="DASHBOARD_SUMMARY_OK",
+        mock=False,
+        note="当前 dashboard 摘要直接聚合 subscription、search job、download binding 与 organize record 的真实持久化计数。",
     )
-

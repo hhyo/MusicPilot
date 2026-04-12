@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from .metadata import MetadataDetail
-from .mvp import EntityType
+from .shared import EntityType
 
 
 class MusicMediaSourceKind(str, Enum):

@@ -1,4 +1,4 @@
-"""Minimal DTOs for Phase 1 MVP contract placeholders."""
+"""Shared domain enums and lightweight DTOs used across backend services."""
 
 from __future__ import annotations
 

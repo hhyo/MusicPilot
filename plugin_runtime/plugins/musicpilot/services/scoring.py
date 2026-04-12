@@ -6,7 +6,7 @@ import re
 
 from ..schemas.acquisition import CandidateScoreResult, HostSearchCandidate, QueryBuildResult, QueryPreferences, ScoreBreakdownItem
 from ..schemas.music_media import MusicMediaInfo
-from ..schemas.mvp import DecisionStatus, EntityType
+from ..schemas.shared import DecisionStatus, EntityType
 
 
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")

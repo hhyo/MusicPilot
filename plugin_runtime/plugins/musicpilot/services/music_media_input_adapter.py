@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 
 from ..schemas.music_media import MusicMediaInfo, MusicMediaInput, MusicMediaSourceKind
-from ..schemas.mvp import EntityType
+from ..schemas.shared import EntityType
 from ..schemas.orchestration import ChartEntryInfo, ChartInfo
 
 

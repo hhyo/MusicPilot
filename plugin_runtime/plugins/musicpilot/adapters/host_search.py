@@ -11,7 +11,7 @@ from ..core.config import Settings
 from ..schemas.acquisition import HostSearchCandidate, QueryBuildResult
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterSelectionMode, VerificationState
 from ..schemas.music_media import MusicMediaInfo
-from ..schemas.mvp import EntityType
+from ..schemas.shared import EntityType
 
 
 def normalize_title(value: str) -> str:

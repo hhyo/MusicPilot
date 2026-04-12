@@ -6,7 +6,7 @@ import unittest
 
 from app.adapters.host_search import normalize_title
 from app.schemas.acquisition import HostSearchCandidate, QueryPreferences
-from app.schemas.mvp import DecisionStatus
+from app.schemas.shared import DecisionStatus
 from app.services.query_builder import QueryBuilderService
 from app.services.scoring import MusicCandidateScorer
 from tests.test_query_builder import build_album_media, build_track_media

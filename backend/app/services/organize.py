@@ -150,8 +150,11 @@ class OrganizeService:
             subscription_run_id=subscription_run_id,
         )
 
-    def list_records(self) -> OrganizeRecordListData:
-        items = [serialize_organize_record(record) for record in self.repository.list_organize_records()]
+    def list_records(self, *, status: str | None = None) -> OrganizeRecordListData:
+        items = [
+            serialize_organize_record(record)
+            for record in self.repository.list_organize_records(organize_status=status)
+        ]
         return OrganizeRecordListData(
             items=items,
             total=len(items),
@@ -164,6 +167,9 @@ class OrganizeService:
         if record is None:
             raise HTTPException(status_code=404, detail=f"Organize job {record_id} was not found.")
         return serialize_organize_record(record)
+
+    def retry(self, record_id: str) -> OrganizePreviewResult:
+        return self.apply(OrganizeApplyRequest(organize_job_id=record_id))
 
     def _resolve_context(self, *, candidate_id: str | None, binding_id: str | None) -> dict:
         candidate_model = None

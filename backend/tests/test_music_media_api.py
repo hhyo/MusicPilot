@@ -15,7 +15,7 @@ from app.schemas.music_media import (
     MusicResolveDetailResponse,
     MusicResolveResponse,
 )
-from app.schemas.mvp import EntityType
+from app.schemas.shared import EntityType
 
 
 class FakeMusicMediaChain:

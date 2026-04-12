@@ -7,7 +7,7 @@ import unittest
 from app.schemas.acquisition import QueryPreferences
 from app.schemas.metadata import MetadataDetail
 from app.schemas.music_media import MusicMediaInfo
-from app.schemas.mvp import EntityType, ReleaseType
+from app.schemas.shared import EntityType, ReleaseType
 from app.services.query_builder import QueryBuilderService
 
 

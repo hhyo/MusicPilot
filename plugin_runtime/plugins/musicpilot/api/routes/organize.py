@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 
 from ...core.dependencies import get_organize_service
 from ...core.responses import success_response
@@ -25,9 +25,10 @@ router = APIRouter(prefix="/organize", tags=["Organize"])
 )
 async def organize_jobs(
     request: Request,
+    status: str | None = Query(default=None),
     service: OrganizeService = Depends(get_organize_service),
 ) -> TypedApiResponse[OrganizeRecordListData]:
-    records = service.list_records()
+    records = service.list_records(status=status)
     return success_response(
         request,
         data=records,
@@ -98,4 +99,25 @@ async def organize_job_detail(
         code="ORGANIZE_RECORD_DETAIL_OK",
         mock=result.mock,
         note="当前 organize record detail 会显示 preview/apply 状态流、backend、path handoff 与失败原因。",
+    )
+
+
+@router.post(
+    "/jobs/{record_id}/retry",
+    summary="Retry organize apply from an existing record",
+    response_model=TypedApiResponse[OrganizePreviewResult],
+)
+async def retry_organize_job(
+    record_id: str,
+    request: Request,
+    service: OrganizeService = Depends(get_organize_service),
+) -> TypedApiResponse[OrganizePreviewResult]:
+    result = service.retry(record_id)
+    return success_response(
+        request,
+        data=result,
+        message="Organize record retried.",
+        code="ORGANIZE_RETRY_OK",
+        mock=result.mock,
+        note="retry 会直接复用既有 organize record 的上下文和 preview 计划重新 apply。",
     )

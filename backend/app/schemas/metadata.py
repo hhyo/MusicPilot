@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .mvp import EntityType, ReleaseType
+from .shared import EntityType, ReleaseType
 
 
 class MetadataSearchRequest(BaseModel):

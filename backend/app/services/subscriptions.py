@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from ..repositories.orchestration import OrchestrationRepository
-from ..schemas.mvp import EntityType
+from ..schemas.shared import EntityType
 from ..schemas.orchestration import (
     ChartEntryInfo,
     CreateChartEntrySubscriptionRequest,

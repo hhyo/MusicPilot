@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from fastapi import HTTPException
 
 from app.adapters.chart_provider import ListenBrainzChartProviderAdapter, RssFeedChartProviderAdapter
-from app.schemas.mvp import EntityType
+from app.schemas.shared import EntityType
 from app.schemas.orchestration import (
     ChartDetailData,
     ChartEntryInfo,

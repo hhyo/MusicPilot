@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.models import Base
 from app.schemas.metadata import MetadataDetail, MetadataSearchData, MetadataSearchRequest, MetadataSummary
 from app.schemas.music_media import MusicMediaInput
-from app.schemas.mvp import EntityType, ReleaseType
+from app.schemas.shared import EntityType, ReleaseType
 from app.services.metadata import MetadataService
 from app.services.music_media_chain import MusicMediaChain
 

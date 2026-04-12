@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 
 from ..adapters.chart_provider import CHART_INTEGRATION_POINT, ChartProviderAdapter
-from ..schemas.mvp import EntityType
+from ..schemas.shared import EntityType
 from ..schemas.orchestration import (
     ChartDetailData,
     ChartEntryInfo,

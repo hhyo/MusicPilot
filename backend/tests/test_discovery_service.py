@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest import TestCase
 
-from app.schemas.mvp import EntityType
+from app.schemas.shared import EntityType
 from app.schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo
 from app.services.discovery import DiscoveryAssembler
 from app.services.music_media_chain import MusicMediaChain

@@ -15,7 +15,7 @@ from .music_media import (
     MusicMetaBase,
     MusicRecognitionAssessment,
 )
-from .mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
+from .shared import DecisionStatus, EntityType, JobStatus, TriggerSource
 
 
 class QueryPreferences(BaseModel):
@@ -188,6 +188,39 @@ class SearchCandidateListData(BaseModel):
     mock: bool = True
     note: str
     adapter_resolution: AdapterResolution | None = None
+
+
+class DownloadBindingSummary(BaseModel):
+    id: str
+    job_id: str
+    candidate_id: str
+    target_downloader: str
+    downloader_task_id: str | None = None
+    dispatchable: bool = False
+    dispatch_status: str
+    mock: bool = True
+    note: str | None = None
+    integration_point: str | None = None
+    dispatched_at: datetime
+    path_handoff: PathHandoffInfo | None = None
+    host_response_summary: dict[str, Any] = Field(default_factory=dict)
+
+
+class DownloadBindingDetail(DownloadBindingSummary):
+    candidate: SearchCandidateDetail | None = None
+    raw_payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class DownloadBindingListData(BaseModel):
+    items: list[DownloadBindingSummary] = Field(default_factory=list)
+    total: int = 0
+    mock: bool = True
+    note: str
+
+
+class MutationResult(BaseModel):
+    id: str
+    deleted: bool = False
 
 
 class DispatchRequest(BaseModel):

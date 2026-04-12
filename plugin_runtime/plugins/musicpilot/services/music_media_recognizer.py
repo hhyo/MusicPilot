@@ -15,7 +15,7 @@ from ..schemas.music_media import (
     MusicRecognitionAssessment,
     MusicRecognitionState,
 )
-from ..schemas.mvp import EntityType
+from ..schemas.shared import EntityType
 
 
 class MusicMediaRecognizer:

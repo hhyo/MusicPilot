@@ -28,7 +28,7 @@ from app.schemas.music_media import (
     MusicRecognitionAssessment,
     MusicRecognitionState,
 )
-from app.schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
+from app.schemas.shared import DecisionStatus, EntityType, JobStatus, TriggerSource
 from app.schemas.orchestration import (
     OrganizeApplyRequest,
     OrganizeConflictPolicy,

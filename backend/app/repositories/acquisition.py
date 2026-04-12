@@ -57,9 +57,25 @@ class AcquisitionRepository:
         self.session.add(job)
         return job
 
-    def list_jobs(self) -> list[SearchJobModel]:
+    def list_jobs(
+        self,
+        *,
+        status: str | None = None,
+        trigger_source: str | None = None,
+    ) -> list[SearchJobModel]:
         statement = select(SearchJobModel).order_by(SearchJobModel.created_at.desc())
+        if status:
+            statement = statement.where(SearchJobModel.status == status)
+        if trigger_source:
+            statement = statement.where(SearchJobModel.trigger_source == trigger_source)
         return list(self.session.scalars(statement).all())
+
+    def delete_job(self, job_id: str) -> bool:
+        job = self.session.get(SearchJobModel, job_id)
+        if job is None:
+            return False
+        self.session.delete(job)
+        return True
 
     def get_job(self, job_id: str) -> SearchJobModel | None:
         statement = (
@@ -156,6 +172,26 @@ class AcquisitionRepository:
             .where(DownloadBindingModel.id == binding_id)
         )
         return self.session.scalar(statement)
+
+    def list_bindings(
+        self,
+        *,
+        job_id: str | None = None,
+        dispatch_status: str | None = None,
+    ) -> list[DownloadBindingModel]:
+        statement = (
+            select(DownloadBindingModel)
+            .options(
+                selectinload(DownloadBindingModel.candidate).selectinload(SearchCandidateModel.job),
+                selectinload(DownloadBindingModel.job),
+            )
+            .order_by(DownloadBindingModel.dispatched_at.desc())
+        )
+        if job_id:
+            statement = statement.where(DownloadBindingModel.job_id == job_id)
+        if dispatch_status:
+            statement = statement.where(DownloadBindingModel.dispatch_status == dispatch_status)
+        return list(self.session.scalars(statement).all())
 
     def create_binding(
         self,
