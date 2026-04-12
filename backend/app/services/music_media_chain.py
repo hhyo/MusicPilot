@@ -2,8 +2,16 @@
 
 from __future__ import annotations
 
-from ..schemas.music_media import MusicMediaInput, MusicPrepareResponse, MusicResolveDetailResponse, MusicResolveResponse
-from ..schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicRecognitionAssessment
+from ..schemas.music_media import (
+    MusicMediaInfo,
+    MusicMediaInput,
+    MusicMediaSourceKind,
+    MusicMetaBase,
+    MusicPrepareResponse,
+    MusicRecognitionAssessment,
+    MusicResolveDetailResponse,
+    MusicResolveResponse,
+)
 from ..schemas.orchestration import ChartEntryInfo, ChartInfo
 from .music_media_info_hydrator import MusicMediaInfoHydrator
 from .music_media_input_adapter import MusicMediaInputAdapter
@@ -22,6 +30,10 @@ class MusicMediaChain:
             metadata_adapter=metadata_adapter,
         )
         self.hydrator = MusicMediaInfoHydrator(metadata_service=metadata_service)
+
+    @property
+    def active_provider(self) -> str:
+        return self.recognizer.metadata_adapter.provider
 
     def build_base(self, input: MusicMediaInput):
         normalized = self.input_adapter.from_input(input)
@@ -49,7 +61,7 @@ class MusicMediaChain:
         self,
         payload: MusicMediaInfo,
         *,
-        source_kind: str,
+        source_kind: str | MusicMediaSourceKind,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ) -> MusicMediaInput:
@@ -66,7 +78,7 @@ class MusicMediaChain:
         entity_type,
         provider: str,
         provider_id: str,
-        source_kind: str,
+        source_kind: str | MusicMediaSourceKind,
         source_context: dict | None = None,
         raw_context: dict | None = None,
         ) -> MusicMediaInput:
@@ -79,13 +91,31 @@ class MusicMediaChain:
             raw_context=raw_context,
         )
 
+    def input_from_active_provider_ref(
+        self,
+        *,
+        entity_type,
+        provider_id: str,
+        source_kind: str | MusicMediaSourceKind,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicMediaInput:
+        return self.input_from_provider_ref(
+            entity_type=entity_type,
+            provider=self.active_provider,
+            provider_id=provider_id,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+
     def prepare_from_provider_ref(
         self,
         *,
         entity_type,
         provider: str,
         provider_id: str,
-        source_kind: str,
+        source_kind: str | MusicMediaSourceKind,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ) -> MusicPrepareResponse:
@@ -99,13 +129,31 @@ class MusicMediaChain:
         )
         return self.prepare(input_payload)
 
+    def prepare_from_active_provider_ref(
+        self,
+        *,
+        entity_type,
+        provider_id: str,
+        source_kind: str | MusicMediaSourceKind,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicPrepareResponse:
+        input_payload = self.input_from_active_provider_ref(
+            entity_type=entity_type,
+            provider_id=provider_id,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+        return self.prepare(input_payload)
+
     def input_from_target_payload_ref(
         self,
         *,
         entity_type,
         target_id: str,
         target_payload: dict | None,
-        source_kind: str,
+        source_kind: str | MusicMediaSourceKind,
         source_context: dict | None = None,
         raw_context: dict | None = None,
         ) -> MusicMediaInput:
@@ -124,7 +172,7 @@ class MusicMediaChain:
         entity_type,
         target_id: str,
         target_payload: dict | None,
-        source_kind: str,
+        source_kind: str | MusicMediaSourceKind,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ) -> MusicPrepareResponse:
@@ -148,7 +196,7 @@ class MusicMediaChain:
         entity_type,
         provider: str,
         provider_id: str,
-        source_kind: str,
+        source_kind: str | MusicMediaSourceKind,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ) -> MusicMediaInfo:
@@ -162,13 +210,31 @@ class MusicMediaChain:
         )
         return self.resolve(input_payload)
 
+    def resolve_from_active_provider_ref(
+        self,
+        *,
+        entity_type,
+        provider_id: str,
+        source_kind: str | MusicMediaSourceKind,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicMediaInfo:
+        input_payload = self.input_from_active_provider_ref(
+            entity_type=entity_type,
+            provider_id=provider_id,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+        return self.resolve(input_payload)
+
     def resolve_from_target_payload_ref(
         self,
         *,
         entity_type,
         target_id: str,
         target_payload: dict | None,
-        source_kind: str,
+        source_kind: str | MusicMediaSourceKind,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ) -> MusicMediaInfo:
@@ -198,7 +264,7 @@ class MusicMediaChain:
         entity_type,
         provider: str,
         provider_id: str,
-        source_kind: str,
+        source_kind: str | MusicMediaSourceKind,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ) -> MusicResolveResponse:
@@ -212,13 +278,51 @@ class MusicMediaChain:
         )
         return self.resolve_response(input_payload)
 
+    def resolve_response_from_target_payload_ref(
+        self,
+        *,
+        entity_type,
+        target_id: str,
+        target_payload: dict | None,
+        source_kind: str | MusicMediaSourceKind,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicResolveResponse:
+        input_payload = self.input_from_target_payload_ref(
+            entity_type=entity_type,
+            target_id=target_id,
+            target_payload=target_payload,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+        return self.resolve_response(input_payload)
+
+    def resolve_response_from_active_provider_ref(
+        self,
+        *,
+        entity_type,
+        provider_id: str,
+        source_kind: str | MusicMediaSourceKind,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicResolveResponse:
+        input_payload = self.input_from_active_provider_ref(
+            entity_type=entity_type,
+            provider_id=provider_id,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+        return self.resolve_response(input_payload)
+
     def resolve_detail_from_provider_ref(
         self,
         *,
         entity_type,
         provider: str,
         provider_id: str,
-        source_kind: str,
+        source_kind: str | MusicMediaSourceKind,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ) -> MusicResolveDetailResponse:
@@ -232,13 +336,31 @@ class MusicMediaChain:
         )
         return self.resolve_detail(input_payload)
 
+    def resolve_detail_from_active_provider_ref(
+        self,
+        *,
+        entity_type,
+        provider_id: str,
+        source_kind: str | MusicMediaSourceKind,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicResolveDetailResponse:
+        input_payload = self.input_from_active_provider_ref(
+            entity_type=entity_type,
+            provider_id=provider_id,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+        return self.resolve_detail(input_payload)
+
     def resolve_detail_from_target_payload_ref(
         self,
         *,
         entity_type,
         target_id: str,
         target_payload: dict | None,
-        source_kind: str,
+        source_kind: str | MusicMediaSourceKind,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ) -> MusicResolveDetailResponse:

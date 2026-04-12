@@ -51,27 +51,48 @@ def _apply_lightweight_schema_sync() -> None:
     if not settings.database_url.startswith("sqlite"):
         return
 
-    organize_record_columns = {
-        "organize_backend": "VARCHAR(16)",
-        "strategy": "VARCHAR(64)",
-        "library_type": "VARCHAR(32)",
-        "root_path": "TEXT",
-        "target_relative_path": "TEXT",
-        "conflict_policy": "VARCHAR(32)",
-        "capability_source": "VARCHAR(64)",
-        "fallback_reason": "TEXT",
-        "failure_reason": "TEXT",
-        "verification_state": "VARCHAR(32)",
+    table_columns = {
+        "search_jobs": {
+            "music_recognition_assessment": "JSON",
+        },
+        "subscriptions": {
+            "music_media_input": "JSON",
+            "music_meta_base": "JSON",
+            "music_recognition_assessment": "JSON",
+            "music_media_info": "JSON",
+        },
+        "subscription_runs": {
+            "music_media_input": "JSON",
+            "music_meta_base": "JSON",
+            "music_recognition_assessment": "JSON",
+            "music_media_info": "JSON",
+        },
+        "organize_records": {
+            "organize_backend": "VARCHAR(16)",
+            "strategy": "VARCHAR(64)",
+            "library_type": "VARCHAR(32)",
+            "root_path": "TEXT",
+            "target_relative_path": "TEXT",
+            "conflict_policy": "VARCHAR(32)",
+            "capability_source": "VARCHAR(64)",
+            "fallback_reason": "TEXT",
+            "failure_reason": "TEXT",
+            "verification_state": "VARCHAR(32)",
+            "music_media_input": "JSON",
+            "music_meta_base": "JSON",
+            "music_recognition_assessment": "JSON",
+            "music_media_info": "JSON",
+        },
     }
 
     with engine.begin() as connection:
         inspector = inspect(connection)
         tables = set(inspector.get_table_names())
-        if "organize_records" not in tables:
-            return
-
-        existing_columns = {column["name"] for column in inspector.get_columns("organize_records")}
-        for column_name, column_ddl in organize_record_columns.items():
-            if column_name in existing_columns:
+        for table_name, column_map in table_columns.items():
+            if table_name not in tables:
                 continue
-            connection.execute(text(f"ALTER TABLE organize_records ADD COLUMN {column_name} {column_ddl}"))
+            existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+            for column_name, column_ddl in column_map.items():
+                if column_name in existing_columns:
+                    continue
+                connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_ddl}"))

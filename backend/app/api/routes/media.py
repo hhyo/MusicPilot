@@ -7,9 +7,25 @@ from fastapi import APIRouter, Depends, Request
 from ...core.dependencies import get_music_media_chain
 from ...core.responses import success_response
 from ...schemas.common import ApiResponse
-from ...schemas.music_media import MusicResolveDetailRequest, MusicResolveRequest
+from ...schemas.music_media import MusicPrepareRequest, MusicResolveDetailRequest, MusicResolveRequest
 
 router = APIRouter(prefix="/media", tags=["Media"])
+
+
+@router.post("/prepare", summary="Prepare music media recognition input")
+async def prepare_media(
+    payload: MusicPrepareRequest,
+    request: Request,
+    chain=Depends(get_music_media_chain),
+) -> ApiResponse:
+    prepared = chain.prepare(payload.input)
+    return success_response(
+        request,
+        data=prepared,
+        message="Music media prepared.",
+        code="MUSIC_MEDIA_PREPARE_OK",
+        mock=False,
+    )
 
 
 @router.post("/resolve", summary="Resolve music media")

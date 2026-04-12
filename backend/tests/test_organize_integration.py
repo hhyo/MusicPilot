@@ -31,9 +31,13 @@ from app.services.organize import OrganizeService
 from app.services.organize_strategy import OrganizeStrategyService
 from app.repositories.orchestration import OrchestrationRepository
 
-from test_host_integration import DummyProbeAdapter, build_candidate, build_settings
-from test_moviepilot_semantics import FakeHostClient, RealOrganizeAdapter, build_settings as build_moviepilot_settings
-from test_query_builder import (
+from tests.test_host_integration import DummyProbeAdapter, build_candidate, build_settings
+from tests.test_moviepilot_semantics import (
+    FakeHostClient,
+    RealOrganizeAdapter,
+    build_settings as build_moviepilot_settings,
+)
+from tests.test_query_builder import (
     build_album_detail,
     build_album_media,
     build_artist_detail,

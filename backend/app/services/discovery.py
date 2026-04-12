@@ -12,6 +12,7 @@ from ..schemas.orchestration import (
     DiscoveryEntryGroup,
     DiscoveryEntryView,
 )
+from ..schemas.music_media import MusicRecognitionState
 
 
 class DiscoveryAssembler:
@@ -32,7 +33,9 @@ class DiscoveryAssembler:
         detail.hero_entry = entry_views[0] if entry_views else None
         detail.entry_groups = self._group_entries(entry_views)
         ready_count = sum(
-            1 for item in entry_views if item.recognition_assessment.state in {"direct", "ready"}
+            1
+            for item in entry_views
+            if item.recognition_assessment.state in {MusicRecognitionState.DIRECT, MusicRecognitionState.READY}
         )
         detail.summary_stats = {
             "items": len(entry_views),

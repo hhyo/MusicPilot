@@ -200,7 +200,7 @@ class SubscriptionExecutionService:
 
     def _build_job_request(self, subscription) -> SearchJobCreateRequest:
         preferences = QueryPreferences.model_validate(subscription.preference_json or {})
-        media_input = self._resolve_music_media_input_snapshot(subscription)
+        media_input = self._load_persisted_music_media_input(subscription)
         if media_input is None:
             media_info = self._resolve_or_build_music_media_info(subscription)
             if media_info is not None:
@@ -228,7 +228,7 @@ class SubscriptionExecutionService:
         )
 
     def _resolve_metadata_target(self, subscription) -> MetadataDetail | None:
-        media_input = self._resolve_music_media_input_snapshot(subscription)
+        media_input = self._load_persisted_music_media_input(subscription)
         if media_input is None:
             media_info = self._resolve_or_build_music_media_info(subscription)
             if media_info is not None:
@@ -253,13 +253,13 @@ class SubscriptionExecutionService:
         ).detail
 
     def _resolve_or_build_music_media_info(self, subscription) -> MusicMediaInfo | None:
-        media_info = self._resolve_music_media_info_snapshot(subscription)
+        media_info = self._load_persisted_music_media_info(subscription)
         if media_info is not None and media_info.provider_id:
             return media_info
 
-        media_input = self._resolve_music_media_input_snapshot(subscription)
+        media_input = self._load_persisted_music_media_input(subscription)
         if media_input is None:
-            resolved = self.music_media_chain.resolve_from_target_payload_ref(
+            resolved = self.music_media_chain.resolve_response_from_target_payload_ref(
                 entity_type=EntityType(subscription.target_entity_type or subscription.subscription_type),
                 target_id=subscription.target_id,
                 target_payload=subscription.target_payload_json or {},
@@ -275,23 +275,22 @@ class SubscriptionExecutionService:
                 source_kind="subscription_resolution",
             )
         else:
-            resolved = self.music_media_chain.resolve(media_input)
+            resolved = self.music_media_chain.resolve_response(media_input)
 
-        payload = dict(subscription.target_payload_json or {})
-        payload["music_media_input"] = media_input.model_dump(mode="json")
-        payload["music_media_info"] = resolved.model_dump(mode="json")
-        subscription.target_payload_json = payload
+        subscription.music_media_input = media_input.model_dump(mode="json")
+        subscription.music_meta_base = resolved.base.model_dump(mode="json")
+        subscription.music_recognition_assessment = resolved.assessment.model_dump(mode="json")
+        subscription.music_media_info = resolved.media.model_dump(mode="json")
         self.session.flush()
-        return resolved
+        return resolved.media
 
     @staticmethod
-    def _resolve_music_media_info_snapshot(subscription) -> MusicMediaInfo | None:
-        payload = subscription.target_payload_json or {}
-        snapshot = payload.get("music_media_info")
-        if not isinstance(snapshot, dict):
+    def _load_persisted_music_media_info(subscription) -> MusicMediaInfo | None:
+        payload = subscription.music_media_info or {}
+        if not payload:
             return None
         try:
-            return MusicMediaInfo.model_validate(snapshot)
+            return MusicMediaInfo.model_validate(payload)
         except Exception:  # pragma: no cover - defensive parse guard
             return None
 
@@ -314,13 +313,12 @@ class SubscriptionExecutionService:
         )
 
     @staticmethod
-    def _resolve_music_media_input_snapshot(subscription) -> MusicMediaInput | None:
-        payload = subscription.target_payload_json or {}
-        snapshot = payload.get("music_media_input")
-        if not isinstance(snapshot, dict):
+    def _load_persisted_music_media_input(subscription) -> MusicMediaInput | None:
+        payload = subscription.music_media_input or {}
+        if not payload:
             return None
         try:
-            return MusicMediaInput.model_validate(snapshot)
+            return MusicMediaInput.model_validate(payload)
         except Exception:  # pragma: no cover - defensive parse guard
             return None
 

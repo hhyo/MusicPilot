@@ -12,7 +12,7 @@ from app.models.base import Base
 from app.schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicRecognitionAssessment, MusicResolveDetailResponse
 from app.schemas.orchestration import CreateSubscriptionRequest, SubscriptionType
 from app.services.subscriptions import SubscriptionService
-from test_query_builder import build_artist_detail, build_artist_media
+from tests.test_query_builder import build_artist_detail, build_artist_media
 
 
 class DummyMusicMediaChain:
@@ -160,11 +160,15 @@ class SubscriptionServiceTest(unittest.TestCase):
         )
 
         self.assertEqual(result.target_payload["source"], "manual-detail")
-        self.assertEqual(result.target_payload["music_media_input"]["entity_hint"], "artist")
-        self.assertEqual(result.target_payload["music_meta_base"]["entity_type"], "artist")
-        self.assertEqual(result.target_payload["music_recognition_assessment"]["state"], "direct")
-        self.assertEqual(result.target_payload["music_media_info"]["provider_id"], "artist-adele")
-        self.assertEqual(result.target_payload["music_media_input"]["external_refs"]["musicbrainz_artist_id"], "artist-adele")
+        self.assertNotIn("music_media_input", result.target_payload)
+        self.assertNotIn("music_meta_base", result.target_payload)
+        self.assertNotIn("music_recognition_assessment", result.target_payload)
+        self.assertNotIn("music_media_info", result.target_payload)
+        self.assertEqual(result.music_media_input.entity_hint, "artist")
+        self.assertEqual(result.music_meta_base.entity_type, "artist")
+        self.assertEqual(result.music_recognition_assessment.state, "direct")
+        self.assertEqual(result.music_media_info.provider_id, "artist-adele")
+        self.assertEqual(result.music_media_input.external_refs["musicbrainz_artist_id"], "artist-adele")
         self.assertEqual(len(self.music_media_chain.calls), 2)
 
     def test_create_subscription_prefers_detail_title_when_target_name_missing(self) -> None:
@@ -177,7 +181,7 @@ class SubscriptionServiceTest(unittest.TestCase):
         )
 
         self.assertEqual(result.target_name, "Adele")
-        self.assertEqual(result.target_payload["music_media_info"]["title"], "Adele")
+        self.assertEqual(result.music_media_info.title, "Adele")
 
     def test_create_subscription_prefers_explicit_provider_ref_from_target_payload(self) -> None:
         result = self.service.create_subscription(
@@ -195,7 +199,7 @@ class SubscriptionServiceTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            result.target_payload["music_media_input"]["external_refs"]["rss_catalog_id"],
+            result.music_media_input.external_refs["rss_catalog_id"],
             "artist-rss-adele",
         )
 

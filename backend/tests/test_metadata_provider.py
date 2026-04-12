@@ -146,7 +146,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
             },
         )
 
-    def test_track_lookup_builds_artist_title_album_keyword_and_returns_detail(self) -> None:
+    def test_track_recognition_search_builds_artist_title_album_keyword_and_returns_detail(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class FakeLiveAdapter(MetadataProviderAdapter):
@@ -218,7 +218,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(adapter.last_keyword, "Adele Hello 25")
         self.assertEqual(result.detail.id, "track-1")
 
-    def test_album_and_artist_lookup_keyword_shapes(self) -> None:
+    def test_album_and_artist_recognition_search_keyword_shapes(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class FakeLiveAdapter(MetadataProviderAdapter):
@@ -293,7 +293,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
 
         self.assertEqual(adapter.keywords, ["Adele 25", "Adele"])
 
-    def test_lookup_requires_hints_and_raises_404_when_no_result(self) -> None:
+    def test_recognition_search_requires_music_clues_and_raises_404_when_no_result(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class EmptyLiveAdapter(MetadataProviderAdapter):
@@ -338,7 +338,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
             chain.resolve_detail(self.build_input(EntityType.ARTIST, artist_name="NotFound Artist"))
         self.assertEqual(ctx_not_found.exception.status_code, 404)
 
-    def test_lookup_prefers_precise_match_over_first_item(self) -> None:
+    def test_recognition_search_prefers_precise_match_over_first_item(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class RankedLiveAdapter(MetadataProviderAdapter):
@@ -416,7 +416,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
 
         self.assertEqual(result.detail.id, "track-best-second")
 
-    def test_track_lookup_requires_album_match_when_album_hint_is_provided(self) -> None:
+    def test_track_recognition_search_requires_album_match_when_album_hint_is_provided(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class AlbumMismatchAdapter(MetadataProviderAdapter):
@@ -470,7 +470,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
             chain.resolve_detail(self.build_input(EntityType.TRACK, artist_name="Adele", title="Hello", album_title="25"))
         self.assertEqual(ctx.exception.status_code, 404)
 
-    def test_track_lookup_normalizes_title_noise_before_searching(self) -> None:
+    def test_track_recognition_search_normalizes_title_noise_before_searching(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class NoisyTitleAdapter(MetadataProviderAdapter):
@@ -547,7 +547,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(result.detail.id, "track-clean-title")
         self.assertEqual(adapter.keywords, ["Adele Hello 25"])
 
-    def test_album_lookup_tries_fallback_keyword_order_until_match(self) -> None:
+    def test_album_recognition_search_tries_fallback_keyword_order_until_match(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class AlbumFallbackAdapter(MetadataProviderAdapter):
@@ -620,7 +620,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(result.detail.id, "album-fallback-match")
         self.assertEqual(adapter.keywords, ["Adele 25", "25 Adele"])
 
-    def test_lookup_raises_404_when_search_has_items_but_none_match_minimum_criteria(self) -> None:
+    def test_recognition_search_raises_404_when_search_has_items_but_none_match_minimum_criteria(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class NonMatchingLiveAdapter(MetadataProviderAdapter):
@@ -684,7 +684,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
             chain.resolve_detail(self.build_input(EntityType.ALBUM, artist_name="Adele", album_title="25"))
         self.assertEqual(ctx.exception.status_code, 404)
 
-    def test_lookup_converts_provider_http_failures_to_502(self) -> None:
+    def test_recognition_search_converts_provider_http_failures_to_502(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class FailingSearchAdapter(MetadataProviderAdapter):
@@ -760,7 +760,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
             self.build_chain(FailingDetailAdapter()).resolve_detail(self.build_input(EntityType.ARTIST, artist_name="Adele"))
         self.assertEqual(ctx_detail.exception.status_code, 502)
 
-    def test_lookup_artist_credit_matches_common_connectors_and_featuring_forms(self) -> None:
+    def test_recognition_search_artist_credit_matches_common_connectors_and_featuring_forms(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class ArtistCreditAdapter(MetadataProviderAdapter):
@@ -845,7 +845,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         )
         self.assertEqual(detail_feat.detail.id, "track-1")
 
-    def test_artist_lookup_normalizes_single_artist_punctuation_variants(self) -> None:
+    def test_artist_recognition_search_normalizes_single_artist_punctuation_variants(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class ArtistPunctuationAdapter(MetadataProviderAdapter):
@@ -907,7 +907,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
 
         self.assertEqual(detail.detail.id, "artist-tyler")
 
-    def test_track_lookup_uses_candidate_arrays_when_primary_rss_hints_are_weaker(self) -> None:
+    def test_track_recognition_search_uses_candidate_arrays_when_primary_rss_hints_are_weaker(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class CandidateArrayAdapter(MetadataProviderAdapter):
@@ -991,7 +991,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertIn("Lady Gaga & Bruno Mars Die With A Smile", adapter.keywords)
         self.assertIn("Lady Gaga Bruno Mars Die With A Smile", adapter.keywords)
 
-    def test_track_lookup_prefers_full_artist_credit_match_over_weaker_primary_artist_fallback(self) -> None:
+    def test_track_recognition_search_prefers_full_artist_credit_match_over_weaker_primary_artist_fallback(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
 
         class ArtistFallbackAdapter(MetadataProviderAdapter):

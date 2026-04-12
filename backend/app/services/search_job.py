@@ -18,7 +18,13 @@ from ..schemas.acquisition import (
     SearchJobSummary,
 )
 from ..schemas.integration import AdapterMode, AdapterResolution
-from ..schemas.music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase
+from ..schemas.music_media import (
+    MusicMediaInfo,
+    MusicMediaInput,
+    MusicMetaBase,
+    MusicRecognitionAssessment,
+    MusicRecognitionState,
+)
 from ..schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from .host_integration import HostSearchAdapterResolver
 from .query_builder import QueryBuilderService
@@ -155,7 +161,6 @@ class SearchJobService:
                 "mock_host_search": effective_resolution.adapter_mode == AdapterMode.MOCK,
                 "adapter_resolution": effective_resolution.model_dump(mode="json"),
                 "active_search_adapter": effective_resolution.adapter_key,
-                "music_recognition_assessment": (job.summary_json or {}).get("music_recognition_assessment"),
             }
             job.mock = effective_resolution.adapter_mode == AdapterMode.MOCK
             self.repository.mark_job_finished(job, status=status, summary_json=summary)
@@ -169,7 +174,6 @@ class SearchJobService:
                     status=JobStatus.FAILED.value,
                     summary_json={
                         "candidate_count": 0,
-                        "music_recognition_assessment": (job.summary_json or {}).get("music_recognition_assessment"),
                     },
                     error_message=str(exc),
                 )
@@ -201,7 +205,7 @@ def serialize_job(job: SearchJobModel) -> SearchJobSummary:
         music_media_input=MusicMediaInput.model_validate(job.music_media_input),
         music_meta_base=MusicMetaBase.model_validate(job.music_meta_base),
         music_recognition_assessment=MusicRecognitionAssessment.model_validate(
-            (job.summary_json or {}).get("music_recognition_assessment") or {"state": "insufficient"}
+            job.music_recognition_assessment or {"state": MusicRecognitionState.INSUFFICIENT.value}
         ),
         music_media_info=MusicMediaInfo.model_validate(job.music_media_info),
         trigger_source=TriggerSource(job.trigger_source),

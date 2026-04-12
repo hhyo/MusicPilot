@@ -22,7 +22,7 @@ from app.schemas.orchestration import (
     SubscriptionRunStatus,
 )
 from app.services.pending_handoff import PendingHandoffReconcileService
-from test_query_builder import build_track_media
+from tests.test_query_builder import build_track_media
 
 
 def utc_now() -> datetime:

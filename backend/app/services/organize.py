@@ -11,7 +11,12 @@ from ..repositories.acquisition import AcquisitionRepository
 from ..repositories.orchestration import OrchestrationRepository
 from ..schemas.acquisition import PathHandoffInfo
 from ..schemas.integration import AdapterMode, AdapterResolution, VerificationState
-from ..schemas.music_media import MusicMediaInfo
+from ..schemas.music_media import (
+    MusicMediaInfo,
+    MusicMediaInput,
+    MusicMetaBase,
+    MusicRecognitionAssessment,
+)
 from ..schemas.orchestration import (
     OrganizeAdapterResult,
     OrganizeApplyRequest,
@@ -69,6 +74,18 @@ class OrganizeService:
             candidate_id=context["candidate_model"].id,
             binding_id=context["binding_id"],
             result=organize_execution.result,
+            music_media_input=context["music_media_input"].model_dump(mode="json")
+            if context["music_media_input"]
+            else None,
+            music_meta_base=context["music_meta_base"].model_dump(mode="json")
+            if context["music_meta_base"]
+            else None,
+            music_recognition_assessment=context["music_recognition_assessment"].model_dump(mode="json")
+            if context["music_recognition_assessment"]
+            else None,
+            music_media_info=context["music_media_info"].model_dump(mode="json")
+            if context["music_media_info"]
+            else None,
         )
         self.session.commit()
         self.session.refresh(record)
@@ -97,7 +114,14 @@ class OrganizeService:
                 binding_id=context["binding_id"],
                 plan=plan,
             )
-            self.repository.update_organize_record(record, result=organize_execution.result)
+            self.repository.update_organize_record(
+                record,
+                result=organize_execution.result,
+                music_media_input=record.music_media_input or {},
+                music_meta_base=record.music_meta_base or {},
+                music_recognition_assessment=record.music_recognition_assessment or {},
+                music_media_info=record.music_media_info or {},
+            )
             self.session.commit()
         except Exception as exc:
             self.session.rollback()
@@ -159,12 +183,18 @@ class OrganizeService:
         candidate_payload = dict(candidate_model.raw_payload or {})
         binding_payload = dict(binding_model.raw_payload or {}) if binding_model else {}
         metadata_detail = None
-        music_media_info = self._extract_music_media_info_snapshot(candidate_payload, binding_payload)
-        if music_media_info is None and candidate_model.job and candidate_model.job.music_media_info:
-            try:
-                music_media_info = MusicMediaInfo.model_validate(candidate_model.job.music_media_info)
-            except Exception:  # pragma: no cover - defensive parse guard
-                music_media_info = None
+        music_media_input = None
+        music_meta_base = None
+        recognition_assessment = None
+        music_media_info = None
+
+        if candidate_model.job is not None:
+            music_media_input = _parse_optional_music_media_input(candidate_model.job.music_media_input)
+            music_meta_base = _parse_optional_music_meta_base(candidate_model.job.music_meta_base)
+            recognition_assessment = _parse_optional_music_recognition_assessment(
+                candidate_model.job.music_recognition_assessment
+            )
+            music_media_info = _parse_optional_music_media_info(candidate_model.job.music_media_info)
 
         if music_media_info is not None:
             metadata_detail = self.music_media_chain.hydrate(music_media_info)
@@ -205,24 +235,11 @@ class OrganizeService:
             "binding_id": binding_model.id if binding_model else None,
             "candidate": candidate,
             "metadata_detail": metadata_detail,
+            "music_media_input": music_media_input,
+            "music_meta_base": music_meta_base,
+            "music_recognition_assessment": recognition_assessment,
+            "music_media_info": music_media_info,
         }
-
-    @staticmethod
-    def _extract_music_media_info_snapshot(
-        candidate_payload: dict,
-        binding_payload: dict,
-    ) -> MusicMediaInfo | None:
-        for key in ("music_media_info", "music_media_info_snapshot"):
-            snapshot = candidate_payload.get(key)
-            if not isinstance(snapshot, dict):
-                snapshot = binding_payload.get(key)
-            if not isinstance(snapshot, dict):
-                continue
-            try:
-                return MusicMediaInfo.model_validate(snapshot)
-            except Exception:  # pragma: no cover - defensive parse guard
-                continue
-        return None
 
     def _plan_from_record(self, record) -> OrganizePlan | None:
         raw_payload = record.raw_payload or {}
@@ -413,6 +430,12 @@ def serialize_organize_record(record) -> OrganizePreviewResult:
         path_handoff=raw_payload.get("path_handoff"),
         verification_state=VerificationState(verification_state),
         adapter_resolution=AdapterResolution.model_validate(resolution_payload) if resolution_payload else None,
+        music_media_input=_parse_optional_music_media_input(record.music_media_input),
+        music_meta_base=_parse_optional_music_meta_base(record.music_meta_base),
+        music_recognition_assessment=_parse_optional_music_recognition_assessment(
+            record.music_recognition_assessment
+        ),
+        music_media_info=_parse_optional_music_media_info(record.music_media_info),
         mock=record.mock,
         note=record.note,
         created_at=record.created_at,
@@ -425,3 +448,29 @@ def _extract_candidate_path_handoff(payload: dict) -> PathHandoffInfo | None:
     if not handoff:
         return None
     return PathHandoffInfo.model_validate(handoff)
+
+
+def _parse_optional_music_media_input(payload: dict | None) -> MusicMediaInput | None:
+    if not payload:
+        return None
+    return MusicMediaInput.model_validate(payload)
+
+
+def _parse_optional_music_meta_base(payload: dict | None) -> MusicMetaBase | None:
+    if not payload:
+        return None
+    return MusicMetaBase.model_validate(payload)
+
+
+def _parse_optional_music_recognition_assessment(
+    payload: dict | None,
+) -> MusicRecognitionAssessment | None:
+    if not payload:
+        return None
+    return MusicRecognitionAssessment.model_validate(payload)
+
+
+def _parse_optional_music_media_info(payload: dict | None) -> MusicMediaInfo | None:
+    if not payload:
+        return None
+    return MusicMediaInfo.model_validate(payload)

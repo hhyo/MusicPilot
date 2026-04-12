@@ -28,7 +28,7 @@ from app.schemas.orchestration import (
 from app.services.host_path_handoff import HostPathHandoffService
 from app.services.query_builder import QueryBuilderService
 
-from test_query_builder import build_album_media
+from tests.test_query_builder import build_album_media
 
 
 class FakeHostClient:

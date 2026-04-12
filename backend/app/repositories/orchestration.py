@@ -37,6 +37,10 @@ class OrchestrationRepository:
         mode: str,
         preference_json: dict,
         target_payload_json: dict,
+        music_media_input: dict,
+        music_meta_base: dict,
+        music_recognition_assessment: dict,
+        music_media_info: dict,
         note: str,
     ) -> SubscriptionModel:
         subscription = SubscriptionModel(
@@ -51,6 +55,10 @@ class OrchestrationRepository:
             mode=mode,
             preference_json=preference_json,
             target_payload_json=target_payload_json,
+            music_media_input=music_media_input,
+            music_meta_base=music_meta_base,
+            music_recognition_assessment=music_recognition_assessment,
+            music_media_info=music_media_info,
             mock=False,
             note=note,
         )
@@ -97,6 +105,10 @@ class OrchestrationRepository:
             subscription_id=subscription.id,
             execution_status="queued",
             matched_candidates_count=0,
+            music_media_input=dict(subscription.music_media_input or {}),
+            music_meta_base=dict(subscription.music_meta_base or {}),
+            music_recognition_assessment=dict(subscription.music_recognition_assessment or {}),
+            music_media_info=dict(subscription.music_media_info or {}),
             mock=False,
             note=note,
         )
@@ -157,6 +169,10 @@ class OrchestrationRepository:
         candidate_id: str | None,
         binding_id: str | None,
         result: OrganizeAdapterResult,
+        music_media_input: dict | None = None,
+        music_meta_base: dict | None = None,
+        music_recognition_assessment: dict | None = None,
+        music_media_info: dict | None = None,
     ) -> OrganizeRecordModel:
         record = OrganizeRecordModel(
             id=f"org-{uuid4().hex[:12]}",
@@ -180,6 +196,10 @@ class OrchestrationRepository:
             failure_reason=result.failure_reason,
             verification_state=result.verification_state.value,
             mock=result.mock,
+            music_media_input=music_media_input or {},
+            music_meta_base=music_meta_base or {},
+            music_recognition_assessment=music_recognition_assessment or {},
+            music_media_info=music_media_info or {},
             raw_payload=result.model_dump(mode="json"),
             note=result.note,
         )
@@ -190,7 +210,16 @@ class OrchestrationRepository:
         record.organize_status = "apply_pending"
         record.failure_reason = None
 
-    def update_organize_record(self, record: OrganizeRecordModel, *, result: OrganizeAdapterResult) -> OrganizeRecordModel:
+    def update_organize_record(
+        self,
+        record: OrganizeRecordModel,
+        *,
+        result: OrganizeAdapterResult,
+        music_media_input: dict | None = None,
+        music_meta_base: dict | None = None,
+        music_recognition_assessment: dict | None = None,
+        music_media_info: dict | None = None,
+    ) -> OrganizeRecordModel:
         record.organizeable = result.organizeable
         record.organize_backend = result.organize_backend.value
         record.strategy = result.strategy
@@ -207,6 +236,12 @@ class OrchestrationRepository:
         record.failure_reason = result.failure_reason
         record.verification_state = result.verification_state.value
         record.mock = result.mock
+        record.music_media_input = music_media_input or record.music_media_input or {}
+        record.music_meta_base = music_meta_base or record.music_meta_base or {}
+        record.music_recognition_assessment = (
+            music_recognition_assessment or record.music_recognition_assessment or {}
+        )
+        record.music_media_info = music_media_info or record.music_media_info or {}
         record.raw_payload = result.model_dump(mode="json")
         record.note = result.note
         record.updated_at = utc_now()

@@ -11,7 +11,13 @@ from pydantic import BaseModel, Field, model_validator
 from .acquisition import PathHandoffInfo, SearchCandidateDetail, SearchJobSummary
 from .integration import AdapterMode, AdapterResolution, VerificationState
 from .metadata import MetadataDetail
-from .music_media import MusicMediaInput, MusicMetaBase, MusicRecognitionAssessment
+from .music_media import (
+    MusicMediaInfo,
+    MusicMediaInput,
+    MusicMetaBase,
+    MusicRecognitionAssessment,
+    MusicRecognitionState,
+)
 from .mvp import EntityType
 
 
@@ -115,7 +121,7 @@ class DiscoveryEntryView(BaseModel):
     badges: list[str] = Field(default_factory=list)
     highlight_reason: str | None = None
     recognition_assessment: MusicRecognitionAssessment = Field(
-        default_factory=lambda: MusicRecognitionAssessment(state="ready")
+        default_factory=lambda: MusicRecognitionAssessment(state=MusicRecognitionState.READY)
     )
 
 
@@ -186,6 +192,10 @@ class SubscriptionSummary(BaseModel):
     mode: SubscriptionMode
     preference_json: dict[str, Any] = Field(default_factory=dict)
     target_payload: dict[str, Any] = Field(default_factory=dict)
+    music_media_input: MusicMediaInput | None = None
+    music_meta_base: MusicMetaBase | None = None
+    music_recognition_assessment: MusicRecognitionAssessment | None = None
+    music_media_info: MusicMediaInfo | None = None
     latest_run_status: str | None = None
     last_run_at: datetime | None = None
     mock: bool = True
@@ -235,6 +245,10 @@ class OrganizePreviewResult(BaseModel):
     path_handoff: PathHandoffInfo | None = None
     verification_state: VerificationState = VerificationState.PLACEHOLDER
     adapter_resolution: AdapterResolution | None = None
+    music_media_input: MusicMediaInput | None = None
+    music_meta_base: MusicMetaBase | None = None
+    music_recognition_assessment: MusicRecognitionAssessment | None = None
+    music_media_info: MusicMediaInfo | None = None
     mock: bool = True
     note: str | None = None
     created_at: datetime
@@ -251,6 +265,10 @@ class SubscriptionRunSummary(BaseModel):
     started_at: datetime | None = None
     finished_at: datetime | None = None
     summary_json: dict[str, Any] = Field(default_factory=dict)
+    music_media_input: MusicMediaInput | None = None
+    music_meta_base: MusicMetaBase | None = None
+    music_recognition_assessment: MusicRecognitionAssessment | None = None
+    music_media_info: MusicMediaInfo | None = None
     mock: bool = True
     note: str | None = None
     error_message: str | None = None

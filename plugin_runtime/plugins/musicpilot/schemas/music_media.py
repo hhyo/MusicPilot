@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -10,11 +11,35 @@ from .metadata import MetadataDetail
 from .mvp import EntityType
 
 
+class MusicMediaSourceKind(str, Enum):
+    DISCOVERY = "discovery"
+    DETAIL = "detail"
+    SEARCH = "search"
+    SUBSCRIPTION = "subscription"
+    SUBSCRIPTION_DETAIL = "subscription_detail"
+    SUBSCRIPTION_RESOLUTION = "subscription_resolution"
+    ACQUISITION = "acquisition"
+    LIBRARY = "library"
+    MANUAL = "manual"
+
+
+class MusicRecognitionState(str, Enum):
+    DIRECT = "direct"
+    READY = "ready"
+    INSUFFICIENT = "insufficient"
+    FAILED = "failed"
+
+
+class MusicMediaMatchStrategy(str, Enum):
+    STRONG_REF = "strong_ref"
+    METADATA_SEARCH = "metadata_search"
+
+
 class MusicMediaInput(BaseModel):
     """Raw music clues collected from an upstream scenario."""
 
     entity_hint: EntityType | None = None
-    source_kind: str
+    source_kind: MusicMediaSourceKind
     title: str | None = None
     subtitle: str | None = None
     artist_names: list[str] = Field(default_factory=list)
@@ -75,7 +100,7 @@ class MusicMediaInfo(BaseModel):
     related_track_ids: list[str] = Field(default_factory=list)
     external_refs: dict[str, str] = Field(default_factory=dict)
     match_confidence: float | None = None
-    match_strategy: str | None = None
+    match_strategy: MusicMediaMatchStrategy | None = None
     match_evidence: list[dict[str, Any]] = Field(default_factory=list)
     diagnostics: list[str] = Field(default_factory=list)
     cover_url: str | None = None
@@ -88,8 +113,14 @@ class MusicMediaInfo(BaseModel):
 class MusicRecognitionAssessment(BaseModel):
     """Recognition readiness summary emitted by the unified chain."""
 
-    state: str
+    state: MusicRecognitionState
     note: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class MusicPrepareRequest(BaseModel):
+    input: MusicMediaInput
 
     model_config = ConfigDict(extra="forbid")
 

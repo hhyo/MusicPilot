@@ -44,6 +44,7 @@ class AcquisitionRepository:
             status="queued",
             music_media_input=music_media_input,
             music_meta_base=music_meta_base,
+            music_recognition_assessment=music_recognition_assessment,
             music_media_info=music_media_info,
             query_payload=query_payload,
             note=note,
@@ -51,7 +52,6 @@ class AcquisitionRepository:
             summary_json={
                 "candidate_count": 0,
                 "execution_mode": payload.mode,
-                "music_recognition_assessment": music_recognition_assessment,
             },
         )
         self.session.add(job)

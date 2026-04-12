@@ -8,7 +8,13 @@ import httpx
 from fastapi import HTTPException
 
 from ..schemas.metadata import MetadataSearchRequest, MetadataSummary
-from ..schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicRecognitionAssessment
+from ..schemas.music_media import (
+    MusicMediaInfo,
+    MusicMediaMatchStrategy,
+    MusicMetaBase,
+    MusicRecognitionAssessment,
+    MusicRecognitionState,
+)
 from ..schemas.mvp import EntityType
 
 
@@ -21,7 +27,7 @@ class MusicMediaRecognizer:
 
     def assess(self, base: MusicMetaBase) -> MusicRecognitionAssessment:
         if base.external_refs.get("provider") and base.external_refs.get("provider_id"):
-            return MusicRecognitionAssessment(state="direct")
+            return MusicRecognitionAssessment(state=MusicRecognitionState.DIRECT)
 
         direct_ref_keys = {
             EntityType.ARTIST: "musicbrainz_artist_id",
@@ -30,28 +36,28 @@ class MusicMediaRecognizer:
         }
         direct_key = direct_ref_keys[base.entity_type]
         if base.external_refs.get(direct_key):
-            return MusicRecognitionAssessment(state="direct")
+            return MusicRecognitionAssessment(state=MusicRecognitionState.DIRECT)
 
         if base.entity_type == EntityType.TRACK:
             if base.canonical_title and base.canonical_artist_names:
-                return MusicRecognitionAssessment(state="ready")
+                return MusicRecognitionAssessment(state=MusicRecognitionState.READY)
             return MusicRecognitionAssessment(
-                state="insufficient",
+                state=MusicRecognitionState.INSUFFICIENT,
                 note="Missing music meta base fields: requires canonical_title + canonical_artist_names.",
             )
 
         if base.entity_type == EntityType.ALBUM:
             if base.canonical_album_title and base.canonical_artist_names:
-                return MusicRecognitionAssessment(state="ready")
+                return MusicRecognitionAssessment(state=MusicRecognitionState.READY)
             return MusicRecognitionAssessment(
-                state="insufficient",
+                state=MusicRecognitionState.INSUFFICIENT,
                 note="Missing music meta base fields: requires canonical_album_title + canonical_artist_names.",
             )
 
         if base.canonical_artist_names:
-            return MusicRecognitionAssessment(state="ready")
+            return MusicRecognitionAssessment(state=MusicRecognitionState.READY)
         return MusicRecognitionAssessment(
-            state="insufficient",
+            state=MusicRecognitionState.INSUFFICIENT,
             note="Missing music meta base fields: requires canonical_artist_names.",
         )
 
@@ -79,22 +85,22 @@ class MusicMediaRecognizer:
                 disc_number=base.disc_number,
                 external_refs=dict(base.external_refs),
                 match_confidence=1.0,
-                match_strategy="strong_ref",
+                match_strategy=MusicMediaMatchStrategy.STRONG_REF,
                 match_evidence=[{"field": "provider_id", "value": provider_id}],
                 diagnostics=[],
             )
 
-        return self._recognize_from_search(base)
+        return self._recognize_from_metadata_search(base)
 
-    def _recognize_from_search(self, base: MusicMetaBase) -> MusicMediaInfo:
-        keywords = self._build_lookup_keywords(base)
-        if not keywords:
+    def _recognize_from_metadata_search(self, base: MusicMetaBase) -> MusicMediaInfo:
+        query_keywords = self._build_search_keywords(base)
+        if not query_keywords:
             raise HTTPException(status_code=400, detail="Insufficient music media input for metadata resolution.")
 
         saw_items = False
         winner: MetadataSummary | None = None
         winner_keyword: str | None = None
-        for keyword in keywords:
+        for keyword in query_keywords:
             try:
                 search_result = self.metadata_service.search(
                     MetadataSearchRequest(
@@ -111,7 +117,7 @@ class MusicMediaRecognizer:
                 continue
 
             saw_items = True
-            winner = self._select_lookup_winner(base=base, items=search_result.items)
+            winner = self._select_metadata_search_winner(base=base, items=search_result.items)
             if winner is not None:
                 winner_keyword = keyword
                 break
@@ -135,25 +141,25 @@ class MusicMediaRecognizer:
             disc_number=base.disc_number,
             external_refs=dict(base.external_refs),
             match_confidence=0.85,
-            match_strategy="search_lookup",
+            match_strategy=MusicMediaMatchStrategy.METADATA_SEARCH,
             match_evidence=[{"field": "keyword", "value": winner_keyword or ""}],
             diagnostics=[],
         )
 
     @classmethod
-    def _build_lookup_keywords(cls, base: MusicMetaBase) -> list[str]:
+    def _build_search_keywords(cls, base: MusicMetaBase) -> list[str]:
         primary_artist = " & ".join(base.canonical_artist_names).strip()
-        artists = cls._build_lookup_text_candidates(
+        artists = cls._build_search_text_candidates(
             primary=primary_artist,
             extras=base.alias_artist_names,
             title_mode=False,
         )
-        titles = cls._build_lookup_text_candidates(
+        titles = cls._build_search_text_candidates(
             primary=base.canonical_title,
             extras=base.alias_titles,
             title_mode=True,
         )
-        albums = cls._build_lookup_text_candidates(
+        albums = cls._build_search_text_candidates(
             primary=base.canonical_album_title,
             extras=base.alias_album_titles,
             title_mode=False,
@@ -193,7 +199,7 @@ class MusicMediaRecognizer:
         return keywords
 
     @classmethod
-    def _clean_lookup_text(cls, value: object) -> str:
+    def _clean_search_text(cls, value: object) -> str:
         if value is None:
             return ""
         text = str(value).replace("\u00A0", " ").strip()
@@ -201,8 +207,8 @@ class MusicMediaRecognizer:
         return text.strip()
 
     @classmethod
-    def _clean_lookup_title(cls, value: object) -> str:
-        text = cls._clean_lookup_text(value)
+    def _clean_search_title(cls, value: object) -> str:
+        text = cls._clean_search_text(value)
         if not text:
             return ""
 
@@ -233,10 +239,10 @@ class MusicMediaRecognizer:
                 text,
                 flags=re.IGNORECASE,
             )
-        return cls._clean_lookup_text(text)
+        return cls._clean_search_text(text)
 
     @classmethod
-    def _build_lookup_text_candidates(cls, *, primary: object, extras: object, title_mode: bool) -> list[str]:
+    def _build_search_text_candidates(cls, *, primary: object, extras: object, title_mode: bool) -> list[str]:
         values: list[str] = []
 
         def append(raw: object) -> None:
@@ -246,7 +252,7 @@ class MusicMediaRecognizer:
                 for item in raw:
                     append(item)
                 return
-            cleaned = cls._clean_lookup_title(raw) if title_mode else cls._clean_lookup_text(raw)
+            cleaned = cls._clean_search_title(raw) if title_mode else cls._clean_search_text(raw)
             if cleaned:
                 values.append(cleaned)
 
@@ -256,7 +262,7 @@ class MusicMediaRecognizer:
         deduped: list[str] = []
         seen: set[str] = set()
         for value in values:
-            key = cls._normalize_lookup_text(value)
+            key = cls._normalize_search_text(value)
             if not key or key in seen:
                 continue
             deduped.append(value)
@@ -264,8 +270,8 @@ class MusicMediaRecognizer:
         return deduped
 
     @classmethod
-    def _normalize_lookup_text(cls, value: str | None) -> str:
-        text = cls._clean_lookup_text(value).lower()
+    def _normalize_search_text(cls, value: str | None) -> str:
+        text = cls._clean_search_text(value).lower()
         if not text:
             return ""
         text = re.sub(r"[‐‑‒–—−]+", " ", text)
@@ -275,19 +281,19 @@ class MusicMediaRecognizer:
         return text.strip()
 
     @classmethod
-    def _normalize_lookup_title(cls, value: str | None) -> str:
-        return cls._normalize_lookup_text(cls._clean_lookup_title(value))
+    def _normalize_search_title(cls, value: str | None) -> str:
+        return cls._normalize_search_text(cls._clean_search_title(value))
 
     @classmethod
     def _normalize_artist_simple(cls, value: str | None) -> str:
-        normalized = cls._normalize_lookup_text(value)
+        normalized = cls._normalize_search_text(value)
         normalized = re.sub(r"[\W_]+", " ", normalized, flags=re.UNICODE)
         normalized = re.sub(r"\s+", " ", normalized)
         return normalized.strip()
 
     @classmethod
     def _normalize_artist_credit_text(cls, value: str | None) -> str:
-        text = cls._clean_lookup_text(value).lower()
+        text = cls._clean_search_text(value).lower()
         if not text:
             return ""
         text = re.sub(r"[‐‑‒–—−]+", " ", text)
@@ -296,12 +302,17 @@ class MusicMediaRecognizer:
         return text.strip()
 
     @classmethod
-    def _select_lookup_winner(cls, *, base: MusicMetaBase, items: list[MetadataSummary]) -> MetadataSummary | None:
+    def _select_metadata_search_winner(
+        cls,
+        *,
+        base: MusicMetaBase,
+        items: list[MetadataSummary],
+    ) -> MetadataSummary | None:
         def normalize(value: str | None) -> str:
-            return cls._normalize_lookup_text(value)
+            return cls._normalize_search_text(value)
 
         def normalize_title(value: str | None) -> str:
-            return cls._normalize_lookup_title(value)
+            return cls._normalize_search_title(value)
 
         def artist_tokens(value: str | None) -> list[str]:
             normalized = cls._normalize_artist_credit_text(value)
@@ -356,17 +367,17 @@ class MusicMediaRecognizer:
         hint_title_raw = base.canonical_title or ""
         hint_album_raw = base.canonical_album_title or ""
 
-        hint_artist_candidates_raw = cls._build_lookup_text_candidates(
+        hint_artist_candidates_raw = cls._build_search_text_candidates(
             primary=hint_artist_raw,
             extras=base.alias_artist_names,
             title_mode=False,
         )
-        hint_title_candidates_raw = cls._build_lookup_text_candidates(
+        hint_title_candidates_raw = cls._build_search_text_candidates(
             primary=hint_title_raw,
             extras=base.alias_titles,
             title_mode=True,
         )
-        hint_album_candidates_raw = cls._build_lookup_text_candidates(
+        hint_album_candidates_raw = cls._build_search_text_candidates(
             primary=hint_album_raw,
             extras=base.alias_album_titles,
             title_mode=False,

@@ -389,7 +389,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         self.assertEqual(detail.hero_entry.recognition_assessment.state, "ready")
         self.assertEqual(detail.hero_entry.media_input.source_kind, "discovery")
 
-    def test_rss_entry_keeps_structured_lookup_hints_in_target_payload(self) -> None:
+    def test_rss_entry_keeps_structured_music_clues_in_target_payload(self) -> None:
         feed_xml_by_url = {
             "https://rsshub.app/163/music/playlist/9345476": """<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0">
@@ -432,7 +432,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
         self.assertIn("raw_context", item.target_payload)
         self.assertEqual(item.note, adapter.note)
 
-    def test_rss_album_and_artist_entries_include_normalized_lookup_fields(self) -> None:
+    def test_rss_album_and_artist_entries_include_normalized_music_clue_fields(self) -> None:
         feed_xml_by_url = {
             "https://rsshub.app/163/music/artist/6452": """<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0">
@@ -745,6 +745,10 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
                     mode=kwargs["mode"],
                     preference_json=kwargs["preference_json"],
                     target_payload_json=kwargs["target_payload_json"],
+                    music_media_input=kwargs["music_media_input"],
+                    music_meta_base=kwargs["music_meta_base"],
+                    music_recognition_assessment=kwargs["music_recognition_assessment"],
+                    music_media_info=kwargs["music_media_info"],
                     latest_run_status=None,
                     last_run_at=None,
                     mock=False,
@@ -837,11 +841,11 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
         self.assertEqual(captured["target_payload_json"]["family"], "netease_playlist_tracks")
         self.assertEqual(captured["target_payload_json"]["provider_origin_id"], "100001")
         self.assertEqual(captured["target_payload_json"]["entry_target_payload"]["album_title"], "Slowhand")
-        self.assertEqual(captured["target_payload_json"]["music_media_input"]["title"], "Wonderful Tonight")
-        self.assertEqual(captured["target_payload_json"]["music_meta_base"]["canonical_title"], "Wonderful Tonight")
-        self.assertEqual(captured["target_payload_json"]["music_recognition_assessment"]["state"], "ready")
+        self.assertEqual(captured["music_media_input"]["title"], "Wonderful Tonight")
+        self.assertEqual(captured["music_meta_base"]["canonical_title"], "Wonderful Tonight")
+        self.assertEqual(captured["music_recognition_assessment"]["state"], "ready")
         self.assertEqual(
-            captured["target_payload_json"]["music_media_info"]["provider_id"],
+            captured["music_media_info"]["provider_id"],
             "recording-wonderful-tonight",
         )
 

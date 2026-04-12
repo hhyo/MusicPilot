@@ -50,9 +50,8 @@ async def artist_detail(
     request: Request,
     chain=Depends(get_music_media_chain),
 ) -> ApiResponse:
-    detail = chain.resolve_detail_from_provider_ref(
+    detail = chain.resolve_detail_from_active_provider_ref(
         entity_type=EntityType.ARTIST,
-        provider="musicbrainz",
         provider_id=artist_id,
         source_kind="detail",
         source_context={"entrypoint": "metadata_detail_route"},
@@ -79,9 +78,8 @@ async def album_detail(
     request: Request,
     chain=Depends(get_music_media_chain),
 ) -> ApiResponse:
-    detail = chain.resolve_detail_from_provider_ref(
+    detail = chain.resolve_detail_from_active_provider_ref(
         entity_type=EntityType.ALBUM,
-        provider="musicbrainz",
         provider_id=album_id,
         source_kind="detail",
         source_context={"entrypoint": "metadata_detail_route"},
@@ -108,9 +106,8 @@ async def track_detail(
     request: Request,
     chain=Depends(get_music_media_chain),
 ) -> ApiResponse:
-    detail = chain.resolve_detail_from_provider_ref(
+    detail = chain.resolve_detail_from_active_provider_ref(
         entity_type=EntityType.TRACK,
-        provider="musicbrainz",
         provider_id=track_id,
         source_kind="detail",
         source_context={"entrypoint": "metadata_detail_route"},

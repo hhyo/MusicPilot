@@ -10,6 +10,7 @@ from app.schemas.metadata import MetadataDetail
 from app.schemas.music_media import (
     MusicMediaInfo,
     MusicMetaBase,
+    MusicPrepareResponse,
     MusicRecognitionAssessment,
     MusicResolveDetailResponse,
     MusicResolveResponse,
@@ -83,6 +84,24 @@ class FakeMusicMediaChain:
         )
         return self.resolve_detail(payload)
 
+    def resolve_detail_from_active_provider_ref(
+        self,
+        *,
+        entity_type,
+        provider_id: str,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ):
+        return self.resolve_detail_from_provider_ref(
+            entity_type=entity_type,
+            provider="musicbrainz",
+            provider_id=provider_id,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+
     def input_from_target_payload_ref(
         self,
         *,
@@ -120,6 +139,14 @@ class FakeMusicMediaChain:
             base=self.build_base(payload),
             assessment=MusicRecognitionAssessment(state="direct"),
             media=self.resolve(payload),
+        )
+
+    def prepare(self, payload):
+        self.last_input = payload
+        return MusicPrepareResponse(
+            input=payload,
+            base=self.build_base(payload),
+            assessment=MusicRecognitionAssessment(state="direct"),
         )
 
     def resolve_detail(self, payload):
@@ -175,7 +202,26 @@ class MusicMediaApiTests(unittest.TestCase):
         self.assertEqual(body["data"]["media"]["provider_id"], "recording-hello")
         self.assertEqual(body["data"]["detail"]["id"], "recording-hello")
 
-    def test_old_metadata_lookup_route_is_gone(self) -> None:
+    def test_media_prepare_returns_base_and_assessment(self) -> None:
+        response = self.client.post(
+            "/api/v1/plugin/musicpilot/media/prepare",
+            json={
+                "input": {
+                    "entity_hint": "track",
+                    "source_kind": "detail",
+                    "title": "Hello",
+                    "artist_names": ["Adele"],
+                    "external_refs": {"musicbrainz_recording_id": "recording-hello"},
+                }
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["data"]["base"]["canonical_title"], "Hello")
+        self.assertEqual(body["data"]["assessment"]["state"], "direct")
+
+    def test_removed_metadata_lookup_route_returns_404(self) -> None:
         response = self.client.post(
             "/api/v1/plugin/musicpilot/metadata/lookup",
             json={"entity_type": "track", "hints": {"title": "Hello"}},

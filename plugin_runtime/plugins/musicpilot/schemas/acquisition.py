@@ -8,7 +8,13 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from .integration import AdapterMode, AdapterResolution, VerificationState
-from .music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase, MusicRecognitionAssessment
+from .music_media import (
+    MusicMediaInfo,
+    MusicMediaInput,
+    MusicMediaMatchStrategy,
+    MusicMetaBase,
+    MusicRecognitionAssessment,
+)
 from .mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 
 
@@ -49,7 +55,7 @@ class QueryContext(BaseModel):
     track_number: int | None = None
     disc_number: int | None = None
     external_refs: dict[str, str] = Field(default_factory=dict)
-    match_strategy: str | None = None
+    match_strategy: MusicMediaMatchStrategy | None = None
     note: str
     summary: str
 

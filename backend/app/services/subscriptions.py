@@ -18,6 +18,7 @@ from ..schemas.orchestration import (
     SubscriptionType,
     UpdateSubscriptionRequest,
 )
+from ..schemas.music_media import MusicRecognitionState
 from .subscription_scheduler import normalize_subscription_mode
 
 
@@ -95,14 +96,6 @@ class SubscriptionService:
             raw_context={"target_payload": payload.target_payload},
         )
         target_payload = dict(payload.target_payload)
-        target_payload.update(
-            {
-                "music_media_input": media_input.model_dump(mode="json"),
-                "music_meta_base": resolved.base.model_dump(mode="json"),
-                "music_recognition_assessment": resolved.assessment.model_dump(mode="json"),
-                "music_media_info": resolved.media.model_dump(mode="json"),
-            }
-        )
         subscription = self.repository.create_subscription(
             subscription_type=payload.subscription_type.value,
             target_id=payload.target_id,
@@ -113,6 +106,10 @@ class SubscriptionService:
             mode=normalize_subscription_mode(payload.mode.value),
             preference_json=payload.preference_json,
             target_payload_json=target_payload,
+            music_media_input=media_input.model_dump(mode="json"),
+            music_meta_base=resolved.base.model_dump(mode="json"),
+            music_recognition_assessment=resolved.assessment.model_dump(mode="json"),
+            music_media_info=resolved.media.model_dump(mode="json"),
             note=SUBSCRIPTION_NOTE,
         )
         self.session.commit()
@@ -125,7 +122,7 @@ class SubscriptionService:
         entry: DiscoveryEntryView,
         payload: CreateChartEntrySubscriptionRequest,
     ) -> SubscriptionSummary:
-        if entry.recognition_assessment.state not in {"direct", "ready"}:
+        if entry.recognition_assessment.state not in {MusicRecognitionState.DIRECT, MusicRecognitionState.READY}:
             raise HTTPException(
                 status_code=400,
                 detail=entry.recognition_assessment.note
@@ -155,12 +152,12 @@ class SubscriptionService:
                 "target_entity_type": chart_entry.item_type.value,
                 "subtitle": chart_entry.subtitle,
                 "entry_target_payload": entry_hints,
-                "music_media_input": entry.media_input.model_dump(mode="json"),
-                "music_meta_base": entry.meta_base.model_dump(mode="json"),
-                "music_media_info": resolved.media.model_dump(mode="json"),
-                "music_recognition_assessment": entry.recognition_assessment.model_dump(mode="json"),
                 **entry_hints,
             },
+            music_media_input=entry.media_input.model_dump(mode="json"),
+            music_meta_base=entry.meta_base.model_dump(mode="json"),
+            music_recognition_assessment=entry.recognition_assessment.model_dump(mode="json"),
+            music_media_info=resolved.media.model_dump(mode="json"),
             note=(
                 "当前榜单订阅来自 mock chart entry，并已在创建时固化统一音乐媒体链识别结果；"
                 "后续真实榜单接入后，可在此结构上接入增量刷新、命中检测与调度器。"
@@ -216,6 +213,12 @@ def serialize_subscription(subscription) -> SubscriptionSummary:
         mode=normalize_subscription_mode(subscription.mode),
         preference_json=subscription.preference_json or {},
         target_payload=subscription.target_payload_json or {},
+        music_media_input=_parse_optional_music_media_input(subscription.music_media_input),
+        music_meta_base=_parse_optional_music_meta_base(subscription.music_meta_base),
+        music_recognition_assessment=_parse_optional_music_recognition_assessment(
+            subscription.music_recognition_assessment
+        ),
+        music_media_info=_parse_optional_music_media_info(subscription.music_media_info),
         latest_run_status=subscription.latest_run_status,
         last_run_at=subscription.last_run_at,
         mock=subscription.mock,
@@ -238,9 +241,47 @@ def serialize_run_summary(run) -> "SubscriptionRunSummary":
         started_at=run.started_at,
         finished_at=run.finished_at,
         summary_json=run.summary_json or {},
+        music_media_input=_parse_optional_music_media_input(run.music_media_input),
+        music_meta_base=_parse_optional_music_meta_base(run.music_meta_base),
+        music_recognition_assessment=_parse_optional_music_recognition_assessment(
+            run.music_recognition_assessment
+        ),
+        music_media_info=_parse_optional_music_media_info(run.music_media_info),
         mock=run.mock,
         note=run.note,
         error_message=run.error_message,
         created_at=run.created_at,
         updated_at=run.updated_at,
     )
+
+
+def _parse_optional_music_media_input(payload):
+    if not payload:
+        return None
+    from ..schemas.music_media import MusicMediaInput
+
+    return MusicMediaInput.model_validate(payload)
+
+
+def _parse_optional_music_meta_base(payload):
+    if not payload:
+        return None
+    from ..schemas.music_media import MusicMetaBase
+
+    return MusicMetaBase.model_validate(payload)
+
+
+def _parse_optional_music_recognition_assessment(payload):
+    if not payload:
+        return None
+    from ..schemas.music_media import MusicRecognitionAssessment
+
+    return MusicRecognitionAssessment.model_validate(payload)
+
+
+def _parse_optional_music_media_info(payload):
+    if not payload:
+        return None
+    from ..schemas.music_media import MusicMediaInfo
+
+    return MusicMediaInfo.model_validate(payload)
