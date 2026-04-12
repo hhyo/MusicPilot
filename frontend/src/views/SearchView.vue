@@ -167,7 +167,6 @@ import {
 } from '@/services/acquisition';
 import { fetchMetadataDetail, searchMetadata } from '@/services/metadata';
 import { createSubscription } from '@/services/orchestration';
-import { buildMusicMediaInputFromMetadataDetail } from '@/services/music-media';
 import type {
   DispatchResult,
   SearchCandidateDetail,
@@ -307,11 +306,9 @@ async function createAndRunSearchJob(metadataDetail: MetadataDetail) {
   dispatchResults.value = {};
 
   try {
-    const mediaInput = buildMusicMediaInputFromMetadataDetail(metadataDetail, 'search', {
-      trigger: 'search_view_detail',
-    });
     const created = await createSearchJob({
-      input: mediaInput,
+      query_source_type: metadataDetail.entity_type,
+      query_source_id: metadataDetail.id,
       trigger_source: 'manual',
       mode: 'manual',
     });

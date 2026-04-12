@@ -7,7 +7,7 @@
   >
     <div class="detail-drawer">
       <el-alert
-        title="当前 detail 已统一通过音乐媒体解析链进入 metadata。你可以基于识别后的正式实体继续创建订阅与搜索任务；search / dispatch 会直接展示当前 backend 与明确错误，音乐 organize 的 preview/apply 继续在订阅执行流中工作。"
+        title="当前可基于 metadata 创建订阅与搜索任务。search / dispatch 会直接展示当前 backend 与明确错误；音乐 organize 的 preview/apply 在订阅执行流中继续工作。真实 metadata provider、真实 discovery 与最小自动调度已接入，当前重点在真实命中率与自动闭环收口。"
         type="info"
         :closable="false"
         show-icon

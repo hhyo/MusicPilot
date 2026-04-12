@@ -7,7 +7,6 @@ import type {
   VerificationState,
 } from '@/types/acquisition';
 import type { ApiResponse, EntityType, MetadataDetail } from '@/types/metadata';
-import type { MusicMediaInput, MusicMetaBase, MusicRecognitionAssessment } from '@/types/music-media';
 
 export type SubscriptionType = 'artist' | 'album' | 'track' | 'chart_entry';
 export type SubscriptionState = 'active' | 'paused' | 'archived';
@@ -77,14 +76,34 @@ export interface ChartEntryInfo {
   note: string;
 }
 
+export interface DiscoverySourceContext {
+  chart_source: string;
+  chart_id: string;
+  chart_name: string;
+  rank: number;
+  chart_type: EntityType;
+}
+
+export interface DiscoveryTarget {
+  target_kind: EntityType;
+  provider: string;
+  provider_id: string;
+  display_title: string;
+  display_subtitle?: string | null;
+  source_context: DiscoverySourceContext;
+  conversion_ready: boolean;
+  conversion_note?: string | null;
+  resolution_mode?: 'direct_id' | 'search_lookup';
+  resolution_hints?: Record<string, unknown>;
+  discovery_badges: string[];
+}
+
 export interface DiscoveryEntryView {
   entry: ChartEntryInfo;
-  media_input: MusicMediaInput;
-  meta_base: MusicMetaBase;
+  target: DiscoveryTarget;
   entry_summary: string;
   badges: string[];
   highlight_reason?: string | null;
-  recognition_assessment: MusicRecognitionAssessment;
 }
 
 export interface DiscoveryEntryGroup {
@@ -111,7 +130,7 @@ export interface ChartDetailData {
   hero_entry?: DiscoveryEntryView | null;
   summary_stats: Record<string, string | number>;
   entry_groups: DiscoveryEntryGroup[];
-  recognition_summary: Record<string, number>;
+  conversion_summary: Record<string, number>;
 }
 
 export interface CreateChartEntrySubscriptionPayload {

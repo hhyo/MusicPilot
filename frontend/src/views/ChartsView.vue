@@ -161,11 +161,8 @@
         >
           <div>
             <p class="hero-entry-card__eyebrow">Featured Entry</p>
-            <h4>{{ renderEntryTitle(selectedChart.hero_entry) }}</h4>
+            <h4>{{ selectedChart.hero_entry.target.display_title }}</h4>
             <p>{{ selectedChart.hero_entry.entry_summary }}</p>
-            <p class="hero-entry-card__conversion">
-              {{ renderRecognitionStatus(selectedChart.hero_entry) }}
-            </p>
           </div>
           <div class="entry-card__tags">
             <el-tag
@@ -186,11 +183,11 @@
           </article>
           <article class="detail-summary-card">
             <p class="detail-summary-card__label">Metadata Ready</p>
-            <h4>{{ selectedChart.recognition_summary.ready ?? 0 }}</h4>
+            <h4>{{ selectedChart.conversion_summary.ready ?? 0 }}</h4>
           </article>
           <article class="detail-summary-card">
             <p class="detail-summary-card__label">Needs Follow-up</p>
-            <h4>{{ selectedChart.recognition_summary.not_ready ?? 0 }}</h4>
+            <h4>{{ selectedChart.conversion_summary.not_ready ?? 0 }}</h4>
           </article>
         </section>
 
@@ -222,14 +219,14 @@
             >
               <div class="entry-card__rank">#{{ item.entry.rank }}</div>
               <div class="entry-card__body">
-                <h4>{{ renderEntryTitle(item) }}</h4>
+                <h4>{{ item.target.display_title }}</h4>
                 <p>{{ item.entry_summary }}</p>
                 <p class="entry-card__conversion">
-                  {{ renderRecognitionStatus(item) }}
+                  {{ renderConversionStatus(item) }}
                 </p>
                 <div class="entry-card__tags">
-                  <el-tag size="small" effect="plain">{{ item.media_input.entity_hint || item.entry.item_type }}</el-tag>
-                  <el-tag size="small" effect="plain">{{ renderEntryProvider(item) }}</el-tag>
+                  <el-tag size="small" effect="plain">{{ item.target.target_kind }}</el-tag>
+                  <el-tag size="small" effect="plain">{{ item.target.provider }}</el-tag>
                   <el-tag
                     v-for="badge in item.badges"
                     :key="badge"
@@ -243,10 +240,9 @@
               <el-button
                 type="primary"
                 plain
-                :disabled="!isEntrySubscribable(item)"
                 :loading="subscribingItemId === item.entry.item_id"
                 :data-test="`subscribe-entry-${item.entry.item_id}`"
-                @click.stop="handleSubscribe(item)"
+                @click.stop="handleSubscribe(item.entry)"
               >
                 创建订阅
               </el-button>
@@ -275,7 +271,7 @@ import { ElMessage } from 'element-plus';
 
 import MetadataDetailDrawer from '@/components/MetadataDetailDrawer.vue';
 import { createSearchJob, executeSearchJob } from '@/services/acquisition';
-import { buildMusicMediaInputFromMetadataDetail, resolveMusicMediaDetail } from '@/services/music-media';
+import { fetchDiscoveryTargetDetail } from '@/services/discovery-metadata';
 import {
   createSubscription,
   fetchChartDetail,
@@ -287,6 +283,7 @@ import type { MetadataDetail } from '@/types/metadata';
 import type {
   ChartDetailData,
   ChartEntryInfo,
+  DiscoveryTarget,
   DiscoveryEntryView,
   DiscoveryEntryGroup,
   ChartProviderInfo,
@@ -390,12 +387,12 @@ async function openDiscoveryEntryDetail(item: DiscoveryEntryView) {
   activeDiscoveryEntryId.value = item.entry.item_id;
   discoveryWarningMessage.value = '';
 
-  if (!isEntryResolvable(item)) {
+  if (!item.target.conversion_ready) {
     metadataDrawerOpen.value = false;
     metadataDetail.value = null;
     metadataDetailError.value = '';
     metadataDetailLoading.value = false;
-    discoveryWarningMessage.value = resolveRecognitionStatusText(item);
+    discoveryWarningMessage.value = resolveConversionStatusText(item.target);
     ElMessage.warning(discoveryWarningMessage.value);
     return;
   }
@@ -406,11 +403,11 @@ async function openDiscoveryEntryDetail(item: DiscoveryEntryView) {
   metadataDetail.value = null;
 
   try {
-    const response = await resolveMusicMediaDetail(item.media_input);
+    const response = await fetchDiscoveryTargetDetail(item.target);
     if (!response.success) {
       throw new Error(response.message);
     }
-    metadataDetail.value = response.data.detail;
+    metadataDetail.value = response.data;
   } catch (error) {
     metadataDetailError.value = resolveErrorMessage(error, 'metadata detail 加载失败。');
   } finally {
@@ -418,20 +415,15 @@ async function openDiscoveryEntryDetail(item: DiscoveryEntryView) {
   }
 }
 
-async function handleSubscribe(item: DiscoveryEntryView) {
+async function handleSubscribe(item: ChartEntryInfo) {
   if (!selectedChart.value) {
     return;
   }
-  if (!isEntrySubscribable(item)) {
-    const message = resolveRecognitionStatusText(item);
-    ElMessage.warning(message);
-    return;
-  }
 
-  subscribingItemId.value = item.entry.item_id;
+  subscribingItemId.value = item.item_id;
   try {
     const response = await subscribeFromChartEntry(selectedChart.value.chart.id, {
-      chart_item_id: item.entry.item_id,
+      chart_item_id: item.item_id,
       mode: 'manual',
     });
 
@@ -471,12 +463,9 @@ async function createSubscriptionFromDetail(detail: MetadataDetail) {
 
 async function createAndRunSearchJobFromDetail(detail: MetadataDetail) {
   try {
-    const mediaInput = buildMusicMediaInputFromMetadataDetail(detail, 'discovery', {
-      trigger: 'charts_view_detail',
-      chart_id: selectedChart.value?.chart.id ?? null,
-    });
     const created = await createSearchJob({
-      input: mediaInput,
+      query_source_type: detail.entity_type,
+      query_source_id: detail.id,
       trigger_source: 'manual',
       mode: 'manual',
     });
@@ -527,43 +516,18 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function renderRecognitionStatus(item: DiscoveryEntryView) {
-  return resolveRecognitionStatusText(item);
+function renderConversionStatus(item: DiscoveryEntryView) {
+  return resolveConversionStatusText(item.target);
 }
 
-function renderEntryTitle(item: DiscoveryEntryView) {
-  return item.entry.target_name;
-}
-
-function renderEntryProvider(item: DiscoveryEntryView) {
-  const provider = item.media_input.source_context.provider;
-  return typeof provider === 'string' && provider ? provider : item.entry.provider;
-}
-
-function isEntryResolvable(item: DiscoveryEntryView) {
-  return (
-    item.recognition_assessment.state === 'direct' || item.recognition_assessment.state === 'ready'
-  );
-}
-
-function isEntrySubscribable(item: DiscoveryEntryView) {
-  return isEntryResolvable(item);
-}
-
-function resolveRecognitionStatusText(item: DiscoveryEntryView) {
-  if (item.recognition_assessment.state === 'direct') {
-    return '已可直接查看详情';
+function resolveConversionStatusText(target: DiscoveryTarget) {
+  if (target.conversion_ready) {
+    return target.resolution_mode === 'search_lookup' ? '需要检索详情' : '已可查看详情';
   }
-  if (item.recognition_assessment.state === 'ready') {
-    return '可进入统一媒体解析';
-  }
-  if (item.recognition_assessment.state === 'partial') {
-    return item.recognition_assessment.note || '解析信息部分可用';
-  }
-  if (item.recognition_assessment.state === 'insufficient') {
+  if (target.resolution_mode === 'search_lookup') {
     return '解析信息不足';
   }
-  return item.recognition_assessment.note || '当前暂不支持详情下钻';
+  return '当前暂不支持详情下钻';
 }
 </script>
 

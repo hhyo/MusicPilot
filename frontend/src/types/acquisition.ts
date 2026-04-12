@@ -1,10 +1,4 @@
-import type { ApiResponse, EntityType } from '@/types/metadata';
-import type {
-  MusicMediaInfo,
-  MusicMediaInput,
-  MusicMetaBase,
-  MusicRecognitionAssessment,
-} from '@/types/music-media';
+import type { ApiResponse, EntityType, MetadataDetail } from '@/types/metadata';
 
 export type TriggerSource = 'manual' | 'chart' | 'subscription' | 'artist_watch';
 export type JobStatus =
@@ -67,27 +61,28 @@ export interface QueryClause {
 }
 
 export interface QueryContext {
-  entity_type: EntityType;
-  provider: string;
-  provider_id: string;
-  title: string;
-  artist_names: string[];
+  query_source_type: EntityType;
+  query_source_id: string;
+  entity_title: string;
+  artist_name?: string | null;
   album_title?: string | null;
-  album_artist_names: string[];
+  track_title?: string | null;
   year?: number | null;
-  track_number?: number | null;
-  disc_number?: number | null;
-  external_refs: Record<string, string>;
-  match_strategy?: string | null;
+  release_type?: string | null;
+  aliases: string[];
+  genres: string[];
+  external_ids: Record<string, string>;
+  provider: string;
+  source_type: string;
   note: string;
   summary: string;
 }
 
 export interface QueryBuildResult {
-  entity_type: EntityType;
+  query_source_type: EntityType;
+  query_source_id: string;
   provider: string;
-  provider_id: string;
-  music_media_info: MusicMediaInfo;
+  source_type: string;
   mock: boolean;
   preferences: QueryPreferences;
   canonical_queries: QueryClause[];
@@ -103,10 +98,8 @@ export interface QueryBuildResult {
 
 export interface SearchJobSummary {
   id: string;
-  music_media_input: MusicMediaInput;
-  music_meta_base: MusicMetaBase;
-  music_recognition_assessment: MusicRecognitionAssessment;
-  music_media_info: MusicMediaInfo;
+  query_source_type: EntityType;
+  query_source_id: string;
   trigger_source: TriggerSource;
   profile_id: string;
   mode: string;
@@ -118,6 +111,7 @@ export interface SearchJobSummary {
   mock: boolean;
   note?: string | null;
   query_build?: QueryBuildResult | null;
+  metadata_snapshot?: MetadataDetail | null;
   summary: Record<string, unknown>;
   error_message?: string | null;
   adapter_resolution?: AdapterResolution | null;
@@ -166,7 +160,8 @@ export interface SearchCandidateListData {
 }
 
 export interface SearchJobCreatePayload {
-  input: MusicMediaInput;
+  query_source_type: EntityType;
+  query_source_id: string;
   trigger_source?: TriggerSource;
   profile_id?: string;
   mode?: 'manual' | 'auto';
