@@ -12,6 +12,7 @@ from app.models.acquisition import DownloadBindingModel, SearchCandidateModel, S
 from app.models.base import Base
 from app.models.orchestration import OrganizeRecordModel, SubscriptionModel, SubscriptionRunModel
 from app.schemas.acquisition import PathHandoffInfo
+from app.schemas.music_media import MusicMediaInput
 from app.schemas.integration import AdapterMode, VerificationState
 from app.schemas.orchestration import (
     OrganizeConflictPolicy,
@@ -21,6 +22,7 @@ from app.schemas.orchestration import (
     SubscriptionRunStatus,
 )
 from app.services.pending_handoff import PendingHandoffReconcileService
+from test_query_builder import build_track_media
 
 
 def utc_now() -> datetime:
@@ -138,16 +140,27 @@ class PendingHandoffReconcileServiceTest(unittest.TestCase):
         Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
         Base.metadata.create_all(bind=engine)
         self.session = Session()
+        media = build_track_media()
+        media_input = MusicMediaInput(
+            entity_hint=media.entity_type,
+            source_kind="subscription",
+            title=media.title,
+            artist_names=list(media.artist_names),
+            album_title=media.album_title,
+            album_artist_names=list(media.album_artist_names),
+            external_refs=dict(media.external_refs),
+            source_context={},
+            raw_context={},
+        )
         self.job = SearchJobModel(
             id="job-001",
-            query_source_type="track",
-            query_source_id="track-hello",
             trigger_source="subscription",
             profile_id="default-lossless",
             mode="auto",
             status="dispatched",
+            music_media_input=media_input.model_dump(mode="json"),
+            music_media_info=media.model_dump(mode="json"),
             query_payload={},
-            metadata_snapshot={},
             summary_json={},
             mock=False,
             note="job",

@@ -10,7 +10,7 @@ from .host_http import HostHttpClient, HostTransportError
 from ..core.config import Settings
 from ..schemas.acquisition import HostSearchCandidate, QueryBuildResult
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterSelectionMode, VerificationState
-from ..schemas.metadata import MetadataDetail
+from ..schemas.music_media import MusicMediaInfo
 from ..schemas.mvp import EntityType
 
 
@@ -20,26 +20,29 @@ def normalize_title(value: str) -> str:
 
 class HostSearchAdapter(ABC):
     @abstractmethod
-    def search(self, *, query_build: QueryBuildResult, detail: MetadataDetail) -> list[HostSearchCandidate]:
+    def search(self, *, query_build: QueryBuildResult, media: MusicMediaInfo) -> list[HostSearchCandidate]:
         """Search host PT sites with the built query payload."""
 
 
 class MockHostSearchAdapter(HostSearchAdapter):
     """Stable mock PT search adapter for the Phase 3 minimum loop."""
 
-    def search(self, *, query_build: QueryBuildResult, detail: MetadataDetail) -> list[HostSearchCandidate]:
-        if detail.entity_type == EntityType.ALBUM:
-            exact_title = f"{detail.artist_name} - {detail.title} ({detail.year}) [FLAC] [24bit]"
-            manual_title = f"{detail.artist_name} - {detail.title} Deluxe Edition [AAC 320]"
-            reject_title = f"{detail.artist_name} Karaoke Tribute Collection [MP3 128]"
-        elif detail.entity_type == EntityType.TRACK:
-            exact_title = f"{detail.artist_name} - {detail.title} [{detail.album_title}] [FLAC]"
-            manual_title = f"{detail.artist_name} - {detail.title} Acoustic Session [AAC 320]"
-            reject_title = f"{detail.artist_name} - {detail.title} Instrumental Cover [MP3 128]"
+    def search(self, *, query_build: QueryBuildResult, media: MusicMediaInfo) -> list[HostSearchCandidate]:
+        primary_artist = " ".join(media.artist_names or media.album_artist_names) or (media.title or media.provider_id)
+        primary_title = media.title or media.album_title or primary_artist
+
+        if media.entity_type == EntityType.ALBUM:
+            exact_title = f"{primary_artist} - {primary_title} ({media.year}) [FLAC] [24bit]"
+            manual_title = f"{primary_artist} - {primary_title} Deluxe Edition [AAC 320]"
+            reject_title = f"{primary_artist} Karaoke Tribute Collection [MP3 128]"
+        elif media.entity_type == EntityType.TRACK:
+            exact_title = f"{primary_artist} - {primary_title} [{media.album_title}] [FLAC]"
+            manual_title = f"{primary_artist} - {primary_title} Acoustic Session [AAC 320]"
+            reject_title = f"{primary_artist} - {primary_title} Instrumental Cover [MP3 128]"
         else:
-            exact_title = f"{detail.title} Discography Collection [FLAC]"
-            manual_title = f"{detail.title} Anthology Selection [AAC 320]"
-            reject_title = f"{detail.title} Tribute Karaoke Pack [MP3 128]"
+            exact_title = f"{primary_title} Discography Collection [FLAC]"
+            manual_title = f"{primary_title} Anthology Selection [AAC 320]"
+            reject_title = f"{primary_title} Tribute Karaoke Pack [MP3 128]"
 
         return [
             HostSearchCandidate(
@@ -52,7 +55,7 @@ class MockHostSearchAdapter(HostSearchAdapter):
                 peers=4,
                 format_tag="flac",
                 bitrate_kbps=1000,
-                source_tags=["lossless", "official", detail.entity_type.value],
+                source_tags=["lossless", "official", media.entity_type.value],
                 note="当前候选来自 mock host search adapter，不代表已接入真实 PT 站点。",
                 adapter_resolution=AdapterResolution(
                     adapter_key="mock_host_search",
@@ -131,15 +134,15 @@ class RealHostSearchAdapter(HostSearchAdapter):
         self.settings = settings
         self.client = client
 
-    def search(self, *, query_build: QueryBuildResult, detail: MetadataDetail) -> list[HostSearchCandidate]:
+    def search(self, *, query_build: QueryBuildResult, media: MusicMediaInfo) -> list[HostSearchCandidate]:
         media_id = self._resolve_media_id(query_build)
         if media_id:
-            items = self._search_by_media(media_id=media_id, detail=detail)
+            items = self._search_by_media(media_id=media_id, media=media)
             if items:
                 return items
 
         for clause in self._iter_positive_queries(query_build):
-            items = self._search_by_title(clause_query=clause.query, detail=detail, query_type=clause.query_type)
+            items = self._search_by_title(clause_query=clause.query, media=media, query_type=clause.query_type)
             if items:
                 return items
 
@@ -154,7 +157,7 @@ class RealHostSearchAdapter(HostSearchAdapter):
         self,
         *,
         clause_query: str,
-        detail: MetadataDetail,
+        media: MusicMediaInfo,
         query_type: str,
     ) -> list[HostSearchCandidate]:
         payload = self.client.get_json(
@@ -171,7 +174,7 @@ class RealHostSearchAdapter(HostSearchAdapter):
             )
         return self._map_context_items(
             self._extract_context_items(payload),
-            detail=detail,
+            media=media,
             endpoint_label="search.title",
             note=(
                 "当前候选来自真实 MoviePilot `/api/v1/search/title` 返回结构，字段映射已经按宿主 Context/TorrentInfo "
@@ -181,7 +184,7 @@ class RealHostSearchAdapter(HostSearchAdapter):
             query_type=query_type,
         )
 
-    def _search_by_media(self, *, media_id: str, detail: MetadataDetail) -> list[HostSearchCandidate]:
+    def _search_by_media(self, *, media_id: str, media: MusicMediaInfo) -> list[HostSearchCandidate]:
         base_path = self.settings.host_search_media_path or "/api/v1/search/media"
         payload = self.client.get_json(
             f"{base_path.rstrip('/')}/{media_id}",
@@ -197,7 +200,7 @@ class RealHostSearchAdapter(HostSearchAdapter):
             )
         return self._map_context_items(
             self._extract_context_items(payload),
-            detail=detail,
+            media=media,
             endpoint_label="search.media",
             note=(
                 "当前候选来自真实 MoviePilot `/api/v1/search/media/{mediaid}` 返回结构。"
@@ -223,7 +226,7 @@ class RealHostSearchAdapter(HostSearchAdapter):
         self,
         items: list[dict[str, Any]],
         *,
-        detail: MetadataDetail,
+        media: MusicMediaInfo,
         endpoint_label: str,
         note: str,
         query_query: str,
@@ -294,17 +297,17 @@ class RealHostSearchAdapter(HostSearchAdapter):
         }
 
     def _resolve_media_id(self, query_build: QueryBuildResult) -> str | None:
-        external_ids = query_build.query_context.external_ids
+        external_refs = query_build.query_context.external_refs
         for key in ("moviepilot_mediaid", "mediaid"):
-            value = external_ids.get(key)
+            value = external_refs.get(key)
             if value:
                 return value
-        if external_ids.get("moviepilot_tmdb_id"):
-            return f"tmdb:{external_ids['moviepilot_tmdb_id']}"
-        if external_ids.get("moviepilot_douban_id"):
-            return f"douban:{external_ids['moviepilot_douban_id']}"
-        if external_ids.get("moviepilot_bangumi_id"):
-            return f"bangumi:{external_ids['moviepilot_bangumi_id']}"
+        if external_refs.get("moviepilot_tmdb_id"):
+            return f"tmdb:{external_refs['moviepilot_tmdb_id']}"
+        if external_refs.get("moviepilot_douban_id"):
+            return f"douban:{external_refs['moviepilot_douban_id']}"
+        if external_refs.get("moviepilot_bangumi_id"):
+            return f"bangumi:{external_refs['moviepilot_bangumi_id']}"
         return None
 
     def _iter_positive_queries(self, query_build: QueryBuildResult) -> list[Any]:

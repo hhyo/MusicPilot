@@ -33,7 +33,13 @@ from app.repositories.orchestration import OrchestrationRepository
 
 from test_host_integration import DummyProbeAdapter, build_candidate, build_settings
 from test_moviepilot_semantics import FakeHostClient, RealOrganizeAdapter, build_settings as build_moviepilot_settings
-from test_query_builder import build_album_detail, build_artist_detail, build_track_detail
+from test_query_builder import (
+    build_album_detail,
+    build_album_media,
+    build_artist_detail,
+    build_track_detail,
+    build_track_media,
+)
 
 
 class DummyMockOrganizeAdapter(OrganizeAdapter):
@@ -543,6 +549,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         session = Session()
         try:
             detail = build_album_detail()
+            media = build_album_media()
             settings = build_moviepilot_settings(
                 host_organize_mode="prefer_host",
                 host_assume_organize_available=True,
@@ -553,11 +560,23 @@ class OrganizeIntegrationTest(unittest.TestCase):
             )
             job = SearchJobModel(
                 id="job-preview-001",
-                query_source_type="album",
-                query_source_id="album-001",
                 trigger_source="manual",
+                profile_id="default-lossless",
+                mode="manual",
+                status="queued",
+                music_media_input={
+                    "entity_hint": "album",
+                    "source_kind": "manual",
+                    "title": detail.title,
+                    "artist_names": [detail.artist_name],
+                    "album_title": detail.album_title,
+                    "album_artist_names": [],
+                    "external_refs": {},
+                    "source_context": {},
+                    "raw_context": {},
+                },
+                music_media_info=media.model_dump(mode="json"),
                 query_payload={},
-                metadata_snapshot=detail.model_dump(mode="json"),
                 summary_json={},
             )
             candidate = SearchCandidateModel(
@@ -625,6 +644,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         session = Session()
         try:
             detail = build_track_detail()
+            media = build_track_media()
             settings = build_moviepilot_settings(
                 host_base_url=None,
                 host_organize_mode="prefer_host",
@@ -632,11 +652,23 @@ class OrganizeIntegrationTest(unittest.TestCase):
             )
             job = SearchJobModel(
                 id="job-preview-binding-001",
-                query_source_type="track",
-                query_source_id="track-001",
                 trigger_source="manual",
+                profile_id="default-lossless",
+                mode="manual",
+                status="queued",
+                music_media_input={
+                    "entity_hint": "track",
+                    "source_kind": "manual",
+                    "title": detail.track_title,
+                    "artist_names": [detail.artist_name],
+                    "album_title": detail.album_title,
+                    "album_artist_names": [],
+                    "external_refs": {},
+                    "source_context": {},
+                    "raw_context": {},
+                },
+                music_media_info=media.model_dump(mode="json"),
                 query_payload={},
-                metadata_snapshot=detail.model_dump(mode="json"),
                 summary_json={},
             )
             candidate = SearchCandidateModel(
@@ -713,13 +745,26 @@ class OrganizeIntegrationTest(unittest.TestCase):
         Base.metadata.create_all(bind=engine)
         session = Session()
         try:
+            media = build_album_media()
             job = SearchJobModel(
                 id="job-apply-001",
-                query_source_type="album",
-                query_source_id="album-001",
                 trigger_source="manual",
+                profile_id="default-lossless",
+                mode="manual",
+                status="queued",
+                music_media_input={
+                    "entity_hint": "album",
+                    "source_kind": "manual",
+                    "title": "25",
+                    "artist_names": ["Adele"],
+                    "album_title": "25",
+                    "album_artist_names": [],
+                    "external_refs": {},
+                    "source_context": {},
+                    "raw_context": {},
+                },
+                music_media_info=media.model_dump(mode="json"),
                 query_payload={},
-                metadata_snapshot={},
                 summary_json={},
             )
             candidate = SearchCandidateModel(
@@ -813,13 +858,26 @@ class OrganizeIntegrationTest(unittest.TestCase):
         Base.metadata.create_all(bind=engine)
         session = Session()
         try:
+            media = build_album_media()
             job = SearchJobModel(
                 id="job-apply-ctx-001",
-                query_source_type="album",
-                query_source_id="album-ctx-001",
                 trigger_source="manual",
+                profile_id="default-lossless",
+                mode="manual",
+                status="queued",
+                music_media_input={
+                    "entity_hint": "album",
+                    "source_kind": "manual",
+                    "title": "25",
+                    "artist_names": ["Adele"],
+                    "album_title": "25",
+                    "album_artist_names": [],
+                    "external_refs": {},
+                    "source_context": {},
+                    "raw_context": {},
+                },
+                music_media_info=media.model_dump(mode="json"),
                 query_payload={},
-                metadata_snapshot={},
                 summary_json={},
             )
             candidate = SearchCandidateModel(

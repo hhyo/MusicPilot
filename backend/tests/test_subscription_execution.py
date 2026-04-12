@@ -16,6 +16,7 @@ from app.schemas.acquisition import (
     PathHandoffInfo,
     SearchCandidateDetail,
     SearchCandidateListData,
+    SearchJobCreateRequest,
     SearchJobSummary,
 )
 from app.schemas.integration import AdapterMode, VerificationState
@@ -33,8 +34,9 @@ from app.schemas.orchestration import (
     SubscriptionType,
 )
 from app.services.subscription_execution import SubscriptionExecutionService
+from app.services.music_media_input_adapter import MusicMediaInputAdapter
 
-from test_query_builder import build_artist_detail
+from test_query_builder import build_artist_detail, build_artist_media
 
 
 def utc_now() -> datetime:
@@ -42,10 +44,22 @@ def utc_now() -> datetime:
 
 
 def build_search_job_summary(*, status: JobStatus) -> SearchJobSummary:
+    media = build_artist_media()
+    media_input = MusicMediaInput(
+        entity_hint=EntityType.ARTIST,
+        source_kind="subscription",
+        title=media.title,
+        artist_names=list(media.artist_names),
+        album_title=None,
+        album_artist_names=[],
+        external_refs=dict(media.external_refs),
+        source_context={},
+        raw_context={},
+    )
     return SearchJobSummary(
         id="job-001",
-        query_source_type=EntityType.ARTIST,
-        query_source_id="artist-adele",
+        music_media_input=media_input,
+        music_media_info=media,
         trigger_source=TriggerSource.SUBSCRIPTION,
         profile_id="default-lossless",
         mode="auto",
@@ -203,12 +217,17 @@ class DummyMusicMediaChain:
     def __init__(self, resolved_media: MusicMediaInfo | None = None) -> None:
         self.resolved_media = resolved_media
         self.calls: list[MusicMediaInput] = []
+        self.input_adapter = MusicMediaInputAdapter()
 
     def resolve(self, payload: MusicMediaInput) -> MusicMediaInfo:
         self.calls.append(payload)
         if self.resolved_media is None:
             raise AssertionError("resolve() should not be called without a configured result")
         return self.resolved_media
+
+    def resolve_detail(self, payload: MusicMediaInput):
+        self.calls.append(payload)
+        return SimpleNamespace(detail=build_artist_detail())
 
 
 class SubscriptionExecutionServiceTest(unittest.TestCase):
@@ -464,11 +483,13 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
 
         self.assertEqual(result.execution_status, SubscriptionRunStatus.NO_RESULT)
         self.assertEqual(len(chain.calls), 1)
-        self.assertEqual(search_job_service.created_payloads[0].query_source_type, EntityType.TRACK)
-        self.assertEqual(search_job_service.created_payloads[0].query_source_id, "recording-hello")
+        self.assertEqual(search_job_service.created_payloads[0].input.entity_hint, EntityType.TRACK)
+        self.assertEqual(search_job_service.created_payloads[0].input.title, "Hello")
+        self.assertEqual(search_job_service.created_payloads[0].input.artist_names, ["Adele"])
 
-    def test_subscription_execution_prefers_music_media_info_snapshot_for_search(self) -> None:
+    def test_build_job_request_prefers_music_media_info_snapshot_for_search(self) -> None:
         service = SubscriptionExecutionService.__new__(SubscriptionExecutionService)
+        service.music_media_chain = DummyMusicMediaChain()
         media = MusicMediaInfo(
             entity_type=EntityType.TRACK,
             provider="musicbrainz",
@@ -485,15 +506,33 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
             release_context={},
             match_strategy="strong_ref",
         )
+        subscription = type(
+            "SubscriptionStub",
+            (),
+            {
+                "id": "sub-001",
+                "subscription_type": SubscriptionType.CHART_ENTRY.value,
+                "target_entity_type": EntityType.TRACK.value,
+                "target_id": "legacy-target",
+                "mode": "manual",
+                "preference_json": {},
+                "target_payload_json": {
+                    "music_media_info": media.model_dump(mode="json"),
+                },
+            },
+        )()
 
-        search_input = service._build_search_input_from_media_info(media)
+        payload = service._build_job_request(subscription)
 
-        self.assertEqual(search_input["title"], "Hello")
-        self.assertEqual(search_input["artist_names"], ["Adele"])
-        self.assertEqual(search_input["album_title"], "25")
+        self.assertEqual(payload.input.entity_hint, EntityType.TRACK)
+        self.assertEqual(payload.input.title, "Hello")
+        self.assertEqual(payload.input.artist_names, ["Adele"])
+        self.assertEqual(payload.input.album_title, "25")
 
-    def test_resolve_query_source_uses_music_media_info_snapshot_when_present(self) -> None:
+    def test_resolve_or_build_music_media_info_uses_snapshot_when_present(self) -> None:
         service = SubscriptionExecutionService.__new__(SubscriptionExecutionService)
+        service.session = SimpleNamespace(flush=lambda: None)
+        service.music_media_chain = DummyMusicMediaChain()
         subscription = type(
             "SubscriptionStub",
             (),
@@ -521,12 +560,13 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
             },
         )()
 
-        entity_type, entity_id = service._resolve_query_source(subscription)
+        media = service._resolve_or_build_music_media_info(subscription)
 
-        self.assertEqual(entity_type, EntityType.TRACK)
-        self.assertEqual(entity_id, "recording-hello")
+        self.assertIsNotNone(media)
+        self.assertEqual(media.entity_type, EntityType.TRACK)
+        self.assertEqual(media.provider_id, "recording-hello")
 
-    def test_resolve_query_source_builds_music_media_info_from_music_media_input_snapshot(self) -> None:
+    def test_resolve_or_build_music_media_info_builds_from_music_media_input_snapshot(self) -> None:
         service = SubscriptionExecutionService.__new__(SubscriptionExecutionService)
         service.session = SimpleNamespace(flush=lambda: None)
         service.music_media_chain = DummyMusicMediaChain(
@@ -568,10 +608,11 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
             },
         )()
 
-        entity_type, entity_id = service._resolve_query_source(subscription)
+        media = service._resolve_or_build_music_media_info(subscription)
 
-        self.assertEqual(entity_type, EntityType.TRACK)
-        self.assertEqual(entity_id, "recording-hello")
+        self.assertIsNotNone(media)
+        self.assertEqual(media.entity_type, EntityType.TRACK)
+        self.assertEqual(media.provider_id, "recording-hello")
         self.assertEqual(len(service.music_media_chain.calls), 1)
         self.assertEqual(
             subscription.target_payload_json["music_media_info"]["provider_id"],

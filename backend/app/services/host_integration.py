@@ -15,7 +15,7 @@ from ..core.config import Settings
 from ..adapters.host_http import HostTransportError
 from ..schemas.acquisition import DispatchAdapterResult, HostSearchCandidate, QueryBuildResult, SearchCandidateDetail
 from ..schemas.integration import AdapterMode, AdapterResolution, AdapterSelectionMode, HostIntegrationRuntimeState, VerificationState
-from ..schemas.metadata import MetadataDetail
+from ..schemas.music_media import MusicMediaInfo
 from ..schemas.orchestration import OrganizeAdapterResult, OrganizePlan
 
 
@@ -354,7 +354,7 @@ class HostSearchAdapterResolver:
         self.mock_adapter = mock_adapter
         self.host_adapter = host_adapter
 
-    def search(self, *, query_build: QueryBuildResult, detail: MetadataDetail) -> SearchExecutionResult:
+    def search(self, *, query_build: QueryBuildResult, media: MusicMediaInfo) -> SearchExecutionResult:
         runtime_state = self.integration_service.runtime_state()
         resolution = self.integration_service.resolve_search_mode(
             search_capability=runtime_state.search_capability,
@@ -363,7 +363,7 @@ class HostSearchAdapterResolver:
         adapter = self.host_adapter if resolution.adapter_mode == AdapterMode.HOST else self.mock_adapter
 
         try:
-            candidates = adapter.search(query_build=query_build, detail=detail)
+            candidates = adapter.search(query_build=query_build, media=media)
         except Exception as exc:
             raise HTTPException(
                 status_code=503,

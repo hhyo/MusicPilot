@@ -41,8 +41,8 @@
         </article>
         <article class="job-card">
           <span>Source</span>
-          <strong>{{ job.query_source_type }}</strong>
-          <p>{{ job.metadata_snapshot?.title || job.query_source_id }}</p>
+          <strong>{{ job.music_media_info.entity_type }}</strong>
+          <p>{{ job.music_media_info.title || job.music_media_info.album_title || job.music_media_info.provider_id }}</p>
         </article>
         <article class="job-card">
           <span>Candidates</span>

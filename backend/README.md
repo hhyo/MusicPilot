@@ -20,7 +20,7 @@ FastAPI 工程目录。当前已完成：
 - Phase 8 多样例真实验证矩阵与 path handoff 稳定性收敛
 - 验证矩阵作为验证产物保留，运行时改回固定接口语义与固定调用规则
 
-当前也已经启动统一音乐媒体解析链重构：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`。这条统一音乐媒体解析链参考 MoviePilot 的设计方法，但不复用影视模型本身；当前已经接管 discovery/detail 主路径，并开始进入 chart_entry 订阅创建、subscription execution 与 organize 上游识别。RSS / 弱来源 chart entry 现在会在创建订阅时先固化 `MusicMediaInput` 与 `MusicMediaInfo` snapshot，再进入后续 run。后续仍需继续把 search_job、持久化快照和更多场景完全收口到这条链。
+当前也已经启动统一音乐媒体解析链重构：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`。这条统一音乐媒体解析链参考 MoviePilot 的设计方法，但不复用影视模型本身；当前已经接管 discovery/detail 主路径，并继续进入 chart_entry 订阅创建、subscription execution、SearchJob、QueryBuilder、candidate scoring 与 organize 上游识别。RSS / 弱来源 chart entry 现在会在创建订阅时先固化 `MusicMediaInput` 与 `MusicMediaInfo` snapshot，再进入后续 run；SearchJob 也已改为持久化统一输入与正式媒体对象，不再依赖旧的 `metadata_snapshot / query_source_type / query_source_id`。后续仍需继续把更多下游场景完全收口到这条链。
 
 当前仍不包含：
 

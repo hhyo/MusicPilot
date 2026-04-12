@@ -28,7 +28,7 @@ from app.schemas.orchestration import (
 from app.services.host_path_handoff import HostPathHandoffService
 from app.services.query_builder import QueryBuilderService
 
-from test_query_builder import build_album_detail
+from test_query_builder import build_album_media
 
 
 class FakeHostClient:
@@ -477,8 +477,8 @@ def build_plan() -> OrganizePlan:
 
 class RealHostSearchAdapterTest(unittest.TestCase):
     def test_search_title_maps_moviepilot_context_shape(self) -> None:
-        detail = build_album_detail()
-        query_build = QueryBuilderService.build_from_detail(detail)
+        media = build_album_media()
+        query_build = QueryBuilderService.build_from_music_media_info(media)
         client = FakeHostClient(
             get_responses={
                 "/api/v1/search/title": {
@@ -506,7 +506,7 @@ class RealHostSearchAdapterTest(unittest.TestCase):
         )
         adapter = RealHostSearchAdapter(settings=build_settings(), client=client)  # type: ignore[arg-type]
 
-        results = adapter.search(query_build=query_build, detail=detail)
+        results = adapter.search(query_build=query_build, media=media)
 
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].site_name, "Stub PT")
@@ -518,9 +518,9 @@ class RealHostSearchAdapterTest(unittest.TestCase):
         self.assertEqual(client.calls[0][1], "/api/v1/search/title")
 
     def test_search_media_positive_sample_is_verified(self) -> None:
-        detail = build_album_detail()
-        query_build = QueryBuilderService.build_from_detail(detail)
-        query_build.query_context.external_ids["moviepilot_tmdb_id"] = "447273"
+        media = build_album_media()
+        query_build = QueryBuilderService.build_from_music_media_info(media)
+        query_build.query_context.external_refs["moviepilot_tmdb_id"] = "447273"
         client = FakeHostClient(
             get_responses={
                 "/api/v1/search/media/": {},
@@ -545,7 +545,7 @@ class RealHostSearchAdapterTest(unittest.TestCase):
         )
         adapter = RealHostSearchAdapter(settings=build_settings(), client=client)  # type: ignore[arg-type]
 
-        results = adapter.search(query_build=query_build, detail=detail)
+        results = adapter.search(query_build=query_build, media=media)
 
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].adapter_resolution.verification_state, VerificationState.VERIFIED)

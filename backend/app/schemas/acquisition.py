@@ -8,7 +8,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from .integration import AdapterMode, AdapterResolution, VerificationState
-from .metadata import MetadataDetail
+from .music_media import MusicMediaInfo, MusicMediaInput
 from .mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 
 
@@ -25,8 +25,7 @@ class QueryPreferences(BaseModel):
 
 
 class QueryBuildRequest(BaseModel):
-    query_source_type: EntityType
-    query_source_id: str
+    input: MusicMediaInput
     preferences: QueryPreferences = Field(default_factory=QueryPreferences)
 
 
@@ -39,28 +38,27 @@ class QueryClause(BaseModel):
 
 
 class QueryContext(BaseModel):
-    query_source_type: EntityType
-    query_source_id: str
-    entity_title: str
-    artist_name: str | None = None
-    album_title: str | None = None
-    track_title: str | None = None
-    year: int | None = None
-    release_type: str | None = None
-    aliases: list[str] = Field(default_factory=list)
-    genres: list[str] = Field(default_factory=list)
-    external_ids: dict[str, str] = Field(default_factory=dict)
+    entity_type: EntityType
     provider: str
-    source_type: str
+    provider_id: str
+    title: str
+    artist_names: list[str] = Field(default_factory=list)
+    album_title: str | None = None
+    album_artist_names: list[str] = Field(default_factory=list)
+    year: int | None = None
+    track_number: int | None = None
+    disc_number: int | None = None
+    external_refs: dict[str, str] = Field(default_factory=dict)
+    match_strategy: str | None = None
     note: str
     summary: str
 
 
 class QueryBuildResult(BaseModel):
-    query_source_type: EntityType
-    query_source_id: str
+    entity_type: EntityType
     provider: str
-    source_type: str
+    provider_id: str
+    music_media_info: MusicMediaInfo
     mock: bool = True
     preferences: QueryPreferences
     canonical_queries: list[QueryClause] = Field(default_factory=list)
@@ -120,8 +118,7 @@ class CandidateScoreResult(BaseModel):
 
 
 class SearchJobCreateRequest(BaseModel):
-    query_source_type: EntityType
-    query_source_id: str
+    input: MusicMediaInput
     trigger_source: TriggerSource = TriggerSource.MANUAL
     profile_id: str = "default-lossless"
     mode: Literal["manual", "auto"] = "manual"
@@ -130,8 +127,8 @@ class SearchJobCreateRequest(BaseModel):
 
 class SearchJobSummary(BaseModel):
     id: str
-    query_source_type: EntityType
-    query_source_id: str
+    music_media_input: MusicMediaInput
+    music_media_info: MusicMediaInfo
     trigger_source: TriggerSource
     profile_id: str
     mode: str
@@ -143,7 +140,6 @@ class SearchJobSummary(BaseModel):
     mock: bool = True
     note: str | None = None
     query_build: QueryBuildResult | None = None
-    metadata_snapshot: MetadataDetail | None = None
     summary: dict[str, Any] = Field(default_factory=dict)
     error_message: str | None = None
     adapter_resolution: AdapterResolution | None = None

@@ -200,11 +200,37 @@ class SubscriptionExecutionService:
         )
 
     def _build_job_request(self, subscription) -> SearchJobCreateRequest:
-        entity_type, entity_id = self._resolve_query_source(subscription)
         preferences = QueryPreferences.model_validate(subscription.preference_json or {})
+        media_input = self._resolve_music_media_input_snapshot(subscription)
+        if media_input is None:
+            media_info = self._resolve_or_build_music_media_info(subscription)
+            if media_info is not None:
+                media_input = self.music_media_chain.input_adapter.from_music_media_info(
+                    media_info,
+                    source_kind="subscription",
+                    source_context={
+                        "subscription_id": subscription.id,
+                        "subscription_type": subscription.subscription_type,
+                    },
+                    raw_context={"target_id": subscription.target_id},
+                )
+
+        if media_input is None:
+            detail = self.search_job_service.metadata_service.get_detail(
+                EntityType(subscription.target_entity_type or subscription.subscription_type),
+                subscription.target_id,
+            )
+            media_input = self.music_media_chain.input_adapter.from_metadata_detail(
+                detail,
+                source_kind="subscription",
+                source_context={
+                    "subscription_id": subscription.id,
+                    "subscription_type": subscription.subscription_type,
+                },
+                raw_context={"target_id": subscription.target_id},
+            )
         return SearchJobCreateRequest(
-            query_source_type=entity_type,
-            query_source_id=entity_id,
+            input=media_input,
             trigger_source=TriggerSource.SUBSCRIPTION,
             profile_id="default-lossless",
             mode="manual" if subscription.mode == "manual" else "auto",
@@ -212,28 +238,19 @@ class SubscriptionExecutionService:
         )
 
     def _resolve_metadata_target(self, subscription) -> MetadataDetail | None:
-        entity_type, entity_id = self._resolve_query_source(subscription)
-        return self.search_job_service.metadata_service.get_detail(entity_type, entity_id)
-
-    def _resolve_query_source(self, subscription) -> tuple[EntityType, str]:
-        media_info = self._resolve_or_build_music_media_info(subscription)
-        if media_info is not None and media_info.provider_id:
-            search_input = self._build_search_input_from_media_info(media_info)
-            return EntityType(search_input["entity_type"]), str(search_input["provider_id"])
-
-        if subscription.subscription_type == SubscriptionType.CHART_ENTRY.value:
-            payload = subscription.target_payload_json or {}
-            target_entity_type = payload.get("target_entity_type")
-            target_id = payload.get("target_id")
-            if not target_entity_type or not target_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Subscription {subscription.id} does not contain a valid chart entry target payload.",
+        media_input = self._resolve_music_media_input_snapshot(subscription)
+        if media_input is None:
+            media_info = self._resolve_or_build_music_media_info(subscription)
+            if media_info is not None:
+                media_input = self.music_media_chain.input_adapter.from_music_media_info(
+                    media_info,
+                    source_kind="subscription_detail",
+                    source_context={"subscription_id": subscription.id},
+                    raw_context={"target_id": subscription.target_id},
                 )
-            return EntityType(target_entity_type), str(target_id)
-
-        target_entity_type = subscription.target_entity_type or subscription.subscription_type
-        return EntityType(target_entity_type), subscription.target_id
+        if media_input is None:
+            return None
+        return self.music_media_chain.resolve_detail(media_input).detail
 
     def _resolve_or_build_music_media_info(self, subscription) -> MusicMediaInfo | None:
         media_info = self._resolve_music_media_info_snapshot(subscription)
@@ -273,18 +290,6 @@ class SubscriptionExecutionService:
             return MusicMediaInput.model_validate(snapshot)
         except Exception:  # pragma: no cover - defensive parse guard
             return None
-
-    @staticmethod
-    def _build_search_input_from_media_info(media: MusicMediaInfo) -> dict[str, object]:
-        return {
-            "entity_type": media.entity_type.value,
-            "provider": media.provider,
-            "provider_id": media.provider_id,
-            "title": media.title,
-            "artist_names": list(media.artist_names),
-            "album_title": media.album_title,
-            "match_strategy": media.match_strategy,
-        }
 
     def _map_run_status(self, job_status: JobStatus) -> SubscriptionRunStatus:
         if job_status == JobStatus.DISPATCHED:

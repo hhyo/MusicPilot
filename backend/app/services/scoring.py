@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import re
 
-from ..schemas.acquisition import CandidateScoreResult, QueryBuildResult, QueryPreferences, ScoreBreakdownItem
-from ..schemas.metadata import MetadataDetail
+from ..schemas.acquisition import CandidateScoreResult, HostSearchCandidate, QueryBuildResult, QueryPreferences, ScoreBreakdownItem
+from ..schemas.music_media import MusicMediaInfo
 from ..schemas.mvp import DecisionStatus, EntityType
-from ..schemas.acquisition import HostSearchCandidate
 
 
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
@@ -34,27 +33,27 @@ class MusicCandidateScorer:
     def score(
         self,
         *,
-        detail: MetadataDetail,
+        media: MusicMediaInfo,
         query_build: QueryBuildResult,
         candidate: HostSearchCandidate,
         preferences: QueryPreferences,
     ) -> CandidateScoreResult:
         title_text = candidate.title
-        main_title = detail.track_title or detail.album_title or detail.title
-        artist_name = detail.artist_name or detail.title
+        main_title = media.title or media.album_title or (media.artist_names[0] if media.artist_names else media.provider_id)
+        artist_name = " ".join(media.artist_names or media.album_artist_names) or main_title
 
         title_match = round(token_ratio(main_title, title_text) * 25, 2)
         artist_match = round(token_ratio(artist_name, title_text) * 20, 2)
 
         release_score = 0.0
-        if detail.entity_type == EntityType.ALBUM and detail.album_title:
-            release_score = round(token_ratio(detail.album_title, title_text) * 15, 2)
-        elif detail.entity_type == EntityType.TRACK:
-            release_score = round(token_ratio(detail.track_title or detail.title, title_text) * 15, 2)
-        elif detail.entity_type == EntityType.ARTIST:
+        if media.entity_type == EntityType.ALBUM and media.album_title:
+            release_score = round(token_ratio(media.album_title, title_text) * 15, 2)
+        elif media.entity_type == EntityType.TRACK:
+            release_score = round(token_ratio(media.title or main_title, title_text) * 15, 2)
+        elif media.entity_type == EntityType.ARTIST:
             release_score = 10.0 if "discography" in normalize_text(title_text) else 6.0
 
-        year_score = 10.0 if detail.year and str(detail.year) in title_text else 0.0
+        year_score = 10.0 if media.year and str(media.year) in title_text else 0.0
         format_score = self._format_quality_score(candidate)
         bitrate_score = self._bitrate_score(candidate, preferences)
         seeder_score = self._seeder_score(candidate.seeders)

@@ -19,14 +19,13 @@ class SearchJobModel(Base):
     __tablename__ = "search_jobs"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    query_source_type: Mapped[str] = mapped_column(String(32), index=True)
-    query_source_id: Mapped[str] = mapped_column(String(64), index=True)
     trigger_source: Mapped[str] = mapped_column(String(32), index=True)
     profile_id: Mapped[str] = mapped_column(String(64), default="default-lossless")
     mode: Mapped[str] = mapped_column(String(16), default="manual")
     status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
+    music_media_input: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    music_media_info: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     query_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
-    metadata_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     summary_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     mock: Mapped[bool] = mapped_column(Boolean, default=True)

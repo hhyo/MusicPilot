@@ -158,9 +158,14 @@ class OrganizeService:
         candidate_payload = dict(candidate_model.raw_payload or {})
         binding_payload = dict(binding_model.raw_payload or {}) if binding_model else {}
         metadata_detail = None
-        if candidate_model.job and candidate_model.job.metadata_snapshot:
-            metadata_detail = MetadataDetail.model_validate(candidate_model.job.metadata_snapshot)
-        elif (music_media_info := self._extract_music_media_info_snapshot(candidate_payload, binding_payload)) is not None:
+        music_media_info = self._extract_music_media_info_snapshot(candidate_payload, binding_payload)
+        if music_media_info is None and candidate_model.job and candidate_model.job.music_media_info:
+            try:
+                music_media_info = MusicMediaInfo.model_validate(candidate_model.job.music_media_info)
+            except Exception:  # pragma: no cover - defensive parse guard
+                music_media_info = None
+
+        if music_media_info is not None:
             metadata_detail = self._build_metadata_detail_from_music_media_info(music_media_info)
 
         if "path_handoff" not in candidate_payload and isinstance(binding_payload.get("path_handoff"), dict):

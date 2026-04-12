@@ -2,7 +2,7 @@
 
 MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已经完成插件壳层、metadata 搜索、手动订阅执行，以及音乐 organize `preview -> apply` 的真实宿主最小闭环，并继续沿“接口语义明确、场景调用明确、数据来源明确”的方向推进，不再扩展通用策略、推荐或矩阵决策层。
 
-当前项目已经启动统一音乐媒体解析链重构：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`。这条链参考 MoviePilot 统一媒体解析链的设计方法，但保持音乐领域模型独立；当前已经接管 discovery 下钻 detail 的主路径，并开始进入 chart_entry 订阅创建、subscription execution 与 organize 上游识别。RSS / 弱来源榜单项在创建订阅时会先固化 `MusicMediaInput` 与 `MusicMediaInfo` snapshot，再进入后续 run，不再依赖旧的 `DiscoveryTarget / resolution_hints / /metadata/lookup` 过渡桥接。后续仍需继续把 search_job、持久化快照和更多场景彻底收口到这条主链。
+当前项目已经启动统一音乐媒体解析链重构：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`。这条链参考 MoviePilot 统一媒体解析链的设计方法，但保持音乐领域模型独立；当前已经接管 discovery 下钻 detail、search job 输入、query builder、candidate scoring、subscription execution 与 organize 上游识别。RSS / 弱来源榜单项在创建订阅时会先固化 `MusicMediaInput` 与 `MusicMediaInfo` snapshot，再进入后续 run；SearchJob 也已改为持久化统一输入与正式媒体对象，不再依赖旧的 `DiscoveryTarget / resolution_hints / /metadata/lookup / metadata_snapshot` 过渡桥接。后续主线将转向更多场景全面接入统一链，而不是继续维护旧 lookup 语义。
 
 ## 项目简介
 

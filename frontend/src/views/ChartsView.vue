@@ -275,7 +275,7 @@ import { ElMessage } from 'element-plus';
 
 import MetadataDetailDrawer from '@/components/MetadataDetailDrawer.vue';
 import { createSearchJob, executeSearchJob } from '@/services/acquisition';
-import { resolveMusicMediaDetail } from '@/services/music-media';
+import { buildMusicMediaInputFromMetadataDetail, resolveMusicMediaDetail } from '@/services/music-media';
 import {
   createSubscription,
   fetchChartDetail,
@@ -471,9 +471,12 @@ async function createSubscriptionFromDetail(detail: MetadataDetail) {
 
 async function createAndRunSearchJobFromDetail(detail: MetadataDetail) {
   try {
+    const mediaInput = buildMusicMediaInputFromMetadataDetail(detail, 'discovery', {
+      trigger: 'charts_view_detail',
+      chart_id: selectedChart.value?.chart.id ?? null,
+    });
     const created = await createSearchJob({
-      query_source_type: detail.entity_type,
-      query_source_id: detail.id,
+      input: mediaInput,
       trigger_source: 'manual',
       mode: 'manual',
     });

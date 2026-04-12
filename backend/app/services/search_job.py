@@ -11,7 +11,6 @@ from ..models.acquisition import SearchCandidateModel, SearchJobModel
 from ..repositories.acquisition import AcquisitionRepository
 from ..schemas.acquisition import (
     PathHandoffInfo,
-    QueryBuildRequest,
     QueryBuildResult,
     SearchCandidateDetail,
     SearchCandidateListData,
@@ -19,7 +18,7 @@ from ..schemas.acquisition import (
     SearchJobSummary,
 )
 from ..schemas.integration import AdapterMode, AdapterResolution
-from ..schemas.metadata import MetadataDetail
+from ..schemas.music_media import MusicMediaInfo, MusicMediaInput
 from ..schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from .host_integration import HostSearchAdapterResolver
 from .metadata import MetadataService
@@ -40,29 +39,29 @@ class SearchJobService:
         *,
         metadata_service: MetadataService,
         query_builder: QueryBuilderService,
+        music_media_chain,
         host_search_resolver: HostSearchAdapterResolver,
         scorer: MusicCandidateScorer,
     ):
         self.session = session
         self.metadata_service = metadata_service
         self.query_builder = query_builder
+        self.music_media_chain = music_media_chain
         self.host_search_resolver = host_search_resolver
         self.scorer = scorer
         self.repository = AcquisitionRepository(session)
 
     def create_job(self, payload: SearchJobCreateRequest) -> SearchJobSummary:
-        metadata_detail = self.metadata_service.get_detail(payload.query_source_type, payload.query_source_id)
-        query_build = self.query_builder.build(
-            QueryBuildRequest(
-                query_source_type=payload.query_source_type,
-                query_source_id=payload.query_source_id,
-                preferences=payload.preferences,
-            )
+        music_media_info = self.music_media_chain.resolve(payload.input)
+        query_build = self.query_builder.build_from_music_media_info(
+            music_media_info,
+            payload.preferences,
         )
         job = self.repository.create_job(
             payload=payload,
+            music_media_input=payload.input.model_dump(mode="json"),
+            music_media_info=music_media_info.model_dump(mode="json"),
             query_payload=query_build.model_dump(mode="json"),
-            metadata_snapshot=metadata_detail.model_dump(mode="json"),
             note=JOB_NOTE,
         )
         self.session.commit()
@@ -83,7 +82,7 @@ class SearchJobService:
         if job is None:
             raise HTTPException(status_code=404, detail=f"Job {job_id} was not found.")
 
-        metadata_detail = MetadataDetail.model_validate(job.metadata_snapshot)
+        media_info = MusicMediaInfo.model_validate(job.music_media_info)
         query_build = QueryBuildResult.model_validate(job.query_payload)
         preferences = query_build.preferences
 
@@ -92,13 +91,13 @@ class SearchJobService:
         self.session.flush()
 
         try:
-            search_execution = self.host_search_resolver.search(query_build=query_build, detail=metadata_detail)
+            search_execution = self.host_search_resolver.search(query_build=query_build, media=media_info)
             raw_candidates = search_execution.candidates
             persisted_candidates: list[SearchCandidateModel] = []
 
             for raw_candidate in raw_candidates:
                 score = self.scorer.score(
-                    detail=metadata_detail,
+                    media=media_info,
                     query_build=query_build,
                     candidate=raw_candidate,
                     preferences=preferences,
@@ -194,8 +193,8 @@ class SearchJobService:
 def serialize_job(job: SearchJobModel) -> SearchJobSummary:
     return SearchJobSummary(
         id=job.id,
-        query_source_type=EntityType(job.query_source_type),
-        query_source_id=job.query_source_id,
+        music_media_input=MusicMediaInput.model_validate(job.music_media_input),
+        music_media_info=MusicMediaInfo.model_validate(job.music_media_info),
         trigger_source=TriggerSource(job.trigger_source),
         profile_id=job.profile_id,
         mode=job.mode,
@@ -207,7 +206,6 @@ def serialize_job(job: SearchJobModel) -> SearchJobSummary:
         mock=job.mock,
         note=job.note,
         query_build=QueryBuildResult.model_validate(job.query_payload) if job.query_payload else None,
-        metadata_snapshot=MetadataDetail.model_validate(job.metadata_snapshot) if job.metadata_snapshot else None,
         summary=job.summary_json or {},
         error_message=job.error_message,
         adapter_resolution=_extract_resolution(job.summary_json or {}),

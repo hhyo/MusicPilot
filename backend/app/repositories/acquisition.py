@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..models.acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
 from ..schemas.acquisition import CandidateScoreResult, DispatchAdapterResult, HostSearchCandidate, SearchJobCreateRequest
-from ..schemas.metadata import MetadataDetail
 
 
 def utc_now() -> datetime:
@@ -30,20 +29,20 @@ class AcquisitionRepository:
         self,
         *,
         payload: SearchJobCreateRequest,
+        music_media_input: dict,
+        music_media_info: dict,
         query_payload: dict,
-        metadata_snapshot: dict,
         note: str,
     ) -> SearchJobModel:
         job = SearchJobModel(
             id=f"job-{uuid4().hex[:12]}",
-            query_source_type=payload.query_source_type.value,
-            query_source_id=payload.query_source_id,
             trigger_source=payload.trigger_source.value,
             profile_id=payload.profile_id,
             mode=payload.mode,
             status="queued",
+            music_media_input=music_media_input,
+            music_media_info=music_media_info,
             query_payload=query_payload,
-            metadata_snapshot=metadata_snapshot,
             note=note,
             mock=True,
             summary_json={

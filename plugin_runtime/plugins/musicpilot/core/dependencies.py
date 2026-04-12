@@ -231,9 +231,9 @@ def get_chart_service(
 
 
 def get_query_builder_service(
-    metadata_service: MetadataService = Depends(get_metadata_service),
+    music_media_chain: MusicMediaChain = Depends(get_music_media_chain),
 ) -> QueryBuilderService:
-    return QueryBuilderService(metadata_service=metadata_service)
+    return QueryBuilderService(music_media_chain=music_media_chain)
 
 
 @lru_cache
@@ -262,6 +262,7 @@ def get_host_search_adapter_resolver() -> HostSearchAdapterResolver:
 def get_search_job_service(
     session: Session = Depends(get_db_session),
     metadata_service: MetadataService = Depends(get_metadata_service),
+    music_media_chain: MusicMediaChain = Depends(get_music_media_chain),
     query_builder: QueryBuilderService = Depends(get_query_builder_service),
     host_search_resolver: HostSearchAdapterResolver = Depends(get_host_search_adapter_resolver),
     scorer: MusicCandidateScorer = Depends(get_candidate_scorer),
@@ -270,6 +271,7 @@ def get_search_job_service(
         session,
         metadata_service=metadata_service,
         query_builder=query_builder,
+        music_media_chain=music_media_chain,
         host_search_resolver=host_search_resolver,
         scorer=scorer,
     )
@@ -395,7 +397,8 @@ def build_subscription_execution_service(session: Session) -> SubscriptionExecut
     search_job_service = SearchJobService(
         session,
         metadata_service=metadata_service,
-        query_builder=QueryBuilderService(metadata_service=metadata_service),
+        query_builder=QueryBuilderService(music_media_chain=music_media_chain),
+        music_media_chain=music_media_chain,
         host_search_resolver=get_host_search_adapter_resolver(),
         scorer=get_candidate_scorer(),
     )

@@ -7,12 +7,11 @@ import type {
   DispatchPayload,
   SearchJobCreatePayload,
 } from '@/types/acquisition';
-import type { EntityType } from '@/types/metadata';
+import type { MusicMediaInput } from '@/types/music-media';
 
-export async function previewQueryBuild(querySourceType: EntityType, querySourceId: string): Promise<ApiQueryBuildResponse> {
+export async function previewQueryBuild(input: MusicMediaInput): Promise<ApiQueryBuildResponse> {
   const { data } = await http.post<ApiQueryBuildResponse>('/jobs/query-preview', {
-    query_source_type: querySourceType,
-    query_source_id: querySourceId,
+    input,
   });
   return data;
 }
