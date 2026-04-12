@@ -1,0 +1,79 @@
+"""Tests for subscription creation on the unified music media chain."""
+
+from __future__ import annotations
+
+import unittest
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.models.base import Base
+from app.schemas.music_media import MusicMediaInfo
+from app.schemas.orchestration import CreateSubscriptionRequest, SubscriptionType
+from app.services.music_media_input_adapter import MusicMediaInputAdapter
+from app.services.subscriptions import SubscriptionService
+from test_query_builder import build_artist_detail, build_artist_media
+
+
+class DummyMetadataService:
+    def get_detail(self, entity_type, entity_id):  # noqa: ANN001, ARG002
+        return build_artist_detail()
+
+
+class DummyMusicMediaChain:
+    def __init__(self) -> None:
+        self.input_adapter = MusicMediaInputAdapter()
+        self.calls = []
+
+    def resolve(self, payload):
+        self.calls.append(payload)
+        return build_artist_media()
+
+
+class SubscriptionServiceTest(unittest.TestCase):
+    def setUp(self) -> None:
+        engine = create_engine("sqlite:///:memory:", future=True)
+        Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+        Base.metadata.create_all(bind=engine)
+        self.session = Session()
+        self.music_media_chain = DummyMusicMediaChain()
+        self.service = SubscriptionService(
+            self.session,
+            metadata_service=DummyMetadataService(),
+            music_media_chain=self.music_media_chain,
+        )
+
+    def tearDown(self) -> None:
+        self.session.close()
+
+    def test_create_subscription_persists_music_media_snapshots(self) -> None:
+        result = self.service.create_subscription(
+            CreateSubscriptionRequest(
+                subscription_type=SubscriptionType.ARTIST,
+                target_id="artist-adele",
+                target_name="Adele",
+                target_entity_type="artist",
+                target_payload={"source": "manual-detail"},
+            )
+        )
+
+        self.assertEqual(result.target_payload["source"], "manual-detail")
+        self.assertEqual(result.target_payload["music_media_input"]["entity_hint"], "artist")
+        self.assertEqual(result.target_payload["music_media_info"]["provider_id"], "artist-adele")
+        self.assertEqual(len(self.music_media_chain.calls), 1)
+
+    def test_create_subscription_prefers_detail_title_when_target_name_missing(self) -> None:
+        result = self.service.create_subscription(
+            CreateSubscriptionRequest(
+                subscription_type=SubscriptionType.ARTIST,
+                target_id="artist-adele",
+                target_entity_type="artist",
+            )
+        )
+
+        self.assertEqual(result.target_name, "Adele")
+        self.assertEqual(result.target_payload["music_media_info"]["title"], "Adele")
+
+
+if __name__ == "__main__":
+    unittest.main()

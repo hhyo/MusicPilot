@@ -76,6 +76,23 @@ class SubscriptionService:
 
         resolved_type = payload.target_entity_type or EntityType(payload.subscription_type.value)
         detail = self.metadata_service.get_detail(resolved_type, payload.target_id)
+        media_input = self.music_media_chain.input_adapter.from_metadata_detail(
+            detail,
+            source_kind="subscription",
+            source_context={
+                "subscription_type": payload.subscription_type.value,
+                "target_id": payload.target_id,
+            },
+            raw_context={"target_payload": payload.target_payload},
+        )
+        media_info = self.music_media_chain.resolve(media_input)
+        target_payload = dict(payload.target_payload)
+        target_payload.update(
+            {
+                "music_media_input": media_input.model_dump(mode="json"),
+                "music_media_info": media_info.model_dump(mode="json"),
+            }
+        )
         subscription = self.repository.create_subscription(
             subscription_type=payload.subscription_type.value,
             target_id=payload.target_id,
@@ -85,7 +102,7 @@ class SubscriptionService:
             chart_name=None,
             mode=normalize_subscription_mode(payload.mode.value),
             preference_json=payload.preference_json,
-            target_payload_json=payload.target_payload,
+            target_payload_json=target_payload,
             note=SUBSCRIPTION_NOTE,
         )
         self.session.commit()
