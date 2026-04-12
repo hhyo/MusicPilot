@@ -282,11 +282,10 @@ class SubscriptionExecutionService:
         *,
         source_kind: str,
     ) -> MusicMediaInput:
-        provider, provider_id = self._resolve_subscription_provider_ref(subscription)
-        return self.music_media_chain.input_from_provider_ref(
+        return self.music_media_chain.input_from_target_payload_ref(
             entity_type=EntityType(subscription.target_entity_type or subscription.subscription_type),
-            provider=provider,
-            provider_id=provider_id,
+            target_id=subscription.target_id,
+            target_payload=subscription.target_payload_json or {},
             source_kind=source_kind,
             source_context={
                 "subscription_id": subscription.id,
@@ -294,33 +293,6 @@ class SubscriptionExecutionService:
             },
             raw_context={"target_id": subscription.target_id},
         )
-
-    @staticmethod
-    def _resolve_subscription_provider_ref(subscription) -> tuple[str, str]:
-        payload = subscription.target_payload_json or {}
-
-        media_info = payload.get("music_media_info")
-        if isinstance(media_info, dict):
-            provider = str(media_info.get("provider") or "").strip()
-            provider_id = str(media_info.get("provider_id") or "").strip()
-            if provider and provider_id:
-                return provider, provider_id
-
-        provider_ref = payload.get("provider_ref")
-        if isinstance(provider_ref, dict):
-            provider = str(provider_ref.get("provider") or "").strip()
-            provider_id = str(provider_ref.get("provider_id") or "").strip()
-            if provider and provider_id:
-                return provider, provider_id
-
-        provider = str(payload.get("provider") or "").strip()
-        provider_id = str(payload.get("provider_id") or "").strip()
-        if provider and provider_id:
-            return provider, provider_id
-        if provider:
-            return provider, subscription.target_id
-
-        return "musicbrainz", subscription.target_id
 
     @staticmethod
     def _resolve_music_media_input_snapshot(subscription) -> MusicMediaInput | None:

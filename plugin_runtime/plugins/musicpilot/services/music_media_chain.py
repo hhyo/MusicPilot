@@ -70,6 +70,25 @@ class MusicMediaChain:
             raw_context=raw_context,
         )
 
+    def input_from_target_payload_ref(
+        self,
+        *,
+        entity_type,
+        target_id: str,
+        target_payload: dict | None,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicMediaInput:
+        return self.input_adapter.from_target_payload_ref(
+            entity_type=entity_type,
+            target_id=target_id,
+            target_payload=target_payload,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+
     def resolve(self, input: MusicMediaInput):
         base = self.build_base(input)
         return self.resolve_base(base)

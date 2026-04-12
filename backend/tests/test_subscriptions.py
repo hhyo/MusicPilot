@@ -56,6 +56,32 @@ class DummyMusicMediaChain:
             },
         )
 
+    def input_from_target_payload_ref(
+        self,
+        *,
+        entity_type,
+        target_id: str,
+        target_payload: dict | None,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ):
+        payload = target_payload or {}
+        provider_ref = payload.get("provider_ref") if isinstance(payload, dict) else None
+        provider = "musicbrainz"
+        provider_id = target_id
+        if isinstance(provider_ref, dict):
+            provider = provider_ref.get("provider") or provider
+            provider_id = provider_ref.get("provider_id") or provider_id
+        return self.input_from_provider_ref(
+            entity_type=entity_type,
+            provider=provider,
+            provider_id=provider_id,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+
     def resolve(self, payload):
         self.calls.append(payload)
         return build_artist_media()

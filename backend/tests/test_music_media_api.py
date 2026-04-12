@@ -63,6 +63,25 @@ class FakeMusicMediaChain:
             raw_context=raw_context or {},
         )
 
+    def input_from_target_payload_ref(
+        self,
+        *,
+        entity_type,
+        target_id: str,
+        target_payload: dict | None,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ):
+        return self.input_from_provider_ref(
+            entity_type=entity_type,
+            provider="musicbrainz",
+            provider_id=target_id,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+
     def resolve(self, payload):
         self.last_input = payload
         return MusicMediaInfo(

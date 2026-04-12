@@ -72,15 +72,10 @@ class SubscriptionService:
             )
 
         resolved_type = payload.target_entity_type or EntityType(payload.subscription_type.value)
-        provider, provider_id = self._resolve_target_provider_ref(
+        media_input = self.music_media_chain.input_from_target_payload_ref(
             entity_type=resolved_type,
             target_id=payload.target_id,
             target_payload=payload.target_payload,
-        )
-        media_input = self.music_media_chain.input_from_provider_ref(
-            entity_type=resolved_type,
-            provider=provider,
-            provider_id=provider_id,
             source_kind="subscription",
             source_context={
                 "subscription_type": payload.subscription_type.value,
@@ -113,38 +108,6 @@ class SubscriptionService:
         self.session.commit()
         self.session.refresh(subscription)
         return serialize_subscription(subscription)
-
-    @staticmethod
-    def _resolve_target_provider_ref(
-        *,
-        entity_type: EntityType,
-        target_id: str,
-        target_payload: dict,
-    ) -> tuple[str, str]:
-        payload = target_payload or {}
-
-        media_info = payload.get("music_media_info")
-        if isinstance(media_info, dict):
-            provider = str(media_info.get("provider") or "").strip()
-            provider_id = str(media_info.get("provider_id") or "").strip()
-            if provider and provider_id:
-                return provider, provider_id
-
-        provider_ref = payload.get("provider_ref")
-        if isinstance(provider_ref, dict):
-            provider = str(provider_ref.get("provider") or "").strip()
-            provider_id = str(provider_ref.get("provider_id") or "").strip()
-            if provider and provider_id:
-                return provider, provider_id
-
-        provider = str(payload.get("provider") or "").strip()
-        provider_id = str(payload.get("provider_id") or "").strip()
-        if provider and provider_id:
-            return provider, provider_id
-        if provider:
-            return provider, target_id
-
-        return "musicbrainz", target_id
 
     def create_from_chart_entry(
         self,

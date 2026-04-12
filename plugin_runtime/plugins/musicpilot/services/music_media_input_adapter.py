@@ -90,6 +90,76 @@ class MusicMediaInputAdapter:
             raw_context=raw_context or {},
         )
 
+    def from_target_payload_ref(
+        self,
+        *,
+        entity_type: EntityType,
+        target_id: str,
+        target_payload: dict | None,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ) -> MusicMediaInput:
+        payload = target_payload or {}
+
+        media_info = payload.get("music_media_info")
+        if isinstance(media_info, dict):
+            provider = str(media_info.get("provider") or "").strip()
+            provider_id = str(media_info.get("provider_id") or "").strip()
+            if provider and provider_id:
+                return self.from_provider_ref(
+                    entity_type=entity_type,
+                    provider=provider,
+                    provider_id=provider_id,
+                    source_kind=source_kind,
+                    source_context=source_context,
+                    raw_context=raw_context,
+                )
+
+        provider_ref = payload.get("provider_ref")
+        if isinstance(provider_ref, dict):
+            provider = str(provider_ref.get("provider") or "").strip()
+            provider_id = str(provider_ref.get("provider_id") or "").strip()
+            if provider and provider_id:
+                return self.from_provider_ref(
+                    entity_type=entity_type,
+                    provider=provider,
+                    provider_id=provider_id,
+                    source_kind=source_kind,
+                    source_context=source_context,
+                    raw_context=raw_context,
+                )
+
+        provider = str(payload.get("provider") or "").strip()
+        provider_id = str(payload.get("provider_id") or "").strip()
+        if provider and provider_id:
+            return self.from_provider_ref(
+                entity_type=entity_type,
+                provider=provider,
+                provider_id=provider_id,
+                source_kind=source_kind,
+                source_context=source_context,
+                raw_context=raw_context,
+            )
+        if provider:
+            return self.from_provider_ref(
+                entity_type=entity_type,
+                provider=provider,
+                provider_id=target_id,
+                source_kind=source_kind,
+                source_context=source_context,
+                raw_context=raw_context,
+            )
+
+        return self.from_provider_ref(
+            entity_type=entity_type,
+            provider="musicbrainz",
+            provider_id=target_id,
+            source_kind=source_kind,
+            source_context=source_context,
+            raw_context=raw_context,
+        )
+
     @staticmethod
     def _music_media_external_refs(payload: MusicMediaInfo) -> dict[str, str]:
         refs = dict(payload.external_refs)
