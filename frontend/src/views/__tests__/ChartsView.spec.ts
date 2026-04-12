@@ -169,8 +169,10 @@ function buildEntryView(overrides: Record<string, unknown> = {}) {
     entry_summary: 'Hello · Adele',
     badges: ['top-1', 'tracks'],
     highlight_reason: 'Top track',
-    recognition_state: 'direct',
-    recognition_note: null,
+    recognition_assessment: {
+      state: 'direct',
+      note: null,
+    },
     ...overrides,
   };
 }
@@ -223,7 +225,10 @@ const artistDetailResponse = {
       }),
       entry_summary: 'Adele · UK',
       badges: ['top-1', 'artists'],
-      recognition_state: 'direct',
+      recognition_assessment: {
+        state: 'direct',
+        note: null,
+      },
     }),
     summary_stats: { items: 1 },
     entry_groups: [],
@@ -278,8 +283,10 @@ const readyDetailResponse = {
               },
             }),
             entry_summary: 'Skyfall · Adele',
-            recognition_state: 'insufficient',
-            recognition_note: 'Missing music meta base fields: requires canonical_title + canonical_artist_names.',
+            recognition_assessment: {
+              state: 'insufficient',
+              note: 'Missing music meta base fields: requires canonical_title + canonical_artist_names.',
+            },
           }),
         ],
       },
@@ -364,8 +371,10 @@ const rssReadyEntry = buildEntryView({
     },
   }),
   badges: ['liked', 'tracks'],
-  recognition_state: 'ready',
-  recognition_note: null,
+  recognition_assessment: {
+    state: 'ready',
+    note: null,
+  },
 });
 
 const rssDetailResponse = {
@@ -439,7 +448,10 @@ const directReadyDetailResponse = {
               },
             }),
             entry_summary: 'Set Fire to the Rain · Adele',
-            recognition_state: 'direct',
+            recognition_assessment: {
+              state: 'direct',
+              note: null,
+            },
           }),
         ],
       },
@@ -500,8 +512,10 @@ const rssNotReadyDetailResponse = {
             }),
             entry_summary: 'Unknown',
             badges: ['liked', 'tracks'],
-            recognition_state: 'insufficient',
-            recognition_note: 'Missing music meta base fields: requires canonical_title + canonical_artist_names.',
+            recognition_assessment: {
+              state: 'insufficient',
+              note: 'Missing music meta base fields: requires canonical_title + canonical_artist_names.',
+            },
           }),
         ],
       },

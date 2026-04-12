@@ -85,6 +85,15 @@ class MusicMediaInfo(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class MusicRecognitionAssessment(BaseModel):
+    """Recognition readiness summary emitted by the unified chain."""
+
+    state: str
+    note: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class MusicResolveRequest(BaseModel):
     input: MusicMediaInput
 
@@ -93,6 +102,7 @@ class MusicResolveRequest(BaseModel):
 
 class MusicResolveResponse(BaseModel):
     base: MusicMetaBase
+    assessment: MusicRecognitionAssessment
     media: MusicMediaInfo
 
     model_config = ConfigDict(extra="forbid")
@@ -106,6 +116,7 @@ class MusicResolveDetailRequest(BaseModel):
 
 class MusicResolveDetailResponse(BaseModel):
     base: MusicMetaBase
+    assessment: MusicRecognitionAssessment
     media: MusicMediaInfo
     detail: MetadataDetail
 

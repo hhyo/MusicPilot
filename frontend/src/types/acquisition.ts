@@ -1,5 +1,10 @@
 import type { ApiResponse, EntityType } from '@/types/metadata';
-import type { MusicMediaInfo, MusicMediaInput, MusicMetaBase } from '@/types/music-media';
+import type {
+  MusicMediaInfo,
+  MusicMediaInput,
+  MusicMetaBase,
+  MusicRecognitionAssessment,
+} from '@/types/music-media';
 
 export type TriggerSource = 'manual' | 'chart' | 'subscription' | 'artist_watch';
 export type JobStatus =
@@ -100,6 +105,7 @@ export interface SearchJobSummary {
   id: string;
   music_media_input: MusicMediaInput;
   music_meta_base: MusicMetaBase;
+  music_recognition_assessment: MusicRecognitionAssessment;
   music_media_info: MusicMediaInfo;
   trigger_source: TriggerSource;
   profile_id: string;

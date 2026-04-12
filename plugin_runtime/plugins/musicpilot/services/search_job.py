@@ -63,6 +63,7 @@ class SearchJobService:
             payload=payload,
             music_media_input=payload.input.model_dump(mode="json"),
             music_meta_base=music_meta_base.model_dump(mode="json"),
+            music_recognition_assessment=resolved.assessment.model_dump(mode="json"),
             music_media_info=music_media_info.model_dump(mode="json"),
             query_payload=query_build.model_dump(mode="json"),
             note=JOB_NOTE,
@@ -157,6 +158,7 @@ class SearchJobService:
                 "mock_host_search": effective_resolution.adapter_mode == AdapterMode.MOCK,
                 "adapter_resolution": effective_resolution.model_dump(mode="json"),
                 "active_search_adapter": effective_resolution.adapter_key,
+                "music_recognition_assessment": (job.summary_json or {}).get("music_recognition_assessment"),
             }
             job.mock = effective_resolution.adapter_mode == AdapterMode.MOCK
             self.repository.mark_job_finished(job, status=status, summary_json=summary)
@@ -168,7 +170,10 @@ class SearchJobService:
                 self.repository.mark_job_finished(
                     failed_job,
                     status=JobStatus.FAILED.value,
-                    summary_json={"candidate_count": 0},
+                    summary_json={
+                        "candidate_count": 0,
+                        "music_recognition_assessment": (job.summary_json or {}).get("music_recognition_assessment"),
+                    },
                     error_message=str(exc),
                 )
                 self.session.commit()
@@ -198,6 +203,9 @@ def serialize_job(job: SearchJobModel) -> SearchJobSummary:
         id=job.id,
         music_media_input=MusicMediaInput.model_validate(job.music_media_input),
         music_meta_base=MusicMetaBase.model_validate(job.music_meta_base),
+        music_recognition_assessment=MusicRecognitionAssessment.model_validate(
+            (job.summary_json or {}).get("music_recognition_assessment") or {"state": "insufficient"}
+        ),
         music_media_info=MusicMediaInfo.model_validate(job.music_media_info),
         trigger_source=TriggerSource(job.trigger_source),
         profile_id=job.profile_id,

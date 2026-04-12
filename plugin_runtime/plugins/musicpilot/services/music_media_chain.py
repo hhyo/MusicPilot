@@ -31,11 +31,17 @@ class MusicMediaChain:
 
     def resolve_response(self, input: MusicMediaInput) -> MusicResolveResponse:
         base = self.build_base(input)
+        assessment = self.recognizer.assess(base)
         media = self.recognizer.recognize(base)
-        return MusicResolveResponse(base=base, media=media)
+        return MusicResolveResponse(base=base, assessment=assessment, media=media)
 
     def resolve_detail(self, input: MusicMediaInput) -> MusicResolveDetailResponse:
         resolved = self.resolve_response(input)
         media = resolved.media
         detail = self.hydrator.hydrate(media)
-        return MusicResolveDetailResponse(base=resolved.base, media=media, detail=detail)
+        return MusicResolveDetailResponse(
+            base=resolved.base,
+            assessment=resolved.assessment,
+            media=media,
+            detail=detail,
+        )

@@ -38,6 +38,11 @@ export interface MusicMetaBase {
   confidence_hint?: number | null;
 }
 
+export interface MusicRecognitionAssessment {
+  state: string;
+  note?: string | null;
+}
+
 export interface MusicMediaInfo {
   entity_type: EntityType;
   provider: string;
@@ -65,6 +70,7 @@ export interface MusicMediaInfo {
 
 export interface MusicResolveDetailData {
   base: MusicMetaBase;
+  assessment: MusicRecognitionAssessment;
   media: MusicMediaInfo;
   detail: MetadataDetail;
 }

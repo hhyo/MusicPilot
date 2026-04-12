@@ -7,7 +7,7 @@ import type {
   VerificationState,
 } from '@/types/acquisition';
 import type { ApiResponse, EntityType, MetadataDetail } from '@/types/metadata';
-import type { MusicMediaInput, MusicMetaBase } from '@/types/music-media';
+import type { MusicMediaInput, MusicMetaBase, MusicRecognitionAssessment } from '@/types/music-media';
 
 export type SubscriptionType = 'artist' | 'album' | 'track' | 'chart_entry';
 export type SubscriptionState = 'active' | 'paused' | 'archived';
@@ -84,8 +84,7 @@ export interface DiscoveryEntryView {
   entry_summary: string;
   badges: string[];
   highlight_reason?: string | null;
-  recognition_state: string;
-  recognition_note?: string | null;
+  recognition_assessment: MusicRecognitionAssessment;
 }
 
 export interface DiscoveryEntryGroup {

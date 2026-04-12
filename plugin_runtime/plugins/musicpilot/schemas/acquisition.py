@@ -8,7 +8,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from .integration import AdapterMode, AdapterResolution, VerificationState
-from .music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase
+from .music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase, MusicRecognitionAssessment
 from .mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 
 
@@ -129,6 +129,7 @@ class SearchJobSummary(BaseModel):
     id: str
     music_media_input: MusicMediaInput
     music_meta_base: MusicMetaBase
+    music_recognition_assessment: MusicRecognitionAssessment
     music_media_info: MusicMediaInfo
     trigger_source: TriggerSource
     profile_id: str

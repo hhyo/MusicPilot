@@ -91,6 +91,7 @@ class SubscriptionService:
             {
                 "music_media_input": media_input.model_dump(mode="json"),
                 "music_meta_base": resolved.base.model_dump(mode="json"),
+                "music_recognition_assessment": resolved.assessment.model_dump(mode="json"),
                 "music_media_info": resolved.media.model_dump(mode="json"),
             }
         )
@@ -116,10 +117,11 @@ class SubscriptionService:
         entry: DiscoveryEntryView,
         payload: CreateChartEntrySubscriptionRequest,
     ) -> SubscriptionSummary:
-        if entry.recognition_state not in {"direct", "ready"}:
+        if entry.recognition_assessment.state not in {"direct", "ready"}:
             raise HTTPException(
                 status_code=400,
-                detail=entry.recognition_note or "Chart entry does not have enough music media clues for subscription.",
+                detail=entry.recognition_assessment.note
+                or "Chart entry does not have enough music media clues for subscription.",
             )
 
         resolved = self.music_media_chain.resolve_response(entry.media_input)
@@ -148,8 +150,7 @@ class SubscriptionService:
                 "music_media_input": entry.media_input.model_dump(mode="json"),
                 "music_meta_base": entry.meta_base.model_dump(mode="json"),
                 "music_media_info": resolved.media.model_dump(mode="json"),
-                "recognition_state": entry.recognition_state,
-                "recognition_note": entry.recognition_note,
+                "music_recognition_assessment": entry.recognition_assessment.model_dump(mode="json"),
                 **entry_hints,
             },
             note=(

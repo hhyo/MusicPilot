@@ -31,6 +31,7 @@ class AcquisitionRepository:
         payload: SearchJobCreateRequest,
         music_media_input: dict,
         music_meta_base: dict,
+        music_recognition_assessment: dict,
         music_media_info: dict,
         query_payload: dict,
         note: str,
@@ -50,6 +51,7 @@ class AcquisitionRepository:
             summary_json={
                 "candidate_count": 0,
                 "execution_mode": payload.mode,
+                "music_recognition_assessment": music_recognition_assessment,
             },
         )
         self.session.add(job)

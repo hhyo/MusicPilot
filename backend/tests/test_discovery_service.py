@@ -56,7 +56,7 @@ class DiscoveryAssemblerTests(TestCase):
             result.hero_entry.media_input.external_refs["musicbrainz_recording_id"],
             "recording-mbid-001",
         )
-        self.assertEqual(result.hero_entry.recognition_state, "direct")
+        self.assertEqual(result.hero_entry.recognition_assessment.state, "direct")
         self.assertEqual(result.hero_entry.meta_base.entity_type, EntityType.TRACK)
         self.assertEqual(result.recognition_summary["ready"], 1)
         self.assertEqual(result.entry_groups[0].group_key, "tracks")
@@ -106,7 +106,7 @@ class DiscoveryAssemblerTests(TestCase):
         result = DiscoveryAssembler().build_detail(detail)
         media_input = result.hero_entry.media_input
 
-        self.assertEqual(result.hero_entry.recognition_state, "ready")
+        self.assertEqual(result.hero_entry.recognition_assessment.state, "ready")
         self.assertEqual(result.hero_entry.meta_base.canonical_title, "Wonderful Tonight")
         self.assertEqual(media_input.title, "Wonderful Tonight")
         self.assertEqual(media_input.artist_names, ["Eric Clapton"])
@@ -155,8 +155,11 @@ class DiscoveryAssemblerTests(TestCase):
 
         result = DiscoveryAssembler().build_detail(detail)
 
-        self.assertEqual(result.hero_entry.recognition_state, "insufficient")
-        self.assertIn("canonical_album_title + canonical_artist_names", result.hero_entry.recognition_note or "")
+        self.assertEqual(result.hero_entry.recognition_assessment.state, "insufficient")
+        self.assertIn(
+            "canonical_album_title + canonical_artist_names",
+            result.hero_entry.recognition_assessment.note or "",
+        )
         self.assertEqual(result.recognition_summary["not_ready"], 1)
 
     def test_rss_artist_entry_builds_ready_media_input_payload(self) -> None:
@@ -202,7 +205,7 @@ class DiscoveryAssemblerTests(TestCase):
         result = DiscoveryAssembler().build_detail(detail)
         media_input = result.hero_entry.media_input
 
-        self.assertEqual(result.hero_entry.recognition_state, "ready")
+        self.assertEqual(result.hero_entry.recognition_assessment.state, "ready")
         self.assertEqual(result.hero_entry.meta_base.canonical_artist_names, ["Bruno Mars"])
         self.assertEqual(media_input.artist_names, ["Bruno Mars"])
         self.assertEqual(media_input.external_refs["source_id"], "UCabc123")

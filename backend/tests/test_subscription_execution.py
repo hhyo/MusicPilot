@@ -21,7 +21,7 @@ from app.schemas.acquisition import (
 )
 from app.schemas.integration import AdapterMode, VerificationState
 from app.schemas.metadata import MetadataDetail
-from app.schemas.music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase
+from app.schemas.music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase, MusicRecognitionAssessment
 from app.schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from app.schemas.orchestration import (
     OrganizeApplyRequest,
@@ -68,6 +68,7 @@ def build_search_job_summary(*, status: JobStatus) -> SearchJobSummary:
             external_refs=dict(media.external_refs),
             evidence=[],
         ),
+        music_recognition_assessment=MusicRecognitionAssessment(state="direct"),
         music_media_info=media,
         trigger_source=TriggerSource.SUBSCRIPTION,
         profile_id="default-lossless",

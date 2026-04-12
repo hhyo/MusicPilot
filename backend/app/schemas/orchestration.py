@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 from .acquisition import PathHandoffInfo, SearchCandidateDetail, SearchJobSummary
 from .integration import AdapterMode, AdapterResolution, VerificationState
 from .metadata import MetadataDetail
-from .music_media import MusicMediaInput, MusicMetaBase
+from .music_media import MusicMediaInput, MusicMetaBase, MusicRecognitionAssessment
 from .mvp import EntityType
 
 
@@ -114,8 +114,9 @@ class DiscoveryEntryView(BaseModel):
     entry_summary: str
     badges: list[str] = Field(default_factory=list)
     highlight_reason: str | None = None
-    recognition_state: str = "ready"
-    recognition_note: str | None = None
+    recognition_assessment: MusicRecognitionAssessment = Field(
+        default_factory=lambda: MusicRecognitionAssessment(state="ready")
+    )
 
 
 class DiscoveryEntryGroup(BaseModel):

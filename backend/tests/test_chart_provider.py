@@ -300,7 +300,7 @@ class ChartServiceDiscoveryEnrichmentTest(unittest.TestCase):
 
         self.assertIsNotNone(detail.hero_entry)
         self.assertEqual(detail.hero_entry.media_input.external_refs["musicbrainz_recording_id"], "rec-1")
-        self.assertEqual(detail.hero_entry.recognition_state, "direct")
+        self.assertEqual(detail.hero_entry.recognition_assessment.state, "direct")
         self.assertGreaterEqual(len(detail.entry_groups), 1)
 
 
@@ -380,7 +380,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
 
         self.assertEqual(detail.items[0].target_id, "")
         self.assertIsNotNone(detail.hero_entry)
-        self.assertEqual(detail.hero_entry.recognition_state, "ready")
+        self.assertEqual(detail.hero_entry.recognition_assessment.state, "ready")
         self.assertEqual(detail.hero_entry.media_input.source_kind, "discovery")
 
     def test_rss_entry_keeps_structured_lookup_hints_in_target_payload(self) -> None:
@@ -544,7 +544,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
 
         self.assertEqual(item.target_name, "Unknown Artist")
         self.assertNotIn("artist_name", item.target_payload)
-        self.assertEqual(detail.hero_entry.recognition_state, "insufficient")
+        self.assertEqual(detail.hero_entry.recognition_assessment.state, "insufficient")
 
     def test_list_charts_skips_disabled_and_unsupported_feeds(self) -> None:
         feed_xml_by_url = {
@@ -709,6 +709,7 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
                             "normalization_notes": [],
                         }
                     ),
+                    assessment=SimpleNamespace(state="direct", note=None),
                     media=self.resolve(payload),
                 )
 
@@ -816,7 +817,7 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
                 "normalization_notes": [],
                 "confidence_hint": None,
             },
-            recognition_state="ready",
+            recognition_assessment={"state": "ready"},
         )
 
         service.create_from_chart_entry(
@@ -829,6 +830,7 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
         self.assertEqual(captured["target_payload_json"]["entry_target_payload"]["album_title"], "Slowhand")
         self.assertEqual(captured["target_payload_json"]["music_media_input"]["title"], "Wonderful Tonight")
         self.assertEqual(captured["target_payload_json"]["music_meta_base"]["canonical_title"], "Wonderful Tonight")
+        self.assertEqual(captured["target_payload_json"]["music_recognition_assessment"]["state"], "ready")
         self.assertEqual(
             captured["target_payload_json"]["music_media_info"]["provider_id"],
             "recording-wonderful-tonight",
@@ -892,8 +894,10 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
                 "normalization_notes": [],
                 "confidence_hint": None,
             },
-            recognition_state="insufficient",
-            recognition_note="Missing music meta base fields: requires canonical_title + canonical_artist_names.",
+            recognition_assessment={
+                "state": "insufficient",
+                "note": "Missing music meta base fields: requires canonical_title + canonical_artist_names.",
+            },
         )
 
         with self.assertRaises(HTTPException) as context:

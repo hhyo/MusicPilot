@@ -8,7 +8,7 @@ import httpx
 from fastapi import HTTPException
 
 from ..schemas.metadata import MetadataSearchRequest, MetadataSummary
-from ..schemas.music_media import MusicMediaInfo, MusicMetaBase
+from ..schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicRecognitionAssessment
 from ..schemas.mvp import EntityType
 
 
@@ -18,6 +18,39 @@ class MusicMediaRecognizer:
     def __init__(self, metadata_service, metadata_adapter):
         self.metadata_service = metadata_service
         self.metadata_adapter = metadata_adapter
+
+    def assess(self, base: MusicMetaBase) -> MusicRecognitionAssessment:
+        direct_ref_keys = {
+            EntityType.ARTIST: "musicbrainz_artist_id",
+            EntityType.ALBUM: "musicbrainz_release_group_id",
+            EntityType.TRACK: "musicbrainz_recording_id",
+        }
+        direct_key = direct_ref_keys[base.entity_type]
+        if base.external_refs.get(direct_key):
+            return MusicRecognitionAssessment(state="direct")
+
+        if base.entity_type == EntityType.TRACK:
+            if base.canonical_title and base.canonical_artist_names:
+                return MusicRecognitionAssessment(state="ready")
+            return MusicRecognitionAssessment(
+                state="insufficient",
+                note="Missing music meta base fields: requires canonical_title + canonical_artist_names.",
+            )
+
+        if base.entity_type == EntityType.ALBUM:
+            if base.canonical_album_title and base.canonical_artist_names:
+                return MusicRecognitionAssessment(state="ready")
+            return MusicRecognitionAssessment(
+                state="insufficient",
+                note="Missing music meta base fields: requires canonical_album_title + canonical_artist_names.",
+            )
+
+        if base.canonical_artist_names:
+            return MusicRecognitionAssessment(state="ready")
+        return MusicRecognitionAssessment(
+            state="insufficient",
+            note="Missing music meta base fields: requires canonical_artist_names.",
+        )
 
     def recognize(self, base: MusicMetaBase) -> MusicMediaInfo:
         recording_id = base.external_refs.get("musicbrainz_recording_id")

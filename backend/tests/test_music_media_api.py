@@ -7,7 +7,13 @@ from fastapi.testclient import TestClient
 from app.core.dependencies import get_music_media_chain
 from app.main import app
 from app.schemas.metadata import MetadataDetail
-from app.schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicResolveDetailResponse, MusicResolveResponse
+from app.schemas.music_media import (
+    MusicMediaInfo,
+    MusicMetaBase,
+    MusicRecognitionAssessment,
+    MusicResolveDetailResponse,
+    MusicResolveResponse,
+)
 from app.schemas.mvp import EntityType
 
 
@@ -34,7 +40,11 @@ class FakeMusicMediaChain:
         )
 
     def resolve_response(self, payload):
-        return MusicResolveResponse(base=self.build_base(payload), media=self.resolve(payload))
+        return MusicResolveResponse(
+            base=self.build_base(payload),
+            assessment=MusicRecognitionAssessment(state="direct"),
+            media=self.resolve(payload),
+        )
 
     def resolve_detail(self, payload):
         media = self.resolve(payload)
@@ -50,7 +60,12 @@ class FakeMusicMediaChain:
             note="detail",
             integration_point="test",
         )
-        return MusicResolveDetailResponse(base=base, media=media, detail=detail)
+        return MusicResolveDetailResponse(
+            base=base,
+            assessment=MusicRecognitionAssessment(state="direct"),
+            media=media,
+            detail=detail,
+        )
 
 
 class MusicMediaApiTests(unittest.TestCase):

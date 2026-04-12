@@ -541,7 +541,9 @@ function renderEntryProvider(item: DiscoveryEntryView) {
 }
 
 function isEntryResolvable(item: DiscoveryEntryView) {
-  return item.recognition_state === 'direct' || item.recognition_state === 'ready';
+  return (
+    item.recognition_assessment.state === 'direct' || item.recognition_assessment.state === 'ready'
+  );
 }
 
 function isEntrySubscribable(item: DiscoveryEntryView) {
@@ -549,19 +551,19 @@ function isEntrySubscribable(item: DiscoveryEntryView) {
 }
 
 function resolveRecognitionStatusText(item: DiscoveryEntryView) {
-  if (item.recognition_state === 'direct') {
+  if (item.recognition_assessment.state === 'direct') {
     return '已可直接查看详情';
   }
-  if (item.recognition_state === 'ready') {
+  if (item.recognition_assessment.state === 'ready') {
     return '可进入统一媒体解析';
   }
-  if (item.recognition_state === 'partial') {
-    return item.recognition_note || '解析信息部分可用';
+  if (item.recognition_assessment.state === 'partial') {
+    return item.recognition_assessment.note || '解析信息部分可用';
   }
-  if (item.recognition_state === 'insufficient') {
+  if (item.recognition_assessment.state === 'insufficient') {
     return '解析信息不足';
   }
-  return item.recognition_note || '当前暂不支持详情下钻';
+  return item.recognition_assessment.note || '当前暂不支持详情下钻';
 }
 </script>
 

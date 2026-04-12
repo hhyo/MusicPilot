@@ -20,7 +20,7 @@ FastAPI 工程目录。当前已完成：
 - Phase 8 多样例真实验证矩阵与 path handoff 稳定性收敛
 - 验证矩阵作为验证产物保留，运行时改回固定接口语义与固定调用规则
 
-当前也已经启动统一音乐媒体解析链重构：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`。这条统一音乐媒体解析链参考 MoviePilot 的设计方法，但不复用影视模型本身；当前已经接管 discovery/detail 主路径，并继续进入 chart_entry 订阅创建、subscription execution、SearchJob、QueryBuilder、candidate scoring 与 organize 上游识别。discovery 侧的旧 `conversion_*` 表述已经退场，当前正式输出 `MusicMetaBase + recognition_state / recognition_note`。RSS / 弱来源 chart entry 现在会在创建订阅时先固化 `MusicMediaInput`、`MusicMetaBase` 与 `MusicMediaInfo` 相关快照，再进入后续 run；SearchJob 也已改为持久化统一输入与正式媒体对象，不再依赖旧的 `metadata_snapshot / query_source_type / query_source_id`。后续仍需继续把更多下游场景完全收口到这条链。
+当前也已经启动统一音乐媒体解析链重构：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`。这条统一音乐媒体解析链参考 MoviePilot 的设计方法，但不复用影视模型本身；当前已经接管 discovery/detail 主路径，并继续进入 chart_entry 订阅创建、subscription execution、SearchJob、QueryBuilder、candidate scoring 与 organize 上游识别。discovery 侧的旧 `conversion_*` 表述已经退场，当前正式输出 `MusicMetaBase + MusicRecognitionAssessment`。RSS / 弱来源 chart entry 现在会在创建订阅时先固化 `MusicMediaInput`、`MusicMetaBase`、`MusicRecognitionAssessment` 与 `MusicMediaInfo` 相关快照，再进入后续 run；SearchJob 也已改为持久化统一输入、识别评估与正式媒体对象，不再依赖旧的 `metadata_snapshot / query_source_type / query_source_id`。后续仍需继续把更多下游场景完全收口到这条链。
 
 当前仍不包含：
 
@@ -46,7 +46,7 @@ python -m app.db_init --reseed
 - `charts/*` 当前支持三种模式：
   - `mock`：本地 chart seed
   - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings；当前 detail 输出已补 discovery 产品化字段，如 chart summary、hero entry、entry groups，并统一产出 `MusicMediaInput`
-  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取，运行时优先读取项目 settings，环境变量仅作为 fallback；当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，`item_count` 分别可写为 `200`、`100`、`100`。若项目 settings 和环境都未提供 `chart_rss_feeds`，fresh install 默认会带出 5 条内置 RSS feed：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。RSS 条目现在统一映射为 `MusicMediaInput`，再构造成 `MusicMetaBase`，并通过 `recognition_state / recognition_note` 暴露是否足以继续识别；detail 下钻统一经由 `/media/resolve/detail` 驱动统一音乐媒体解析链。family-specific candidate hints 已下沉到 `MusicMetaBaseBuilder` / `MusicMediaRecognizer` 所消费的标准化输入里。对于 RSS chart entry 订阅，创建阶段会直接解析并持久化 `MusicMediaInput`、`MusicMetaBase` 与 `MusicMediaInfo` 相关快照，执行阶段若只有 input snapshot 也会通过统一链补全正式媒体对象
+  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取，运行时优先读取项目 settings，环境变量仅作为 fallback；当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，`item_count` 分别可写为 `200`、`100`、`100`。若项目 settings 和环境都未提供 `chart_rss_feeds`，fresh install 默认会带出 5 条内置 RSS feed：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。RSS 条目现在统一映射为 `MusicMediaInput`，再构造成 `MusicMetaBase`，并通过结构化 `MusicRecognitionAssessment` 暴露是否足以继续识别；detail 下钻统一经由 `/media/resolve/detail` 驱动统一音乐媒体解析链。family-specific candidate hints 已下沉到 `MusicMetaBaseBuilder` / `MusicMediaRecognizer` 所消费的标准化输入里。对于 RSS chart entry 订阅，创建阶段会直接解析并持久化 `MusicMediaInput`、`MusicMetaBase`、`MusicRecognitionAssessment` 与 `MusicMediaInfo` 相关快照，执行阶段若只有 input snapshot 也会通过统一链补全正式媒体对象
 - `downloads/dispatch` 当前支持三类 host 语义：
   - 可靠 `media_in` -> `/api/v1/download/`
   - torrent-only 但已具备宿主媒体参考 -> `/api/v1/download/add`
