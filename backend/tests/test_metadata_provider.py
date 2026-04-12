@@ -11,8 +11,10 @@ from sqlalchemy.orm import Session
 
 from app.models import Base
 from app.schemas.metadata import MetadataDetail, MetadataSearchData, MetadataSearchRequest, MetadataSummary
+from app.schemas.music_media import MusicMediaInput
 from app.schemas.mvp import EntityType, ReleaseType
 from app.services.metadata import MetadataService
+from app.services.music_media_chain import MusicMediaChain
 
 
 class MetadataServiceLiveProviderTest(unittest.TestCase):
@@ -71,7 +73,7 @@ class MetadataServiceLiveProviderTest(unittest.TestCase):
         self.assertEqual(service.repository.summary()["search_history"], 1)
 
 
-class MetadataServiceLookupDetailTest(unittest.TestCase):
+class MusicMediaChainRecognitionTest(unittest.TestCase):
     def setUp(self) -> None:
         engine = create_engine("sqlite+pysqlite:///:memory:", future=True)
         Base.metadata.create_all(bind=engine)
@@ -79,6 +81,34 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.session.close()
+
+    def build_chain(self, adapter) -> MusicMediaChain:
+        service = MetadataService(session=self.session, adapter=adapter)
+        return MusicMediaChain(metadata_service=service, metadata_adapter=adapter)
+
+    def build_input(
+        self,
+        entity_type: EntityType,
+        *,
+        artist_name: str | None = None,
+        title: str | None = None,
+        album_title: str | None = None,
+        title_candidates: list[str] | None = None,
+        artist_name_candidates: list[str] | None = None,
+        album_title_candidates: list[str] | None = None,
+    ) -> MusicMediaInput:
+        return MusicMediaInput(
+            entity_hint=entity_type,
+            source_kind="discovery",
+            title=title,
+            artist_names=[artist_name] if artist_name else [],
+            album_title=album_title,
+            raw_context={
+                "title_candidates": title_candidates or [],
+                "artist_name_candidates": artist_name_candidates or [],
+                "album_title_candidates": album_title_candidates or [],
+            },
+        )
 
     def test_track_lookup_builds_artist_title_album_keyword_and_returns_detail(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
@@ -145,15 +175,12 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                 )
 
         adapter = FakeLiveAdapter()
-        service = MetadataService(session=self.session, adapter=adapter)
+        chain = self.build_chain(adapter)
 
-        detail = service.lookup_detail(
-            EntityType.TRACK,
-            {"artist_name": "Adele", "title": "Hello", "album_title": "25"},
-        )
+        result = chain.resolve_detail(self.build_input(EntityType.TRACK, artist_name="Adele", title="Hello", album_title="25"))
 
         self.assertEqual(adapter.last_keyword, "Adele Hello 25")
-        self.assertEqual(detail.id, "track-1")
+        self.assertEqual(result.detail.id, "track-1")
 
     def test_album_and_artist_lookup_keyword_shapes(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
@@ -223,10 +250,10 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                 )
 
         adapter = FakeLiveAdapter()
-        service = MetadataService(session=self.session, adapter=adapter)
+        chain = self.build_chain(adapter)
 
-        service.lookup_detail(EntityType.ALBUM, {"artist_name": "Adele", "album_title": "25"})
-        service.lookup_detail(EntityType.ARTIST, {"artist_name": "Adele"})
+        chain.resolve_detail(self.build_input(EntityType.ALBUM, artist_name="Adele", album_title="25"))
+        chain.resolve_detail(self.build_input(EntityType.ARTIST, artist_name="Adele"))
 
         self.assertEqual(adapter.keywords, ["Adele 25", "Adele"])
 
@@ -265,14 +292,14 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
             def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:  # pragma: no cover
                 raise NotImplementedError
 
-        service = MetadataService(session=self.session, adapter=EmptyLiveAdapter())
+        chain = self.build_chain(EmptyLiveAdapter())
 
         with self.assertRaises(HTTPException) as ctx_missing:
-            service.lookup_detail(EntityType.TRACK, {})
+            chain.resolve_detail(MusicMediaInput(entity_hint=EntityType.TRACK, source_kind="discovery"))
         self.assertEqual(ctx_missing.exception.status_code, 400)
 
         with self.assertRaises(HTTPException) as ctx_not_found:
-            service.lookup_detail(EntityType.ARTIST, {"artist_name": "NotFound Artist"})
+            chain.resolve_detail(self.build_input(EntityType.ARTIST, artist_name="NotFound Artist"))
         self.assertEqual(ctx_not_found.exception.status_code, 404)
 
     def test_lookup_prefers_precise_match_over_first_item(self) -> None:
@@ -347,14 +374,11 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                     integration_point="fake.live.detail",
                 )
 
-        service = MetadataService(session=self.session, adapter=RankedLiveAdapter())
+        chain = self.build_chain(RankedLiveAdapter())
 
-        detail = service.lookup_detail(
-            EntityType.TRACK,
-            {"artist_name": "Adele", "title": "Hello", "album_title": "25"},
-        )
+        result = chain.resolve_detail(self.build_input(EntityType.TRACK, artist_name="Adele", title="Hello", album_title="25"))
 
-        self.assertEqual(detail.id, "track-best-second")
+        self.assertEqual(result.detail.id, "track-best-second")
 
     def test_track_lookup_requires_album_match_when_album_hint_is_provided(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
@@ -404,13 +428,10 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
             def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:  # pragma: no cover
                 raise NotImplementedError
 
-        service = MetadataService(session=self.session, adapter=AlbumMismatchAdapter())
+        chain = self.build_chain(AlbumMismatchAdapter())
 
         with self.assertRaises(HTTPException) as ctx:
-            service.lookup_detail(
-                EntityType.TRACK,
-                {"artist_name": "Adele", "title": "Hello", "album_title": "25"},
-            )
+            chain.resolve_detail(self.build_input(EntityType.TRACK, artist_name="Adele", title="Hello", album_title="25"))
         self.assertEqual(ctx.exception.status_code, 404)
 
     def test_track_lookup_normalizes_title_noise_before_searching(self) -> None:
@@ -481,14 +502,13 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                 )
 
         adapter = NoisyTitleAdapter()
-        service = MetadataService(session=self.session, adapter=adapter)
+        chain = self.build_chain(adapter)
 
-        detail = service.lookup_detail(
-            EntityType.TRACK,
-            {"artist_name": "Adele", "title": "Hello - Remastered 2015", "album_title": "25"},
+        result = chain.resolve_detail(
+            self.build_input(EntityType.TRACK, artist_name="Adele", title="Hello - Remastered 2015", album_title="25")
         )
 
-        self.assertEqual(detail.id, "track-clean-title")
+        self.assertEqual(result.detail.id, "track-clean-title")
         self.assertEqual(adapter.keywords, ["Adele Hello 25"])
 
     def test_album_lookup_tries_fallback_keyword_order_until_match(self) -> None:
@@ -557,11 +577,11 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                 )
 
         adapter = AlbumFallbackAdapter()
-        service = MetadataService(session=self.session, adapter=adapter)
+        chain = self.build_chain(adapter)
 
-        detail = service.lookup_detail(EntityType.ALBUM, {"artist_name": "Adele", "album_title": "25"})
+        result = chain.resolve_detail(self.build_input(EntityType.ALBUM, artist_name="Adele", album_title="25"))
 
-        self.assertEqual(detail.id, "album-fallback-match")
+        self.assertEqual(result.detail.id, "album-fallback-match")
         self.assertEqual(adapter.keywords, ["Adele 25", "25 Adele"])
 
     def test_lookup_raises_404_when_search_has_items_but_none_match_minimum_criteria(self) -> None:
@@ -622,10 +642,10 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
             def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:  # pragma: no cover
                 raise NotImplementedError
 
-        service = MetadataService(session=self.session, adapter=NonMatchingLiveAdapter())
+        chain = self.build_chain(NonMatchingLiveAdapter())
 
         with self.assertRaises(HTTPException) as ctx:
-            service.lookup_detail(EntityType.ALBUM, {"artist_name": "Adele", "album_title": "25"})
+            chain.resolve_detail(self.build_input(EntityType.ALBUM, artist_name="Adele", album_title="25"))
         self.assertEqual(ctx.exception.status_code, 404)
 
     def test_lookup_converts_provider_http_failures_to_502(self) -> None:
@@ -654,10 +674,7 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                 raise NotImplementedError
 
         with self.assertRaises(HTTPException) as ctx_search:
-            MetadataService(session=self.session, adapter=FailingSearchAdapter()).lookup_detail(
-                EntityType.ARTIST,
-                {"artist_name": "Adele"},
-            )
+            self.build_chain(FailingSearchAdapter()).resolve_detail(self.build_input(EntityType.ARTIST, artist_name="Adele"))
         self.assertEqual(ctx_search.exception.status_code, 502)
 
         class FailingDetailAdapter(MetadataProviderAdapter):
@@ -704,10 +721,7 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                 raise httpx.ConnectError("detail connect error")
 
         with self.assertRaises(HTTPException) as ctx_detail:
-            MetadataService(session=self.session, adapter=FailingDetailAdapter()).lookup_detail(
-                EntityType.ARTIST,
-                {"artist_name": "Adele"},
-            )
+            self.build_chain(FailingDetailAdapter()).resolve_detail(self.build_input(EntityType.ARTIST, artist_name="Adele"))
         self.assertEqual(ctx_detail.exception.status_code, 502)
 
     def test_lookup_artist_credit_matches_common_connectors_and_featuring_forms(self) -> None:
@@ -785,19 +799,15 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                     integration_point="fake.live.detail",
                 )
 
-        service = MetadataService(session=self.session, adapter=ArtistCreditAdapter())
+        chain = self.build_chain(ArtistCreditAdapter())
 
-        detail_amp = service.lookup_detail(
-            EntityType.TRACK,
-            {"artist_name": "Artist A & Artist B", "title": "Collab Song"},
-        )
-        self.assertEqual(detail_amp.id, "track-1")
+        detail_amp = chain.resolve_detail(self.build_input(EntityType.TRACK, artist_name="Artist A & Artist B", title="Collab Song"))
+        self.assertEqual(detail_amp.detail.id, "track-1")
 
-        detail_feat = service.lookup_detail(
-            EntityType.TRACK,
-            {"artist_name": "Artist A feat. Artist B", "title": "Collab Song"},
+        detail_feat = chain.resolve_detail(
+            self.build_input(EntityType.TRACK, artist_name="Artist A feat. Artist B", title="Collab Song")
         )
-        self.assertEqual(detail_feat.id, "track-1")
+        self.assertEqual(detail_feat.detail.id, "track-1")
 
     def test_artist_lookup_normalizes_single_artist_punctuation_variants(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
@@ -855,14 +865,11 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                     integration_point="fake.live.detail",
                 )
 
-        service = MetadataService(session=self.session, adapter=ArtistPunctuationAdapter())
+        chain = self.build_chain(ArtistPunctuationAdapter())
 
-        detail = service.lookup_detail(
-            EntityType.ARTIST,
-            {"artist_name": "Tyler, The Creator"},
-        )
+        detail = chain.resolve_detail(self.build_input(EntityType.ARTIST, artist_name="Tyler, The Creator"))
 
-        self.assertEqual(detail.id, "artist-tyler")
+        self.assertEqual(detail.detail.id, "artist-tyler")
 
     def test_track_lookup_uses_candidate_arrays_when_primary_rss_hints_are_weaker(self) -> None:
         from app.adapters.metadata_provider import MetadataProviderAdapter
@@ -932,19 +939,19 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                 )
 
         adapter = CandidateArrayAdapter()
-        service = MetadataService(session=self.session, adapter=adapter)
+        chain = self.build_chain(adapter)
 
-        detail = service.lookup_detail(
-            EntityType.TRACK,
-            {
-                "artist_name": "Lady Gaga & Bruno Mars",
-                "title": "Die With A Smile (Official Video)",
-                "title_candidates": ["Die With A Smile (Official Video)", "Die With A Smile"],
-                "artist_name_candidates": ["Lady Gaga & Bruno Mars", "Lady Gaga Bruno Mars"],
-            },
+        detail = chain.resolve_detail(
+            self.build_input(
+                EntityType.TRACK,
+                artist_name="Lady Gaga & Bruno Mars",
+                title="Die With A Smile (Official Video)",
+                title_candidates=["Die With A Smile (Official Video)", "Die With A Smile"],
+                artist_name_candidates=["Lady Gaga & Bruno Mars", "Lady Gaga Bruno Mars"],
+            )
         )
 
-        self.assertEqual(detail.id, "track-die-with-a-smile")
+        self.assertEqual(detail.detail.id, "track-die-with-a-smile")
         self.assertIn("Lady Gaga & Bruno Mars Die With A Smile", adapter.keywords)
         self.assertIn("Lady Gaga Bruno Mars Die With A Smile", adapter.keywords)
 
@@ -1021,18 +1028,18 @@ class MetadataServiceLookupDetailTest(unittest.TestCase):
                     integration_point="fake.live.detail",
                 )
 
-        service = MetadataService(session=self.session, adapter=ArtistFallbackAdapter())
+        chain = self.build_chain(ArtistFallbackAdapter())
 
-        detail = service.lookup_detail(
-            EntityType.TRACK,
-            {
-                "artist_name": "Lady Gaga feat. Bruno Mars",
-                "artist_name_candidates": ["Lady Gaga feat. Bruno Mars", "Lady Gaga"],
-                "title": "Die With A Smile [Official Lyric Video]",
-            },
+        detail = chain.resolve_detail(
+            self.build_input(
+                EntityType.TRACK,
+                artist_name="Lady Gaga feat. Bruno Mars",
+                title="Die With A Smile [Official Lyric Video]",
+                artist_name_candidates=["Lady Gaga feat. Bruno Mars", "Lady Gaga"],
+            )
         )
 
-        self.assertEqual(detail.id, "track-duet")
+        self.assertEqual(detail.detail.id, "track-duet")
 
 
 class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):

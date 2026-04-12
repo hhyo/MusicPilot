@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 from .acquisition import PathHandoffInfo, SearchCandidateDetail, SearchJobSummary
 from .integration import AdapterMode, AdapterResolution, VerificationState
 from .metadata import MetadataDetail
+from .music_media import MusicMediaInput
 from .mvp import EntityType
 
 
@@ -106,34 +107,14 @@ class ChartEntryInfo(BaseModel):
     note: str
 
 
-class DiscoverySourceContext(BaseModel):
-    chart_source: str
-    chart_id: str
-    chart_name: str
-    rank: int
-    chart_type: EntityType
-
-
-class DiscoveryTarget(BaseModel):
-    target_kind: EntityType
-    provider: str
-    provider_id: str
-    display_title: str
-    display_subtitle: str | None = None
-    source_context: DiscoverySourceContext
-    conversion_ready: bool
-    conversion_note: str | None = None
-    resolution_mode: str = "direct_id"
-    resolution_hints: dict[str, Any] = Field(default_factory=dict)
-    discovery_badges: list[str] = Field(default_factory=list)
-
-
 class DiscoveryEntryView(BaseModel):
     entry: ChartEntryInfo
-    target: DiscoveryTarget
+    media_input: MusicMediaInput
     entry_summary: str
     badges: list[str] = Field(default_factory=list)
     highlight_reason: str | None = None
+    conversion_state: str = "ready"
+    conversion_note: str | None = None
 
 
 class DiscoveryEntryGroup(BaseModel):

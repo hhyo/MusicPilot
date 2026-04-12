@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import datetime, timezone
 from types import SimpleNamespace
+from fastapi import HTTPException
 
 from app.adapters.chart_provider import ListenBrainzChartProviderAdapter, RssFeedChartProviderAdapter
 from app.schemas.mvp import EntityType
@@ -13,6 +14,7 @@ from app.schemas.orchestration import (
     ChartEntryInfo,
     ChartInfo,
     CreateChartEntrySubscriptionRequest,
+    DiscoveryEntryView,
     SubscriptionType,
 )
 from app.services.charts import ChartService
@@ -297,7 +299,8 @@ class ChartServiceDiscoveryEnrichmentTest(unittest.TestCase):
         detail = service.get_chart_detail("chart-listenbrainz-top-tracks-week")
 
         self.assertIsNotNone(detail.hero_entry)
-        self.assertEqual(detail.hero_entry.target.provider_id, "rec-1")
+        self.assertEqual(detail.hero_entry.media_input.external_refs["musicbrainz_recording_id"], "rec-1")
+        self.assertEqual(detail.hero_entry.conversion_state, "direct")
         self.assertGreaterEqual(len(detail.entry_groups), 1)
 
 
@@ -377,8 +380,8 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
 
         self.assertEqual(detail.items[0].target_id, "")
         self.assertIsNotNone(detail.hero_entry)
-        self.assertTrue(detail.hero_entry.target.conversion_ready)
-        self.assertEqual(detail.hero_entry.target.resolution_mode, "search_lookup")
+        self.assertEqual(detail.hero_entry.conversion_state, "ready")
+        self.assertEqual(detail.hero_entry.media_input.source_kind, "discovery")
 
     def test_rss_entry_keeps_structured_lookup_hints_in_target_payload(self) -> None:
         feed_xml_by_url = {
@@ -541,7 +544,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
 
         self.assertEqual(item.target_name, "Unknown Artist")
         self.assertNotIn("artist_name", item.target_payload)
-        self.assertFalse(detail.hero_entry.target.conversion_ready)
+        self.assertEqual(detail.hero_entry.conversion_state, "insufficient")
 
     def test_list_charts_skips_disabled_and_unsupported_feeds(self) -> None:
         feed_xml_by_url = {
@@ -671,7 +674,31 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
 
 class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
     def test_create_from_chart_entry_preserves_entry_target_payload(self) -> None:
-        service = SubscriptionService(session=SimpleNamespace(), metadata_service=SimpleNamespace())
+        class FakeMusicMediaChain:
+            def resolve(self, payload):  # noqa: ANN001
+                return SimpleNamespace(
+                    model_dump=lambda mode="json": {
+                        "entity_type": payload.entity_hint.value,
+                        "provider": "musicbrainz",
+                        "provider_id": "recording-wonderful-tonight",
+                        "title": payload.title,
+                        "artist_names": payload.artist_names,
+                        "album_title": payload.album_title,
+                        "album_artist_names": payload.album_artist_names,
+                        "related_artist_ids": [],
+                        "related_track_ids": [],
+                        "external_refs": payload.external_refs,
+                        "match_evidence": [],
+                        "diagnostics": [],
+                        "release_context": {},
+                    }
+                )
+
+        service = SubscriptionService(
+            session=SimpleNamespace(),
+            metadata_service=SimpleNamespace(),
+            music_media_chain=FakeMusicMediaChain(),
+        )
         captured: dict = {}
 
         class FakeRepository:
@@ -708,26 +735,47 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
         service.repository = FakeRepository()
         service.session = FakeSession()
 
-        entry = ChartEntryInfo(
-            item_id="rss-item-001",
-            chart_id="rss-feed-n1",
-            chart_source="rss_feed",
-            chart_name="网易云喜欢",
-            rank=1,
-            item_type=EntityType.TRACK,
-            target_id="",
-            target_name="Wonderful Tonight",
-            subtitle="Eric Clapton",
-            provider="rss_feed",
-            source_type="rss_feed/netease_playlist_tracks",
-            target_payload={
-                "family": "netease_playlist_tracks",
-                "provider_origin_url": "https://music.163.com/#/song?id=100001",
-                "provider_origin_id": "100001",
+        entry = DiscoveryEntryView(
+            entry=ChartEntryInfo(
+                item_id="rss-item-001",
+                chart_id="rss-feed-n1",
+                chart_source="rss_feed",
+                chart_name="网易云喜欢",
+                rank=1,
+                item_type=EntityType.TRACK,
+                target_id="",
+                target_name="Wonderful Tonight",
+                subtitle="Eric Clapton",
+                provider="rss_feed",
+                source_type="rss_feed/netease_playlist_tracks",
+                target_payload={
+                    "family": "netease_playlist_tracks",
+                    "provider_origin_url": "https://music.163.com/#/song?id=100001",
+                    "provider_origin_id": "100001",
+                    "album_title": "Slowhand",
+                },
+                mock=False,
+                note="rss",
+            ),
+            media_input={
+                "entity_hint": "track",
+                "source_kind": "discovery",
+                "title": "Wonderful Tonight",
+                "artist_names": ["Eric Clapton"],
                 "album_title": "Slowhand",
+                "external_refs": {
+                    "source_id": "100001",
+                    "source_url": "https://music.163.com/#/song?id=100001",
+                },
+                "source_context": {
+                    "provider": "rss_feed",
+                    "family": "netease_playlist_tracks",
+                },
+                "raw_context": {},
             },
-            mock=False,
-            note="rss",
+            entry_summary="Wonderful Tonight · Eric Clapton",
+            badges=["rss_feed", "tracks"],
+            conversion_state="ready",
         )
 
         service.create_from_chart_entry(
@@ -738,3 +786,58 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
         self.assertEqual(captured["target_payload_json"]["family"], "netease_playlist_tracks")
         self.assertEqual(captured["target_payload_json"]["provider_origin_id"], "100001")
         self.assertEqual(captured["target_payload_json"]["entry_target_payload"]["album_title"], "Slowhand")
+        self.assertEqual(captured["target_payload_json"]["music_media_input"]["title"], "Wonderful Tonight")
+        self.assertEqual(
+            captured["target_payload_json"]["music_media_info"]["provider_id"],
+            "recording-wonderful-tonight",
+        )
+
+    def test_create_from_chart_entry_rejects_insufficient_media_input(self) -> None:
+        class FakeMusicMediaChain:
+            def resolve(self, payload):  # noqa: ANN001
+                raise AssertionError("resolve should not run for insufficient entries")
+
+        service = SubscriptionService(
+            session=SimpleNamespace(),
+            metadata_service=SimpleNamespace(),
+            music_media_chain=FakeMusicMediaChain(),
+        )
+
+        entry = DiscoveryEntryView(
+            entry=ChartEntryInfo(
+                item_id="rss-item-bad",
+                chart_id="rss-feed-n1",
+                chart_source="rss_feed",
+                chart_name="网易云喜欢",
+                rank=9,
+                item_type=EntityType.TRACK,
+                target_id="",
+                target_name="Unknown",
+                subtitle=None,
+                provider="rss_feed",
+                source_type="rss_feed/netease_playlist_tracks",
+                target_payload={"family": "netease_playlist_tracks"},
+                mock=False,
+                note="rss",
+            ),
+            media_input={
+                "entity_hint": "track",
+                "source_kind": "discovery",
+                "artist_names": [],
+                "external_refs": {},
+                "source_context": {},
+                "raw_context": {},
+            },
+            entry_summary="Unknown",
+            badges=["rss_feed", "tracks"],
+            conversion_state="insufficient",
+            conversion_note="Missing media input fields: requires title + artist_names.",
+        )
+
+        with self.assertRaises(HTTPException) as context:
+            service.create_from_chart_entry(
+                entry=entry,
+                payload=CreateChartEntrySubscriptionRequest(chart_item_id="rss-item-bad"),
+            )
+
+        self.assertEqual(context.exception.status_code, 400)

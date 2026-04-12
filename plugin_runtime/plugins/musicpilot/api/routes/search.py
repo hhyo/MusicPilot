@@ -1,17 +1,13 @@
-"""Metadata search and detail routes for the Phase 2 minimum loop."""
+"""Metadata search and direct detail routes."""
 
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, Field
 
 from ...core.dependencies import get_metadata_service
 from ...core.responses import success_response
 from ...schemas.common import ApiResponse
 from ...schemas.metadata import MetadataSearchRequest
-from ...schemas.mvp import EntityType
 from ...services.metadata import MetadataService
 
 router = APIRouter(tags=["Search", "Metadata"])
@@ -19,11 +15,6 @@ router = APIRouter(tags=["Search", "Metadata"])
 
 def _is_mock_source(source_type: str) -> bool:
     return source_type in {"mock", "local_seed"}
-
-
-class MetadataLookupRequest(BaseModel):
-    entity_type: EntityType
-    hints: dict[str, Any] = Field(default_factory=dict)
 
 
 @router.post("/search", summary="Metadata search")
@@ -48,28 +39,6 @@ async def search(
         todo=[
             "Do not attach PT search, downloader dispatch, or organize logic in this phase.",
         ],
-    )
-
-
-@router.post("/lookup", summary="Metadata detail lookup")
-@router.post("/metadata/lookup", summary="Metadata detail lookup")
-async def metadata_lookup(
-    payload: MetadataLookupRequest,
-    request: Request,
-    service: MetadataService = Depends(get_metadata_service),
-) -> ApiResponse:
-    detail = service.lookup_detail(payload.entity_type, payload.hints)
-    return success_response(
-        request,
-        data=detail,
-        message="Metadata lookup completed.",
-        code="METADATA_LOOKUP_OK",
-        mock=detail.mock,
-        note=(
-            "当前 lookup 结果来自 local seed metadata。"
-            if detail.mock
-            else "当前 lookup 结果来自真实 metadata provider。"
-        ),
     )
 
 

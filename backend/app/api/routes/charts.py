@@ -82,17 +82,17 @@ async def subscribe_chart(
     chart_service: ChartService = Depends(get_chart_service),
     subscription_service: SubscriptionService = Depends(get_subscription_service),
 ) -> ApiResponse:
-    entry = chart_service.get_chart_entry(chart_id, payload.chart_item_id)
+    entry = chart_service.get_discovery_entry(chart_id, payload.chart_item_id)
     data = subscription_service.create_from_chart_entry(entry=entry, payload=payload)
     return success_response(
         request,
         data=data,
         message="Subscription created from chart entry.",
         code="CHART_SUBSCRIBE_OK",
-        mock=entry.mock,
+        mock=entry.entry.mock,
         note=(
             "当前榜单订阅来自 mock chart entry，不会自动刷新或自动发现真实榜单增量。"
-            if entry.mock
+            if entry.entry.mock
             else "当前榜单订阅来自真实 chart entry，但尚未接入自动刷新或增量监控。"
         ),
     )

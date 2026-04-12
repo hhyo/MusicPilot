@@ -6,7 +6,13 @@ from fastapi import HTTPException
 
 from ..adapters.chart_provider import CHART_INTEGRATION_POINT, ChartProviderAdapter
 from ..schemas.mvp import EntityType
-from ..schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartListData, ChartProviderInfo
+from ..schemas.orchestration import (
+    ChartDetailData,
+    ChartEntryInfo,
+    ChartListData,
+    ChartProviderInfo,
+    DiscoveryEntryView,
+)
 from .discovery import DiscoveryAssembler
 
 
@@ -51,3 +57,13 @@ class ChartService:
             return self.adapter.get_chart_entry(chart_id, item_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    def get_discovery_entry(self, chart_id: str, item_id: str) -> DiscoveryEntryView:
+        detail = self.get_chart_detail(chart_id)
+        if detail.hero_entry and detail.hero_entry.entry.item_id == item_id:
+            return detail.hero_entry
+        for group in detail.entry_groups:
+            for item in group.items:
+                if item.entry.item_id == item_id:
+                    return item
+        raise HTTPException(status_code=404, detail=f"Chart entry {item_id} was not found in {chart_id}.")

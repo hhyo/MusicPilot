@@ -12,6 +12,7 @@ from ..schemas.orchestration import (
     ChartEntryInfo,
     CreateChartEntrySubscriptionRequest,
     CreateSubscriptionRequest,
+    DiscoveryEntryView,
     SubscriptionDetail,
     SubscriptionListData,
     SubscriptionSummary,
@@ -29,9 +30,10 @@ SUBSCRIPTION_NOTE = (
 
 
 class SubscriptionService:
-    def __init__(self, session: Session, metadata_service: MetadataService):
+    def __init__(self, session: Session, metadata_service: MetadataService, music_media_chain):
         self.session = session
         self.metadata_service = metadata_service
+        self.music_media_chain = music_media_chain
         self.repository = OrchestrationRepository(session)
 
     def list_subscriptions(
@@ -93,38 +95,50 @@ class SubscriptionService:
     def create_from_chart_entry(
         self,
         *,
-        entry: ChartEntryInfo,
+        entry: DiscoveryEntryView,
         payload: CreateChartEntrySubscriptionRequest,
     ) -> SubscriptionSummary:
-        entry_hints = dict(entry.target_payload or {})
+        if entry.conversion_state not in {"direct", "ready"}:
+            raise HTTPException(
+                status_code=400,
+                detail=entry.conversion_note or "Chart entry does not have enough music media clues for subscription.",
+            )
+
+        media_info = self.music_media_chain.resolve(entry.media_input)
+        chart_entry = entry.entry
+        entry_hints = dict(chart_entry.target_payload or {})
         subscription = self.repository.create_subscription(
             subscription_type=SubscriptionType.CHART_ENTRY.value,
-            target_id=entry.item_id,
-            target_name=entry.target_name,
-            target_entity_type=entry.item_type.value,
-            chart_source=entry.chart_source,
-            chart_name=entry.chart_name,
+            target_id=chart_entry.item_id,
+            target_name=chart_entry.target_name,
+            target_entity_type=chart_entry.item_type.value,
+            chart_source=chart_entry.chart_source,
+            chart_name=chart_entry.chart_name,
             mode=normalize_subscription_mode(payload.mode.value),
             preference_json=payload.preference_json,
             target_payload_json={
-                "chart_id": entry.chart_id,
-                "chart_item_id": entry.item_id,
-                "chart_source": entry.chart_source,
-                "chart_name": entry.chart_name,
-                "rank": entry.rank,
-                "target_id": entry.target_id,
-                "target_name": entry.target_name,
-                "target_entity_type": entry.item_type.value,
-                "subtitle": entry.subtitle,
+                "chart_id": chart_entry.chart_id,
+                "chart_item_id": chart_entry.item_id,
+                "chart_source": chart_entry.chart_source,
+                "chart_name": chart_entry.chart_name,
+                "rank": chart_entry.rank,
+                "target_id": chart_entry.target_id,
+                "target_name": chart_entry.target_name,
+                "target_entity_type": chart_entry.item_type.value,
+                "subtitle": chart_entry.subtitle,
                 "entry_target_payload": entry_hints,
+                "music_media_input": entry.media_input.model_dump(mode="json"),
+                "music_media_info": media_info.model_dump(mode="json"),
+                "conversion_state": entry.conversion_state,
+                "conversion_note": entry.conversion_note,
                 **entry_hints,
             },
             note=(
-                "当前榜单订阅来自 mock chart entry。后续真实榜单接入后，可在此结构上接入增量刷新、"
-                "命中检测与调度器。"
-                if entry.mock
-                else "当前榜单订阅来自真实 chart entry，已可手动 run 或进入最小应用内 scheduler；"
-                "自动刷新、增量命中检测与 production 级调度仍待后续补齐。"
+                "当前榜单订阅来自 mock chart entry，并已在创建时固化统一音乐媒体链识别结果；"
+                "后续真实榜单接入后，可在此结构上接入增量刷新、命中检测与调度器。"
+                if chart_entry.mock
+                else "当前榜单订阅来自真实 chart entry，并已在创建时固化统一音乐媒体链识别结果；"
+                "已可手动 run 或进入最小应用内 scheduler，自动刷新、增量命中检测与 production 级调度仍待后续补齐。"
             ),
         )
         self.session.commit()

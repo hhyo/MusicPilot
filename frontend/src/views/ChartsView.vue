@@ -161,8 +161,11 @@
         >
           <div>
             <p class="hero-entry-card__eyebrow">Featured Entry</p>
-            <h4>{{ selectedChart.hero_entry.target.display_title }}</h4>
+            <h4>{{ renderEntryTitle(selectedChart.hero_entry) }}</h4>
             <p>{{ selectedChart.hero_entry.entry_summary }}</p>
+            <p class="hero-entry-card__conversion">
+              {{ renderConversionStatus(selectedChart.hero_entry) }}
+            </p>
           </div>
           <div class="entry-card__tags">
             <el-tag
@@ -219,14 +222,14 @@
             >
               <div class="entry-card__rank">#{{ item.entry.rank }}</div>
               <div class="entry-card__body">
-                <h4>{{ item.target.display_title }}</h4>
+                <h4>{{ renderEntryTitle(item) }}</h4>
                 <p>{{ item.entry_summary }}</p>
                 <p class="entry-card__conversion">
                   {{ renderConversionStatus(item) }}
                 </p>
                 <div class="entry-card__tags">
-                  <el-tag size="small" effect="plain">{{ item.target.target_kind }}</el-tag>
-                  <el-tag size="small" effect="plain">{{ item.target.provider }}</el-tag>
+                  <el-tag size="small" effect="plain">{{ item.media_input.entity_hint || item.entry.item_type }}</el-tag>
+                  <el-tag size="small" effect="plain">{{ renderEntryProvider(item) }}</el-tag>
                   <el-tag
                     v-for="badge in item.badges"
                     :key="badge"
@@ -240,9 +243,10 @@
               <el-button
                 type="primary"
                 plain
+                :disabled="!isEntrySubscribable(item)"
                 :loading="subscribingItemId === item.entry.item_id"
                 :data-test="`subscribe-entry-${item.entry.item_id}`"
-                @click.stop="handleSubscribe(item.entry)"
+                @click.stop="handleSubscribe(item)"
               >
                 创建订阅
               </el-button>
@@ -271,7 +275,7 @@ import { ElMessage } from 'element-plus';
 
 import MetadataDetailDrawer from '@/components/MetadataDetailDrawer.vue';
 import { createSearchJob, executeSearchJob } from '@/services/acquisition';
-import { fetchDiscoveryTargetDetail } from '@/services/discovery-metadata';
+import { resolveMusicMediaDetail } from '@/services/music-media';
 import {
   createSubscription,
   fetchChartDetail,
@@ -283,7 +287,6 @@ import type { MetadataDetail } from '@/types/metadata';
 import type {
   ChartDetailData,
   ChartEntryInfo,
-  DiscoveryTarget,
   DiscoveryEntryView,
   DiscoveryEntryGroup,
   ChartProviderInfo,
@@ -387,12 +390,12 @@ async function openDiscoveryEntryDetail(item: DiscoveryEntryView) {
   activeDiscoveryEntryId.value = item.entry.item_id;
   discoveryWarningMessage.value = '';
 
-  if (!item.target.conversion_ready) {
+  if (!isEntryResolvable(item)) {
     metadataDrawerOpen.value = false;
     metadataDetail.value = null;
     metadataDetailError.value = '';
     metadataDetailLoading.value = false;
-    discoveryWarningMessage.value = resolveConversionStatusText(item.target);
+    discoveryWarningMessage.value = resolveConversionStatusText(item);
     ElMessage.warning(discoveryWarningMessage.value);
     return;
   }
@@ -403,11 +406,11 @@ async function openDiscoveryEntryDetail(item: DiscoveryEntryView) {
   metadataDetail.value = null;
 
   try {
-    const response = await fetchDiscoveryTargetDetail(item.target);
+    const response = await resolveMusicMediaDetail(item.media_input);
     if (!response.success) {
       throw new Error(response.message);
     }
-    metadataDetail.value = response.data;
+    metadataDetail.value = response.data.detail;
   } catch (error) {
     metadataDetailError.value = resolveErrorMessage(error, 'metadata detail 加载失败。');
   } finally {
@@ -415,15 +418,20 @@ async function openDiscoveryEntryDetail(item: DiscoveryEntryView) {
   }
 }
 
-async function handleSubscribe(item: ChartEntryInfo) {
+async function handleSubscribe(item: DiscoveryEntryView) {
   if (!selectedChart.value) {
     return;
   }
+  if (!isEntrySubscribable(item)) {
+    const message = resolveConversionStatusText(item);
+    ElMessage.warning(message);
+    return;
+  }
 
-  subscribingItemId.value = item.item_id;
+  subscribingItemId.value = item.entry.item_id;
   try {
     const response = await subscribeFromChartEntry(selectedChart.value.chart.id, {
-      chart_item_id: item.item_id,
+      chart_item_id: item.entry.item_id,
       mode: 'manual',
     });
 
@@ -517,17 +525,40 @@ function resolveErrorMessage(error: unknown, fallback: string) {
 }
 
 function renderConversionStatus(item: DiscoveryEntryView) {
-  return resolveConversionStatusText(item.target);
+  return resolveConversionStatusText(item);
 }
 
-function resolveConversionStatusText(target: DiscoveryTarget) {
-  if (target.conversion_ready) {
-    return target.resolution_mode === 'search_lookup' ? '需要检索详情' : '已可查看详情';
+function renderEntryTitle(item: DiscoveryEntryView) {
+  return item.entry.target_name;
+}
+
+function renderEntryProvider(item: DiscoveryEntryView) {
+  const provider = item.media_input.source_context.provider;
+  return typeof provider === 'string' && provider ? provider : item.entry.provider;
+}
+
+function isEntryResolvable(item: DiscoveryEntryView) {
+  return item.conversion_state === 'direct' || item.conversion_state === 'ready';
+}
+
+function isEntrySubscribable(item: DiscoveryEntryView) {
+  return isEntryResolvable(item);
+}
+
+function resolveConversionStatusText(item: DiscoveryEntryView) {
+  if (item.conversion_state === 'direct') {
+    return '已可直接查看详情';
   }
-  if (target.resolution_mode === 'search_lookup') {
+  if (item.conversion_state === 'ready') {
+    return '可进入统一媒体解析';
+  }
+  if (item.conversion_state === 'partial') {
+    return item.conversion_note || '解析信息部分可用';
+  }
+  if (item.conversion_state === 'insufficient') {
     return '解析信息不足';
   }
-  return '当前暂不支持详情下钻';
+  return item.conversion_note || '当前暂不支持详情下钻';
 }
 </script>
 

@@ -14,6 +14,7 @@ from ..schemas.acquisition import (
     QueryPreferences,
 )
 from ..schemas.metadata import MetadataDetail
+from ..schemas.music_media import MusicMediaInfo
 from ..schemas.mvp import EntityType
 from .metadata import MetadataService
 
@@ -45,6 +46,37 @@ class QueryBuilderService:
 
         detail = self.metadata_service.get_detail(payload.query_source_type, payload.query_source_id)
         return self.build_from_detail(detail, payload.preferences)
+
+    @classmethod
+    def build_queries_from_music_media_info(
+        cls,
+        media_info: MusicMediaInfo,
+        preferences: QueryPreferences | None = None,
+    ) -> list[str]:
+        resolved_preferences = preferences or QueryPreferences()
+        format_terms = cls._preferred_format_terms(resolved_preferences)
+        artist_terms = _dedupe(media_info.artist_names or media_info.album_artist_names)
+        primary_artist = " ".join(artist_terms) or (media_info.title or "")
+
+        queries: list[str] = []
+        if media_info.entity_type == EntityType.ARTIST:
+            queries.append(" ".join(_dedupe([media_info.title or primary_artist] + format_terms)))
+            queries.append(" ".join(_dedupe([media_info.title or primary_artist])))
+            return [query for query in _dedupe(queries) if query]
+
+        primary_title = media_info.title or media_info.album_title or primary_artist
+        queries.append(" ".join(_dedupe([primary_artist, primary_title] + format_terms)))
+
+        if media_info.entity_type == EntityType.ALBUM:
+            if media_info.year:
+                queries.append(" ".join(_dedupe([primary_artist, primary_title, str(media_info.year)] + format_terms)))
+            queries.append(" ".join(_dedupe([primary_artist, primary_title])))
+            return [query for query in _dedupe(queries) if query]
+
+        album_or_title = media_info.album_title or primary_title
+        queries.append(" ".join(_dedupe([primary_artist, album_or_title] + format_terms)))
+        queries.append(" ".join(_dedupe([primary_artist, primary_title])))
+        return [query for query in _dedupe(queries) if query]
 
     @classmethod
     def build_from_detail(

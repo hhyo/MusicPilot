@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..repositories.orchestration import OrchestrationRepository
 from ..schemas.acquisition import DispatchRequest, QueryPreferences, SearchCandidateDetail, SearchJobCreateRequest
 from ..schemas.metadata import MetadataDetail
+from ..schemas.music_media import MusicMediaInfo, MusicMediaInput
 from ..schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from ..schemas.orchestration import (
     OrganizeApplyRequest,
@@ -41,11 +42,13 @@ class SubscriptionExecutionService:
         *,
         search_job_service: SearchJobService,
         organize_service: OrganizeService,
+        music_media_chain,
         dispatch_service: DispatchService | None = None,
     ):
         self.session = session
         self.search_job_service = search_job_service
         self.organize_service = organize_service
+        self.music_media_chain = music_media_chain
         self.dispatch_service = dispatch_service
         self.repository = OrchestrationRepository(session)
 
@@ -213,6 +216,11 @@ class SubscriptionExecutionService:
         return self.search_job_service.metadata_service.get_detail(entity_type, entity_id)
 
     def _resolve_query_source(self, subscription) -> tuple[EntityType, str]:
+        media_info = self._resolve_or_build_music_media_info(subscription)
+        if media_info is not None and media_info.provider_id:
+            search_input = self._build_search_input_from_media_info(media_info)
+            return EntityType(search_input["entity_type"]), str(search_input["provider_id"])
+
         if subscription.subscription_type == SubscriptionType.CHART_ENTRY.value:
             payload = subscription.target_payload_json or {}
             target_entity_type = payload.get("target_entity_type")
@@ -226,6 +234,57 @@ class SubscriptionExecutionService:
 
         target_entity_type = subscription.target_entity_type or subscription.subscription_type
         return EntityType(target_entity_type), subscription.target_id
+
+    def _resolve_or_build_music_media_info(self, subscription) -> MusicMediaInfo | None:
+        media_info = self._resolve_music_media_info_snapshot(subscription)
+        if media_info is not None and media_info.provider_id:
+            return media_info
+
+        media_input = self._resolve_music_media_input_snapshot(subscription)
+        if media_input is None:
+            return None
+
+        resolved = self.music_media_chain.resolve(media_input)
+        payload = dict(subscription.target_payload_json or {})
+        payload["music_media_input"] = media_input.model_dump(mode="json")
+        payload["music_media_info"] = resolved.model_dump(mode="json")
+        subscription.target_payload_json = payload
+        self.session.flush()
+        return resolved
+
+    @staticmethod
+    def _resolve_music_media_info_snapshot(subscription) -> MusicMediaInfo | None:
+        payload = subscription.target_payload_json or {}
+        snapshot = payload.get("music_media_info")
+        if not isinstance(snapshot, dict):
+            return None
+        try:
+            return MusicMediaInfo.model_validate(snapshot)
+        except Exception:  # pragma: no cover - defensive parse guard
+            return None
+
+    @staticmethod
+    def _resolve_music_media_input_snapshot(subscription) -> MusicMediaInput | None:
+        payload = subscription.target_payload_json or {}
+        snapshot = payload.get("music_media_input")
+        if not isinstance(snapshot, dict):
+            return None
+        try:
+            return MusicMediaInput.model_validate(snapshot)
+        except Exception:  # pragma: no cover - defensive parse guard
+            return None
+
+    @staticmethod
+    def _build_search_input_from_media_info(media: MusicMediaInfo) -> dict[str, object]:
+        return {
+            "entity_type": media.entity_type.value,
+            "provider": media.provider,
+            "provider_id": media.provider_id,
+            "title": media.title,
+            "artist_names": list(media.artist_names),
+            "album_title": media.album_title,
+            "match_strategy": media.match_strategy,
+        }
 
     def _map_run_status(self, job_status: JobStatus) -> SubscriptionRunStatus:
         if job_status == JobStatus.DISPATCHED:

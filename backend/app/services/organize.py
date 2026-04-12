@@ -12,6 +12,7 @@ from ..repositories.orchestration import OrchestrationRepository
 from ..schemas.acquisition import PathHandoffInfo
 from ..schemas.integration import AdapterMode, AdapterResolution, VerificationState
 from ..schemas.metadata import MetadataDetail
+from ..schemas.music_media import MusicMediaInfo
 from ..schemas.orchestration import (
     OrganizeAdapterResult,
     OrganizeApplyRequest,
@@ -154,12 +155,14 @@ class OrganizeService:
         if candidate_model is None:
             raise HTTPException(status_code=404, detail="Candidate for organize request was not found.")
 
+        candidate_payload = dict(candidate_model.raw_payload or {})
+        binding_payload = dict(binding_model.raw_payload or {}) if binding_model else {}
         metadata_detail = None
         if candidate_model.job and candidate_model.job.metadata_snapshot:
             metadata_detail = MetadataDetail.model_validate(candidate_model.job.metadata_snapshot)
+        elif (music_media_info := self._extract_music_media_info_snapshot(candidate_payload, binding_payload)) is not None:
+            metadata_detail = self._build_metadata_detail_from_music_media_info(music_media_info)
 
-        candidate_payload = dict(candidate_model.raw_payload or {})
-        binding_payload = dict(binding_model.raw_payload or {}) if binding_model else {}
         if "path_handoff" not in candidate_payload and isinstance(binding_payload.get("path_handoff"), dict):
             candidate_payload["path_handoff"] = binding_payload["path_handoff"]
         if "host_transfer_downloader" not in candidate_payload:
@@ -197,6 +200,53 @@ class OrganizeService:
             "candidate": candidate,
             "metadata_detail": metadata_detail,
         }
+
+    @staticmethod
+    def _extract_music_media_info_snapshot(
+        candidate_payload: dict,
+        binding_payload: dict,
+    ) -> MusicMediaInfo | None:
+        for key in ("music_media_info", "music_media_info_snapshot"):
+            snapshot = candidate_payload.get(key)
+            if not isinstance(snapshot, dict):
+                snapshot = binding_payload.get(key)
+            if not isinstance(snapshot, dict):
+                continue
+            try:
+                return MusicMediaInfo.model_validate(snapshot)
+            except Exception:  # pragma: no cover - defensive parse guard
+                continue
+        return None
+
+    @staticmethod
+    def _build_metadata_context_from_music_media_info(media: MusicMediaInfo) -> dict[str, str | int | None]:
+        artist_name = media.artist_names[0] if media.artist_names else None
+        return {
+            "artist_name": artist_name,
+            "album_title": media.album_title,
+            "track_title": media.title if media.entity_type.value == "track" else None,
+            "title": media.title or media.album_title or artist_name,
+            "year": str(media.year) if media.year is not None else None,
+            "track_number": media.track_number,
+            "disc_number": media.disc_number,
+        }
+
+    def _build_metadata_detail_from_music_media_info(self, media: MusicMediaInfo) -> MetadataDetail:
+        context = self._build_metadata_context_from_music_media_info(media)
+        return MetadataDetail(
+            entity_type=media.entity_type,
+            id=media.provider_id,
+            title=str(context["title"] or media.provider_id),
+            artist_name=context["artist_name"],
+            album_title=context["album_title"],
+            track_title=context["track_title"],
+            year=media.year,
+            provider=media.provider,
+            source_type="music_media_info",
+            mock=False,
+            note="Synthesized from unified MusicMediaInfo snapshot.",
+            integration_point="OrganizeService.music_media_info",
+        )
 
     def _plan_from_record(self, record) -> OrganizePlan | None:
         raw_payload = record.raw_payload or {}

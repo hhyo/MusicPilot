@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -19,6 +20,7 @@ from app.schemas.acquisition import (
 )
 from app.schemas.integration import AdapterMode, VerificationState
 from app.schemas.metadata import MetadataDetail
+from app.schemas.music_media import MusicMediaInfo, MusicMediaInput
 from app.schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from app.schemas.orchestration import (
     OrganizeApplyRequest,
@@ -136,8 +138,10 @@ class DummySearchJobService:
         self.metadata_service = DummyMetadataService()
         self.executed_job = executed_job
         self.candidates = candidates
+        self.created_payloads: list[SearchJobCreateRequest] = []
 
     def create_job(self, payload):  # noqa: ANN001
+        self.created_payloads.append(payload)
         return build_search_job_summary(status=JobStatus.QUEUED)
 
     def execute_job(self, job_id: str) -> SearchJobSummary:
@@ -195,6 +199,18 @@ class DummyOrganizeService:
         return self.records[record_id]
 
 
+class DummyMusicMediaChain:
+    def __init__(self, resolved_media: MusicMediaInfo | None = None) -> None:
+        self.resolved_media = resolved_media
+        self.calls: list[MusicMediaInput] = []
+
+    def resolve(self, payload: MusicMediaInput) -> MusicMediaInfo:
+        self.calls.append(payload)
+        if self.resolved_media is None:
+            raise AssertionError("resolve() should not be called without a configured result")
+        return self.resolved_media
+
+
 class SubscriptionExecutionServiceTest(unittest.TestCase):
     def setUp(self) -> None:
         engine = create_engine("sqlite:///:memory:", future=True)
@@ -250,6 +266,7 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
             self.session,
             search_job_service=search_job_service,
             organize_service=organize_service,
+            music_media_chain=DummyMusicMediaChain(),
             dispatch_service=dispatch_service,
         )
 
@@ -289,6 +306,7 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
             self.session,
             search_job_service=search_job_service,
             organize_service=organize_service,
+            music_media_chain=DummyMusicMediaChain(),
             dispatch_service=dispatch_service,
         )
 
@@ -346,6 +364,7 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
             self.session,
             search_job_service=search_job_service,
             organize_service=organize_service,
+            music_media_chain=DummyMusicMediaChain(),
             dispatch_service=dispatch_service,
         )
 
@@ -369,6 +388,7 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
             self.session,
             search_job_service=search_job_service,
             organize_service=organize_service,
+            music_media_chain=DummyMusicMediaChain(),
             dispatch_service=None,
         )
 
@@ -376,6 +396,187 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
 
         self.assertEqual(result.execution_status, SubscriptionRunStatus.NO_RESULT)
         self.assertEqual(result.summary_json.get("search_outcome_reason"), "host_search_no_result")
+
+    def test_execute_chart_entry_subscription_resolves_music_media_input_before_search(self) -> None:
+        subscription = self.repository.create_subscription(
+            subscription_type=SubscriptionType.CHART_ENTRY.value,
+            target_id="rss-entry-001",
+            target_name="Hello",
+            target_entity_type=EntityType.TRACK.value,
+            chart_source="rss_feed",
+            chart_name="网易云热歌榜",
+            mode="manual",
+            preference_json={},
+            target_payload_json={
+                "music_media_input": {
+                    "entity_hint": EntityType.TRACK.value,
+                    "source_kind": "discovery",
+                    "title": "Hello",
+                    "artist_names": ["Adele"],
+                    "album_title": "25",
+                    "external_refs": {
+                        "source_id": "song-123",
+                        "source_url": "https://music.163.com/#/song?id=123",
+                    },
+                    "source_context": {
+                        "provider": "rss_feed",
+                        "family": "netease_playlist_tracks",
+                    },
+                    "raw_context": {},
+                }
+            },
+            note="rss-subscription",
+        )
+        self.session.commit()
+        self.session.refresh(subscription)
+
+        search_job_service = DummySearchJobService(
+            executed_job=build_search_job_summary(status=JobStatus.NO_RESULT),
+            candidates=[],
+        )
+        organize_service = DummyOrganizeService()
+        chain = DummyMusicMediaChain(
+            MusicMediaInfo(
+                entity_type=EntityType.TRACK,
+                provider="musicbrainz",
+                provider_id="recording-hello",
+                title="Hello",
+                artist_names=["Adele"],
+                album_title="25",
+                album_artist_names=[],
+                related_artist_ids=[],
+                related_track_ids=[],
+                external_refs={},
+                match_evidence=[],
+                diagnostics=[],
+                release_context={},
+            )
+        )
+        service = SubscriptionExecutionService(
+            self.session,
+            search_job_service=search_job_service,
+            organize_service=organize_service,
+            music_media_chain=chain,
+            dispatch_service=None,
+        )
+
+        result = service.execute(subscription.id)
+
+        self.assertEqual(result.execution_status, SubscriptionRunStatus.NO_RESULT)
+        self.assertEqual(len(chain.calls), 1)
+        self.assertEqual(search_job_service.created_payloads[0].query_source_type, EntityType.TRACK)
+        self.assertEqual(search_job_service.created_payloads[0].query_source_id, "recording-hello")
+
+    def test_subscription_execution_prefers_music_media_info_snapshot_for_search(self) -> None:
+        service = SubscriptionExecutionService.__new__(SubscriptionExecutionService)
+        media = MusicMediaInfo(
+            entity_type=EntityType.TRACK,
+            provider="musicbrainz",
+            provider_id="recording-hello",
+            title="Hello",
+            artist_names=["Adele"],
+            album_title="25",
+            album_artist_names=[],
+            related_artist_ids=[],
+            related_track_ids=[],
+            external_refs={},
+            match_evidence=[],
+            diagnostics=[],
+            release_context={},
+            match_strategy="strong_ref",
+        )
+
+        search_input = service._build_search_input_from_media_info(media)
+
+        self.assertEqual(search_input["title"], "Hello")
+        self.assertEqual(search_input["artist_names"], ["Adele"])
+        self.assertEqual(search_input["album_title"], "25")
+
+    def test_resolve_query_source_uses_music_media_info_snapshot_when_present(self) -> None:
+        service = SubscriptionExecutionService.__new__(SubscriptionExecutionService)
+        subscription = type(
+            "SubscriptionStub",
+            (),
+            {
+                "subscription_type": SubscriptionType.CHART_ENTRY.value,
+                "target_entity_type": EntityType.TRACK.value,
+                "target_id": "legacy-target",
+                "target_payload_json": {
+                    "music_media_info": {
+                        "entity_type": EntityType.TRACK.value,
+                        "provider": "musicbrainz",
+                        "provider_id": "recording-hello",
+                        "title": "Hello",
+                        "artist_names": ["Adele"],
+                        "album_title": "25",
+                        "album_artist_names": [],
+                        "related_artist_ids": [],
+                        "related_track_ids": [],
+                        "external_refs": {},
+                        "match_evidence": [],
+                        "diagnostics": [],
+                        "release_context": {},
+                    }
+                },
+            },
+        )()
+
+        entity_type, entity_id = service._resolve_query_source(subscription)
+
+        self.assertEqual(entity_type, EntityType.TRACK)
+        self.assertEqual(entity_id, "recording-hello")
+
+    def test_resolve_query_source_builds_music_media_info_from_music_media_input_snapshot(self) -> None:
+        service = SubscriptionExecutionService.__new__(SubscriptionExecutionService)
+        service.session = SimpleNamespace(flush=lambda: None)
+        service.music_media_chain = DummyMusicMediaChain(
+            MusicMediaInfo(
+                entity_type=EntityType.TRACK,
+                provider="musicbrainz",
+                provider_id="recording-hello",
+                title="Hello",
+                artist_names=["Adele"],
+                album_title="25",
+                album_artist_names=[],
+                related_artist_ids=[],
+                related_track_ids=[],
+                external_refs={},
+                match_evidence=[],
+                diagnostics=[],
+                release_context={},
+            )
+        )
+        subscription = type(
+            "SubscriptionStub",
+            (),
+            {
+                "subscription_type": SubscriptionType.CHART_ENTRY.value,
+                "target_entity_type": EntityType.TRACK.value,
+                "target_id": "legacy-target",
+                "target_payload_json": {
+                    "music_media_input": {
+                        "entity_hint": EntityType.TRACK.value,
+                        "source_kind": "discovery",
+                        "title": "Hello",
+                        "artist_names": ["Adele"],
+                        "album_title": "25",
+                        "external_refs": {},
+                        "source_context": {},
+                        "raw_context": {},
+                    }
+                },
+            },
+        )()
+
+        entity_type, entity_id = service._resolve_query_source(subscription)
+
+        self.assertEqual(entity_type, EntityType.TRACK)
+        self.assertEqual(entity_id, "recording-hello")
+        self.assertEqual(len(service.music_media_chain.calls), 1)
+        self.assertEqual(
+            subscription.target_payload_json["music_media_info"]["provider_id"],
+            "recording-hello",
+        )
 
 
 if __name__ == "__main__":

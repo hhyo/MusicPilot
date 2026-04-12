@@ -15,6 +15,8 @@ from app.adapters.organize import OrganizeAdapter
 from app.models.acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
 from app.models.base import Base
 from app.schemas.integration import AdapterMode
+from app.schemas.mvp import EntityType
+from app.schemas.music_media import MusicMediaInfo
 from app.schemas.orchestration import (
     OrganizeAdapterResult,
     OrganizeApplyRequest,
@@ -932,6 +934,33 @@ class OrganizeIntegrationTest(unittest.TestCase):
             )
         finally:
             session.close()
+
+    def test_organize_can_build_upstream_context_from_music_media_info_snapshot(self) -> None:
+        service = OrganizeService.__new__(OrganizeService)
+        media = MusicMediaInfo(
+            entity_type=EntityType.TRACK,
+            provider="musicbrainz",
+            provider_id="recording-hello",
+            title="Hello",
+            artist_names=["Adele"],
+            album_title="25",
+            album_artist_names=[],
+            track_number=1,
+            related_artist_ids=[],
+            related_track_ids=[],
+            external_refs={},
+            match_evidence=[],
+            diagnostics=[],
+            release_context={},
+            match_strategy="strong_ref",
+        )
+
+        context = service._build_metadata_context_from_music_media_info(media)
+
+        self.assertEqual(context["track_title"], "Hello")
+        self.assertEqual(context["artist_name"], "Adele")
+        self.assertEqual(context["album_title"], "25")
+        self.assertEqual(context["track_number"], 1)
 
 
 if __name__ == "__main__":

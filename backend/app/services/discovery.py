@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any
 
+from ..schemas.music_media import MusicMediaInput
 from ..schemas.mvp import EntityType
 from ..schemas.orchestration import (
     ChartDetailData,
@@ -12,8 +12,6 @@ from ..schemas.orchestration import (
     ChartInfo,
     DiscoveryEntryGroup,
     DiscoveryEntryView,
-    DiscoverySourceContext,
-    DiscoveryTarget,
 )
 
 
@@ -31,7 +29,7 @@ class DiscoveryAssembler:
         entry_views = [self._build_entry_view(detail.chart, item) for item in detail.items]
         detail.hero_entry = entry_views[0] if entry_views else None
         detail.entry_groups = self._group_entries(entry_views)
-        ready_count = sum(1 for item in entry_views if item.target.conversion_ready)
+        ready_count = sum(1 for item in entry_views if item.conversion_state in {"direct", "ready"})
         detail.summary_stats = {
             "items": len(entry_views),
             "ready": ready_count,
@@ -44,113 +42,126 @@ class DiscoveryAssembler:
         return detail
 
     def _build_entry_view(self, chart: ChartInfo, entry: ChartEntryInfo) -> DiscoveryEntryView:
-        target = self._build_target(chart, entry)
+        media_input = self._build_media_input_payload(chart, entry)
+        conversion_state, conversion_note = self._resolve_conversion_state(entry=entry, media_input=media_input)
         return DiscoveryEntryView(
             entry=entry,
-            target=target,
-            entry_summary=self._entry_summary(entry, target),
-            badges=target.discovery_badges,
+            media_input=media_input,
+            entry_summary=self._entry_summary(entry),
+            badges=self._build_badges(chart, entry),
             highlight_reason=self._highlight_reason(chart, entry),
-        )
-
-    def _build_target(self, chart: ChartInfo, entry: ChartEntryInfo) -> DiscoveryTarget:
-        if self._is_rss_entry(entry):
-            return self._build_rss_lookup_target(chart, entry)
-
-        provider_id = (entry.target_id or "").strip()
-        conversion_ready = bool(provider_id)
-        return DiscoveryTarget(
-            target_kind=entry.item_type,
-            provider="musicbrainz",
-            provider_id=provider_id,
-            display_title=entry.target_name,
-            display_subtitle=entry.subtitle,
-            source_context=DiscoverySourceContext(
-                chart_source=entry.chart_source,
-                chart_id=entry.chart_id,
-                chart_name=entry.chart_name,
-                rank=entry.rank,
-                chart_type=chart.chart_type,
-            ),
-            conversion_ready=conversion_ready,
-            conversion_note=None if conversion_ready else "Missing provider target id.",
-            resolution_mode="direct_id",
-            resolution_hints={},
-            discovery_badges=self._build_badges(chart, entry),
-        )
-
-    def _build_rss_lookup_target(self, chart: ChartInfo, entry: ChartEntryInfo) -> DiscoveryTarget:
-        hints = self._build_rss_resolution_hints(entry)
-        conversion_ready, conversion_note = self._resolve_rss_lookup_readiness(entry=entry, hints=hints)
-        return DiscoveryTarget(
-            target_kind=entry.item_type,
-            provider="musicbrainz",
-            provider_id="",
-            display_title=entry.target_name,
-            display_subtitle=entry.subtitle,
-            source_context=DiscoverySourceContext(
-                chart_source=entry.chart_source,
-                chart_id=entry.chart_id,
-                chart_name=entry.chart_name,
-                rank=entry.rank,
-                chart_type=chart.chart_type,
-            ),
-            conversion_ready=conversion_ready,
+            conversion_state=conversion_state,
             conversion_note=conversion_note,
-            resolution_mode="search_lookup",
-            resolution_hints=hints,
-            discovery_badges=self._build_badges(chart, entry),
         )
 
-    @staticmethod
-    def _is_rss_entry(entry: ChartEntryInfo) -> bool:
-        return entry.chart_source == "rss_feed" or entry.source_type.startswith("rss_feed/")
-
-    def _build_rss_resolution_hints(self, entry: ChartEntryInfo) -> dict[str, Any]:
+    def _build_media_input_payload(self, chart: ChartInfo, entry: ChartEntryInfo) -> MusicMediaInput:
         payload = dict(entry.target_payload or {})
-        hints: dict[str, Any] = {
-            "family": payload.get("family"),
-            "provider_origin_url": payload.get("provider_origin_url"),
-            "provider_origin_id": payload.get("provider_origin_id"),
-        }
+        artist_name = self._pick_artist_name(entry, payload)
+        external_refs = self._build_external_refs(entry, payload)
+        return MusicMediaInput(
+            entity_hint=entry.item_type,
+            source_kind="discovery",
+            title=self._pick_title(entry, payload),
+            subtitle=entry.subtitle,
+            artist_names=[artist_name] if artist_name else [],
+            album_title=self._pick_album_title(entry, payload),
+            album_artist_names=[],
+            release_date=payload.get("published_at"),
+            external_refs=external_refs,
+            source_context={
+                "chart_id": entry.chart_id,
+                "chart_source": entry.chart_source,
+                "chart_name": entry.chart_name,
+                "chart_type": chart.chart_type.value,
+                "rank": entry.rank,
+                "provider": entry.provider,
+                "source_type": entry.source_type,
+                "family": payload.get("family"),
+            },
+            raw_context=payload.get("raw_context") or payload,
+        )
 
-        if entry.item_type == EntityType.TRACK:
-            hints["title"] = payload.get("title")
-            hints["artist_name"] = payload.get("artist_name")
-            hints["album_title"] = payload.get("album_title")
-        elif entry.item_type == EntityType.ALBUM:
-            hints["album_title"] = payload.get("album_title")
-            hints["artist_name"] = payload.get("artist_name")
-        elif entry.item_type == EntityType.ARTIST:
-            hints["artist_name"] = payload.get("artist_name")
+    def _build_external_refs(self, entry: ChartEntryInfo, payload: dict[str, object]) -> dict[str, str]:
+        refs: dict[str, str] = {}
+        target_id = (entry.target_id or "").strip()
+        if entry.item_type == EntityType.ARTIST and target_id:
+            refs["musicbrainz_artist_id"] = target_id
+        elif entry.item_type == EntityType.ALBUM and target_id:
+            refs["musicbrainz_release_group_id"] = target_id
+        elif entry.item_type == EntityType.TRACK and target_id:
+            refs["musicbrainz_recording_id"] = target_id
 
         for key in (
-            "cover_url",
-            "published_at",
-            "raw_context",
-            "title_candidates",
-            "artist_name_candidates",
-            "album_title_candidates",
+            "musicbrainz_artist_id",
+            "musicbrainz_release_group_id",
+            "musicbrainz_recording_id",
+            "isrc",
+            "upc",
         ):
-            if key in payload:
-                hints[key] = payload.get(key)
-        return {key: value for key, value in hints.items() if value is not None}
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                refs[key] = value.strip()
 
-    def _resolve_rss_lookup_readiness(self, *, entry: ChartEntryInfo, hints: dict[str, Any]) -> tuple[bool, str | None]:
+        origin_id = payload.get("provider_origin_id")
+        origin_url = payload.get("provider_origin_url")
+        if isinstance(origin_id, str) and origin_id.strip():
+            refs["source_id"] = origin_id.strip()
+        if isinstance(origin_url, str) and origin_url.strip():
+            refs["source_url"] = origin_url.strip()
+        return refs
+
+    def _resolve_conversion_state(
+        self,
+        *,
+        entry: ChartEntryInfo,
+        media_input: MusicMediaInput,
+    ) -> tuple[str, str | None]:
+        direct_ref_keys = {
+            EntityType.ARTIST: "musicbrainz_artist_id",
+            EntityType.ALBUM: "musicbrainz_release_group_id",
+            EntityType.TRACK: "musicbrainz_recording_id",
+        }
+        direct_key = direct_ref_keys[entry.item_type]
+        if media_input.external_refs.get(direct_key):
+            return "direct", None
+
         if entry.item_type == EntityType.TRACK:
-            required = ("title", "artist_name")
-            label = "title + artist_name"
-        elif entry.item_type == EntityType.ALBUM:
-            required = ("album_title", "artist_name")
-            label = "album_title + artist_name"
-        else:
-            required = ("artist_name",)
-            label = "artist_name"
+            if media_input.title and media_input.artist_names:
+                return "ready", None
+            return "insufficient", "Missing media input fields: requires title + artist_names."
 
-        missing = [key for key in required if not str(hints.get(key) or "").strip()]
-        if not missing:
-            return True, None
-        return False, f"Missing RSS lookup hints: requires {label}."
+        if entry.item_type == EntityType.ALBUM:
+            if media_input.album_title and media_input.artist_names:
+                return "ready", None
+            return "insufficient", "Missing media input fields: requires album_title + artist_names."
+
+        if media_input.artist_names:
+            return "ready", None
+        return "insufficient", "Missing media input fields: requires artist_names."
+
+    def _pick_title(self, entry: ChartEntryInfo, payload: dict[str, object]) -> str | None:
+        if entry.item_type == EntityType.ARTIST:
+            return None
+        title = payload.get("title")
+        if isinstance(title, str) and title.strip():
+            return title.strip()
+        return entry.target_name or None
+
+    def _pick_artist_name(self, entry: ChartEntryInfo, payload: dict[str, object]) -> str | None:
+        artist_name = payload.get("artist_name")
+        if isinstance(artist_name, str) and artist_name.strip():
+            return artist_name.strip()
+        if entry.item_type == EntityType.ARTIST and entry.target_id:
+            return entry.target_name or None
+        return None
+
+    def _pick_album_title(self, entry: ChartEntryInfo, payload: dict[str, object]) -> str | None:
+        album_title = payload.get("album_title")
+        if isinstance(album_title, str) and album_title.strip():
+            return album_title.strip()
+        if entry.item_type == EntityType.ALBUM:
+            return entry.target_name or None
+        return None
 
     def _build_badges(self, chart: ChartInfo, entry: ChartEntryInfo) -> list[str]:
         badges: list[str] = []
@@ -187,10 +198,10 @@ class DiscoveryAssembler:
             return chart.refresh_hint.replace("-", " ")
         return "live"
 
-    def _entry_summary(self, entry: ChartEntryInfo, target: DiscoveryTarget) -> str:
-        if target.display_subtitle:
-            return f"{target.display_title} · {target.display_subtitle}"
-        return target.display_title
+    def _entry_summary(self, entry: ChartEntryInfo) -> str:
+        if entry.subtitle:
+            return f"{entry.target_name} · {entry.subtitle}"
+        return entry.target_name
 
     def _highlight_reason(self, chart: ChartInfo, entry: ChartEntryInfo) -> str:
         if entry.rank == 1:

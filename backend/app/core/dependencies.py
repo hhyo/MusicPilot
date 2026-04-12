@@ -46,6 +46,7 @@ from ..services.host_integration import (
 )
 from ..services.host_path_handoff import HostPathHandoffService
 from ..services.metadata import MetadataService
+from ..services.music_media_chain import MusicMediaChain
 from ..services.mvp_placeholder import MvpPlaceholderService
 from ..services.settings import SettingsService
 from ..services.organize import OrganizeService
@@ -215,6 +216,13 @@ def get_metadata_service(
     return MetadataService(session=session, adapter=adapter)
 
 
+def get_music_media_chain(
+    metadata_service: MetadataService = Depends(get_metadata_service),
+    adapter: MetadataProviderAdapter = Depends(get_metadata_provider_adapter),
+) -> MusicMediaChain:
+    return MusicMediaChain(metadata_service=metadata_service, metadata_adapter=adapter)
+
+
 def get_chart_service(
     adapter: ChartProviderAdapter = Depends(get_chart_provider_adapter),
     discovery_assembler: DiscoveryAssembler = Depends(get_discovery_assembler),
@@ -339,8 +347,13 @@ def get_organize_adapter_resolver() -> OrganizeAdapterResolver:
 def get_subscription_service(
     session: Session = Depends(get_db_session),
     metadata_service: MetadataService = Depends(get_metadata_service),
+    music_media_chain: MusicMediaChain = Depends(get_music_media_chain),
 ) -> SubscriptionService:
-    return SubscriptionService(session=session, metadata_service=metadata_service)
+    return SubscriptionService(
+        session=session,
+        metadata_service=metadata_service,
+        music_media_chain=music_media_chain,
+    )
 
 
 def get_organize_service(
@@ -361,18 +374,24 @@ def get_subscription_execution_service(
     session: Session = Depends(get_db_session),
     search_job_service: SearchJobService = Depends(get_search_job_service),
     organize_service: OrganizeService = Depends(get_organize_service),
+    music_media_chain: MusicMediaChain = Depends(get_music_media_chain),
     dispatch_service: DispatchService = Depends(get_dispatch_service),
 ) -> SubscriptionExecutionService:
     return SubscriptionExecutionService(
         session=session,
         search_job_service=search_job_service,
         organize_service=organize_service,
+        music_media_chain=music_media_chain,
         dispatch_service=dispatch_service,
     )
 
 
 def build_subscription_execution_service(session: Session) -> SubscriptionExecutionService:
     metadata_service = MetadataService(session=session, adapter=get_metadata_provider_adapter())
+    music_media_chain = MusicMediaChain(
+        metadata_service=metadata_service,
+        metadata_adapter=get_metadata_provider_adapter(),
+    )
     search_job_service = SearchJobService(
         session,
         metadata_service=metadata_service,
@@ -389,6 +408,7 @@ def build_subscription_execution_service(session: Session) -> SubscriptionExecut
             strategy_service=get_organize_strategy_service(),
             path_handoff_service=get_host_path_handoff_service(),
         ),
+        music_media_chain=music_media_chain,
         dispatch_service=DispatchService(
             session=session,
             resolver=get_dispatch_adapter_resolver(),

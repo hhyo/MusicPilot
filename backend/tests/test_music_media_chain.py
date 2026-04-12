@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from app.schemas.metadata import MetadataDetail
 from app.schemas.mvp import EntityType
 
 
@@ -68,6 +69,77 @@ class MusicMediaSchemaTests(unittest.TestCase):
         )
 
         self.assertEqual(request.input.source_kind, "detail")
+
+
+class FakeMetadataService:
+    def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+        return MetadataDetail(
+            entity_type=entity_type,
+            id=entity_id,
+            title="Hello",
+            artist_name="Adele",
+            provider="musicbrainz",
+            source_type="musicbrainz",
+            mock=False,
+            note="detail",
+            integration_point="test",
+        )
+
+
+class FakeMetadataAdapter:
+    provider = "musicbrainz"
+    source_type = "musicbrainz"
+    supports_live_queries = True
+
+    def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+        return FakeMetadataService().get_detail(entity_type, entity_id)
+
+    def search(self, payload: object) -> None:
+        raise AssertionError("search should not run in strong-ref test")
+
+
+class MusicMediaChainTests(unittest.TestCase):
+    def test_chain_resolves_strong_ref_track_without_search(self) -> None:
+        from app.schemas.music_media import MusicMediaInput
+        from app.services.music_media_chain import MusicMediaChain
+
+        chain = MusicMediaChain(
+            metadata_service=FakeMetadataService(),
+            metadata_adapter=FakeMetadataAdapter(),
+        )
+        resolved = chain.resolve(
+            MusicMediaInput(
+                entity_hint=EntityType.TRACK,
+                source_kind="discovery",
+                title="Hello",
+                artist_names=["Adele"],
+                external_refs={"musicbrainz_recording_id": "recording-hello"},
+            )
+        )
+
+        self.assertEqual(resolved.provider_id, "recording-hello")
+        self.assertEqual(resolved.match_strategy, "strong_ref")
+
+    def test_chain_resolve_detail_hydrates_metadata_detail(self) -> None:
+        from app.schemas.music_media import MusicMediaInput
+        from app.services.music_media_chain import MusicMediaChain
+
+        chain = MusicMediaChain(
+            metadata_service=FakeMetadataService(),
+            metadata_adapter=FakeMetadataAdapter(),
+        )
+        result = chain.resolve_detail(
+            MusicMediaInput(
+                entity_hint=EntityType.TRACK,
+                source_kind="detail",
+                title="Hello",
+                artist_names=["Adele"],
+                external_refs={"musicbrainz_recording_id": "recording-hello"},
+            )
+        )
+
+        self.assertEqual(result.detail.id, "recording-hello")
+        self.assertEqual(result.media.provider_id, "recording-hello")
 
 
 if __name__ == "__main__":

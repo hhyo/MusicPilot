@@ -6,6 +6,7 @@ import unittest
 
 from app.schemas.acquisition import QueryPreferences
 from app.schemas.metadata import MetadataDetail
+from app.schemas.music_media import MusicMediaInfo
 from app.schemas.mvp import EntityType, ReleaseType
 from app.services.query_builder import QueryBuilderService
 
@@ -155,6 +156,35 @@ class QueryBuilderServiceTest(unittest.TestCase):
         result = QueryBuilderService.build_from_detail(build_album_detail(), preferences)
         self.assertEqual(result.preferences.preferred_formats, ["FLAC", "APE"])
         self.assertTrue(result.preferences.allow_remaster)
+
+    def test_query_builder_accepts_music_media_info_track_input(self) -> None:
+        media = MusicMediaInfo(
+            entity_type=EntityType.TRACK,
+            provider="musicbrainz",
+            provider_id="recording-hello",
+            title="Hello",
+            artist_names=["Adele"],
+            album_title="25",
+            album_artist_names=[],
+            related_artist_ids=[],
+            related_track_ids=[],
+            external_refs={},
+            match_evidence=[],
+            diagnostics=[],
+            release_context={},
+            match_strategy="strong_ref",
+        )
+
+        queries = QueryBuilderService.build_queries_from_music_media_info(media)
+
+        self.assertEqual(
+            queries[:3],
+            [
+                "Adele Hello FLAC",
+                "Adele 25 FLAC",
+                "Adele Hello",
+            ],
+        )
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ FastAPI 工程目录。当前已完成：
 - Phase 8 多样例真实验证矩阵与 path handoff 稳定性收敛
 - 验证矩阵作为验证产物保留，运行时改回固定接口语义与固定调用规则
 
-当前也已经明确下一阶段的上层统一语义：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`。这条统一音乐媒体解析链参考 MoviePilot 的设计方法，但不复用影视模型本身；它将作为 discovery、detail、search、subscription、acquisition 与 organize 上游识别的长期基线。当前仓库中的 RSS lookup、metadata lookup 与 family-specific hints 仍属于过渡态实现，尚未完成一次性全局迁移。
+当前也已经启动统一音乐媒体解析链重构：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`。这条统一音乐媒体解析链参考 MoviePilot 的设计方法，但不复用影视模型本身；当前已经接管 discovery/detail 主路径，并开始进入 chart_entry 订阅创建、subscription execution 与 organize 上游识别。RSS / 弱来源 chart entry 现在会在创建订阅时先固化 `MusicMediaInput` 与 `MusicMediaInfo` snapshot，再进入后续 run。后续仍需继续把 search_job、持久化快照和更多场景完全收口到这条链。
 
 当前仍不包含：
 
@@ -45,8 +45,8 @@ python -m app.db_init --reseed
 - `subscriptions/{id}/run` 为同步最小执行骨架，应用内 scheduler 会在 due 时触发同一条执行链；若最佳候选为 `AUTO_DOWNLOAD`，当前会继续自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则继续自动 apply。对于 `path_handoff.handoff_status=pending_history_sync` 的已派发 run，scheduler 还会继续轮询宿主 download history：命中真实源文件后自动续跑 organize apply；超过 `host_handoff_pending_ttl_seconds` 仍未命中时，会把 organize record 标记为 `failed`，并在 run 摘要中写入 `handoff_unresolved`
 - `charts/*` 当前支持三种模式：
   - `mock`：本地 chart seed
-  - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings；当前 detail 输出已补 discovery 产品化字段，如 chart summary、hero entry、entry groups，以及稳定的 `DiscoveryTarget` 转化层
-  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取，运行时优先读取项目 settings，环境变量仅作为 fallback；当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，`item_count` 分别可写为 `200`、`100`、`100`。若项目 settings 和环境都未提供 `chart_rss_feeds`，fresh install 默认会带出 5 条内置 RSS feed：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。RSS 条目在 discovery 层统一映射为 `search_lookup`，通过 `/metadata/lookup` 做 metadata 下钻；当前 lookup 不仅会做标题/艺人归一化和有序关键字回退，还会消费 family-specific candidate hints，例如网易云结构化专辑候选名与 YouTube track/artist 候选变体，以提升 RSS 条目下钻命中率。条目点击会进入 metadata drawer，但在 `metadata provider mode=seed` 的运行态下，示例 lookup 可能返回“未匹配到 metadata”
+  - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings；当前 detail 输出已补 discovery 产品化字段，如 chart summary、hero entry、entry groups，并统一产出 `MusicMediaInput`
+  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取，运行时优先读取项目 settings，环境变量仅作为 fallback；当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，`item_count` 分别可写为 `200`、`100`、`100`。若项目 settings 和环境都未提供 `chart_rss_feeds`，fresh install 默认会带出 5 条内置 RSS feed：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。RSS 条目现在统一映射为 `MusicMediaInput`，并通过 `/media/resolve/detail` 驱动统一音乐媒体解析链做 metadata 下钻；family-specific candidate hints 已下沉到 `MusicMetaBaseBuilder` / `MusicMediaRecognizer` 所消费的标准化输入里。对于 RSS chart entry 订阅，创建阶段会直接解析并持久化 `MusicMediaInput` 与 `MusicMediaInfo` snapshot，执行阶段若只有 input snapshot 也会通过统一链补全正式媒体对象
 - `downloads/dispatch` 当前支持三类 host 语义：
   - 可靠 `media_in` -> `/api/v1/download/`
   - torrent-only 但已具备宿主媒体参考 -> `/api/v1/download/add`

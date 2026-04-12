@@ -25,14 +25,3 @@ export async function fetchMetadataDetail(
   const { data } = await http.get<ApiResponse<MetadataDetail>>(routeMap[entityType]);
   return data;
 }
-
-export async function fetchMetadataDetailByLookup(
-  entityType: EntityType,
-  hints: Record<string, unknown>,
-): Promise<ApiResponse<MetadataDetail>> {
-  const { data } = await http.post<ApiResponse<MetadataDetail>>('/metadata/lookup', {
-    entity_type: entityType,
-    hints,
-  });
-  return data;
-}
