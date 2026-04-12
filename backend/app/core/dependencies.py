@@ -50,6 +50,7 @@ from ..services.mvp_placeholder import MvpPlaceholderService
 from ..services.settings import SettingsService
 from ..services.organize import OrganizeService
 from ..services.organize_strategy import OrganizeStrategyService
+from ..services.pending_handoff import PendingHandoffReconcileService
 from ..services.query_builder import QueryBuilderService
 from ..services.scoring import MusicCandidateScorer
 from ..services.search_job import SearchJobService
@@ -395,12 +396,28 @@ def build_subscription_execution_service(session: Session) -> SubscriptionExecut
     )
 
 
+def build_pending_handoff_reconcile_service(session: Session) -> PendingHandoffReconcileService:
+    return PendingHandoffReconcileService(
+        session=session,
+        organize_service=OrganizeService(
+            session=session,
+            resolver=get_organize_adapter_resolver(),
+            strategy_service=get_organize_strategy_service(),
+            path_handoff_service=get_host_path_handoff_service(),
+        ),
+        path_handoff_service=get_host_path_handoff_service(),
+        handoff_pending_ttl_seconds=settings.host_handoff_pending_ttl_seconds,
+    )
+
+
 def build_subscription_scheduler_service(session: Session) -> SubscriptionSchedulerService:
     execution_service = build_subscription_execution_service(session)
+    pending_handoff_service = build_pending_handoff_reconcile_service(session)
     return SubscriptionSchedulerService(
         repository=OrchestrationRepository(session),
         execute_subscription=execution_service.execute,
         default_interval_minutes=settings.subscription_scheduler_default_interval_minutes,
+        reconcile_pending_handoffs=pending_handoff_service.reconcile_pending_once,
     )
 
 

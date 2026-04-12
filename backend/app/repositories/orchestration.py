@@ -216,6 +216,15 @@ class OrchestrationRepository:
         statement = select(OrganizeRecordModel).order_by(OrganizeRecordModel.created_at.desc())
         return list(self.session.scalars(statement).all())
 
+    def list_pending_handoff_records(self) -> list[OrganizeRecordModel]:
+        statement = (
+            select(OrganizeRecordModel)
+            .where(OrganizeRecordModel.binding_id.is_not(None))
+            .where(OrganizeRecordModel.organize_status == "preview_ready")
+            .order_by(OrganizeRecordModel.updated_at.asc(), OrganizeRecordModel.created_at.asc())
+        )
+        return list(self.session.scalars(statement).all())
+
     def get_organize_record(self, record_id: str) -> OrganizeRecordModel | None:
         statement = select(OrganizeRecordModel).where(OrganizeRecordModel.id == record_id)
         return self.session.scalar(statement)

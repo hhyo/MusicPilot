@@ -30,10 +30,12 @@ class SubscriptionSchedulerService:
         repository,
         execute_subscription: Callable[[str], Any],
         default_interval_minutes: int,
+        reconcile_pending_handoffs: Callable[[], dict[str, Any]] | None = None,
     ) -> None:
         self.repository = repository
         self.execute_subscription = execute_subscription
         self.default_interval_minutes = default_interval_minutes
+        self.reconcile_pending_handoffs = reconcile_pending_handoffs
 
     def schedule_interval_minutes(self, subscription) -> int:
         preference_json = getattr(subscription, "preference_json", None) or {}
@@ -79,9 +81,18 @@ class SubscriptionSchedulerService:
             except Exception as exc:  # noqa: BLE001
                 errors[subscription.id] = str(exc)
 
+        handoff_reconcile = {
+            "applied_run_ids": [],
+            "unresolved_run_ids": [],
+            "skipped_record_ids": [],
+        }
+        if self.reconcile_pending_handoffs is not None:
+            handoff_reconcile = self.reconcile_pending_handoffs()
+
         return {
             "executed_ids": executed_ids,
             "skipped_ids": skipped_ids,
             "error_ids": list(errors.keys()),
             "errors": errors,
+            "handoff_reconcile": handoff_reconcile,
         }

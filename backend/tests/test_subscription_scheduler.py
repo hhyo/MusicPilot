@@ -116,3 +116,16 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
 
         self.assertEqual(executed_ids, ["sub-1"])
         self.assertEqual(result["executed_ids"], ["sub-1"])
+
+    def test_run_pending_once_also_reconciles_pending_handoffs(self) -> None:
+        reconciled = {"applied_run_ids": ["srun-1"], "unresolved_run_ids": [], "skipped_record_ids": []}
+        service = SubscriptionSchedulerService(
+            repository=FakeRepository([]),
+            execute_subscription=lambda subscription_id: None,
+            default_interval_minutes=360,
+            reconcile_pending_handoffs=lambda: reconciled,
+        )
+
+        result = service.run_pending_once(now=utc_now())
+
+        self.assertEqual(result["handoff_reconcile"], reconciled)

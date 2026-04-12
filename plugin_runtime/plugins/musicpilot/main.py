@@ -41,6 +41,17 @@ async def _run_subscription_scheduler_loop() -> None:
                     logger.info("subscription.scheduler.executed ids=%s", ",".join(result["executed_ids"]))
                 if result["error_ids"]:
                     logger.warning("subscription.scheduler.errors ids=%s", ",".join(result["error_ids"]))
+                handoff_reconcile = result.get("handoff_reconcile") or {}
+                if handoff_reconcile.get("applied_run_ids"):
+                    logger.info(
+                        "subscription.scheduler.handoff_applied run_ids=%s",
+                        ",".join(handoff_reconcile["applied_run_ids"]),
+                    )
+                if handoff_reconcile.get("unresolved_run_ids"):
+                    logger.warning(
+                        "subscription.scheduler.handoff_unresolved run_ids=%s",
+                        ",".join(handoff_reconcile["unresolved_run_ids"]),
+                    )
                 session.commit()
         except asyncio.CancelledError:
             raise
