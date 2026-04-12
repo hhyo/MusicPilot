@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from ..repositories.orchestration import OrchestrationRepository
 from ..schemas.acquisition import DispatchRequest, QueryPreferences, SearchCandidateDetail, SearchJobCreateRequest
-from ..schemas.metadata import MetadataDetail
 from ..schemas.music_media import MusicMediaInfo, MusicMediaInput
 from ..schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from ..schemas.orchestration import (
@@ -216,18 +215,9 @@ class SubscriptionExecutionService:
                 )
 
         if media_input is None:
-            detail = self.search_job_service.metadata_service.get_detail(
-                EntityType(subscription.target_entity_type or subscription.subscription_type),
-                subscription.target_id,
-            )
-            media_input = self.music_media_chain.input_from_metadata_detail(
-                detail,
+            media_input = self._build_subscription_provider_input(
+                subscription,
                 source_kind="subscription",
-                source_context={
-                    "subscription_id": subscription.id,
-                    "subscription_type": subscription.subscription_type,
-                },
-                raw_context={"target_id": subscription.target_id},
             )
         return SearchJobCreateRequest(
             input=media_input,
@@ -249,7 +239,10 @@ class SubscriptionExecutionService:
                     raw_context={"target_id": subscription.target_id},
                 )
         if media_input is None:
-            return None
+            media_input = self._build_subscription_provider_input(
+                subscription,
+                source_kind="subscription_detail",
+            )
         return self.music_media_chain.resolve_detail(media_input).detail
 
     def _resolve_or_build_music_media_info(self, subscription) -> MusicMediaInfo | None:
@@ -259,7 +252,10 @@ class SubscriptionExecutionService:
 
         media_input = self._resolve_music_media_input_snapshot(subscription)
         if media_input is None:
-            return None
+            media_input = self._build_subscription_provider_input(
+                subscription,
+                source_kind="subscription_resolution",
+            )
 
         resolved = self.music_media_chain.resolve(media_input)
         payload = dict(subscription.target_payload_json or {})
@@ -279,6 +275,24 @@ class SubscriptionExecutionService:
             return MusicMediaInfo.model_validate(snapshot)
         except Exception:  # pragma: no cover - defensive parse guard
             return None
+
+    def _build_subscription_provider_input(
+        self,
+        subscription,
+        *,
+        source_kind: str,
+    ) -> MusicMediaInput:
+        return self.music_media_chain.input_from_provider_ref(
+            entity_type=EntityType(subscription.target_entity_type or subscription.subscription_type),
+            provider="musicbrainz",
+            provider_id=subscription.target_id,
+            source_kind=source_kind,
+            source_context={
+                "subscription_id": subscription.id,
+                "subscription_type": subscription.subscription_type,
+            },
+            raw_context={"target_id": subscription.target_id},
+        )
 
     @staticmethod
     def _resolve_music_media_input_snapshot(subscription) -> MusicMediaInput | None:

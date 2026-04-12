@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from ..schemas.metadata import MetadataDetail
 from ..schemas.music_media import MusicMediaInfo, MusicMediaInput
 from ..schemas.mvp import EntityType
 from ..schemas.orchestration import ChartEntryInfo, ChartInfo
@@ -64,25 +63,29 @@ class MusicMediaInputAdapter:
             raw_context=raw_context or {},
         )
 
-    def from_metadata_detail(
+    def from_provider_ref(
         self,
-        payload: MetadataDetail,
         *,
+        entity_type: EntityType,
+        provider: str,
+        provider_id: str,
         source_kind: str,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ) -> MusicMediaInput:
+        refs: dict[str, str] = {}
+        if provider == "musicbrainz":
+            key = self._musicbrainz_ref_key(entity_type)
+            if key is not None:
+                refs[key] = provider_id
+        else:
+            refs["provider"] = provider
+            refs["provider_id"] = provider_id
+
         return MusicMediaInput(
-            entity_hint=payload.entity_type,
+            entity_hint=entity_type,
             source_kind=source_kind,
-            title=payload.track_title or payload.title,
-            artist_names=[payload.artist_name] if payload.artist_name else [],
-            album_title=payload.album_title,
-            album_artist_names=[],
-            year=payload.year,
-            track_number=None,
-            disc_number=None,
-            external_refs=self._metadata_external_refs(payload),
+            external_refs=refs,
             source_context=source_context or {},
             raw_context=raw_context or {},
         )
@@ -94,15 +97,6 @@ class MusicMediaInputAdapter:
             key = MusicMediaInputAdapter._musicbrainz_ref_key(payload.entity_type)
             if key is not None:
                 refs.setdefault(key, payload.provider_id)
-        return {key: str(value) for key, value in refs.items() if value}
-
-    @staticmethod
-    def _metadata_external_refs(payload: MetadataDetail) -> dict[str, str]:
-        refs = dict(payload.external_ids)
-        if payload.provider == "musicbrainz" and payload.id:
-            key = MusicMediaInputAdapter._musicbrainz_ref_key(payload.entity_type)
-            if key is not None:
-                refs.setdefault(key, payload.id)
         return {key: str(value) for key, value in refs.items() if value}
 
     @staticmethod

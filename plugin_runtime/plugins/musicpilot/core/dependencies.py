@@ -348,12 +348,10 @@ def get_organize_adapter_resolver() -> OrganizeAdapterResolver:
 
 def get_subscription_service(
     session: Session = Depends(get_db_session),
-    metadata_service: MetadataService = Depends(get_metadata_service),
     music_media_chain: MusicMediaChain = Depends(get_music_media_chain),
 ) -> SubscriptionService:
     return SubscriptionService(
         session=session,
-        metadata_service=metadata_service,
         music_media_chain=music_media_chain,
     )
 
@@ -363,12 +361,14 @@ def get_organize_service(
     resolver: OrganizeAdapterResolver = Depends(get_organize_adapter_resolver),
     strategy_service: OrganizeStrategyService = Depends(get_organize_strategy_service),
     path_handoff_service: HostPathHandoffService = Depends(get_host_path_handoff_service),
+    music_media_chain: MusicMediaChain = Depends(get_music_media_chain),
 ) -> OrganizeService:
     return OrganizeService(
         session=session,
         resolver=resolver,
         strategy_service=strategy_service,
         path_handoff_service=path_handoff_service,
+        music_media_chain=music_media_chain,
     )
 
 
@@ -410,6 +410,7 @@ def build_subscription_execution_service(session: Session) -> SubscriptionExecut
             resolver=get_organize_adapter_resolver(),
             strategy_service=get_organize_strategy_service(),
             path_handoff_service=get_host_path_handoff_service(),
+            music_media_chain=music_media_chain,
         ),
         music_media_chain=music_media_chain,
         dispatch_service=DispatchService(
@@ -420,6 +421,11 @@ def build_subscription_execution_service(session: Session) -> SubscriptionExecut
 
 
 def build_pending_handoff_reconcile_service(session: Session) -> PendingHandoffReconcileService:
+    metadata_service = MetadataService(session=session, adapter=get_metadata_provider_adapter())
+    music_media_chain = MusicMediaChain(
+        metadata_service=metadata_service,
+        metadata_adapter=get_metadata_provider_adapter(),
+    )
     return PendingHandoffReconcileService(
         session=session,
         organize_service=OrganizeService(
@@ -427,6 +433,7 @@ def build_pending_handoff_reconcile_service(session: Session) -> PendingHandoffR
             resolver=get_organize_adapter_resolver(),
             strategy_service=get_organize_strategy_service(),
             path_handoff_service=get_host_path_handoff_service(),
+            music_media_chain=music_media_chain,
         ),
         path_handoff_service=get_host_path_handoff_service(),
         handoff_pending_ttl_seconds=settings.host_handoff_pending_ttl_seconds,

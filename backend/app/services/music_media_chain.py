@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from ..schemas.metadata import MetadataDetail
 from ..schemas.music_media import MusicMediaInput, MusicResolveDetailResponse, MusicResolveResponse
 from ..schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicRecognitionAssessment
 from ..schemas.orchestration import ChartEntryInfo, ChartInfo
@@ -49,16 +48,20 @@ class MusicMediaChain:
             raw_context=raw_context,
         )
 
-    def input_from_metadata_detail(
+    def input_from_provider_ref(
         self,
-        payload: MetadataDetail,
         *,
+        entity_type,
+        provider: str,
+        provider_id: str,
         source_kind: str,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ) -> MusicMediaInput:
-        return self.input_adapter.from_metadata_detail(
-            payload,
+        return self.input_adapter.from_provider_ref(
+            entity_type=entity_type,
+            provider=provider,
+            provider_id=provider_id,
             source_kind=source_kind,
             source_context=source_context,
             raw_context=raw_context,
@@ -77,10 +80,13 @@ class MusicMediaChain:
     def resolve_detail(self, input: MusicMediaInput) -> MusicResolveDetailResponse:
         resolved = self.resolve_response(input)
         media = resolved.media
-        detail = self.hydrator.hydrate(media)
+        detail = self.hydrate(media)
         return MusicResolveDetailResponse(
             base=resolved.base,
             assessment=resolved.assessment,
             media=media,
             detail=detail,
         )
+
+    def hydrate(self, media: MusicMediaInfo):
+        return self.hydrator.hydrate(media)

@@ -9,48 +9,48 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
-from app.schemas.metadata import MetadataDetail
-from app.schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicRecognitionAssessment, MusicResolveResponse
+from app.schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicRecognitionAssessment, MusicResolveDetailResponse
 from app.schemas.orchestration import CreateSubscriptionRequest, SubscriptionType
 from app.services.subscriptions import SubscriptionService
 from test_query_builder import build_artist_detail, build_artist_media
-
-
-class DummyMetadataService:
-    def get_detail(self, entity_type, entity_id):  # noqa: ANN001, ARG002
-        return build_artist_detail()
 
 
 class DummyMusicMediaChain:
     def __init__(self) -> None:
         self.calls = []
 
-    def input_from_metadata_detail(
+    def input_from_provider_ref(
         self,
-        payload: MetadataDetail,
         *,
+        entity_type,
+        provider: str,
+        provider_id: str,
         source_kind: str,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ):
         return SimpleNamespace(
-            entity_hint=payload.entity_type,
+            entity_hint=entity_type,
             source_kind=source_kind,
-            title=payload.track_title or payload.title,
-            artist_names=[payload.artist_name] if payload.artist_name else [],
-            album_title=payload.album_title,
+            title=None,
+            artist_names=[],
+            album_title=None,
             album_artist_names=[],
-            external_refs=dict(payload.external_ids),
+            external_refs={f"{provider}_id": provider_id} if provider != "musicbrainz" else {
+                "musicbrainz_artist_id": provider_id
+            },
             source_context=source_context or {},
             raw_context=raw_context or {},
             model_dump=lambda mode="json": {
-                "entity_hint": payload.entity_type.value,
+                "entity_hint": entity_type.value,
                 "source_kind": source_kind,
-                "title": payload.track_title or payload.title,
-                "artist_names": [payload.artist_name] if payload.artist_name else [],
-                "album_title": payload.album_title,
+                "title": None,
+                "artist_names": [],
+                "album_title": None,
                 "album_artist_names": [],
-                "external_refs": dict(payload.external_ids),
+                "external_refs": {f"{provider}_id": provider_id} if provider != "musicbrainz" else {
+                    "musicbrainz_artist_id": provider_id
+                },
                 "source_context": source_context or {},
                 "raw_context": raw_context or {},
             },
@@ -60,20 +60,22 @@ class DummyMusicMediaChain:
         self.calls.append(payload)
         return build_artist_media()
 
-    def resolve_response(self, payload):
+    def resolve_detail(self, payload):
+        self.calls.append(payload)
         media = self.resolve(payload)
-        return MusicResolveResponse(
+        return MusicResolveDetailResponse(
             base=MusicMetaBase(
                 entity_type=payload.entity_hint,
-                canonical_title=payload.title,
-                canonical_artist_names=list(payload.artist_names),
-                canonical_album_title=payload.album_title,
+                canonical_title="Adele",
+                canonical_artist_names=["Adele"],
+                canonical_album_title=None,
                 canonical_album_artist_names=list(payload.album_artist_names),
                 external_refs=dict(payload.external_refs),
                 evidence=[],
             ),
             assessment=MusicRecognitionAssessment(state="direct"),
             media=media,
+            detail=build_artist_detail(),
         )
 
 
@@ -86,7 +88,6 @@ class SubscriptionServiceTest(unittest.TestCase):
         self.music_media_chain = DummyMusicMediaChain()
         self.service = SubscriptionService(
             self.session,
-            metadata_service=DummyMetadataService(),
             music_media_chain=self.music_media_chain,
         )
 
@@ -109,7 +110,8 @@ class SubscriptionServiceTest(unittest.TestCase):
         self.assertEqual(result.target_payload["music_meta_base"]["entity_type"], "artist")
         self.assertEqual(result.target_payload["music_recognition_assessment"]["state"], "direct")
         self.assertEqual(result.target_payload["music_media_info"]["provider_id"], "artist-adele")
-        self.assertEqual(len(self.music_media_chain.calls), 1)
+        self.assertEqual(result.target_payload["music_media_input"]["external_refs"]["musicbrainz_artist_id"], "artist-adele")
+        self.assertEqual(len(self.music_media_chain.calls), 2)
 
     def test_create_subscription_prefers_detail_title_when_target_name_missing(self) -> None:
         result = self.service.create_subscription(

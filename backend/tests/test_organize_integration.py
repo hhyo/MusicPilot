@@ -42,6 +42,19 @@ from test_query_builder import (
 )
 
 
+class DummyMusicMediaChain:
+    def __init__(self) -> None:
+        self.hydrate_calls: list[MusicMediaInfo] = []
+
+    def hydrate(self, media: MusicMediaInfo):
+        self.hydrate_calls.append(media)
+        if media.entity_type == EntityType.TRACK:
+            return build_track_detail()
+        if media.entity_type == EntityType.ALBUM:
+            return build_album_detail()
+        return build_artist_detail()
+
+
 class DummyMockOrganizeAdapter(OrganizeAdapter):
     def preview(self, *, candidate, metadata_detail, binding_id=None, plan):  # type: ignore[override]
         return OrganizeAdapterResult(
@@ -635,6 +648,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
                     settings=settings,
                     client=FakeHostClient(),  # type: ignore[arg-type]
                 ),
+                music_media_chain=DummyMusicMediaChain(),
             )
 
             result = service.preview_for_candidate(candidate_id=candidate.id)
@@ -749,6 +763,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
                 ),
                 strategy_service=OrganizeStrategyService(settings),
                 path_handoff_service=RaisingPathHandoffService(),  # type: ignore[arg-type]
+                music_media_chain=DummyMusicMediaChain(),
             )
 
             result = service.preview(OrganizePreviewRequest(binding_id=binding.id))
@@ -873,6 +888,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
                     settings=build_settings(),
                     client=FakeHostClient(),  # type: ignore[arg-type]
                 ),
+                music_media_chain=DummyMusicMediaChain(),
             )
 
             result = service.apply(OrganizeApplyRequest(organize_job_id=record.id))
@@ -1017,6 +1033,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
                 }
             )
             resolver = CapturingApplyResolver(apply_result)
+            music_media_chain = DummyMusicMediaChain()
             service = OrganizeService(
                 session=session,
                 resolver=resolver,  # type: ignore[arg-type]
@@ -1025,6 +1042,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
                     settings=build_settings(),
                     client=FakeHostClient(),  # type: ignore[arg-type]
                 ),
+                music_media_chain=music_media_chain,
             )
 
             service.apply(OrganizeApplyRequest(organize_job_id=record.id))
@@ -1036,35 +1054,9 @@ class OrganizeIntegrationTest(unittest.TestCase):
                 resolver.captured_candidate.raw_payload["path_handoff"]["download_hash"],
                 "stub-download-001",
             )
+            self.assertEqual(len(music_media_chain.hydrate_calls), 1)
         finally:
             session.close()
-
-    def test_organize_can_build_upstream_context_from_music_media_info_snapshot(self) -> None:
-        service = OrganizeService.__new__(OrganizeService)
-        media = MusicMediaInfo(
-            entity_type=EntityType.TRACK,
-            provider="musicbrainz",
-            provider_id="recording-hello",
-            title="Hello",
-            artist_names=["Adele"],
-            album_title="25",
-            album_artist_names=[],
-            track_number=1,
-            related_artist_ids=[],
-            related_track_ids=[],
-            external_refs={},
-            match_evidence=[],
-            diagnostics=[],
-            release_context={},
-            match_strategy="strong_ref",
-        )
-
-        context = service._build_metadata_context_from_music_media_info(media)
-
-        self.assertEqual(context["track_title"], "Hello")
-        self.assertEqual(context["artist_name"], "Adele")
-        self.assertEqual(context["album_title"], "25")
-        self.assertEqual(context["track_number"], 1)
 
 
 if __name__ == "__main__":

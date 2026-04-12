@@ -715,7 +715,6 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
 
         service = SubscriptionService(
             session=SimpleNamespace(),
-            metadata_service=SimpleNamespace(),
             music_media_chain=FakeMusicMediaChain(),
         )
         captured: dict = {}
@@ -843,7 +842,6 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
 
         service = SubscriptionService(
             session=SimpleNamespace(),
-            metadata_service=SimpleNamespace(),
             music_media_chain=FakeMusicMediaChain(),
         )
 

@@ -20,7 +20,6 @@ from app.schemas.acquisition import (
     SearchJobSummary,
 )
 from app.schemas.integration import AdapterMode, VerificationState
-from app.schemas.metadata import MetadataDetail
 from app.schemas.music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase, MusicRecognitionAssessment
 from app.schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from app.schemas.orchestration import (
@@ -153,7 +152,7 @@ def build_organize_preview(
 
 class DummyMetadataService:
     def get_detail(self, entity_type, entity_id):  # noqa: ANN001
-        return build_artist_detail()
+        raise AssertionError(f"get_detail should not be called for {entity_type}:{entity_id}")
 
 
 class DummySearchJobService:
@@ -224,7 +223,7 @@ class DummyOrganizeService:
 
 class DummyMusicMediaChain:
     def __init__(self, resolved_media: MusicMediaInfo | None = None) -> None:
-        self.resolved_media = resolved_media
+        self.resolved_media = resolved_media or build_artist_media()
         self.calls: list[MusicMediaInput] = []
 
     def input_from_music_media_info(
@@ -251,31 +250,36 @@ class DummyMusicMediaChain:
             raw_context=raw_context or {},
         )
 
-    def input_from_metadata_detail(
+    def input_from_provider_ref(
         self,
-        payload: MetadataDetail,
         *,
+        entity_type,
+        provider: str,
+        provider_id: str,
         source_kind: str,
         source_context: dict | None = None,
         raw_context: dict | None = None,
     ) -> MusicMediaInput:
+        external_refs = {}
+        if provider == "musicbrainz":
+            if entity_type == EntityType.ARTIST:
+                external_refs["musicbrainz_artist_id"] = provider_id
+            elif entity_type == EntityType.ALBUM:
+                external_refs["musicbrainz_release_group_id"] = provider_id
+            elif entity_type == EntityType.TRACK:
+                external_refs["musicbrainz_recording_id"] = provider_id
         return MusicMediaInput(
-            entity_hint=payload.entity_type,
+            entity_hint=entity_type,
             source_kind=source_kind,
-            title=payload.track_title or payload.title,
-            artist_names=[payload.artist_name] if payload.artist_name else [],
-            album_title=payload.album_title,
+            artist_names=[],
             album_artist_names=[],
-            year=payload.year,
-            external_refs=dict(payload.external_ids),
+            external_refs=external_refs,
             source_context=source_context or {},
             raw_context=raw_context or {},
         )
 
     def resolve(self, payload: MusicMediaInput) -> MusicMediaInfo:
         self.calls.append(payload)
-        if self.resolved_media is None:
-            raise AssertionError("resolve() should not be called without a configured result")
         return self.resolved_media
 
     def resolve_detail(self, payload: MusicMediaInput):

@@ -11,7 +11,6 @@ from ..repositories.acquisition import AcquisitionRepository
 from ..repositories.orchestration import OrchestrationRepository
 from ..schemas.acquisition import PathHandoffInfo
 from ..schemas.integration import AdapterMode, AdapterResolution, VerificationState
-from ..schemas.metadata import MetadataDetail
 from ..schemas.music_media import MusicMediaInfo
 from ..schemas.orchestration import (
     OrganizeAdapterResult,
@@ -37,11 +36,13 @@ class OrganizeService:
         resolver: OrganizeAdapterResolver,
         strategy_service: OrganizeStrategyService,
         path_handoff_service: HostPathHandoffService,
+        music_media_chain,
     ):
         self.session = session
         self.resolver = resolver
         self.strategy_service = strategy_service
         self.path_handoff_service = path_handoff_service
+        self.music_media_chain = music_media_chain
         self.acquisition_repository = AcquisitionRepository(session)
         self.repository = OrchestrationRepository(session)
 
@@ -166,7 +167,7 @@ class OrganizeService:
                 music_media_info = None
 
         if music_media_info is not None:
-            metadata_detail = self._build_metadata_detail_from_music_media_info(music_media_info)
+            metadata_detail = self.music_media_chain.hydrate(music_media_info)
 
         if "path_handoff" not in candidate_payload and isinstance(binding_payload.get("path_handoff"), dict):
             candidate_payload["path_handoff"] = binding_payload["path_handoff"]
@@ -222,36 +223,6 @@ class OrganizeService:
             except Exception:  # pragma: no cover - defensive parse guard
                 continue
         return None
-
-    @staticmethod
-    def _build_metadata_context_from_music_media_info(media: MusicMediaInfo) -> dict[str, str | int | None]:
-        artist_name = media.artist_names[0] if media.artist_names else None
-        return {
-            "artist_name": artist_name,
-            "album_title": media.album_title,
-            "track_title": media.title if media.entity_type.value == "track" else None,
-            "title": media.title or media.album_title or artist_name,
-            "year": str(media.year) if media.year is not None else None,
-            "track_number": media.track_number,
-            "disc_number": media.disc_number,
-        }
-
-    def _build_metadata_detail_from_music_media_info(self, media: MusicMediaInfo) -> MetadataDetail:
-        context = self._build_metadata_context_from_music_media_info(media)
-        return MetadataDetail(
-            entity_type=media.entity_type,
-            id=media.provider_id,
-            title=str(context["title"] or media.provider_id),
-            artist_name=context["artist_name"],
-            album_title=context["album_title"],
-            track_title=context["track_title"],
-            year=media.year,
-            provider=media.provider,
-            source_type="music_media_info",
-            mock=False,
-            note="Synthesized from unified MusicMediaInfo snapshot.",
-            integration_point="OrganizeService.music_media_info",
-        )
 
     def _plan_from_record(self, record) -> OrganizePlan | None:
         raw_payload = record.raw_payload or {}

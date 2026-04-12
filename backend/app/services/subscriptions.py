@@ -6,7 +6,6 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from ..repositories.orchestration import OrchestrationRepository
-from ..schemas.metadata import MetadataDetail
 from ..schemas.mvp import EntityType
 from ..schemas.orchestration import (
     ChartEntryInfo,
@@ -19,7 +18,6 @@ from ..schemas.orchestration import (
     SubscriptionType,
     UpdateSubscriptionRequest,
 )
-from .metadata import MetadataService
 from .subscription_scheduler import normalize_subscription_mode
 
 
@@ -30,9 +28,8 @@ SUBSCRIPTION_NOTE = (
 
 
 class SubscriptionService:
-    def __init__(self, session: Session, metadata_service: MetadataService, music_media_chain):
+    def __init__(self, session: Session, music_media_chain):
         self.session = session
-        self.metadata_service = metadata_service
         self.music_media_chain = music_media_chain
         self.repository = OrchestrationRepository(session)
 
@@ -75,9 +72,10 @@ class SubscriptionService:
             )
 
         resolved_type = payload.target_entity_type or EntityType(payload.subscription_type.value)
-        detail = self.metadata_service.get_detail(resolved_type, payload.target_id)
-        media_input = self.music_media_chain.input_from_metadata_detail(
-            detail,
+        media_input = self.music_media_chain.input_from_provider_ref(
+            entity_type=resolved_type,
+            provider="musicbrainz",
+            provider_id=payload.target_id,
             source_kind="subscription",
             source_context={
                 "subscription_type": payload.subscription_type.value,
@@ -85,7 +83,7 @@ class SubscriptionService:
             },
             raw_context={"target_payload": payload.target_payload},
         )
-        resolved = self.music_media_chain.resolve_response(media_input)
+        resolved = self.music_media_chain.resolve_detail(media_input)
         target_payload = dict(payload.target_payload)
         target_payload.update(
             {
@@ -98,8 +96,8 @@ class SubscriptionService:
         subscription = self.repository.create_subscription(
             subscription_type=payload.subscription_type.value,
             target_id=payload.target_id,
-            target_name=payload.target_name or detail.title,
-            target_entity_type=detail.entity_type.value,
+            target_name=payload.target_name or resolved.detail.title,
+            target_entity_type=resolved.detail.entity_type.value,
             chart_source=None,
             chart_name=None,
             mode=normalize_subscription_mode(payload.mode.value),
@@ -194,12 +192,6 @@ class SubscriptionService:
         self.session.commit()
         self.session.refresh(subscription)
         return serialize_subscription(subscription)
-
-
-def serialize_subscription_detail(detail: MetadataDetail) -> tuple[str, str]:
-    return detail.title, detail.entity_type.value
-
-
 def serialize_subscription(subscription) -> SubscriptionSummary:
     target_entity_type = subscription.target_entity_type
     return SubscriptionSummary(
