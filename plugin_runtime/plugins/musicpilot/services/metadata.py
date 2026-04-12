@@ -195,6 +195,23 @@ class MetadataService:
             return self.get_album_detail(entity_id)
         return self.get_track_detail(entity_id)
 
+    def get_detail_by_provider_ref(
+        self,
+        *,
+        entity_type: EntityType,
+        provider: str,
+        provider_id: str,
+    ) -> MetadataDetail:
+        if provider != self.adapter.provider:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Metadata provider ref '{provider}' does not match active metadata provider "
+                    f"'{self.adapter.provider}'."
+                ),
+            )
+        return self.get_detail(entity_type, provider_id)
+
     def _build_summary(
         self,
         item: ArtistModel | AlbumModel | TrackModel,

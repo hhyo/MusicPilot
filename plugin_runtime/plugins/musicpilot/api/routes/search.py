@@ -1,13 +1,14 @@
-"""Metadata search and direct detail routes."""
+"""Metadata search and metadata detail routes backed by the unified chain."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 
-from ...core.dependencies import get_metadata_service
+from ...core.dependencies import get_metadata_service, get_music_media_chain
 from ...core.responses import success_response
 from ...schemas.common import ApiResponse
 from ...schemas.metadata import MetadataSearchRequest
+from ...schemas.mvp import EntityType
 from ...services.metadata import MetadataService
 
 router = APIRouter(tags=["Search", "Metadata"])
@@ -15,6 +16,18 @@ router = APIRouter(tags=["Search", "Metadata"])
 
 def _is_mock_source(source_type: str) -> bool:
     return source_type in {"mock", "local_seed"}
+
+
+def _resolve_detail_from_provider_ref(*, chain, entity_type: EntityType, provider_id: str):
+    input_payload = chain.input_from_provider_ref(
+        entity_type=entity_type,
+        provider="musicbrainz",
+        provider_id=provider_id,
+        source_kind="detail",
+        source_context={"entrypoint": "metadata_detail_route"},
+        raw_context={},
+    )
+    return chain.resolve_detail(input_payload).detail
 
 
 @router.post("/search", summary="Metadata search")
@@ -47,9 +60,13 @@ async def search(
 async def artist_detail(
     artist_id: str,
     request: Request,
-    service: MetadataService = Depends(get_metadata_service),
+    chain=Depends(get_music_media_chain),
 ) -> ApiResponse:
-    detail = service.get_artist_detail(artist_id)
+    detail = _resolve_detail_from_provider_ref(
+        chain=chain,
+        entity_type=EntityType.ARTIST,
+        provider_id=artist_id,
+    )
     return success_response(
         request,
         data=detail,
@@ -69,9 +86,13 @@ async def artist_detail(
 async def album_detail(
     album_id: str,
     request: Request,
-    service: MetadataService = Depends(get_metadata_service),
+    chain=Depends(get_music_media_chain),
 ) -> ApiResponse:
-    detail = service.get_album_detail(album_id)
+    detail = _resolve_detail_from_provider_ref(
+        chain=chain,
+        entity_type=EntityType.ALBUM,
+        provider_id=album_id,
+    )
     return success_response(
         request,
         data=detail,
@@ -91,9 +112,13 @@ async def album_detail(
 async def track_detail(
     track_id: str,
     request: Request,
-    service: MetadataService = Depends(get_metadata_service),
+    chain=Depends(get_music_media_chain),
 ) -> ApiResponse:
-    detail = service.get_track_detail(track_id)
+    detail = _resolve_detail_from_provider_ref(
+        chain=chain,
+        entity_type=EntityType.TRACK,
+        provider_id=track_id,
+    )
     return success_response(
         request,
         data=detail,

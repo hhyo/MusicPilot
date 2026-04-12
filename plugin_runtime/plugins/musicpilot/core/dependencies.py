@@ -80,11 +80,6 @@ def get_settings_service(session: Session = Depends(get_db_session)) -> Settings
 
 
 @lru_cache
-def get_discovery_assembler() -> DiscoveryAssembler:
-    return DiscoveryAssembler()
-
-
-@lru_cache
 def get_metadata_provider_adapter() -> MetadataProviderAdapter:
     if settings.metadata_provider_mode == "musicbrainz":
         return MusicBrainzMetadataProviderAdapter(
@@ -223,6 +218,12 @@ def get_music_media_chain(
     return MusicMediaChain(metadata_service=metadata_service, metadata_adapter=adapter)
 
 
+def get_discovery_assembler(
+    music_media_chain: MusicMediaChain = Depends(get_music_media_chain),
+) -> DiscoveryAssembler:
+    return DiscoveryAssembler(music_media_chain=music_media_chain)
+
+
 def get_chart_service(
     adapter: ChartProviderAdapter = Depends(get_chart_provider_adapter),
     discovery_assembler: DiscoveryAssembler = Depends(get_discovery_assembler),
@@ -261,7 +262,6 @@ def get_host_search_adapter_resolver() -> HostSearchAdapterResolver:
 
 def get_search_job_service(
     session: Session = Depends(get_db_session),
-    metadata_service: MetadataService = Depends(get_metadata_service),
     music_media_chain: MusicMediaChain = Depends(get_music_media_chain),
     query_builder: QueryBuilderService = Depends(get_query_builder_service),
     host_search_resolver: HostSearchAdapterResolver = Depends(get_host_search_adapter_resolver),
@@ -269,7 +269,6 @@ def get_search_job_service(
 ) -> SearchJobService:
     return SearchJobService(
         session,
-        metadata_service=metadata_service,
         query_builder=query_builder,
         music_media_chain=music_media_chain,
         host_search_resolver=host_search_resolver,
@@ -396,7 +395,6 @@ def build_subscription_execution_service(session: Session) -> SubscriptionExecut
     )
     search_job_service = SearchJobService(
         session,
-        metadata_service=metadata_service,
         query_builder=QueryBuilderService(music_media_chain=music_media_chain),
         music_media_chain=music_media_chain,
         host_search_resolver=get_host_search_adapter_resolver(),

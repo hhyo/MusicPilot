@@ -18,6 +18,9 @@ from app.schemas.mvp import EntityType
 
 
 class FakeMusicMediaChain:
+    def __init__(self) -> None:
+        self.last_input = None
+
     def build_base(self, payload):
         return MusicMetaBase(
             entity_type=payload.entity_hint or EntityType.TRACK,
@@ -28,7 +31,40 @@ class FakeMusicMediaChain:
             evidence=[],
         )
 
+    def input_from_provider_ref(
+        self,
+        *,
+        entity_type,
+        provider: str,
+        provider_id: str,
+        source_kind: str,
+        source_context: dict | None = None,
+        raw_context: dict | None = None,
+    ):
+        from app.schemas.music_media import MusicMediaInput
+
+        external_refs: dict[str, str] = {}
+        if provider == "musicbrainz":
+            if entity_type == EntityType.ARTIST:
+                external_refs["musicbrainz_artist_id"] = provider_id
+            elif entity_type == EntityType.ALBUM:
+                external_refs["musicbrainz_release_group_id"] = provider_id
+            else:
+                external_refs["musicbrainz_recording_id"] = provider_id
+        else:
+            external_refs["provider"] = provider
+            external_refs["provider_id"] = provider_id
+
+        return MusicMediaInput(
+            entity_hint=entity_type,
+            source_kind=source_kind,
+            external_refs=external_refs,
+            source_context=source_context or {},
+            raw_context=raw_context or {},
+        )
+
     def resolve(self, payload):
+        self.last_input = payload
         return MusicMediaInfo(
             entity_type=payload.entity_hint or EntityType.TRACK,
             provider="musicbrainz",
@@ -40,6 +76,7 @@ class FakeMusicMediaChain:
         )
 
     def resolve_response(self, payload):
+        self.last_input = payload
         return MusicResolveResponse(
             base=self.build_base(payload),
             assessment=MusicRecognitionAssessment(state="direct"),
@@ -47,13 +84,14 @@ class FakeMusicMediaChain:
         )
 
     def resolve_detail(self, payload):
+        self.last_input = payload
         media = self.resolve(payload)
         base = self.build_base(payload)
         detail = MetadataDetail(
-            entity_type=EntityType.TRACK,
-            id="recording-hello",
-            title="Hello",
-            artist_name="Adele",
+            entity_type=payload.entity_hint or EntityType.TRACK,
+            id=(payload.external_refs.get("musicbrainz_recording_id") or payload.external_refs.get("musicbrainz_release_group_id") or payload.external_refs.get("musicbrainz_artist_id") or "recording-hello"),
+            title=payload.title or "Hello",
+            artist_name=(payload.artist_names[0] if payload.artist_names else "Adele"),
             provider="musicbrainz",
             source_type="musicbrainz",
             mock=False,
@@ -70,7 +108,8 @@ class FakeMusicMediaChain:
 
 class MusicMediaApiTests(unittest.TestCase):
     def setUp(self) -> None:
-        app.dependency_overrides[get_music_media_chain] = lambda: FakeMusicMediaChain()
+        self.fake_chain = FakeMusicMediaChain()
+        app.dependency_overrides[get_music_media_chain] = lambda: self.fake_chain
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
@@ -103,6 +142,23 @@ class MusicMediaApiTests(unittest.TestCase):
             json={"entity_type": "track", "hints": {"title": "Hello"}},
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_track_detail_route_uses_unified_music_media_chain(self) -> None:
+        response = self.client.get("/api/v1/plugin/musicpilot/metadata/tracks/recording-hello")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["data"]["id"], "recording-hello")
+        self.assertEqual(self.fake_chain.last_input.source_kind, "detail")
+        self.assertEqual(self.fake_chain.last_input.external_refs["musicbrainz_recording_id"], "recording-hello")
+
+    def test_album_detail_route_uses_unified_music_media_chain(self) -> None:
+        response = self.client.get("/api/v1/plugin/musicpilot/metadata/albums/release-group-25")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["data"]["id"], "release-group-25")
+        self.assertEqual(self.fake_chain.last_input.external_refs["musicbrainz_release_group_id"], "release-group-25")
 
 
 if __name__ == "__main__":

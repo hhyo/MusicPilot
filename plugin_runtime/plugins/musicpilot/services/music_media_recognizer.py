@@ -20,6 +20,9 @@ class MusicMediaRecognizer:
         self.metadata_adapter = metadata_adapter
 
     def assess(self, base: MusicMetaBase) -> MusicRecognitionAssessment:
+        if base.external_refs.get("provider") and base.external_refs.get("provider_id"):
+            return MusicRecognitionAssessment(state="direct")
+
         direct_ref_keys = {
             EntityType.ARTIST: "musicbrainz_artist_id",
             EntityType.ALBUM: "musicbrainz_release_group_id",
@@ -53,15 +56,18 @@ class MusicMediaRecognizer:
         )
 
     def recognize(self, base: MusicMetaBase) -> MusicMediaInfo:
+        generic_provider = (base.external_refs.get("provider") or "").strip()
+        generic_provider_id = (base.external_refs.get("provider_id") or "").strip()
         recording_id = base.external_refs.get("musicbrainz_recording_id")
         album_id = base.external_refs.get("musicbrainz_release_group_id")
         artist_id = base.external_refs.get("musicbrainz_artist_id")
-        provider_id = recording_id or album_id or artist_id or ""
+        provider_id = generic_provider_id or recording_id or album_id or artist_id or ""
+        provider = generic_provider or "musicbrainz"
 
         if provider_id:
             return MusicMediaInfo(
                 entity_type=base.entity_type,
-                provider="musicbrainz",
+                provider=provider,
                 provider_id=provider_id,
                 title=base.canonical_title,
                 artist_names=list(base.canonical_artist_names),
@@ -117,7 +123,7 @@ class MusicMediaRecognizer:
 
         return MusicMediaInfo(
             entity_type=base.entity_type,
-            provider="musicbrainz",
+            provider=winner.provider or self.metadata_adapter.provider,
             provider_id=winner.id,
             title=winner.track_title or winner.title,
             artist_names=[winner.artist_name] if winner.artist_name else list(base.canonical_artist_names),

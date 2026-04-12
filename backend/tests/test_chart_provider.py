@@ -19,7 +19,13 @@ from app.schemas.orchestration import (
 )
 from app.services.charts import ChartService
 from app.services.discovery import DiscoveryAssembler
+from app.services.music_media_chain import MusicMediaChain
 from app.services.subscriptions import SubscriptionService
+
+
+def build_discovery_assembler() -> DiscoveryAssembler:
+    chain = MusicMediaChain(metadata_service=object(), metadata_adapter=object())
+    return DiscoveryAssembler(music_media_chain=chain)
 
 
 class FakeResponse:
@@ -244,7 +250,7 @@ class FakeLiveChartAdapter:
 
 class ChartServiceLiveModeTest(unittest.TestCase):
     def test_chart_service_live_mode_is_not_mock(self) -> None:
-        service = ChartService(adapter=FakeLiveChartAdapter(), discovery_assembler=DiscoveryAssembler())
+        service = ChartService(adapter=FakeLiveChartAdapter(), discovery_assembler=build_discovery_assembler())
 
         result = service.list_charts()
 
@@ -294,7 +300,7 @@ class FakeDetailChartAdapter(FakeLiveChartAdapter):
 
 class ChartServiceDiscoveryEnrichmentTest(unittest.TestCase):
     def test_chart_service_enriches_detail(self) -> None:
-        service = ChartService(adapter=FakeDetailChartAdapter(), discovery_assembler=DiscoveryAssembler())
+        service = ChartService(adapter=FakeDetailChartAdapter(), discovery_assembler=build_discovery_assembler())
 
         detail = service.get_chart_detail("chart-listenbrainz-top-tracks-week")
 
@@ -373,7 +379,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
                 ],
                 fetcher=lambda url: feed_xml_by_url[url],
             ),
-            discovery_assembler=DiscoveryAssembler(),
+            discovery_assembler=build_discovery_assembler(),
         )
 
         detail = service.get_chart_detail("rss-feed-feed-netease-playlist")
@@ -536,7 +542,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
                 fetcher=lambda url: feed_xml_by_url[url],
                 cache_enabled=False,
             ),
-            discovery_assembler=DiscoveryAssembler(),
+            discovery_assembler=build_discovery_assembler(),
         )
 
         detail = service.get_chart_detail("rss-feed-feed-artist-no-name")
@@ -694,23 +700,27 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
                     }
                 )
 
-            def resolve_response(self, payload):  # noqa: ANN001
+            def resolve_response_from_base(self, base):  # noqa: ANN001
                 return SimpleNamespace(
-                    base=SimpleNamespace(
+                    base=base,
+                    assessment=SimpleNamespace(state="direct", note=None),
+                    media=SimpleNamespace(
                         model_dump=lambda mode="json": {
-                            "entity_type": payload.entity_hint.value,
-                            "canonical_title": payload.title,
-                            "canonical_artist_names": payload.artist_names,
-                            "canonical_album_title": payload.album_title,
-                            "canonical_album_artist_names": payload.album_artist_names,
-                            "external_refs": payload.external_refs,
-                            "source_refs": {},
-                            "evidence": [],
-                            "normalization_notes": [],
+                            "entity_type": base.entity_type.value,
+                            "provider": "musicbrainz",
+                            "provider_id": "recording-wonderful-tonight",
+                            "title": base.canonical_title,
+                            "artist_names": base.canonical_artist_names,
+                            "album_title": base.canonical_album_title,
+                            "album_artist_names": base.canonical_album_artist_names,
+                            "related_artist_ids": [],
+                            "related_track_ids": [],
+                            "external_refs": base.external_refs,
+                            "match_evidence": [],
+                            "diagnostics": [],
+                            "release_context": {},
                         }
                     ),
-                    assessment=SimpleNamespace(state="direct", note=None),
-                    media=self.resolve(payload),
                 )
 
         service = SubscriptionService(

@@ -30,6 +30,9 @@ class MusicMediaChain:
     def assess(self, base: MusicMetaBase) -> MusicRecognitionAssessment:
         return self.recognizer.assess(base)
 
+    def resolve_base(self, base: MusicMetaBase) -> MusicMediaInfo:
+        return self.recognizer.recognize(base)
+
     def input_from_discovery_entry(self, chart: ChartInfo, entry: ChartEntryInfo) -> MusicMediaInput:
         return self.input_adapter.from_discovery_entry(chart, entry)
 
@@ -69,13 +72,16 @@ class MusicMediaChain:
 
     def resolve(self, input: MusicMediaInput):
         base = self.build_base(input)
-        return self.recognizer.recognize(base)
+        return self.resolve_base(base)
+
+    def resolve_response_from_base(self, base: MusicMetaBase) -> MusicResolveResponse:
+        assessment = self.recognizer.assess(base)
+        media = self.resolve_base(base)
+        return MusicResolveResponse(base=base, assessment=assessment, media=media)
 
     def resolve_response(self, input: MusicMediaInput) -> MusicResolveResponse:
         base = self.build_base(input)
-        assessment = self.recognizer.assess(base)
-        media = self.recognizer.recognize(base)
-        return MusicResolveResponse(base=base, assessment=assessment, media=media)
+        return self.resolve_response_from_base(base)
 
     def resolve_detail(self, input: MusicMediaInput) -> MusicResolveDetailResponse:
         resolved = self.resolve_response(input)

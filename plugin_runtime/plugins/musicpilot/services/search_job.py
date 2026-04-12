@@ -21,7 +21,6 @@ from ..schemas.integration import AdapterMode, AdapterResolution
 from ..schemas.music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase
 from ..schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from .host_integration import HostSearchAdapterResolver
-from .metadata import MetadataService
 from .query_builder import QueryBuilderService
 from .scoring import MusicCandidateScorer
 
@@ -37,14 +36,12 @@ class SearchJobService:
         self,
         session: Session,
         *,
-        metadata_service: MetadataService,
         query_builder: QueryBuilderService,
         music_media_chain,
         host_search_resolver: HostSearchAdapterResolver,
         scorer: MusicCandidateScorer,
     ):
         self.session = session
-        self.metadata_service = metadata_service
         self.query_builder = query_builder
         self.music_media_chain = music_media_chain
         self.host_search_resolver = host_search_resolver

@@ -268,6 +268,8 @@ class DummyMusicMediaChain:
                 external_refs["musicbrainz_release_group_id"] = provider_id
             elif entity_type == EntityType.TRACK:
                 external_refs["musicbrainz_recording_id"] = provider_id
+        else:
+            external_refs[f"{provider}_id"] = provider_id
         return MusicMediaInput(
             entity_hint=entity_type,
             source_kind=source_kind,
@@ -393,6 +395,51 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
         self.assertEqual(organize_service.preview_candidate_calls, ["cand-manual"])
         self.assertEqual(result.execution_status, SubscriptionRunStatus.MANUAL_PENDING)
         self.assertEqual(result.organize_preview.id, "org-candidate")
+
+    def test_build_subscription_provider_input_prefers_provider_ref_snapshot(self) -> None:
+        self.subscription.target_payload_json = {
+            "provider_ref": {
+                "provider": "rss_catalog",
+                "provider_id": "artist-rss-adele",
+            }
+        }
+        self.session.commit()
+        self.session.refresh(self.subscription)
+
+        music_media_chain = DummyMusicMediaChain()
+        service = SubscriptionExecutionService(
+            self.session,
+            search_job_service=DummySearchJobService(
+                executed_job=build_search_job_summary(status=JobStatus.QUEUED),
+                candidates=[],
+            ),
+            organize_service=DummyOrganizeService(),
+            music_media_chain=music_media_chain,
+            dispatch_service=DummyDispatchService(
+                result=DispatchResult(
+                    candidate_id="cand-1",
+                    job_id="job-001",
+                    dispatchable=False,
+                    dispatch_status="skipped",
+                    target_downloader="mock-downloader",
+                    downloader_task_id=None,
+                    note="noop",
+                    integration_point="DummyDispatchService.dispatch",
+                    mock=False,
+                    binding_id=None,
+                    dispatch_backend=AdapterMode.MOCK,
+                    capability_source="test",
+                    verification_state=VerificationState.VERIFIED,
+                )
+            ),
+        )
+
+        media_input = service._build_subscription_provider_input(
+            self.subscription,
+            source_kind="subscription_detail",
+        )
+
+        self.assertEqual(media_input.external_refs["rss_catalog_id"], "artist-rss-adele")
 
     def test_execute_auto_download_applies_when_preview_has_local_source(self) -> None:
         search_job_service = DummySearchJobService(

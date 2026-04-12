@@ -14,6 +14,10 @@ class MusicMediaInfoHydrator:
 
     def hydrate(self, media):
         try:
-            return self.metadata_service.get_detail(media.entity_type, media.provider_id)
+            return self.metadata_service.get_detail_by_provider_ref(
+                entity_type=media.entity_type,
+                provider=media.provider,
+                provider_id=media.provider_id,
+            )
         except httpx.HTTPError as exc:
             raise HTTPException(status_code=502, detail="Metadata provider detail request failed.") from exc

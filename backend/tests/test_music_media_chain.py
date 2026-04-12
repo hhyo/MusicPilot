@@ -85,6 +85,20 @@ class FakeMetadataService:
             integration_point="test",
         )
 
+    def get_detail_by_provider_ref(
+        self,
+        *,
+        entity_type: EntityType,
+        provider: str,
+        provider_id: str,
+    ) -> MetadataDetail:
+        self.last_provider_ref = {
+            "entity_type": entity_type,
+            "provider": provider,
+            "provider_id": provider_id,
+        }
+        return self.get_detail(entity_type, provider_id)
+
 
 class FakeMetadataAdapter:
     provider = "musicbrainz"
@@ -96,6 +110,18 @@ class FakeMetadataAdapter:
 
     def search(self, payload: object) -> None:
         raise AssertionError("search should not run in strong-ref test")
+
+
+class FakeExternalProviderAdapter:
+    provider = "external_feed"
+    source_type = "external_feed"
+    supports_live_queries = True
+
+    def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
+        return FakeMetadataService().get_detail(entity_type, entity_id)
+
+    def search(self, payload: object) -> None:
+        raise AssertionError("search should not run in generic direct-ref test")
 
 
 class MusicMediaChainTests(unittest.TestCase):
@@ -124,8 +150,9 @@ class MusicMediaChainTests(unittest.TestCase):
         from app.schemas.music_media import MusicMediaInput
         from app.services.music_media_chain import MusicMediaChain
 
+        metadata_service = FakeMetadataService()
         chain = MusicMediaChain(
-            metadata_service=FakeMetadataService(),
+            metadata_service=metadata_service,
             metadata_adapter=FakeMetadataAdapter(),
         )
         result = chain.resolve_detail(
@@ -140,6 +167,33 @@ class MusicMediaChainTests(unittest.TestCase):
 
         self.assertEqual(result.detail.id, "recording-hello")
         self.assertEqual(result.media.provider_id, "recording-hello")
+        self.assertEqual(metadata_service.last_provider_ref["provider"], "musicbrainz")
+
+    def test_chain_resolves_generic_provider_ref_without_search(self) -> None:
+        from app.schemas.music_media import MusicMediaInput
+        from app.services.music_media_chain import MusicMediaChain
+
+        metadata_service = FakeMetadataService()
+        chain = MusicMediaChain(
+            metadata_service=metadata_service,
+            metadata_adapter=FakeExternalProviderAdapter(),
+        )
+
+        result = chain.resolve_detail(
+            MusicMediaInput(
+                entity_hint=EntityType.ALBUM,
+                source_kind="detail",
+                external_refs={
+                    "provider": "external_feed",
+                    "provider_id": "album-42",
+                },
+            )
+        )
+
+        self.assertEqual(result.media.provider, "external_feed")
+        self.assertEqual(result.media.provider_id, "album-42")
+        self.assertEqual(metadata_service.last_provider_ref["provider"], "external_feed")
+        self.assertEqual(metadata_service.last_provider_ref["provider_id"], "album-42")
 
 
 if __name__ == "__main__":

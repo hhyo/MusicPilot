@@ -12,15 +12,11 @@ from ..schemas.orchestration import (
     DiscoveryEntryGroup,
     DiscoveryEntryView,
 )
-from .music_media_chain import MusicMediaChain
 
 
 class DiscoveryAssembler:
-    def __init__(self, metadata_service=None, metadata_adapter=None) -> None:
-        self.music_media_chain = MusicMediaChain(
-            metadata_service=metadata_service,
-            metadata_adapter=metadata_adapter,
-        )
+    def __init__(self, music_media_chain) -> None:
+        self.music_media_chain = music_media_chain
 
     def build_chart_info(self, chart: ChartInfo) -> ChartInfo:
         chart.summary = self._build_chart_summary(chart)

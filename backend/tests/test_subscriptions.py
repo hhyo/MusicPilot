@@ -78,6 +78,14 @@ class DummyMusicMediaChain:
             detail=build_artist_detail(),
         )
 
+    def resolve_response_from_base(self, base):
+        media = build_artist_media()
+        return SimpleNamespace(
+            base=base,
+            assessment=MusicRecognitionAssessment(state="direct"),
+            media=media,
+        )
+
 
 class SubscriptionServiceTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -124,6 +132,26 @@ class SubscriptionServiceTest(unittest.TestCase):
 
         self.assertEqual(result.target_name, "Adele")
         self.assertEqual(result.target_payload["music_media_info"]["title"], "Adele")
+
+    def test_create_subscription_prefers_explicit_provider_ref_from_target_payload(self) -> None:
+        result = self.service.create_subscription(
+            CreateSubscriptionRequest(
+                subscription_type=SubscriptionType.ARTIST,
+                target_id="artist-adele",
+                target_entity_type="artist",
+                target_payload={
+                    "provider_ref": {
+                        "provider": "rss_catalog",
+                        "provider_id": "artist-rss-adele",
+                    }
+                },
+            )
+        )
+
+        self.assertEqual(
+            result.target_payload["music_media_input"]["external_refs"]["rss_catalog_id"],
+            "artist-rss-adele",
+        )
 
 
 if __name__ == "__main__":

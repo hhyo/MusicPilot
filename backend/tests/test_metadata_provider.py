@@ -72,6 +72,42 @@ class MetadataServiceLiveProviderTest(unittest.TestCase):
         self.assertEqual(result.integration_point, "fake.live.search")
         self.assertEqual(service.repository.summary()["search_history"], 1)
 
+    def test_get_detail_by_provider_ref_rejects_mismatched_provider(self) -> None:
+        from app.adapters.metadata_provider import MetadataProviderAdapter
+
+        class FakeLiveAdapter(MetadataProviderAdapter):
+            @property
+            def provider(self) -> str:
+                return "fake_live"
+
+            @property
+            def source_type(self) -> str:
+                return "live_api"
+
+            @property
+            def supports_live_queries(self) -> bool:
+                return True
+
+            def load_seed_catalog(self):  # pragma: no cover
+                raise NotImplementedError
+
+            def search(self, payload: MetadataSearchRequest) -> MetadataSearchData:  # pragma: no cover
+                raise NotImplementedError
+
+            def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:  # pragma: no cover
+                raise NotImplementedError
+
+        service = MetadataService(session=self.session, adapter=FakeLiveAdapter())
+
+        with self.assertRaises(HTTPException) as ctx:
+            service.get_detail_by_provider_ref(
+                entity_type=EntityType.ARTIST,
+                provider="musicbrainz",
+                provider_id="artist-adele",
+            )
+
+        self.assertEqual(ctx.exception.status_code, 400)
+
 
 class MusicMediaChainRecognitionTest(unittest.TestCase):
     def setUp(self) -> None:
