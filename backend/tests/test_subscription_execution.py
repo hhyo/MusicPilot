@@ -21,7 +21,7 @@ from app.schemas.acquisition import (
 )
 from app.schemas.integration import AdapterMode, VerificationState
 from app.schemas.metadata import MetadataDetail
-from app.schemas.music_media import MusicMediaInfo, MusicMediaInput
+from app.schemas.music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase
 from app.schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from app.schemas.orchestration import (
     OrganizeApplyRequest,
@@ -59,6 +59,15 @@ def build_search_job_summary(*, status: JobStatus) -> SearchJobSummary:
     return SearchJobSummary(
         id="job-001",
         music_media_input=media_input,
+        music_meta_base=MusicMetaBase(
+            entity_type=EntityType.ARTIST,
+            canonical_title=media.title,
+            canonical_artist_names=list(media.artist_names),
+            canonical_album_title=None,
+            canonical_album_artist_names=[],
+            external_refs=dict(media.external_refs),
+            evidence=[],
+        ),
         music_media_info=media,
         trigger_source=TriggerSource.SUBSCRIPTION,
         profile_id="default-lossless",

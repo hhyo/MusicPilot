@@ -146,11 +146,31 @@ function buildEntryView(overrides: Record<string, unknown> = {}) {
       note: '',
     },
     media_input: buildMediaInput(),
+    meta_base: {
+      entity_type: 'track',
+      canonical_title: 'Hello',
+      canonical_artist_names: ['Adele'],
+      canonical_album_title: '25',
+      canonical_album_artist_names: [],
+      canonical_release_date: '2015-11-20',
+      canonical_year: 2015,
+      track_number: null,
+      disc_number: null,
+      alias_titles: [],
+      alias_artist_names: [],
+      alias_album_titles: [],
+      featuring_artist_names: [],
+      external_refs: {},
+      source_refs: {},
+      evidence: [],
+      normalization_notes: [],
+      confidence_hint: null,
+    },
     entry_summary: 'Hello · Adele',
     badges: ['top-1', 'tracks'],
     highlight_reason: 'Top track',
-    conversion_state: 'direct',
-    conversion_note: null,
+    recognition_state: 'direct',
+    recognition_note: null,
     ...overrides,
   };
 }
@@ -203,11 +223,11 @@ const artistDetailResponse = {
       }),
       entry_summary: 'Adele · UK',
       badges: ['top-1', 'artists'],
-      conversion_state: 'direct',
+      recognition_state: 'direct',
     }),
     summary_stats: { items: 1 },
     entry_groups: [],
-    conversion_summary: { ready: 1, not_ready: 0 },
+    recognition_summary: { ready: 1, not_ready: 0 },
   },
 };
 
@@ -258,13 +278,13 @@ const readyDetailResponse = {
               },
             }),
             entry_summary: 'Skyfall · Adele',
-            conversion_state: 'insufficient',
-            conversion_note: 'Missing media input fields: requires title + artist_names.',
+            recognition_state: 'insufficient',
+            recognition_note: 'Missing music meta base fields: requires canonical_title + canonical_artist_names.',
           }),
         ],
       },
     ],
-    conversion_summary: { ready: 1, not_ready: 1 },
+    recognition_summary: { ready: 1, not_ready: 1 },
   },
 };
 
@@ -344,8 +364,8 @@ const rssReadyEntry = buildEntryView({
     },
   }),
   badges: ['liked', 'tracks'],
-  conversion_state: 'ready',
-  conversion_note: null,
+  recognition_state: 'ready',
+  recognition_note: null,
 });
 
 const rssDetailResponse = {
@@ -366,7 +386,7 @@ const rssDetailResponse = {
         items: [rssReadyEntry],
       },
     ],
-    conversion_summary: { ready: 1, not_ready: 0 },
+    recognition_summary: { ready: 1, not_ready: 0 },
   },
 };
 
@@ -419,12 +439,12 @@ const directReadyDetailResponse = {
               },
             }),
             entry_summary: 'Set Fire to the Rain · Adele',
-            conversion_state: 'direct',
+            recognition_state: 'direct',
           }),
         ],
       },
     ],
-    conversion_summary: { ready: 1, not_ready: 0 },
+    recognition_summary: { ready: 1, not_ready: 0 },
   },
 };
 
@@ -480,13 +500,13 @@ const rssNotReadyDetailResponse = {
             }),
             entry_summary: 'Unknown',
             badges: ['liked', 'tracks'],
-            conversion_state: 'insufficient',
-            conversion_note: 'Missing media input fields: requires title + artist_names.',
+            recognition_state: 'insufficient',
+            recognition_note: 'Missing music meta base fields: requires canonical_title + canonical_artist_names.',
           }),
         ],
       },
     ],
-    conversion_summary: { ready: 0, not_ready: 1 },
+    recognition_summary: { ready: 0, not_ready: 1 },
   },
 };
 

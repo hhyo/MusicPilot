@@ -300,7 +300,7 @@ class ChartServiceDiscoveryEnrichmentTest(unittest.TestCase):
 
         self.assertIsNotNone(detail.hero_entry)
         self.assertEqual(detail.hero_entry.media_input.external_refs["musicbrainz_recording_id"], "rec-1")
-        self.assertEqual(detail.hero_entry.conversion_state, "direct")
+        self.assertEqual(detail.hero_entry.recognition_state, "direct")
         self.assertGreaterEqual(len(detail.entry_groups), 1)
 
 
@@ -380,7 +380,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
 
         self.assertEqual(detail.items[0].target_id, "")
         self.assertIsNotNone(detail.hero_entry)
-        self.assertEqual(detail.hero_entry.conversion_state, "ready")
+        self.assertEqual(detail.hero_entry.recognition_state, "ready")
         self.assertEqual(detail.hero_entry.media_input.source_kind, "discovery")
 
     def test_rss_entry_keeps_structured_lookup_hints_in_target_payload(self) -> None:
@@ -544,7 +544,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
 
         self.assertEqual(item.target_name, "Unknown Artist")
         self.assertNotIn("artist_name", item.target_payload)
-        self.assertEqual(detail.hero_entry.conversion_state, "insufficient")
+        self.assertEqual(detail.hero_entry.recognition_state, "insufficient")
 
     def test_list_charts_skips_disabled_and_unsupported_feeds(self) -> None:
         feed_xml_by_url = {
@@ -694,6 +694,24 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
                     }
                 )
 
+            def resolve_response(self, payload):  # noqa: ANN001
+                return SimpleNamespace(
+                    base=SimpleNamespace(
+                        model_dump=lambda mode="json": {
+                            "entity_type": payload.entity_hint.value,
+                            "canonical_title": payload.title,
+                            "canonical_artist_names": payload.artist_names,
+                            "canonical_album_title": payload.album_title,
+                            "canonical_album_artist_names": payload.album_artist_names,
+                            "external_refs": payload.external_refs,
+                            "source_refs": {},
+                            "evidence": [],
+                            "normalization_notes": [],
+                        }
+                    ),
+                    media=self.resolve(payload),
+                )
+
         service = SubscriptionService(
             session=SimpleNamespace(),
             metadata_service=SimpleNamespace(),
@@ -775,7 +793,30 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
             },
             entry_summary="Wonderful Tonight · Eric Clapton",
             badges=["rss_feed", "tracks"],
-            conversion_state="ready",
+            meta_base={
+                "entity_type": "track",
+                "canonical_title": "Wonderful Tonight",
+                "canonical_artist_names": ["Eric Clapton"],
+                "canonical_album_title": "Slowhand",
+                "canonical_album_artist_names": [],
+                "canonical_release_date": None,
+                "canonical_year": None,
+                "track_number": None,
+                "disc_number": None,
+                "alias_titles": [],
+                "alias_artist_names": [],
+                "alias_album_titles": [],
+                "featuring_artist_names": [],
+                "external_refs": {
+                    "source_id": "100001",
+                    "source_url": "https://music.163.com/#/song?id=100001",
+                },
+                "source_refs": {},
+                "evidence": [],
+                "normalization_notes": [],
+                "confidence_hint": None,
+            },
+            recognition_state="ready",
         )
 
         service.create_from_chart_entry(
@@ -787,6 +828,7 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
         self.assertEqual(captured["target_payload_json"]["provider_origin_id"], "100001")
         self.assertEqual(captured["target_payload_json"]["entry_target_payload"]["album_title"], "Slowhand")
         self.assertEqual(captured["target_payload_json"]["music_media_input"]["title"], "Wonderful Tonight")
+        self.assertEqual(captured["target_payload_json"]["music_meta_base"]["canonical_title"], "Wonderful Tonight")
         self.assertEqual(
             captured["target_payload_json"]["music_media_info"]["provider_id"],
             "recording-wonderful-tonight",
@@ -830,8 +872,28 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
             },
             entry_summary="Unknown",
             badges=["rss_feed", "tracks"],
-            conversion_state="insufficient",
-            conversion_note="Missing media input fields: requires title + artist_names.",
+            meta_base={
+                "entity_type": "track",
+                "canonical_title": None,
+                "canonical_artist_names": [],
+                "canonical_album_title": None,
+                "canonical_album_artist_names": [],
+                "canonical_release_date": None,
+                "canonical_year": None,
+                "track_number": None,
+                "disc_number": None,
+                "alias_titles": [],
+                "alias_artist_names": [],
+                "alias_album_titles": [],
+                "featuring_artist_names": [],
+                "external_refs": {},
+                "source_refs": {},
+                "evidence": [],
+                "normalization_notes": [],
+                "confidence_hint": None,
+            },
+            recognition_state="insufficient",
+            recognition_note="Missing music meta base fields: requires canonical_title + canonical_artist_names.",
         )
 
         with self.assertRaises(HTTPException) as context:

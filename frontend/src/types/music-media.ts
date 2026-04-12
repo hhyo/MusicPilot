@@ -17,6 +17,27 @@ export interface MusicMediaInput {
   raw_context: Record<string, unknown>;
 }
 
+export interface MusicMetaBase {
+  entity_type: EntityType;
+  canonical_title?: string | null;
+  canonical_artist_names: string[];
+  canonical_album_title?: string | null;
+  canonical_album_artist_names: string[];
+  canonical_release_date?: string | null;
+  canonical_year?: number | null;
+  track_number?: number | null;
+  disc_number?: number | null;
+  alias_titles: string[];
+  alias_artist_names: string[];
+  alias_album_titles: string[];
+  featuring_artist_names: string[];
+  external_refs: Record<string, string>;
+  source_refs: Record<string, string>;
+  evidence: Array<Record<string, unknown>>;
+  normalization_notes: string[];
+  confidence_hint?: number | null;
+}
+
 export interface MusicMediaInfo {
   entity_type: EntityType;
   provider: string;
@@ -43,6 +64,7 @@ export interface MusicMediaInfo {
 }
 
 export interface MusicResolveDetailData {
+  base: MusicMetaBase;
   media: MusicMediaInfo;
   detail: MetadataDetail;
 }

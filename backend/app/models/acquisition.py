@@ -24,6 +24,7 @@ class SearchJobModel(Base):
     mode: Mapped[str] = mapped_column(String(16), default="manual")
     status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
     music_media_input: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    music_meta_base: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     music_media_info: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     query_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     summary_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)

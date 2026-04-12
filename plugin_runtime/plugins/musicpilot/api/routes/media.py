@@ -18,7 +18,7 @@ async def resolve_media(
     request: Request,
     chain=Depends(get_music_media_chain),
 ) -> ApiResponse:
-    media = chain.resolve(payload.input)
+    media = chain.resolve_response(payload.input)
     return success_response(
         request,
         data=media,

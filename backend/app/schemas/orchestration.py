@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 from .acquisition import PathHandoffInfo, SearchCandidateDetail, SearchJobSummary
 from .integration import AdapterMode, AdapterResolution, VerificationState
 from .metadata import MetadataDetail
-from .music_media import MusicMediaInput
+from .music_media import MusicMediaInput, MusicMetaBase
 from .mvp import EntityType
 
 
@@ -110,11 +110,12 @@ class ChartEntryInfo(BaseModel):
 class DiscoveryEntryView(BaseModel):
     entry: ChartEntryInfo
     media_input: MusicMediaInput
+    meta_base: MusicMetaBase
     entry_summary: str
     badges: list[str] = Field(default_factory=list)
     highlight_reason: str | None = None
-    conversion_state: str = "ready"
-    conversion_note: str | None = None
+    recognition_state: str = "ready"
+    recognition_note: str | None = None
 
 
 class DiscoveryEntryGroup(BaseModel):
@@ -141,7 +142,7 @@ class ChartDetailData(BaseModel):
     hero_entry: DiscoveryEntryView | None = None
     summary_stats: dict[str, str | int] = Field(default_factory=dict)
     entry_groups: list[DiscoveryEntryGroup] = Field(default_factory=list)
-    conversion_summary: dict[str, int] = Field(default_factory=dict)
+    recognition_summary: dict[str, int] = Field(default_factory=dict)
 
 
 class CreateChartEntrySubscriptionRequest(BaseModel):

@@ -7,11 +7,21 @@ from fastapi.testclient import TestClient
 from app.core.dependencies import get_music_media_chain
 from app.main import app
 from app.schemas.metadata import MetadataDetail
-from app.schemas.music_media import MusicMediaInfo, MusicResolveDetailResponse
+from app.schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicResolveDetailResponse, MusicResolveResponse
 from app.schemas.mvp import EntityType
 
 
 class FakeMusicMediaChain:
+    def build_base(self, payload):
+        return MusicMetaBase(
+            entity_type=payload.entity_hint or EntityType.TRACK,
+            canonical_title=payload.title,
+            canonical_artist_names=list(payload.artist_names),
+            canonical_album_title=payload.album_title,
+            canonical_album_artist_names=[],
+            evidence=[],
+        )
+
     def resolve(self, payload):
         return MusicMediaInfo(
             entity_type=payload.entity_hint or EntityType.TRACK,
@@ -23,8 +33,12 @@ class FakeMusicMediaChain:
             match_confidence=1.0,
         )
 
+    def resolve_response(self, payload):
+        return MusicResolveResponse(base=self.build_base(payload), media=self.resolve(payload))
+
     def resolve_detail(self, payload):
         media = self.resolve(payload)
+        base = self.build_base(payload)
         detail = MetadataDetail(
             entity_type=EntityType.TRACK,
             id="recording-hello",
@@ -36,7 +50,7 @@ class FakeMusicMediaChain:
             note="detail",
             integration_point="test",
         )
-        return MusicResolveDetailResponse(media=media, detail=detail)
+        return MusicResolveDetailResponse(base=base, media=media, detail=detail)
 
 
 class MusicMediaApiTests(unittest.TestCase):
@@ -64,6 +78,7 @@ class MusicMediaApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
+        self.assertEqual(body["data"]["base"]["canonical_title"], "Hello")
         self.assertEqual(body["data"]["media"]["provider_id"], "recording-hello")
         self.assertEqual(body["data"]["detail"]["id"], "recording-hello")
 

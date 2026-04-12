@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
-from app.schemas.music_media import MusicMediaInfo
+from app.schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicResolveResponse
 from app.schemas.orchestration import CreateSubscriptionRequest, SubscriptionType
 from app.services.music_media_input_adapter import MusicMediaInputAdapter
 from app.services.subscriptions import SubscriptionService
@@ -28,6 +28,21 @@ class DummyMusicMediaChain:
     def resolve(self, payload):
         self.calls.append(payload)
         return build_artist_media()
+
+    def resolve_response(self, payload):
+        media = self.resolve(payload)
+        return MusicResolveResponse(
+            base=MusicMetaBase(
+                entity_type=payload.entity_hint,
+                canonical_title=payload.title,
+                canonical_artist_names=list(payload.artist_names),
+                canonical_album_title=payload.album_title,
+                canonical_album_artist_names=list(payload.album_artist_names),
+                external_refs=dict(payload.external_refs),
+                evidence=[],
+            ),
+            media=media,
+        )
 
 
 class SubscriptionServiceTest(unittest.TestCase):
@@ -59,6 +74,7 @@ class SubscriptionServiceTest(unittest.TestCase):
 
         self.assertEqual(result.target_payload["source"], "manual-detail")
         self.assertEqual(result.target_payload["music_media_input"]["entity_hint"], "artist")
+        self.assertEqual(result.target_payload["music_meta_base"]["entity_type"], "artist")
         self.assertEqual(result.target_payload["music_media_info"]["provider_id"], "artist-adele")
         self.assertEqual(len(self.music_media_chain.calls), 1)
 

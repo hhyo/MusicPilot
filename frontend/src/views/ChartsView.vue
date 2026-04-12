@@ -164,7 +164,7 @@
             <h4>{{ renderEntryTitle(selectedChart.hero_entry) }}</h4>
             <p>{{ selectedChart.hero_entry.entry_summary }}</p>
             <p class="hero-entry-card__conversion">
-              {{ renderConversionStatus(selectedChart.hero_entry) }}
+              {{ renderRecognitionStatus(selectedChart.hero_entry) }}
             </p>
           </div>
           <div class="entry-card__tags">
@@ -186,11 +186,11 @@
           </article>
           <article class="detail-summary-card">
             <p class="detail-summary-card__label">Metadata Ready</p>
-            <h4>{{ selectedChart.conversion_summary.ready ?? 0 }}</h4>
+            <h4>{{ selectedChart.recognition_summary.ready ?? 0 }}</h4>
           </article>
           <article class="detail-summary-card">
             <p class="detail-summary-card__label">Needs Follow-up</p>
-            <h4>{{ selectedChart.conversion_summary.not_ready ?? 0 }}</h4>
+            <h4>{{ selectedChart.recognition_summary.not_ready ?? 0 }}</h4>
           </article>
         </section>
 
@@ -225,7 +225,7 @@
                 <h4>{{ renderEntryTitle(item) }}</h4>
                 <p>{{ item.entry_summary }}</p>
                 <p class="entry-card__conversion">
-                  {{ renderConversionStatus(item) }}
+                  {{ renderRecognitionStatus(item) }}
                 </p>
                 <div class="entry-card__tags">
                   <el-tag size="small" effect="plain">{{ item.media_input.entity_hint || item.entry.item_type }}</el-tag>
@@ -395,7 +395,7 @@ async function openDiscoveryEntryDetail(item: DiscoveryEntryView) {
     metadataDetail.value = null;
     metadataDetailError.value = '';
     metadataDetailLoading.value = false;
-    discoveryWarningMessage.value = resolveConversionStatusText(item);
+    discoveryWarningMessage.value = resolveRecognitionStatusText(item);
     ElMessage.warning(discoveryWarningMessage.value);
     return;
   }
@@ -423,7 +423,7 @@ async function handleSubscribe(item: DiscoveryEntryView) {
     return;
   }
   if (!isEntrySubscribable(item)) {
-    const message = resolveConversionStatusText(item);
+    const message = resolveRecognitionStatusText(item);
     ElMessage.warning(message);
     return;
   }
@@ -527,8 +527,8 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function renderConversionStatus(item: DiscoveryEntryView) {
-  return resolveConversionStatusText(item);
+function renderRecognitionStatus(item: DiscoveryEntryView) {
+  return resolveRecognitionStatusText(item);
 }
 
 function renderEntryTitle(item: DiscoveryEntryView) {
@@ -541,27 +541,27 @@ function renderEntryProvider(item: DiscoveryEntryView) {
 }
 
 function isEntryResolvable(item: DiscoveryEntryView) {
-  return item.conversion_state === 'direct' || item.conversion_state === 'ready';
+  return item.recognition_state === 'direct' || item.recognition_state === 'ready';
 }
 
 function isEntrySubscribable(item: DiscoveryEntryView) {
   return isEntryResolvable(item);
 }
 
-function resolveConversionStatusText(item: DiscoveryEntryView) {
-  if (item.conversion_state === 'direct') {
+function resolveRecognitionStatusText(item: DiscoveryEntryView) {
+  if (item.recognition_state === 'direct') {
     return '已可直接查看详情';
   }
-  if (item.conversion_state === 'ready') {
+  if (item.recognition_state === 'ready') {
     return '可进入统一媒体解析';
   }
-  if (item.conversion_state === 'partial') {
-    return item.conversion_note || '解析信息部分可用';
+  if (item.recognition_state === 'partial') {
+    return item.recognition_note || '解析信息部分可用';
   }
-  if (item.conversion_state === 'insufficient') {
+  if (item.recognition_state === 'insufficient') {
     return '解析信息不足';
   }
-  return item.conversion_note || '当前暂不支持详情下钻';
+  return item.recognition_note || '当前暂不支持详情下钻';
 }
 </script>
 

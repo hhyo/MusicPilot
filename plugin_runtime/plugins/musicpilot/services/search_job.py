@@ -18,7 +18,7 @@ from ..schemas.acquisition import (
     SearchJobSummary,
 )
 from ..schemas.integration import AdapterMode, AdapterResolution
-from ..schemas.music_media import MusicMediaInfo, MusicMediaInput
+from ..schemas.music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase
 from ..schemas.mvp import DecisionStatus, EntityType, JobStatus, TriggerSource
 from .host_integration import HostSearchAdapterResolver
 from .metadata import MetadataService
@@ -52,7 +52,9 @@ class SearchJobService:
         self.repository = AcquisitionRepository(session)
 
     def create_job(self, payload: SearchJobCreateRequest) -> SearchJobSummary:
-        music_media_info = self.music_media_chain.resolve(payload.input)
+        resolved = self.music_media_chain.resolve_response(payload.input)
+        music_meta_base = resolved.base
+        music_media_info = resolved.media
         query_build = self.query_builder.build_from_music_media_info(
             music_media_info,
             payload.preferences,
@@ -60,6 +62,7 @@ class SearchJobService:
         job = self.repository.create_job(
             payload=payload,
             music_media_input=payload.input.model_dump(mode="json"),
+            music_meta_base=music_meta_base.model_dump(mode="json"),
             music_media_info=music_media_info.model_dump(mode="json"),
             query_payload=query_build.model_dump(mode="json"),
             note=JOB_NOTE,
@@ -194,6 +197,7 @@ def serialize_job(job: SearchJobModel) -> SearchJobSummary:
     return SearchJobSummary(
         id=job.id,
         music_media_input=MusicMediaInput.model_validate(job.music_media_input),
+        music_meta_base=MusicMetaBase.model_validate(job.music_meta_base),
         music_media_info=MusicMediaInfo.model_validate(job.music_media_info),
         trigger_source=TriggerSource(job.trigger_source),
         profile_id=job.profile_id,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ..schemas.music_media import MusicMediaInput, MusicResolveDetailResponse
+from ..schemas.music_media import MusicMediaInput, MusicResolveDetailResponse, MusicResolveResponse
 from .music_media_info_hydrator import MusicMediaInfoHydrator
 from .music_media_input_adapter import MusicMediaInputAdapter
 from .music_media_recognizer import MusicMediaRecognizer
@@ -21,12 +21,21 @@ class MusicMediaChain:
         )
         self.hydrator = MusicMediaInfoHydrator(metadata_service=metadata_service)
 
-    def resolve(self, input: MusicMediaInput):
+    def build_base(self, input: MusicMediaInput):
         normalized = self.input_adapter.from_input(input)
-        base = self.base_builder.build(normalized)
+        return self.base_builder.build(normalized)
+
+    def resolve(self, input: MusicMediaInput):
+        base = self.build_base(input)
         return self.recognizer.recognize(base)
 
+    def resolve_response(self, input: MusicMediaInput) -> MusicResolveResponse:
+        base = self.build_base(input)
+        media = self.recognizer.recognize(base)
+        return MusicResolveResponse(base=base, media=media)
+
     def resolve_detail(self, input: MusicMediaInput) -> MusicResolveDetailResponse:
-        media = self.resolve(input)
+        resolved = self.resolve_response(input)
+        media = resolved.media
         detail = self.hydrator.hydrate(media)
-        return MusicResolveDetailResponse(media=media, detail=detail)
+        return MusicResolveDetailResponse(base=resolved.base, media=media, detail=detail)

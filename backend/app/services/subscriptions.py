@@ -85,12 +85,13 @@ class SubscriptionService:
             },
             raw_context={"target_payload": payload.target_payload},
         )
-        media_info = self.music_media_chain.resolve(media_input)
+        resolved = self.music_media_chain.resolve_response(media_input)
         target_payload = dict(payload.target_payload)
         target_payload.update(
             {
                 "music_media_input": media_input.model_dump(mode="json"),
-                "music_media_info": media_info.model_dump(mode="json"),
+                "music_meta_base": resolved.base.model_dump(mode="json"),
+                "music_media_info": resolved.media.model_dump(mode="json"),
             }
         )
         subscription = self.repository.create_subscription(
@@ -115,13 +116,13 @@ class SubscriptionService:
         entry: DiscoveryEntryView,
         payload: CreateChartEntrySubscriptionRequest,
     ) -> SubscriptionSummary:
-        if entry.conversion_state not in {"direct", "ready"}:
+        if entry.recognition_state not in {"direct", "ready"}:
             raise HTTPException(
                 status_code=400,
-                detail=entry.conversion_note or "Chart entry does not have enough music media clues for subscription.",
+                detail=entry.recognition_note or "Chart entry does not have enough music media clues for subscription.",
             )
 
-        media_info = self.music_media_chain.resolve(entry.media_input)
+        resolved = self.music_media_chain.resolve_response(entry.media_input)
         chart_entry = entry.entry
         entry_hints = dict(chart_entry.target_payload or {})
         subscription = self.repository.create_subscription(
@@ -145,9 +146,10 @@ class SubscriptionService:
                 "subtitle": chart_entry.subtitle,
                 "entry_target_payload": entry_hints,
                 "music_media_input": entry.media_input.model_dump(mode="json"),
-                "music_media_info": media_info.model_dump(mode="json"),
-                "conversion_state": entry.conversion_state,
-                "conversion_note": entry.conversion_note,
+                "music_meta_base": entry.meta_base.model_dump(mode="json"),
+                "music_media_info": resolved.media.model_dump(mode="json"),
+                "recognition_state": entry.recognition_state,
+                "recognition_note": entry.recognition_note,
                 **entry_hints,
             },
             note=(

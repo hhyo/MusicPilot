@@ -7,7 +7,7 @@ import type {
   VerificationState,
 } from '@/types/acquisition';
 import type { ApiResponse, EntityType, MetadataDetail } from '@/types/metadata';
-import type { MusicMediaInput } from '@/types/music-media';
+import type { MusicMediaInput, MusicMetaBase } from '@/types/music-media';
 
 export type SubscriptionType = 'artist' | 'album' | 'track' | 'chart_entry';
 export type SubscriptionState = 'active' | 'paused' | 'archived';
@@ -80,11 +80,12 @@ export interface ChartEntryInfo {
 export interface DiscoveryEntryView {
   entry: ChartEntryInfo;
   media_input: MusicMediaInput;
+  meta_base: MusicMetaBase;
   entry_summary: string;
   badges: string[];
   highlight_reason?: string | null;
-  conversion_state: string;
-  conversion_note?: string | null;
+  recognition_state: string;
+  recognition_note?: string | null;
 }
 
 export interface DiscoveryEntryGroup {
@@ -111,7 +112,7 @@ export interface ChartDetailData {
   hero_entry?: DiscoveryEntryView | null;
   summary_stats: Record<string, string | number>;
   entry_groups: DiscoveryEntryGroup[];
-  conversion_summary: Record<string, number>;
+  recognition_summary: Record<string, number>;
 }
 
 export interface CreateChartEntrySubscriptionPayload {

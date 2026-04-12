@@ -92,6 +92,7 @@ class MusicResolveRequest(BaseModel):
 
 
 class MusicResolveResponse(BaseModel):
+    base: MusicMetaBase
     media: MusicMediaInfo
 
     model_config = ConfigDict(extra="forbid")
@@ -104,6 +105,7 @@ class MusicResolveDetailRequest(BaseModel):
 
 
 class MusicResolveDetailResponse(BaseModel):
+    base: MusicMetaBase
     media: MusicMediaInfo
     detail: MetadataDetail
 

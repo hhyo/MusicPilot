@@ -575,6 +575,17 @@ class OrganizeIntegrationTest(unittest.TestCase):
                     "source_context": {},
                     "raw_context": {},
                 },
+                music_meta_base={
+                    "entity_type": "album",
+                    "canonical_title": detail.title,
+                    "canonical_artist_names": [detail.artist_name],
+                    "canonical_album_title": detail.album_title,
+                    "canonical_album_artist_names": [],
+                    "external_refs": {},
+                    "source_refs": {},
+                    "evidence": [],
+                    "normalization_notes": [],
+                },
                 music_media_info=media.model_dump(mode="json"),
                 query_payload={},
                 summary_json={},
@@ -667,6 +678,17 @@ class OrganizeIntegrationTest(unittest.TestCase):
                     "source_context": {},
                     "raw_context": {},
                 },
+                music_meta_base={
+                    "entity_type": "album",
+                    "canonical_title": detail.title,
+                    "canonical_artist_names": [detail.artist_name],
+                    "canonical_album_title": detail.album_title,
+                    "canonical_album_artist_names": [],
+                    "external_refs": {},
+                    "source_refs": {},
+                    "evidence": [],
+                    "normalization_notes": [],
+                },
                 music_media_info=media.model_dump(mode="json"),
                 query_payload={},
                 summary_json={},
@@ -745,6 +767,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         Base.metadata.create_all(bind=engine)
         session = Session()
         try:
+            detail = build_album_detail()
             media = build_album_media()
             job = SearchJobModel(
                 id="job-apply-001",
@@ -762,6 +785,17 @@ class OrganizeIntegrationTest(unittest.TestCase):
                     "external_refs": {},
                     "source_context": {},
                     "raw_context": {},
+                },
+                music_meta_base={
+                    "entity_type": "album",
+                    "canonical_title": detail.title,
+                    "canonical_artist_names": [detail.artist_name],
+                    "canonical_album_title": detail.album_title,
+                    "canonical_album_artist_names": [],
+                    "external_refs": {},
+                    "source_refs": {},
+                    "evidence": [],
+                    "normalization_notes": [],
                 },
                 music_media_info=media.model_dump(mode="json"),
                 query_payload={},
@@ -858,6 +892,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         Base.metadata.create_all(bind=engine)
         session = Session()
         try:
+            detail = build_album_detail()
             media = build_album_media()
             job = SearchJobModel(
                 id="job-apply-ctx-001",
@@ -875,6 +910,17 @@ class OrganizeIntegrationTest(unittest.TestCase):
                     "external_refs": {},
                     "source_context": {},
                     "raw_context": {},
+                },
+                music_meta_base={
+                    "entity_type": "album",
+                    "canonical_title": detail.title,
+                    "canonical_artist_names": [detail.artist_name],
+                    "canonical_album_title": detail.album_title,
+                    "canonical_album_artist_names": [],
+                    "external_refs": {},
+                    "source_refs": {},
+                    "evidence": [],
+                    "normalization_notes": [],
                 },
                 music_media_info=media.model_dump(mode="json"),
                 query_payload={},
