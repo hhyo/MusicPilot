@@ -4,12 +4,12 @@
 
 ## 1. 设计目标
 
-本轮重构目标不是“继续在现有 `services/` 架构上补 Chain”，而是把 MusicPilot 后端直接重构为与 MoviePilot 同构的形态：
+本轮重构目标不是“继续在现有旧结构上补 Chain”，而是把 MusicPilot 后端直接重构为与 MoviePilot 同构的形态：
 
 - 主业务流程统一由 `Music*Chain` 编排
 - API endpoint、调度入口、插件宿主注册直接调用 `Music*Chain`
 - 后端目录结构、文件命名和组织方式与 MoviePilot 对齐
-- 旧的 `api/routes`、`services`、`models`、`repositories`、`adapters` 不再作为长期主结构保留
+- 旧的 `api/routes`、`services`、`models`、`repositories`、`adapters`、`tasks` 不再作为长期主结构保留
 - 不为旧结构保留兼容层，不做双轨目录，不做中间转发层
 
 本轮保留的唯一差异是业务语义：
@@ -34,7 +34,7 @@
 - 兼容性 wrapper
 - 旧目录对新目录的转发 import
 - 新旧 route 双轨并行
-- `Service` 包装 `Chain` 的过渡实现
+- 任何 `Service`、`Repository`、`Adapter`、`Task` 包装 `Chain` 的过渡实现
 
 ## 3. 目标结构
 
@@ -52,6 +52,8 @@ backend/app/
   helper/
   modules/
   schemas/
+  startup/
+  utils/
 ```
 
 对应约束：
@@ -61,7 +63,24 @@ backend/app/
 - `backend/app/models/` 迁入 `backend/app/db/models/`
 - `backend/app/repositories/` 迁入 `backend/app/db/*_oper.py`
 - `backend/app/adapters/` 按职责迁入 `helper/` 或 `modules/`
-- 后端活跃结构不再保留 `Service` 概念
+- `backend/app/tasks/` 退出活跃主路径，启动装配与调度注册迁入 `startup/`
+- 通用无领域工具迁入 `utils/`
+- 后端活跃结构不再保留 `Service`、`Repository`、`Adapter`、`Task` 概念
+
+### 3.0 结构同构原则
+
+“对齐 MoviePilot” 的含义不是机械复制空目录，而是：
+
+1. 有等价职责的目录、文件名、分层方式必须保持一致
+2. 当前没有等价职责的目录不强行创建空壳
+3. 不能继续使用旧目录替代本应存在的目标目录
+4. 重构完成时旧目录必须物理删除，不保留转发壳
+
+因此：
+
+- `startup/` 在 MusicPilot 存在启动装配、宿主调度注册、本地 loop 时必须建立
+- `utils/` 在 MusicPilot 存在无领域通用工具时必须建立
+- `agent/`、`workflow/` 等仅在 MusicPilot 出现对应职责时再引入，不提前生成空壳目录
 
 ### 3.1 `api/endpoints`
 
@@ -143,6 +162,28 @@ backend/app/
 - host http / downloader / storage runtime
 - host probe / host search
 
+### 3.6 `startup`
+
+放启动装配、宿主调度注册、本地 loop、生命周期收口逻辑。
+
+这意味着当前散落在：
+
+- `app/__init__.py`
+- `app/main.py`
+- `tasks/`
+
+中的运行期装配职责，重构后都应向 `startup/` 收敛。
+
+### 3.7 `utils`
+
+放无领域含义、可被多个模块复用的通用工具。
+
+要求：
+
+- 不把业务编排塞进 `utils/`
+- 不把本应属于 `helper/` 或 `modules/` 的逻辑偷放进 `utils/`
+- 不把 `utils/` 当成新的杂项回收站
+
 ## 4. 主入口规则
 
 重构完成后，以下入口只能直接调用 `Music*Chain`：
@@ -155,7 +196,7 @@ backend/app/
 
 - endpoint 直接编排多个旧支撑对象
 - scheduler 直接编排多个旧支撑对象
-- 以任何 `Service` 概念承担完整跨模块主流程
+- 以任何 `Service`、`Repository`、`Adapter`、`Task` 概念承担完整跨模块主流程
 - 为保留旧结构，在新链外再加一层 facade
 
 ## 5. 7 条主链职责
@@ -283,6 +324,7 @@ backend/app/
 - `models`：删除
 - `repositories`：删除
 - `adapters`：删除
+- `tasks`：删除
 
 如果某个旧文件中的逻辑仍然有效：
 
@@ -296,6 +338,7 @@ backend/app/
 - alias import
 - deprecated wrapper
 - 兼容性 facade
+- 旧目录到新目录的转发壳
 
 ## 9. `plugin_runtime` 同步规则
 
@@ -305,6 +348,7 @@ backend/app/
 - 同样采用 `chain`
 - 同样采用 `db/models` 与 `db/*_oper.py`
 - 同样取消旧目录语义
+- 同样采用 `startup/` 与 `utils/` 的同构职责划分
 
 后端主仓完成结构重排后，`plugin_runtime` 必须同步调整，不允许继续维持“主仓新结构 + runtime 旧结构”。
 
@@ -318,13 +362,16 @@ backend/app/
    - `backend/app/models/`
    - `backend/app/repositories/`
    - `backend/app/adapters/`
+   - `backend/app/tasks/`
 2. API endpoint 只直接调用 `Music*Chain`
 3. 宿主 `get_service()` 只注册 `Music*Chain`
 4. 本地 loop 只调用 `Music*Chain`
-5. `plugin_runtime` 后端镜像与主仓结构同构
-6. backend 全量测试通过
-7. `python3 scripts/package_plugin.py` 通过
-8. README / backend README / 架构文档同步到新结构
+5. `core/dependencies.py` 只装配 `Music*Chain`、`db/*_oper.py`、`helper/`、`modules/`、`core/`、`startup/`、`utils/` 中的对象，不再装配旧目录主对象
+6. `plugin_runtime` 后端镜像与主仓结构同构
+7. 测试组织以 `chain`、`api/endpoints`、`db/*_oper.py` 为主，不再以旧目录概念为主
+8. backend 全量测试通过
+9. `python3 scripts/package_plugin.py` 通过
+10. README / backend README / 架构文档同步到新结构
 
 ## 11. 实施边界
 

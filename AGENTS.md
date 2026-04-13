@@ -56,11 +56,17 @@
 - 后端目录结构与命名方式应优先向 MoviePilot 对齐，目标形态固定为：
   - `backend/app/api/endpoints/`
   - `backend/app/chain/`
+  - `backend/app/core/`
+  - `backend/app/db/`
   - `backend/app/db/models/`
   - `backend/app/db/*_oper.py`
   - `backend/app/helper/`
   - `backend/app/modules/`
-- `api/routes`、`services`、`models`、`repositories`、`adapters` 不作为长期主结构保留；后端活跃结构不再保留 `Service` 概念与 `services/` 目录。
+  - `backend/app/schemas/`
+  - `backend/app/startup/`
+  - `backend/app/utils/`
+- 与 MoviePilot 有等价职责的目录、文件名和分层方式必须保持一致；如当前项目暂时没有对应职责，可不创建空壳目录，但不允许继续用旧目录承担该职责。
+- `api/routes`、`services`、`models`、`repositories`、`adapters`、`tasks` 不作为长期主结构保留；后端活跃结构不再保留 `Service`、`Repository`、`Adapter`、`Task` 概念与对应目录。
 - 文件命名优先对齐 MoviePilot 的领域文件名，例如 `media.py`、`search.py`、`download.py`、`transfer.py`、`subscribe.py`、`chart.py`、`dashboard.py`；类命名保留音乐领域语义，统一使用 `Music*Chain`。
 - API endpoint、宿主 `get_service()` 调度注册、本地 loop 入口都只能直接调用 `Music*Chain`。
 - 支撑逻辑统一落到：
@@ -68,7 +74,12 @@
   - `helper/`
   - `modules/`
   - `core/`
-  不再通过 `Service` 命名或 `services/` 目录承载。
+  - `startup/`
+  - `utils/`
+  不再通过 `Service`、`Repository`、`Adapter`、`Task` 命名或旧目录承载。
+- 启动装配、调度注册、生命周期管理统一进入 `startup/`；无领域含义的通用工具统一进入 `utils/`；`core/dependencies.py` 不得重新引入旧主流程对象或旧目录概念。
+- 测试组织也要与目标结构同步，优先围绕 `chain`、`api/endpoints`、`db/*_oper.py` 组织，不再以旧 `service/repository/adapter` 视角划分主测试单元。
+- `plugin_runtime/plugins/musicpilot/` 后端镜像必须与主仓后端保持同构，不允许出现“主仓新结构 + runtime 旧结构”的长期例外。
 - 统一音乐媒体解析链是上层业务的基础语义；涉及发现、详情、搜索、订阅、获取、库内线索等输入时，优先收敛到 `MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`，而不是在各模块各自维护零散 hints 或来源特判。
 - 优先复用宿主底层能力与明确接口语义，不把宿主现有业务语义直接硬套到音乐场景。
 - 每个场景优先对应一个清晰主调用语义，不引入 recommendation / strategy / matrix 驱动的运行时业务 fallback。
@@ -121,6 +132,7 @@
 - 不生成大段空文件；占位文件也应包含最小可理解内容。
 - 不为了“看起来完整”而生成大量无意义模板代码。
 - 如需进行后端主结构重排，优先采用激进替换而不是兼容性双轨；不为了保留旧目录、旧命名或旧主流程入口而做折中结构。
+- 后端主结构重排完成时，旧目录应物理删除，不保留 wrapper、alias import、deprecated facade 或转发壳文件。
 - 若出现多种工程组织方案，优先选择最简单、最利于后续扩展的一种。
 - 若文档中存在解释空间，优先遵守：
   - 非侵入式插件扩展
