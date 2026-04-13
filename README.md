@@ -287,6 +287,7 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 - Phase 3 / T11-T14
 - Phase 4 / 订阅与编排最小闭环
 - Phase 5 / 宿主真实接入优先级最高的收口阶段
+- Phase 6 / 真实 organize 接入优先阶段
 - Phase 7A / 真实 MoviePilot 宿主语义验证与差异收敛
 - Phase 7B / 真实成功样例闭环打通
 - Phase 8 / 真实成功率扩展与稳定性收敛
@@ -328,6 +329,6 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 
 ## 下一阶段建议推进方式
 
-1. 在保留现有 response envelope 的前提下，继续增强 MusicPilot 自己的音乐 metadata 识别能力，优先补无标签文件的目录/文件名识别、多源 provider 与 provider 刷新策略。
+1. 在保留现有 response envelope 的前提下，继续增强 MusicPilot 自己的音乐 metadata 识别能力，优先补无标签文件的目录/文件名识别与宿主联调稳定性。
 2. 在当前 SubscriptionExecutionService 骨架上继续补下载完成回调与 organize job 状态机。
 4. 保持 `plugin_runtime/` 只作为构建产物边界，不把开发源码和宿主产物混放。

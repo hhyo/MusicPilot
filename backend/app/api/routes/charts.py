@@ -125,8 +125,8 @@ async def subscribe_chart(
         code="CHART_SUBSCRIBE_OK",
         mock=entry.entry.mock,
         note=(
-            "当前榜单订阅来自 mock chart entry，不会自动刷新或自动发现真实榜单增量。"
+            "当前榜单订阅来自 mock chart entry，不会参与真实榜单刷新。"
             if entry.entry.mock
-            else "当前榜单订阅来自真实 chart entry，刷新由后台固定周期任务维护。"
+            else "当前榜单订阅来自真实 chart entry，会复用持久化榜单数据与统一周期刷新。"
         ),
     )
