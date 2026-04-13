@@ -46,6 +46,19 @@
 ## Architecture Rules
 
 - MusicPilot 维护自己的音乐业务语义，不把 MoviePilot 的影视业务语义直接当成默认主语义。
+- 后端业务主流程严格参考 MoviePilot 的 `Chain` 组织方式实现。凡是跨步骤、跨模块、需要编排状态推进的主链路，应优先实现为明确的 `*Chain`，而不是继续堆零散 `*Service` 互相调用。
+- `Chain` 是后端主流程的唯一推荐组织方式：
+  - 输入归一
+  - 主流程编排
+  - 状态推进
+  - 结果回写
+  都应在 `Chain` 内统一收口。
+- `Service` 只保留为链内部或外围的稳定支撑层，例如：
+  - provider / adapter 边界
+  - repository / persistence
+  - 纯查询聚合
+  - 策略或格式化辅助
+  不再让 `Service` 承担主业务流程编排职责。
 - 统一音乐媒体解析链是上层业务的基础语义；涉及发现、详情、搜索、订阅、获取、库内线索等输入时，优先收敛到 `MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`，而不是在各模块各自维护零散 hints 或来源特判。
 - 优先复用宿主底层能力与明确接口语义，不把宿主现有业务语义直接硬套到音乐场景。
 - 每个场景优先对应一个清晰主调用语义，不引入 recommendation / strategy / matrix 驱动的运行时业务 fallback。
