@@ -46,24 +46,42 @@
 ## Architecture Rules
 
 - MusicPilot 维护自己的音乐业务语义，不把 MoviePilot 的影视业务语义直接当成默认主语义。
-- 后端业务主流程严格参考 MoviePilot 的 `Chain` 组织方式实现。凡是跨步骤、跨模块、需要编排状态推进的主链路，应优先实现为明确的 `*Chain`，而不是继续堆零散 `*Service` 互相调用。
+- 后端业务主流程严格参考 MoviePilot 的 `Chain` 组织方式与代码风格实现。凡是跨步骤、跨模块、需要编排状态推进的主链路，应优先实现为明确的 `Music*Chain`，而不是继续堆零散 `*Service` 互相调用。
 - `Chain` 是后端主流程的唯一推荐组织方式：
   - 输入归一
   - 主流程编排
   - 状态推进
   - 结果回写
   都应在 `Chain` 内统一收口。
+- 后端目录结构与命名方式应优先向 MoviePilot 对齐，目标形态固定为：
+  - `backend/app/api/endpoints/`
+  - `backend/app/chain/`
+  - `backend/app/db/models/`
+  - `backend/app/db/*_oper.py`
+  - `backend/app/helper/`
+  - `backend/app/modules/`
+- `api/routes`、`services`、`models`、`repositories`、`adapters` 不作为长期主结构保留；如因重构过程中暂时存在，也只视为过渡层，最终应退出活跃主路径。
+- 文件命名优先对齐 MoviePilot 的领域文件名，例如 `media.py`、`search.py`、`download.py`、`transfer.py`、`subscribe.py`、`chart.py`、`dashboard.py`；类命名保留音乐领域语义，统一使用 `Music*Chain`。
 - `Service` 只保留为链内部或外围的稳定支撑层，例如：
   - provider / adapter 边界
-  - repository / persistence
+  - persistence / oper
   - 纯查询聚合
   - 策略或格式化辅助
   不再让 `Service` 承担主业务流程编排职责。
+- API endpoint、宿主 `get_service()` 调度注册、本地 loop 入口都只能直接调用 `Music*Chain`，不再直接依赖主编排 `Service`。
 - 统一音乐媒体解析链是上层业务的基础语义；涉及发现、详情、搜索、订阅、获取、库内线索等输入时，优先收敛到 `MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`，而不是在各模块各自维护零散 hints 或来源特判。
 - 优先复用宿主底层能力与明确接口语义，不把宿主现有业务语义直接硬套到音乐场景。
 - 每个场景优先对应一个清晰主调用语义，不引入 recommendation / strategy / matrix 驱动的运行时业务 fallback。
 - 新能力接入时优先保持扩展点统一，不按单一来源或单一模块临时拼接主结构。
 - 跨模块链路应通过稳定桥接层连接，不在页面或零散调用点里堆来源特判。
+- 当前后端主链长期目标固定为：
+  - `MusicMediaChain`
+  - `MusicSearchChain`
+  - `MusicDownloadChain`
+  - `MusicTransferChain`
+  - `MusicSubscribeChain`
+  - `MusicChartChain`
+  - `MusicDashboardChain`
 
 ## Delivery Rules
 
@@ -102,6 +120,7 @@
 - 能运行的地方尽量跑通，不能跑通的地方要给出明确 TODO 注释或文档说明。
 - 不生成大段空文件；占位文件也应包含最小可理解内容。
 - 不为了“看起来完整”而生成大量无意义模板代码。
+- 如需进行后端主结构重排，优先采用激进替换而不是兼容性双轨；不为了保留旧目录、旧命名或旧主流程入口而做折中结构。
 - 若出现多种工程组织方案，优先选择最简单、最利于后续扩展的一种。
 - 若文档中存在解释空间，优先遵守：
   - 非侵入式插件扩展
