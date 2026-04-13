@@ -1099,7 +1099,11 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
         fake_plugins_module._PluginBase = FakePluginBase  # type: ignore[attr-defined]
         previous_plugins_module = sys.modules.get("app.plugins")
         module_name = "musicpilot_host_entry_bootstrap_test"
-        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        spec = importlib.util.spec_from_file_location(
+            module_name,
+            module_path,
+            submodule_search_locations=[str(module_path.parent)],
+        )
         self.assertIsNotNone(spec)
         self.assertIsNotNone(spec.loader)
         plugin_module = importlib.util.module_from_spec(spec)
@@ -1265,6 +1269,94 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
                     }
                 ],
             )
+        finally:
+            sys.modules.pop(module_name, None)
+            if previous_plugins_module is not None:
+                sys.modules["app.plugins"] = previous_plugins_module
+            else:
+                sys.modules.pop("app.plugins", None)
+
+    def test_plugin_entry_registers_host_scheduler_service(self) -> None:
+        module_path = Path(__file__).resolve().parents[1] / "app" / "__init__.py"
+        fake_plugins_module = type(sys)("app.plugins")
+
+        class FakePluginBase:
+            def __init__(self):
+                pass
+
+        fake_plugins_module._PluginBase = FakePluginBase  # type: ignore[attr-defined]
+        previous_plugins_module = sys.modules.get("app.plugins")
+        module_name = "musicpilot_host_entry_service_test"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        plugin_module = importlib.util.module_from_spec(spec)
+
+        sys.modules["app.plugins"] = fake_plugins_module
+        sys.modules.pop(module_name, None)
+        try:
+            spec.loader.exec_module(plugin_module)  # type: ignore[union-attr]
+            plugin = plugin_module.musicpilot()
+
+            fake_settings_module = SimpleNamespace(
+                settings=SimpleNamespace(
+                    subscription_scheduler_enabled=True,
+                    subscription_scheduler_poll_seconds=30.0,
+                )
+            )
+            with patch.object(plugin_module, "_load_local_module", return_value=fake_settings_module):
+                services = plugin.get_service()
+
+            self.assertEqual(
+                services,
+                [
+                    {
+                        "id": "subscription-scheduler",
+                        "name": "MusicPilot 订阅调度",
+                        "trigger": "interval",
+                        "func": plugin.run_scheduler_once,
+                        "kwargs": {"seconds": 30},
+                    }
+                ],
+            )
+        finally:
+            sys.modules.pop(module_name, None)
+            if previous_plugins_module is not None:
+                sys.modules["app.plugins"] = previous_plugins_module
+            else:
+                sys.modules.pop("app.plugins", None)
+
+    def test_plugin_entry_skips_host_scheduler_service_when_disabled(self) -> None:
+        module_path = Path(__file__).resolve().parents[1] / "app" / "__init__.py"
+        fake_plugins_module = type(sys)("app.plugins")
+
+        class FakePluginBase:
+            def __init__(self):
+                pass
+
+        fake_plugins_module._PluginBase = FakePluginBase  # type: ignore[attr-defined]
+        previous_plugins_module = sys.modules.get("app.plugins")
+        module_name = "musicpilot_host_entry_service_disabled_test"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        plugin_module = importlib.util.module_from_spec(spec)
+
+        sys.modules["app.plugins"] = fake_plugins_module
+        sys.modules.pop(module_name, None)
+        try:
+            spec.loader.exec_module(plugin_module)  # type: ignore[union-attr]
+            plugin = plugin_module.musicpilot()
+            plugin.init_plugin({"enabled": False})
+
+            fake_settings_module = SimpleNamespace(
+                settings=SimpleNamespace(
+                    subscription_scheduler_enabled=True,
+                    subscription_scheduler_poll_seconds=30.0,
+                )
+            )
+            with patch.object(plugin_module, "_load_local_module", return_value=fake_settings_module):
+                self.assertEqual(plugin.get_service(), [])
         finally:
             sys.modules.pop(module_name, None)
             if previous_plugins_module is not None:

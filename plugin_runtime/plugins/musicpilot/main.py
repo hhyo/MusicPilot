@@ -60,11 +60,17 @@ async def _run_subscription_scheduler_loop() -> None:
         await asyncio.sleep(settings.subscription_scheduler_poll_seconds)
 
 
+def _should_start_local_scheduler_loop() -> bool:
+    if not settings.subscription_scheduler_enabled:
+        return False
+    return not __name__.startswith("app.plugins.musicpilot.")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     bootstrap_metadata_storage()
     scheduler_task = None
-    if settings.subscription_scheduler_enabled:
+    if _should_start_local_scheduler_loop():
         scheduler_task = asyncio.create_task(_run_subscription_scheduler_loop())
     try:
         yield

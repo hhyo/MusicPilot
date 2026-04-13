@@ -5,14 +5,16 @@
 - 作为 plugin_runtime 装配后的插件包根
 - 保留最小版本号和插件元信息
 
-注意：
-- 当前阶段不实现真实 MoviePilot 插件注册逻辑
-- 当前阶段不声明不存在的宿主 API
-- 后续仅在宿主契约明确后补真实入口与注册信息
+说明：
+- 在 MoviePilot 宿主内通过插件入口注册 API、侧边栏、仪表盘和调度服务
+- 在独立 FastAPI 模式下保留本地开发入口
 """
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -24,12 +26,33 @@ except Exception:  # pragma: no cover - only available inside MoviePilot host ru
 __version__ = "0.1.0"
 PLUGIN_NAME = "MusicPilot"
 PLUGIN_DESCRIPTION = "Music discovery, metadata, subscriptions, and organize workspace for MoviePilot."
+logger = logging.getLogger("musicpilot.plugin")
 
 
 def _bootstrap_plugin_storage() -> None:
     from .services.metadata import bootstrap_metadata_storage
 
     bootstrap_metadata_storage()
+
+
+def _load_local_module(relative_name: str):
+    package_name = __package__
+    if package_name:
+        try:
+            return importlib.import_module(f"{package_name}.{relative_name}")
+        except ModuleNotFoundError:
+            pass
+    module_path = Path(__file__).resolve().parent / Path(*relative_name.split("."))
+    module_file = module_path.with_suffix(".py")
+    spec = importlib.util.spec_from_file_location(
+        f"_musicpilot_local_{relative_name.replace('.', '_')}",
+        module_file,
+    )
+    if spec is None or spec.loader is None:
+        raise ModuleNotFoundError(relative_name)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _build_plugin_api_manifest() -> list[dict[str, Any]]:
@@ -70,6 +93,37 @@ def _resolve_remote_dist_path() -> str:
     return "static/assets"
 
 
+def _subscription_scheduler_interval_seconds() -> int:
+    settings_module = _load_local_module("core.config")
+    return max(1, int(round(settings_module.settings.subscription_scheduler_poll_seconds)))
+
+
+def _run_registered_scheduler_once() -> dict[str, Any]:
+    dependencies_module = _load_local_module("core.dependencies")
+
+    session_factory = dependencies_module.get_session_factory()
+    with session_factory() as session:
+        try:
+            scheduler = dependencies_module.build_subscription_scheduler_service(session)
+            result = scheduler.run_pending_once()
+            session.commit()
+            if result.get("executed_ids"):
+                logger.info(
+                    "moviepilot.scheduler.executed ids=%s",
+                    ",".join(result["executed_ids"]),
+                )
+            if result.get("error_ids"):
+                logger.warning(
+                    "moviepilot.scheduler.errors ids=%s",
+                    ",".join(result["error_ids"]),
+                )
+            return result
+        except Exception:  # noqa: BLE001
+            session.rollback()
+            logger.exception("moviepilot.scheduler.run_failed")
+            raise
+
+
 if _HostPluginBase is not None:
     class musicpilot(_HostPluginBase):
         """Minimal MoviePilot plugin entry for loading MusicPilot runtime in-process."""
@@ -99,6 +153,20 @@ if _HostPluginBase is not None:
             if not self._enabled:
                 return []
             return _build_plugin_api_manifest()
+
+        def get_service(self) -> list[dict[str, Any]]:
+            settings_module = _load_local_module("core.config")
+            if not self._enabled or not settings_module.settings.subscription_scheduler_enabled:
+                return []
+            return [
+                {
+                    "id": "subscription-scheduler",
+                    "name": "MusicPilot 订阅调度",
+                    "trigger": "interval",
+                    "func": self.run_scheduler_once,
+                    "kwargs": {"seconds": _subscription_scheduler_interval_seconds()},
+                }
+            ]
 
         def get_form(self):
             return [], {"enabled": True}
@@ -140,6 +208,14 @@ if _HostPluginBase is not None:
                 "title": PLUGIN_NAME,
                 "subtitle": "音乐发现、元数据与整理工作台",
             }, None
+
+        def run_scheduler_once(self) -> dict[str, Any]:
+            if not self._enabled:
+                return {"reason": "plugin_disabled"}
+            if not self._storage_bootstrapped:
+                _bootstrap_plugin_storage()
+                self._storage_bootstrapped = True
+            return _run_registered_scheduler_once()
 
         def stop_service(self):
             return None
