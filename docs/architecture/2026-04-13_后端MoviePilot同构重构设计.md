@@ -57,10 +57,11 @@ backend/app/
 对应约束：
 
 - `backend/app/api/routes/` 退出活跃主路径
-- `backend/app/services/` 不再承担主流程编排职责
+- `backend/app/services/` 退出活跃主路径
 - `backend/app/models/` 迁入 `backend/app/db/models/`
 - `backend/app/repositories/` 迁入 `backend/app/db/*_oper.py`
 - `backend/app/adapters/` 按职责迁入 `helper/` 或 `modules/`
+- 后端活跃结构不再保留 `Service` 概念
 
 ### 3.1 `api/endpoints`
 
@@ -152,9 +153,9 @@ backend/app/
 
 禁止的组织方式：
 
-- endpoint 直接编排多个 `Service`
-- scheduler 直接编排多个 `Service`
-- `Service` 直接承担完整跨模块主流程
+- endpoint 直接编排多个旧支撑对象
+- scheduler 直接编排多个旧支撑对象
+- 以任何 `Service` 概念承担完整跨模块主流程
 - 为保留旧结构，在新链外再加一层 facade
 
 ## 5. 7 条主链职责
@@ -168,7 +169,7 @@ backend/app/
 - `MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`
 - detail hydrate
 
-支撑层保留：
+支撑逻辑保留：
 
 - 输入适配
 - meta 构建
@@ -278,7 +279,7 @@ backend/app/
 本轮按激进重构处理，旧结构的规则如下：
 
 - `api/routes`：删除，不保留转发
-- `services`：主编排逻辑迁出；留下的只能是支撑类
+- `services`：删除，不保留任何活跃代码
 - `models`：删除
 - `repositories`：删除
 - `adapters`：删除
@@ -313,9 +314,9 @@ backend/app/
 
 1. 活跃代码中不再存在：
    - `backend/app/api/routes/`
+   - `backend/app/services/`
    - `backend/app/models/`
    - `backend/app/repositories/`
-   - 承担主编排职责的 `backend/app/services/`
    - `backend/app/adapters/`
 2. API endpoint 只直接调用 `Music*Chain`
 3. 宿主 `get_service()` 只注册 `Music*Chain`

@@ -46,7 +46,7 @@
 ## Architecture Rules
 
 - MusicPilot 维护自己的音乐业务语义，不把 MoviePilot 的影视业务语义直接当成默认主语义。
-- 后端业务主流程严格参考 MoviePilot 的 `Chain` 组织方式与代码风格实现。凡是跨步骤、跨模块、需要编排状态推进的主链路，应优先实现为明确的 `Music*Chain`，而不是继续堆零散 `*Service` 互相调用。
+- 后端业务主流程严格参考 MoviePilot 的 `Chain` 组织方式与代码风格实现。凡是跨步骤、跨模块、需要编排状态推进的主链路，应优先实现为明确的 `Music*Chain`。
 - `Chain` 是后端主流程的唯一推荐组织方式：
   - 输入归一
   - 主流程编排
@@ -60,15 +60,15 @@
   - `backend/app/db/*_oper.py`
   - `backend/app/helper/`
   - `backend/app/modules/`
-- `api/routes`、`services`、`models`、`repositories`、`adapters` 不作为长期主结构保留；如因重构过程中暂时存在，也只视为过渡层，最终应退出活跃主路径。
+- `api/routes`、`services`、`models`、`repositories`、`adapters` 不作为长期主结构保留；后端活跃结构不再保留 `Service` 概念与 `services/` 目录。
 - 文件命名优先对齐 MoviePilot 的领域文件名，例如 `media.py`、`search.py`、`download.py`、`transfer.py`、`subscribe.py`、`chart.py`、`dashboard.py`；类命名保留音乐领域语义，统一使用 `Music*Chain`。
-- `Service` 只保留为链内部或外围的稳定支撑层，例如：
-  - provider / adapter 边界
-  - persistence / oper
-  - 纯查询聚合
-  - 策略或格式化辅助
-  不再让 `Service` 承担主业务流程编排职责。
-- API endpoint、宿主 `get_service()` 调度注册、本地 loop 入口都只能直接调用 `Music*Chain`，不再直接依赖主编排 `Service`。
+- API endpoint、宿主 `get_service()` 调度注册、本地 loop 入口都只能直接调用 `Music*Chain`。
+- 支撑逻辑统一落到：
+  - `db/*_oper.py`
+  - `helper/`
+  - `modules/`
+  - `core/`
+  不再通过 `Service` 命名或 `services/` 目录承载。
 - 统一音乐媒体解析链是上层业务的基础语义；涉及发现、详情、搜索、订阅、获取、库内线索等输入时，优先收敛到 `MusicMediaInput -> MusicMetaBase -> MusicMediaInfo`，而不是在各模块各自维护零散 hints 或来源特判。
 - 优先复用宿主底层能力与明确接口语义，不把宿主现有业务语义直接硬套到音乐场景。
 - 每个场景优先对应一个清晰主调用语义，不引入 recommendation / strategy / matrix 驱动的运行时业务 fallback。
