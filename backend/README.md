@@ -29,8 +29,6 @@ FastAPI 工程目录。当前已完成：
 
 当前仍不包含：
 
-- 更多真实榜单源、榜单增量监控
-- 更多 metadata provider、provider 配置持久化与后台刷新
 - 更多下载样例与 path handoff 稳定性收口
 - 下载完成回调、自动整理与媒体库刷新
 
@@ -50,7 +48,7 @@ python -m app.db_init --reseed
 - `charts/*` 当前支持三种模式：
   - `mock`：本地 chart seed
   - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings；当前 detail 输出已补 discovery 产品化字段，如 chart summary、hero entry、entry groups，并统一产出 `MusicMediaInput`
-  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取，运行时优先读取项目 settings，环境变量仅作为 fallback；当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，`item_count` 分别可写为 `200`、`100`、`100`。若项目 settings 和环境都未提供 `chart_rss_feeds`，fresh install 默认会带出 5 条内置 RSS feed：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。RSS 条目统一映射为 `MusicMediaInput`，再构造成 `MusicMetaBase`，并通过结构化 `MusicRecognitionAssessment` 暴露识别状态；detail 下钻统一经由 `/media/resolve/detail` 驱动统一音乐媒体解析链。family-specific candidate hints 已下沉到 `MusicMetaBaseBuilder` / `MusicMediaRecognizer` 所消费的标准化输入里。对于 RSS chart entry 订阅，创建阶段会直接解析并持久化统一链显式字段，执行阶段只复用这些正式字段补全 `MusicMediaInfo`。当前榜单内容会持久化到 `charts` / `chart_items`，后台通过单个 `chart-refresh` 周期任务批量刷新全部启用榜单
+  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取，运行时优先读取项目 settings，环境变量仅作为 fallback；当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，`item_count` 分别可写为 `200`、`100`、`100`。若项目 settings 和环境都未提供 `chart_rss_feeds`，fresh install 默认会带出 5 条内置 RSS feed：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。RSS 条目统一映射为 `MusicMediaInput`，再构造成 `MusicMetaBase`，并通过结构化 `MusicRecognitionAssessment` 暴露识别状态；detail 下钻统一经由统一媒体解析链驱动。对于 RSS chart entry 订阅，创建阶段会直接解析并持久化统一链显式字段，执行阶段只复用这些正式字段补全 `MusicMediaInfo`。当前榜单内容会持久化到 `charts` / `chart_items`，后台通过单个 `chart-refresh` 周期任务批量刷新全部启用榜单
 - `downloads/dispatch` 当前支持三类 host 语义：
   - 可靠 `media_in` -> `/api/v1/download/`
   - torrent-only 但已具备宿主媒体参考 -> `/api/v1/download/add`

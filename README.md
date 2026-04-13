@@ -1,13 +1,13 @@
 # MusicPilot
 
-MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已经完成插件壳层、metadata 搜索、手动订阅执行，以及音乐 organize `preview -> apply` 的真实宿主最小闭环，并继续沿“接口语义明确、场景调用明确、数据来源明确”的方向推进，不再扩展通用策略、推荐或矩阵决策层。
+MusicPilot 是一个参考 MoviePilot 插件体系思路构建的音乐能力扩展工程。当前仓库已经完成插件壳层、metadata 搜索、订阅执行、榜单持久化、下载工作台后端接口，以及音乐 organize `preview -> apply` 的真实宿主最小闭环，并继续沿“接口语义明确、场景调用明确、数据来源明确”的方向推进。
 
-统一音乐媒体解析链后端收口已经完成：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo` 现在是后端唯一的上层音乐识别主路径。这条链参考 MoviePilot 统一媒体解析链的设计方法，但保持音乐领域模型独立；当前已经接管 discovery 下钻 detail、search job 输入、query builder、candidate scoring、subscription execution 与 organize 上游识别。RSS / 弱来源榜单项会在创建订阅时直接固化 `MusicMediaInput`、`MusicMetaBase`、`MusicRecognitionAssessment` 与 `MusicMediaInfo` 显式快照，后续 run、organize 和 detail 都只复用这些正式字段；旧的 `DiscoveryTarget / resolution_hints / /metadata/lookup` 过渡桥接已经退出活跃后端主路径。
+统一音乐媒体解析链后端收口已经完成：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo` 现在是后端唯一的上层音乐识别主路径。当前已经接管 discovery 下钻 detail、search job 输入、query builder、candidate scoring、subscription execution 与 organize 上游识别；RSS / 弱来源榜单项会在创建订阅时直接固化统一链显式字段，后续 run、organize 和 detail 都只复用这些正式字段。
 
 ## 项目简介
 
 - `frontend/`：基于 Vue 3 + TypeScript + Vite 的前端工程，当前已切换到 `Vuetify` 组件体系并按 MoviePilot 风格重建页面结构；既可作为独立开发页运行，也可通过宿主插件中心的 `vue` 远程组件模式加载。当前已提供首页工作台、Discovery 榜单页、Metadata 搜索页、订阅执行页、最小可用 `/settings` 设置页，以及真实可读写的 `/settings/providers` 接口页面；同时已新增宿主首页 dashboard 入口卡片，以及宿主侧边栏导航与独立页面入口，可从 MoviePilot 首页或侧栏快速打开 MusicPilot。前端支持从 metadata / chart entry 打开统一 detail、创建订阅、创建并执行 SearchJob、查看 run / candidate / organize 状态。
-- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、search/dispatch 模式选择、SubscriptionService、真实 settings 与 rule profiles 读写接口、真实 dashboard 聚合与 diagnostics、downloads workspace API（bindings/tasks/重试动作）、RSS / ListenBrainz chart discovery runtime、以及音乐 organize preview/apply 与管理动作闭环。
+- `backend/`：基于 FastAPI 的后端工程，当前提供统一响应结构、宿主探针骨架、metadata 搜索 API、SQLite 最小落库、QueryBuilder、SearchJob、评分、search/dispatch 模式选择、SubscriptionService、真实 settings 与 rule profiles 读写接口、真实 dashboard 聚合与 diagnostics、downloads workspace API（bindings/tasks/重试动作）、榜单持久化与固定周期刷新、以及音乐 organize preview/apply 与管理动作闭环。
 - `plugin_runtime/`：面向 MoviePilot 宿主的运行时装配目录，当前已完成本地宿主真实加载验证，并已通过宿主插件中心 `vue` 远程组件模式、首页 dashboard 远程组件，以及宿主侧边栏 `plugin-app` 独立页面入口打开 MusicPilot 页面。目录中保留静态资源、后端挂载说明和打包边界。
 - `scripts/`：前端开发、后端开发、前端构建、插件装配、版本同步脚本。
 - `docs/`：产品方案、架构方案、规范与任务拆解文档，按要求保持原位不变。
@@ -95,7 +95,7 @@ python -m app.db_init --reseed
 
 - Metadata provider：当前支持 `seed` 与 `musicbrainz` 两种模式。`seed` 继续作为默认开发数据；`musicbrainz` 提供 Artist / Album / Track 的实时搜索与详情。当前 detail 已补齐最小结构化增强：album detail 会从最佳 release 读取真实 track listing，track detail 的 related album 会对齐到 release-group 语义，并带出可选的 `disambiguation` / `release_count` / `track_number` / `disc_number`。普通 keyword search 会按 MusicBrainz 官方 plain indexed search 方式带 `dismax=true`；recording detail 会直接请求 `release-groups`。album / track detail 会补充最佳 release 的发行上下文，例如 `status`、`country`、`barcode`、`label_names`、`media_format`、`track_count`、`disc_count` 和 `secondary_types`；artist detail 则会补 discovery 更关心的上下文，例如 `sort_name`、`artist_type`、`area_name`、`begin_area_name`、`ended`、`release_group_count`、`primary_release_types`，以及面向 discovery 的 `featured_albums / featured_singles / featured_other_releases` 分类摘要。
 - Subscription 执行模式：当前支持手动触发一次同步 run；独立 backend 开发模式下保留最小应用内 scheduler，MoviePilot 插件运行态则通过插件 `get_service()` 向宿主注册 interval 服务，由宿主 APScheduler 触发同一条执行链。执行链已能对最佳 `AUTO_DOWNLOAD` 候选自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则会继续自动 apply。对于 `path_handoff.handoff_status=pending_history_sync` 的已派发 run，后台 scheduler 现在也会继续轮询宿主 download history：一旦回填到明确本地源路径，就会自动续跑 organize apply；若超过 `host_handoff_pending_ttl_seconds` 仍未命中，则会把 organize record 标记为 `failed`，并在 run 摘要中写入 `handoff_unresolved`。
-- Chart discovery：当前支持 `mock`、`listenbrainz` 与 `rss_feed` 三种模式。运行时会优先读取项目 settings 里的 chart provider 配置，环境变量仅作为 fallback。`listenbrainz` 第一版已接入 sitewide artists / recordings 榜单；`rss_feed` 已能通过 settings 配置真实进入 discovery，当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，且 `item_count` 分别可写为 `200`、`100`、`100`。fresh install 时，`chart_rss_feeds` 还会带出 5 条内置默认源：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。榜单当前内容现已持久化到 `charts` / `chart_items`，打开列表与详情优先读库；后台只注册一个全局 `chart-refresh` 周期任务，按统一固定周期批量刷新全部启用榜单，并在源失败时保留最近一次成功快照。discovery 条目现在统一先进入 `MusicMediaInput -> MusicMetaBase -> MusicRecognitionAssessment` 准备阶段，再经 `/media/resolve/detail` 下钻正式 metadata detail；后端不再保留 `direct_id / search_lookup / resolution_hints` 这类旧桥接模式。对于 RSS / 弱来源 chart entry，创建订阅时会直接持久化统一链显式字段，run 阶段再统一按正式 `MusicMediaInfo` 继续 search / organize。当前 metadata provider 仍可能在 `seed` 模式下返回“未匹配到 metadata”，这属于当前运行态结果，不是 discovery 接口缺失。
+- Chart discovery：当前支持 `mock`、`listenbrainz` 与 `rss_feed` 三种模式。运行时会优先读取项目 settings 里的 chart provider 配置，环境变量仅作为 fallback。`listenbrainz` 第一版已接入 sitewide artists / recordings 榜单；`rss_feed` 已能通过 settings 配置真实进入 discovery，当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，且 `item_count` 分别可写为 `200`、`100`、`100`。fresh install 时，`chart_rss_feeds` 还会带出 5 条内置默认源：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。榜单当前内容现已持久化到 `charts` / `chart_items`，打开列表与详情优先读库；后台只注册一个全局 `chart-refresh` 周期任务，按统一固定周期批量刷新全部启用榜单，并在源失败时保留最近一次成功快照。discovery 条目现在统一先进入统一媒体解析准备阶段，再下钻正式 metadata detail；对于 RSS / 弱来源 chart entry，创建订阅时会直接持久化统一链显式字段，run 阶段再统一按正式 `MusicMediaInfo` 继续 search / organize。
 - Settings / Dashboard / Downloads workspace：`/settings/providers` 与 `/settings/profiles` 都已经是真实读写接口；`/dashboard/summary` 已切到真实聚合实现，并输出 provider/discovery/handoff/organize/scheduler 诊断摘要；`/downloads/bindings`、`/downloads/tasks` 以及对应 detail 接口都已可用，同时补齐了 `retry-dispatch` 与 `retry-handoff`。SearchJob 额外补齐了 `retry`、`delete`、`cancel`、candidate `confirm/reject`，organize records 也补了 `retry`、`rebuild-preview`、`repair-source-path` 管理动作。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
 - Dispatch：当前保留 `mock + host-backed selectable`。当存在可靠 `media_in` 时走 `/api/v1/download/`；只有 torrent 但已具备宿主媒体参考时走 `/api/v1/download/add`；音乐 torrent-only 候选则走宿主 downloader runtime 直接提交下载器。这几条路径是不同语义，不再由运行时策略层互相切换。
@@ -287,7 +287,6 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 - Phase 3 / T11-T14
 - Phase 4 / 订阅与编排最小闭环
 - Phase 5 / 宿主真实接入优先级最高的收口阶段
-- Phase 6 / 真实 organize 接入优先阶段
 - Phase 7A / 真实 MoviePilot 宿主语义验证与差异收敛
 - Phase 7B / 真实成功样例闭环打通
 - Phase 8 / 真实成功率扩展与稳定性收敛
@@ -310,8 +309,6 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 
 ## 当前阶段未完成范围
 
-- 真实榜单拉取与增量监控
-- 更多 metadata provider、provider 配置持久化与后台刷新
 - 真实 organize 文件处理增强与媒体库刷新
 - 真实 MoviePilot 宿主安装与挂载逻辑
 - 基于宿主 downloader runtime 的更多真实下载样例、path handoff 稳定性与自动 organize 收口
