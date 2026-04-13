@@ -25,10 +25,6 @@ from ..schemas.shared import EntityType, ReleaseType
 
 
 INTEGRATION_POINT = "Local metadata repository backed by the current provider mode."
-DETAIL_TODO = [
-    "当前只提供 metadata 结果，不包含 PT 搜索、下载派发或整理结果。",
-    "可基于当前结构化字段构建 QueryBuilder 输入。",
-]
 
 
 @dataclass(slots=True)
@@ -124,7 +120,6 @@ class MetadataService:
                     )
                     for track in artist.tracks
                 ],
-                todo=DETAIL_TODO,
             )
 
         if entity_type == EntityType.ALBUM:
@@ -156,7 +151,6 @@ class MetadataService:
                     )
                     for track in album.tracks
                 ],
-                todo=DETAIL_TODO,
             )
 
         track = self.repository.get_track(entity_id)
@@ -185,7 +179,6 @@ class MetadataService:
                 for artist in track.artists
             ],
             related_album=related_album,
-            todo=DETAIL_TODO,
         )
 
     def get_detail_by_provider_ref(
