@@ -1,4 +1,4 @@
-"""Dependency providers for MusicPilot backend services."""
+"""Dependency providers for MusicPilot backend chains and support objects."""
 
 from __future__ import annotations
 
@@ -30,6 +30,13 @@ from ..adapters.metadata_provider import (
     MusicBrainzMetadataProviderAdapter,
 )
 from ..adapters.organize import MockOrganizeAdapter, OrganizeAdapter, RealOrganizeAdapter
+from ..chain.chart import MusicChartChain
+from ..chain.dashboard import MusicDashboardChain
+from ..chain.download import MusicDownloadChain
+from ..chain.media import MusicMediaChain
+from ..chain.search import MusicSearchChain
+from ..chain.subscribe import MusicSubscribeChain
+from ..chain.transfer import MusicTransferChain
 from ..core.db import SessionLocal, get_db_session
 from ..core.config import settings
 from ..core.runtime_cache import stable_cache_key
@@ -49,7 +56,6 @@ from ..services.host_integration import (
 )
 from ..services.host_path_handoff import HostPathHandoffService
 from ..services.metadata import MetadataService
-from ..services.music_media_chain import MusicMediaChain
 from ..services.settings import SettingsService
 from ..services.organize import OrganizeService
 from ..services.organize_strategy import OrganizeStrategyService
@@ -230,6 +236,42 @@ def get_music_media_chain(
     adapter: MetadataProviderAdapter = Depends(get_metadata_provider_adapter),
 ) -> MusicMediaChain:
     return MusicMediaChain(metadata_service=metadata_service, metadata_adapter=adapter)
+
+
+def get_music_search_chain(
+    metadata_service: MetadataService = Depends(get_metadata_service),
+) -> MusicSearchChain:
+    return MusicSearchChain(metadata_service=metadata_service)
+
+
+def get_music_download_chain(
+    session: Session = Depends(get_db_session),
+) -> MusicDownloadChain:
+    return MusicDownloadChain(session=session)
+
+
+def get_music_transfer_chain(
+    session: Session = Depends(get_db_session),
+) -> MusicTransferChain:
+    return MusicTransferChain(session=session)
+
+
+def get_music_subscribe_chain(
+    session: Session = Depends(get_db_session),
+) -> MusicSubscribeChain:
+    return MusicSubscribeChain(session=session)
+
+
+def get_music_chart_chain(
+    session: Session = Depends(get_db_session),
+) -> MusicChartChain:
+    return MusicChartChain(session=session)
+
+
+def get_music_dashboard_chain(
+    session: Session = Depends(get_db_session),
+) -> MusicDashboardChain:
+    return MusicDashboardChain(session=session)
 
 
 def get_discovery_assembler(
