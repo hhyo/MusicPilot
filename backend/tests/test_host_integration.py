@@ -7,7 +7,7 @@ import unittest
 from fastapi import HTTPException
 
 from app.adapters.download_dispatch import DownloadDispatchAdapter
-from app.adapters.host_probe import HostProbeAdapter
+from app.adapters.host_probe import HostProbeAdapter, RealHostProbeAdapter
 from app.adapters.host_search import HostSearchAdapter, normalize_title
 from app.core.config import Settings
 from app.schemas.acquisition import DispatchAdapterResult, HostSearchCandidate, QueryBuildResult, SearchCandidateDetail
@@ -306,6 +306,36 @@ class HostIntegrationServiceTest(unittest.TestCase):
 
         with self.assertRaises(HTTPException):
             resolver.search(query_build=query_build, media=media)
+
+
+class _UnusedClient:
+    def get_json(self, *args, **kwargs):  # pragma: no cover - defensive only
+        raise AssertionError("get_json should not be called in this test")
+
+    def post_json(self, *args, **kwargs):  # pragma: no cover - defensive only
+        raise AssertionError("post_json should not be called in this test")
+
+
+class RealHostProbeAdapterStatusTest(unittest.TestCase):
+    def test_notify_reports_disabled_when_endpoint_is_not_configured(self) -> None:
+        settings = build_settings(host_notify_path=None)
+        adapter = RealHostProbeAdapter(settings=settings, client=_UnusedClient())
+
+        payload = adapter.probe_notify(ProbeNotifyRequest())
+
+        self.assertEqual(payload.summary.status, "disabled")
+        self.assertEqual(payload.summary.fallback_reason, "host_notify_path_missing")
+        self.assertEqual(payload.summary.verification_state, VerificationState.UNVERIFIED)
+
+    def test_config_summary_reports_disabled_when_endpoint_is_not_configured(self) -> None:
+        settings = build_settings(host_config_path=None)
+        adapter = RealHostProbeAdapter(settings=settings, client=_UnusedClient())
+
+        payload = adapter.config_summary()
+
+        self.assertEqual(payload.summary.status, "disabled")
+        self.assertEqual(payload.summary.fallback_reason, "host_config_path_missing")
+        self.assertEqual(payload.summary.verification_state, VerificationState.UNVERIFIED)
 
 
 if __name__ == "__main__":

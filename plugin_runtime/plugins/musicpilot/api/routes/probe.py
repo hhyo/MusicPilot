@@ -18,11 +18,7 @@ from ...services.host_capabilities import HostCapabilitiesService
 
 router = APIRouter(tags=["Probe"])
 
-PROBE_NOTE = "当前探针会根据配置选择 mock probe 或 host-backed probe，并明确展示 capability source 与 fallback 信息。"
-PROBE_TODO = [
-    "在真实 MoviePilot 宿主联调后补 verified 结论与样例响应。",
-    "继续收敛 host endpoints 的最终字段映射。",
-]
+PROBE_NOTE = "当前返回的是宿主能力诊断结果；是否可用以 data.summary.status、verification_state 与 fallback_reason 为准。"
 
 
 def _is_mock(payload: dict) -> bool:
@@ -43,7 +39,6 @@ async def probe_health(
         code="PROBE_HEALTH_OK",
         mock=_is_mock(payload),
         note=PROBE_NOTE,
-        todo=PROBE_TODO,
     )
 
 
@@ -64,9 +59,8 @@ async def probe_validation_matrix(
         code="PROBE_VALIDATION_MATRIX_OK",
         mock=False if payload else True,
         note=(
-            "当前验证矩阵来自手动触发的真实宿主回归脚本导出文件，用于回看多样例 success/failure/handoff 稳定性。"
+            "当前验证矩阵来自最近一次真实宿主回归导出，用于查看样例稳定性与未确认边界。"
         ),
-        todo=["当 matrix 为空时，请先运行 Phase 8 的真实宿主回归脚本生成最新样例集。"],
     )
 
 
@@ -83,7 +77,6 @@ async def probe_sites(
         code="PROBE_SITES_OK",
         mock=_is_mock(payload),
         note=PROBE_NOTE,
-        todo=PROBE_TODO,
     )
 
 
@@ -100,7 +93,6 @@ async def probe_search_summary(
         code="PROBE_SEARCH_SUMMARY_OK",
         mock=_is_mock(payload),
         note=PROBE_NOTE,
-        todo=PROBE_TODO,
     )
 
 
@@ -118,7 +110,6 @@ async def probe_search(
         code="PROBE_SEARCH_OK",
         mock=_is_mock(response_payload),
         note=PROBE_NOTE,
-        todo=PROBE_TODO,
     )
 
 
@@ -135,7 +126,6 @@ async def probe_downloaders(
         code="PROBE_DOWNLOADERS_OK",
         mock=_is_mock(payload),
         note=PROBE_NOTE,
-        todo=PROBE_TODO,
     )
 
 
@@ -153,7 +143,6 @@ async def probe_dispatch(
         code="PROBE_DISPATCH_OK",
         mock=_is_mock(response_payload),
         note=PROBE_NOTE,
-        todo=PROBE_TODO,
     )
 
 
@@ -171,7 +160,6 @@ async def probe_notify(
         code="PROBE_NOTIFY_OK",
         mock=_is_mock(response_payload),
         note=PROBE_NOTE,
-        todo=PROBE_TODO,
     )
 
 
@@ -188,7 +176,6 @@ async def probe_config_summary(
         code="PROBE_CONFIG_SUMMARY_OK",
         mock=_is_mock(payload),
         note=PROBE_NOTE,
-        todo=PROBE_TODO,
     )
 
 
@@ -206,5 +193,4 @@ async def probe_config(
         code="PROBE_CONFIG_OK",
         mock=_is_mock(response_payload),
         note=PROBE_NOTE,
-        todo=PROBE_TODO,
     )

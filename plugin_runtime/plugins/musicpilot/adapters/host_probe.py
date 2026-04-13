@@ -1,4 +1,4 @@
-"""Host probe adapter boundary definitions for future MoviePilot integration."""
+"""Host probe adapter boundary definitions for MoviePilot capability diagnostics."""
 
 from __future__ import annotations
 
@@ -69,11 +69,7 @@ class HostProbeAdapter(ABC):
 
 
 class MockHostProbeAdapter(HostProbeAdapter):
-    """Phase 1 mock adapter.
-
-    This class does not connect to a real host. It only exposes the shape that a
-    real adapter must later satisfy.
-    """
+    """Mock diagnostics adapter used when host integration is disabled."""
 
     def _summary(self, capability: str, integration_point: str, note: str):
         return {
@@ -89,10 +85,7 @@ class MockHostProbeAdapter(HostProbeAdapter):
             "fallback_reason": None,
             "integration_point": integration_point,
             "note": note,
-            "todo": [
-                "Replace MockHostProbeAdapter with a real MoviePilot adapter.",
-                "Record real request/response samples during host integration.",
-            ],
+            "todo": [],
         }
 
     def probe_health(self) -> ProbeHealthPayload:
@@ -122,7 +115,7 @@ class MockHostProbeAdapter(HostProbeAdapter):
                     "name": "Mock PT Site",
                     "enabled": True,
                     "visibility": "placeholder",
-                    "note": "Placeholder row only; not loaded from MoviePilot host settings.",
+                    "note": "Mock row only; not loaded from MoviePilot host settings.",
                 }
             ],
         )
@@ -165,7 +158,7 @@ class MockHostProbeAdapter(HostProbeAdapter):
                     "name": "Mock Downloader",
                     "is_default": True,
                     "status": "placeholder",
-                    "note": "Placeholder row only; no real downloader connection exists.",
+                    "note": "Mock row only; no real downloader connection exists.",
                 }
             ],
         )
@@ -235,12 +228,10 @@ class MockHostProbeAdapter(HostProbeAdapter):
 
 
 class RealHostProbeAdapter(HostProbeAdapter):
-    """Host-backed probe skeleton.
+    """Host-backed probe adapter.
 
-    This adapter is intentionally conservative:
-    - it only calls configured endpoints;
-    - it never claims full host compatibility automatically;
-    - when the host contract is incomplete, it returns unverified/degraded summaries instead of faking success.
+    It reports observed, disabled, degraded, or verified capability states
+    without inventing host compatibility that has not been confirmed.
     """
 
     def __init__(self, *, settings: Settings, client: HostHttpClient):
@@ -286,8 +277,8 @@ class RealHostProbeAdapter(HostProbeAdapter):
                     "id": str(item.get("id") or item.get("site_id") or f"site-{index}"),
                     "name": str(item.get("name") or item.get("site_name") or "Unknown Site"),
                     "enabled": bool(item.get("enabled", True)),
-                    "visibility": "unverified",
-                    "note": "Loaded from configured host site endpoint; field mapping remains unverified.",
+                    "visibility": "observed",
+                    "note": "Observed from configured host site endpoint.",
                 }
                 for index, item in enumerate(raw_items, start=1)
             ]
@@ -370,8 +361,8 @@ class RealHostProbeAdapter(HostProbeAdapter):
                     "id": str(item.get("name") or item.get("id") or f"downloader-{index}"),
                     "name": str(item.get("name") or item.get("display_name") or "Unknown Downloader"),
                     "is_default": bool(item.get("is_default", index == 1)),
-                    "status": "unverified",
-                    "note": f"Loaded from real MoviePilot downloader endpoint; downloader type={item.get('type')!s}.",
+                    "status": "observed",
+                    "note": f"Observed from real MoviePilot downloader endpoint; downloader type={item.get('type')!s}.",
                 }
                 for index, item in enumerate(raw_items, start=1)
             ]
@@ -447,12 +438,10 @@ class RealHostProbeAdapter(HostProbeAdapter):
     def probe_notify(self, payload: ProbeNotifyRequest) -> ProbeNotifyPayload:
         if not self.settings.host_notify_path:
             return ProbeNotifyPayload(
-                summary=self._summary(
+                summary=self._disabled_summary(
                     capability="notify",
-                    capability_available=False,
-                    status="placeholder",
                     integration_point="RealHostProbeAdapter.probe_notify",
-                    note="Notify endpoint is not configured yet; keep this capability as placeholder until host contract is confirmed.",
+                    note="Notify endpoint is not configured in current host settings.",
                     fallback_reason="host_notify_path_missing",
                 ),
                 request_echo=payload.model_dump(mode="json"),
@@ -486,15 +475,24 @@ class RealHostProbeAdapter(HostProbeAdapter):
 
     def config_summary(self) -> ProbeConfigPayload:
         supported = bool(self.settings.host_config_path)
-        return ProbeConfigPayload(
-            summary=self._summary(
+        summary = (
+            self._summary(
                 capability="config",
-                capability_available=supported,
-                status=self._status_from_availability(supported),
+                capability_available=True,
+                status=self._status_from_availability(True),
                 integration_point="RealHostProbeAdapter.probe_config",
                 note="Config capability summary is derived from configured host config endpoint availability.",
-                fallback_reason=None if supported else "host_config_path_missing",
-            ),
+            )
+            if supported
+            else self._disabled_summary(
+                capability="config",
+                integration_point="RealHostProbeAdapter.probe_config",
+                note="Config endpoint is not configured in current host settings.",
+                fallback_reason="host_config_path_missing",
+            )
+        )
+        return ProbeConfigPayload(
+            summary=summary,
             operation="summary",
             request_echo=ProbeConfigRequest().model_dump(mode="json"),
             config_preview={
@@ -506,12 +504,10 @@ class RealHostProbeAdapter(HostProbeAdapter):
     def probe_config(self, payload: ProbeConfigRequest) -> ProbeConfigPayload:
         if not self.settings.host_config_path:
             return ProbeConfigPayload(
-                summary=self._summary(
+                summary=self._disabled_summary(
                     capability="config",
-                    capability_available=False,
-                    status="placeholder",
                     integration_point="RealHostProbeAdapter.probe_config",
-                    note="Config endpoint is not configured yet.",
+                    note="Config endpoint is not configured in current host settings.",
                     fallback_reason="host_config_path_missing",
                 ),
                 operation=payload.operation,
@@ -571,10 +567,7 @@ class RealHostProbeAdapter(HostProbeAdapter):
             fallback_reason=fallback_reason,
             integration_point=integration_point,
             note=note,
-            todo=[
-                "Capture real MoviePilot request/response samples before marking this capability verified.",
-                "Confirm field mapping against the host's real contract.",
-            ],
+            todo=[],
         )
 
     def _degraded_summary(
@@ -592,6 +585,30 @@ class RealHostProbeAdapter(HostProbeAdapter):
             integration_point=integration_point,
             note=note,
             fallback_reason=fallback_reason,
+        )
+
+    def _disabled_summary(
+        self,
+        *,
+        capability: str,
+        integration_point: str,
+        note: str,
+        fallback_reason: str,
+    ) -> ProbeCapabilitySummary:
+        return ProbeCapabilitySummary(
+            capability=capability,
+            status="disabled",
+            host_online=None,
+            capability_available=False,
+            adapter_mode=AdapterMode.HOST,
+            active_mode=AdapterSelectionMode.PREFER_HOST,
+            host_integration_enabled=self.settings.host_integration_enabled,
+            capability_source="host.probe",
+            verification_state=VerificationState.UNVERIFIED,
+            fallback_reason=fallback_reason,
+            integration_point=integration_point,
+            note=note,
+            todo=[],
         )
 
     def _status_from_availability(self, available: bool | None) -> str:

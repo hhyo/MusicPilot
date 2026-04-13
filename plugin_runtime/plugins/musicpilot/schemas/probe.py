@@ -29,15 +29,15 @@ class ProbeCapabilitySummary(BaseModel):
     verification_state: VerificationState = VerificationState.PLACEHOLDER
     fallback_reason: str | None = None
     integration_point: str = Field(..., description="Future adapter or service handoff point.")
-    note: str = Field(..., description="Current placeholder description.")
-    todo: list[str] = Field(default_factory=list, description="Integration follow-up items.")
+    note: str = Field(..., description="Current diagnostic note for this capability.")
+    todo: list[str] = Field(default_factory=list, description="Optional follow-up items when a capability remains unconfirmed.")
 
 
 class ProbeSiteItem(BaseModel):
     id: str
     name: str
     enabled: bool
-    visibility: Literal["placeholder", "unverified"] = "placeholder"
+    visibility: Literal["placeholder", "unverified", "observed"] = "placeholder"
     note: str
 
 
@@ -45,7 +45,7 @@ class ProbeDownloaderItem(BaseModel):
     id: str
     name: str
     is_default: bool
-    status: Literal["placeholder", "unverified"] = "placeholder"
+    status: Literal["placeholder", "unverified", "observed"] = "placeholder"
     note: str
 
 
@@ -63,14 +63,14 @@ class ProbeDispatchRequest(BaseModel):
 
 class ProbeNotifyRequest(BaseModel):
     title: str = Field(default="MusicPilot Probe")
-    body: str = Field(default="Phase 1 notification probe placeholder.")
+    body: str = Field(default="MusicPilot notification diagnostics payload.")
     channel: str = Field(default="system")
 
 
 class ProbeConfigRequest(BaseModel):
     operation: Literal["read", "write"] = Field(default="read")
     key: str = Field(default="probe.default_profile")
-    value: Any = Field(default="placeholder")
+    value: Any = Field(default="diagnostic-value")
 
 
 class ProbeHealthPayload(BaseModel):

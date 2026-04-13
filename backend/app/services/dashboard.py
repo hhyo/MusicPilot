@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..core.config import settings
 from ..models.acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
 from ..models.orchestration import OrganizeRecordModel, SubscriptionModel, SubscriptionRunModel
+from ..models.settings import AppSettingModel
 from ..schemas.orchestration import (
     DashboardDiscoveryDiagnostics,
     DashboardHandoffDiagnostics,
@@ -17,7 +19,6 @@ from ..schemas.orchestration import (
     DashboardSchedulerDiagnostics,
     DashboardSummary,
 )
-from ..core.config import settings
 from .subscription_scheduler import normalize_subscription_mode, normalize_timestamp
 
 
@@ -25,14 +26,22 @@ class DashboardService:
     def __init__(self, session: Session):
         self.session = session
 
-    def summary(self) -> DashboardSummary:
-        return DashboardSummary(
+    def summary(self) -> dict:
+        summary = DashboardSummary(
             provider=self._provider_diagnostics(),
             discovery=self._discovery_diagnostics(),
             handoff=self._handoff_diagnostics(),
             organize=self._organize_diagnostics(),
             scheduler=self._scheduler_diagnostics(),
         )
+        data = summary.model_dump(mode="json")
+        data["provider"].update(self._provider_runtime_diagnostics())
+        data["search"] = self._search_diagnostics()
+        data["downloads"] = self._download_diagnostics()
+        data["handoff"].update(self._handoff_runtime_diagnostics())
+        data["organize"].update(self._organize_runtime_diagnostics())
+        data["scheduler"].update(self._scheduler_runtime_diagnostics())
+        return data
 
     def _provider_diagnostics(self) -> DashboardProviderDiagnostics:
         chart_rss_feeds = settings.chart_rss_feeds or []
@@ -47,6 +56,19 @@ class DashboardService:
             chart_rss_feed_enabled_total=sum(1 for feed in chart_rss_feeds if self._feed_enabled(feed)),
         )
 
+    def _provider_runtime_diagnostics(self) -> dict[str, int | str]:
+        snapshots = self._chart_runtime_snapshots()
+        return {
+            "host_verification_state": str(settings.host_verification_state),
+            "chart_runtime_total": len(snapshots),
+            "chart_runtime_stale_total": sum(1 for snapshot in snapshots.values() if bool(snapshot.get("stale"))),
+            "chart_runtime_failed_total": sum(
+                1
+                for snapshot in snapshots.values()
+                if str(snapshot.get("last_refresh_status") or "unknown") not in {"unknown", "success"}
+            ),
+        }
+
     def _discovery_diagnostics(self) -> DashboardDiscoveryDiagnostics:
         return DashboardDiscoveryDiagnostics(
             subscriptions_total=self._count(select(func.count()).select_from(SubscriptionModel)),
@@ -55,12 +77,40 @@ class DashboardService:
             ),
             search_jobs_total=self._count(select(func.count()).select_from(SearchJobModel)),
             jobs_running=self._count(
-                select(func.count())
-                .select_from(SearchJobModel)
-                .where(SearchJobModel.status == "running")
+                select(func.count()).select_from(SearchJobModel).where(SearchJobModel.status == "running")
             ),
             search_candidates_total=self._count(select(func.count()).select_from(SearchCandidateModel)),
         )
+
+    def _search_diagnostics(self) -> dict[str, int]:
+        return {
+            "jobs_total": self._count(select(func.count()).select_from(SearchJobModel)),
+            "jobs_running": self._count(
+                select(func.count()).select_from(SearchJobModel).where(SearchJobModel.status == "running")
+            ),
+            "jobs_failed": self._count(
+                select(func.count()).select_from(SearchJobModel).where(SearchJobModel.status == "failed")
+            ),
+            "jobs_dispatched": self._count(
+                select(func.count()).select_from(SearchJobModel).where(SearchJobModel.status == "dispatched")
+            ),
+            "jobs_no_result": self._count(
+                select(func.count()).select_from(SearchJobModel).where(SearchJobModel.status == "no_result")
+            ),
+            "candidates_total": self._count(select(func.count()).select_from(SearchCandidateModel)),
+            "candidates_pending": self._count(
+                select(func.count()).select_from(SearchCandidateModel).where(SearchCandidateModel.decision == "pending")
+            ),
+            "candidates_auto_download": self._count(
+                select(func.count()).select_from(SearchCandidateModel).where(SearchCandidateModel.decision == "auto_download")
+            ),
+            "candidates_manual_confirm": self._count(
+                select(func.count()).select_from(SearchCandidateModel).where(SearchCandidateModel.decision == "manual_confirm")
+            ),
+            "candidates_rejected": self._count(
+                select(func.count()).select_from(SearchCandidateModel).where(SearchCandidateModel.decision == "rejected")
+            ),
+        }
 
     def _handoff_diagnostics(self) -> DashboardHandoffDiagnostics:
         bindings = list(self.session.scalars(select(DownloadBindingModel)).all())
@@ -77,6 +127,41 @@ class DashboardService:
             bindings_with_path_handoff=sum(1 for binding in bindings if self._has_path_handoff(binding.raw_payload)),
         )
 
+    def _download_diagnostics(self) -> dict[str, int]:
+        return {
+            "bindings_total": self._count(select(func.count()).select_from(DownloadBindingModel)),
+            "bindings_pending": self._count(
+                select(func.count())
+                .select_from(DownloadBindingModel)
+                .where(DownloadBindingModel.dispatch_status.in_(["pending", "awaiting_manual_confirmation", "mock_submitted", "host_submitted"]))
+            ),
+            "bindings_failed": self._count(
+                select(func.count()).select_from(DownloadBindingModel).where(DownloadBindingModel.dispatch_status == "failed")
+            ),
+            "bindings_manual_confirmation": self._count(
+                select(func.count())
+                .select_from(DownloadBindingModel)
+                .where(DownloadBindingModel.dispatch_status == "awaiting_manual_confirmation")
+            ),
+            "bindings_downloaded": self._count(
+                select(func.count()).select_from(DownloadBindingModel).where(DownloadBindingModel.dispatch_status == "downloaded")
+            ),
+        }
+
+    def _handoff_runtime_diagnostics(self) -> dict[str, int]:
+        bindings = list(self.session.scalars(select(DownloadBindingModel)).all())
+        return {
+            "handoff_pending_total": sum(
+                1 for binding in bindings if self._path_handoff_status(binding.raw_payload) in {"pending", "pending_history_sync"}
+            ),
+            "handoff_failed_total": sum(
+                1 for binding in bindings if self._path_handoff_status(binding.raw_payload) == "failed"
+            ),
+            "handoff_ready_total": sum(
+                1 for binding in bindings if self._path_handoff_status(binding.raw_payload) in {"ready", "resolved", "applied"}
+            ),
+        }
+
     def _organize_diagnostics(self) -> DashboardOrganizeDiagnostics:
         records = list(self.session.scalars(select(OrganizeRecordModel)).all())
         return DashboardOrganizeDiagnostics(
@@ -87,6 +172,14 @@ class DashboardService:
             organize_with_binding=sum(1 for record in records if record.binding_id is not None),
             organize_with_failure_reason=sum(1 for record in records if bool(record.failure_reason)),
         )
+
+    def _organize_runtime_diagnostics(self) -> dict[str, int]:
+        records = list(self.session.scalars(select(OrganizeRecordModel)).all())
+        return {
+            "organize_planned": sum(1 for record in records if record.organize_status == "planned"),
+            "organize_apply_pending": sum(1 for record in records if record.organize_status == "apply_pending"),
+            "organize_skipped": sum(1 for record in records if record.organize_status == "skipped"),
+        }
 
     def _scheduler_diagnostics(self) -> DashboardSchedulerDiagnostics:
         subscriptions = list(self.session.scalars(select(SubscriptionModel)).all())
@@ -102,13 +195,21 @@ class DashboardService:
             scheduled_active_total=len(scheduled_subscriptions),
             scheduled_due_total=sum(1 for subscription in scheduled_subscriptions if self._is_due(subscription, now)),
             running_runs_total=self._count(
-                select(func.count())
-                .select_from(SubscriptionRunModel)
-                .where(SubscriptionRunModel.execution_status == "running")
+                select(func.count()).select_from(SubscriptionRunModel).where(SubscriptionRunModel.execution_status == "running")
             ),
             default_interval_minutes=settings.subscription_scheduler_default_interval_minutes,
             poll_seconds=settings.subscription_scheduler_poll_seconds,
         )
+
+    def _scheduler_runtime_diagnostics(self) -> dict[str, int]:
+        return {
+            "failed_runs_total": self._count(
+                select(func.count()).select_from(SubscriptionRunModel).where(SubscriptionRunModel.execution_status == "failed")
+            ),
+            "manual_pending_runs_total": self._count(
+                select(func.count()).select_from(SubscriptionRunModel).where(SubscriptionRunModel.execution_status == "manual_pending")
+            ),
+        }
 
     def _count(self, statement) -> int:
         return int(self.session.scalar(statement) or 0)
@@ -125,6 +226,21 @@ class DashboardService:
         if not isinstance(path_handoff, dict):
             return False
         return bool(path_handoff.get("source_path"))
+
+    def _path_handoff_status(self, payload: dict | None) -> str | None:
+        if not isinstance(payload, dict):
+            return None
+        path_handoff = payload.get("path_handoff")
+        if not isinstance(path_handoff, dict):
+            return None
+        status = path_handoff.get("status")
+        return str(status) if status is not None else None
+
+    def _chart_runtime_snapshots(self) -> dict[str, dict]:
+        snapshots = self.session.get(AppSettingModel, "chart_runtime_snapshots")
+        if snapshots is None or not isinstance(snapshots.value_json, dict):
+            return {}
+        return {str(chart_id): item for chart_id, item in snapshots.value_json.items() if isinstance(item, dict)}
 
     def _is_due(self, subscription, now: datetime) -> bool:
         baseline = (
