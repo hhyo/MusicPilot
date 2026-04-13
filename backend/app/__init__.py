@@ -98,6 +98,11 @@ def _subscription_scheduler_interval_seconds() -> int:
     return max(1, int(round(settings_module.settings.subscription_scheduler_poll_seconds)))
 
 
+def _chart_refresh_interval_minutes() -> int:
+    settings_module = _load_local_module("core.config")
+    return max(1, int(round(settings_module.settings.chart_refresh_interval_minutes)))
+
+
 def _run_registered_scheduler_once() -> dict[str, Any]:
     dependencies_module = _load_local_module("core.dependencies")
 
@@ -121,6 +126,31 @@ def _run_registered_scheduler_once() -> dict[str, Any]:
         except Exception:  # noqa: BLE001
             session.rollback()
             logger.exception("moviepilot.scheduler.run_failed")
+            raise
+
+
+def _run_registered_chart_refresh_once() -> dict[str, Any]:
+    dependencies_module = _load_local_module("core.dependencies")
+
+    session_factory = dependencies_module.get_session_factory()
+    with session_factory() as session:
+        try:
+            service = dependencies_module.build_chart_service(session)
+            result = service.refresh_all_charts()
+            if result.get("refreshed_ids"):
+                logger.info(
+                    "moviepilot.chart_refresh.refreshed ids=%s",
+                    ",".join(result["refreshed_ids"]),
+                )
+            if result.get("failed"):
+                logger.warning(
+                    "moviepilot.chart_refresh.failed ids=%s",
+                    ",".join(sorted(result["failed"].keys())),
+                )
+            return result
+        except Exception:  # noqa: BLE001
+            session.rollback()
+            logger.exception("moviepilot.chart_refresh.run_failed")
             raise
 
 
@@ -165,6 +195,13 @@ if _HostPluginBase is not None:
                     "trigger": "interval",
                     "func": self.run_scheduler_once,
                     "kwargs": {"seconds": _subscription_scheduler_interval_seconds()},
+                },
+                {
+                    "id": "chart-refresh",
+                    "name": "MusicPilot 榜单刷新",
+                    "trigger": "interval",
+                    "func": self.run_chart_refresh_once,
+                    "kwargs": {"minutes": _chart_refresh_interval_minutes()},
                 }
             ]
 
@@ -216,6 +253,14 @@ if _HostPluginBase is not None:
                 _bootstrap_plugin_storage()
                 self._storage_bootstrapped = True
             return _run_registered_scheduler_once()
+
+        def run_chart_refresh_once(self) -> dict[str, Any]:
+            if not self._enabled:
+                return {"reason": "plugin_disabled"}
+            if not self._storage_bootstrapped:
+                _bootstrap_plugin_storage()
+                self._storage_bootstrapped = True
+            return _run_registered_chart_refresh_once()
 
         def stop_service(self):
             return None

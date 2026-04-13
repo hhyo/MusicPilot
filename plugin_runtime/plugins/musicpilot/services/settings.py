@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -18,7 +17,6 @@ from ..schemas.shared import (
     ProviderSettingsUpdatePayload,
     RuleProfile,
 )
-from ..schemas.orchestration import ChartRuntimeStatus
 
 logger = logging.getLogger(__name__)
 
@@ -65,27 +63,6 @@ class SettingsService:
         )
         self.session.commit()
         return self.get_provider_settings()
-
-    def get_chart_runtime_snapshots(self) -> dict[str, ChartRuntimeStatus]:
-        stored_snapshots = self.repository.get_value("chart_runtime_snapshots")
-        return self._coerce_valid_chart_runtime_snapshots(stored_snapshots)
-
-    def get_chart_runtime_snapshot(self, chart_id: str) -> ChartRuntimeStatus:
-        snapshot = self.get_chart_runtime_snapshots().get(chart_id)
-        if snapshot is None:
-            return self._resolve_chart_runtime_status(ChartRuntimeStatus())
-        return self._resolve_chart_runtime_status(snapshot)
-
-    def update_chart_runtime_snapshot(self, chart_id: str, snapshot: ChartRuntimeStatus) -> ChartRuntimeStatus:
-        snapshots = self.get_chart_runtime_snapshots()
-        resolved_snapshot = self._resolve_chart_runtime_status(snapshot)
-        snapshots[chart_id] = resolved_snapshot
-        self.repository.set_value(
-            "chart_runtime_snapshots",
-            {key: value.model_dump(mode="json") for key, value in snapshots.items()},
-        )
-        self.session.commit()
-        return resolved_snapshot
 
     def get_rule_profiles(self) -> list[RuleProfile]:
         stored_profiles = self.repository.get_value("rule_profiles")
@@ -170,44 +147,3 @@ class SettingsService:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Skipping invalid rule profile entry %r: %s", item, exc)
         return parsed
-
-    def _coerce_valid_chart_runtime_snapshots(
-        self,
-        snapshots: dict[str, dict[str, Any]] | dict[str, ChartRuntimeStatus] | None,
-    ) -> dict[str, ChartRuntimeStatus]:
-        if not isinstance(snapshots, dict):
-            return {}
-
-        parsed: dict[str, ChartRuntimeStatus] = {}
-        for chart_id, item in snapshots.items():
-            try:
-                parsed[chart_id] = item if isinstance(item, ChartRuntimeStatus) else ChartRuntimeStatus.model_validate(item)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("Skipping invalid chart runtime snapshot for %s: %s", chart_id, exc)
-        return parsed
-
-    def _resolve_chart_runtime_status(self, snapshot: ChartRuntimeStatus) -> ChartRuntimeStatus:
-        last_refresh_status = snapshot.last_refresh_status or "unknown"
-        last_refreshed_at = snapshot.last_refreshed_at
-        stale = True
-        if last_refresh_status == "success" and last_refreshed_at is not None:
-            if last_refreshed_at.tzinfo is None:
-                last_refreshed_at = last_refreshed_at.replace(tzinfo=timezone.utc)
-            max_age_seconds = self._resolve_chart_runtime_ttl_seconds()
-            age_seconds = (datetime.now(timezone.utc) - last_refreshed_at).total_seconds()
-            stale = age_seconds > max_age_seconds
-        return snapshot.model_copy(
-            update={
-                "last_refresh_status": last_refresh_status,
-                "last_refreshed_at": last_refreshed_at,
-                "stale": stale,
-            }
-        )
-
-    def _resolve_chart_runtime_ttl_seconds(self) -> int:
-        ttl_seconds = getattr(self.env_settings, "chart_cache_ttl_seconds", 900)
-        try:
-            ttl_value = int(ttl_seconds)
-        except (TypeError, ValueError):
-            return 900
-        return ttl_value if ttl_value > 0 else 900

@@ -126,6 +126,8 @@ class Settings(BaseSettings):
     chart_cache_enabled: bool = Field(default=True)
     chart_cache_maxsize: int = Field(default=256, ge=1, le=10000)
     chart_cache_ttl_seconds: int = Field(default=900, ge=1, le=86400)
+    chart_refresh_enabled: bool = Field(default=True)
+    chart_refresh_interval_minutes: int = Field(default=60, ge=1, le=10080)
     chart_rss_feeds: list[dict[str, Any]] = Field(
         default_factory=lambda: [dict(feed) for feed in DEFAULT_CHART_RSS_FEEDS]
     )

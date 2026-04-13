@@ -15,7 +15,6 @@ from app.schemas.orchestration import (
     ChartInfo,
     CreateChartEntrySubscriptionRequest,
     DiscoveryEntryView,
-    ChartRuntimeStatus,
     SubscriptionType,
 )
 from app.services.charts import ChartService
@@ -31,14 +30,39 @@ def build_discovery_assembler() -> DiscoveryAssembler:
 
 class FakeSettingsService:
     def __init__(self) -> None:
-        self.snapshots: dict[str, ChartRuntimeStatus] = {}
+        self.session = None
+        self.env_settings = SimpleNamespace(chart_refresh_interval_minutes=60)
 
-    def get_chart_runtime_snapshot(self, chart_id: str) -> ChartRuntimeStatus:
-        return self.snapshots.get(chart_id, ChartRuntimeStatus())
 
-    def update_chart_runtime_snapshot(self, chart_id: str, snapshot: ChartRuntimeStatus) -> ChartRuntimeStatus:
-        self.snapshots[chart_id] = snapshot
-        return snapshot
+class InMemoryChartRepository:
+    def __init__(self) -> None:
+        self.details: dict[str, ChartDetailData] = {}
+
+    def list_charts(self, *, provider=None, chart_type=None, region=None, refresh_interval_minutes=60):  # noqa: ANN001, ARG002
+        items = [detail.chart for detail in self.details.values()]
+        if provider:
+            items = [item for item in items if item.chart_source == provider]
+        if chart_type:
+            items = [item for item in items if item.chart_type == chart_type]
+        if region:
+            items = [item for item in items if item.region == region]
+        return items
+
+    def get_chart_detail(self, chart_id: str, *, refresh_interval_minutes=60):  # noqa: ARG002
+        return self.details.get(chart_id)
+
+    def upsert_chart_detail(self, detail: ChartDetailData, **kwargs):  # noqa: ANN003, ARG002
+        self.details[detail.chart.id] = detail
+        return detail
+
+    def mark_refresh_failure(self, chart_id: str, **kwargs):  # noqa: ANN003, ARG002
+        return None
+
+    def remove_missing_charts(self, *, provider: str, active_chart_ids: set[str]):  # noqa: ARG002
+        obsolete_ids = [chart_id for chart_id in list(self.details) if chart_id not in active_chart_ids]
+        for chart_id in obsolete_ids:
+            self.details.pop(chart_id, None)
+        return obsolete_ids
 
 
 class FakeResponse:
@@ -249,13 +273,50 @@ class FakeLiveChartAdapter:
                 chart_name="Top Tracks",
                 chart_type=EntityType.TRACK,
                 updated_at=datetime.now(timezone.utc),
+                chart_group="tracks",
+                summary="真实 ListenBrainz 周榜。",
                 mock=False,
                 note=self.note,
             )
         ]
 
     def get_chart_detail(self, chart_id: str):  # noqa: ANN201, ARG002
-        raise NotImplementedError
+        from datetime import datetime, timezone
+
+        return ChartDetailData(
+            chart=ChartInfo(
+                id=chart_id,
+                chart_source="listenbrainz",
+                chart_name="Top Tracks",
+                chart_type=EntityType.TRACK,
+                updated_at=datetime.now(timezone.utc),
+                chart_group="tracks",
+                summary="真实 ListenBrainz 周榜。",
+                mock=False,
+                note="live",
+            ),
+            items=[
+                ChartEntryInfo(
+                    item_id=f"{chart_id}-item-001",
+                    chart_id=chart_id,
+                    chart_source="listenbrainz",
+                    chart_name="Top Tracks",
+                    rank=1,
+                    item_type=EntityType.TRACK,
+                    target_id="rec-1",
+                    target_name="Hello",
+                    subtitle="Adele",
+                    provider="listenbrainz",
+                    source_type="listenbrainz_sitewide_stats",
+                    mock=False,
+                    note="live",
+                )
+            ],
+            item_count=1,
+            mock=False,
+            note="live",
+            integration_point="ListenBrainzChartProviderAdapter",
+        )
 
     def get_chart_entry(self, chart_id: str, item_id: str):  # noqa: ANN201, ARG002
         raise NotImplementedError
@@ -267,6 +328,7 @@ class ChartServiceLiveModeTest(unittest.TestCase):
             adapter=FakeLiveChartAdapter(),
             discovery_assembler=build_discovery_assembler(),
             settings_service=FakeSettingsService(),
+            chart_repository=InMemoryChartRepository(),
         )
 
         result = service.list_charts()
@@ -288,6 +350,8 @@ class FakeDetailChartAdapter(FakeLiveChartAdapter):
                 chart_name="Top Tracks",
                 chart_type=EntityType.TRACK,
                 updated_at=datetime.now(timezone.utc),
+                chart_group="tracks",
+                summary="真实 ListenBrainz 周榜。",
                 mock=False,
                 note="live",
             ),
@@ -321,6 +385,7 @@ class ChartServiceDiscoveryEnrichmentTest(unittest.TestCase):
             adapter=FakeDetailChartAdapter(),
             discovery_assembler=build_discovery_assembler(),
             settings_service=FakeSettingsService(),
+            chart_repository=InMemoryChartRepository(),
         )
 
         detail = service.get_chart_detail("chart-listenbrainz-top-tracks-week")
@@ -402,6 +467,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
             ),
             discovery_assembler=build_discovery_assembler(),
             settings_service=FakeSettingsService(),
+            chart_repository=InMemoryChartRepository(),
         )
 
         detail = service.get_chart_detail("rss-feed-feed-netease-playlist")
@@ -566,6 +632,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
             ),
             discovery_assembler=build_discovery_assembler(),
             settings_service=FakeSettingsService(),
+            chart_repository=InMemoryChartRepository(),
         )
 
         detail = service.get_chart_detail("rss-feed-feed-artist-no-name")

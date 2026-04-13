@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from ..core.config import settings
 from ..models.acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
+from ..models.charts import ChartModel
 from ..models.orchestration import OrganizeRecordModel, SubscriptionModel, SubscriptionRunModel
-from ..models.settings import AppSettingModel
 from ..schemas.orchestration import (
     DashboardDiscoveryDiagnostics,
     DashboardHandoffDiagnostics,
@@ -57,15 +57,13 @@ class DashboardService:
         )
 
     def _provider_runtime_diagnostics(self) -> dict[str, int | str]:
-        snapshots = self._chart_runtime_snapshots()
+        charts = list(self.session.scalars(select(ChartModel)).all())
         return {
             "host_verification_state": str(settings.host_verification_state),
-            "chart_runtime_total": len(snapshots),
-            "chart_runtime_stale_total": sum(1 for snapshot in snapshots.values() if bool(snapshot.get("stale"))),
+            "chart_runtime_total": len(charts),
+            "chart_runtime_stale_total": sum(1 for chart in charts if bool(chart.stale)),
             "chart_runtime_failed_total": sum(
-                1
-                for snapshot in snapshots.values()
-                if str(snapshot.get("last_refresh_status") or "unknown") not in {"unknown", "success"}
+                1 for chart in charts if str(chart.last_refresh_status or "unknown") not in {"unknown", "success"}
             ),
         }
 
@@ -235,12 +233,6 @@ class DashboardService:
             return None
         status = path_handoff.get("status")
         return str(status) if status is not None else None
-
-    def _chart_runtime_snapshots(self) -> dict[str, dict]:
-        snapshots = self.session.get(AppSettingModel, "chart_runtime_snapshots")
-        if snapshots is None or not isinstance(snapshots.value_json, dict):
-            return {}
-        return {str(chart_id): item for chart_id, item in snapshots.value_json.items() if isinstance(item, dict)}
 
     def _is_due(self, subscription, now: datetime) -> bool:
         baseline = (

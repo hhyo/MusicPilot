@@ -14,8 +14,9 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.dependencies import get_chart_service
 from app.main import app
-from app.models import AppSettingModel, Base
-from app.schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo, ChartRuntimeStatus
+from app.models import AppSettingModel, Base, ChartItemModel, ChartModel
+from app.repositories.charts import ChartRepository
+from app.schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo
 from app.schemas.shared import EntityType
 from app.services.charts import ChartService
 from app.services.discovery import DiscoveryAssembler
@@ -117,11 +118,13 @@ class ChartRuntimeRouteTest(unittest.TestCase):
         self.session = Session(engine)
         self.env_settings = SimpleNamespace(chart_cache_ttl_seconds=900)
         self.settings_service = SettingsService(session=self.session, env_settings=self.env_settings)
+        self.chart_repository = ChartRepository(self.session)
         self.detail = build_chart_detail()
         self.service = ChartService(
             adapter=FakeChartAdapter(self.detail),
             discovery_assembler=build_discovery_assembler(),
             settings_service=self.settings_service,
+            chart_repository=self.chart_repository,
         )
         app.dependency_overrides[get_chart_service] = lambda: self.service
         self.client = TestClient(app)
@@ -134,16 +137,23 @@ class ChartRuntimeRouteTest(unittest.TestCase):
     def test_get_chart_runtime_returns_persisted_snapshot_and_marks_old_status_stale(self) -> None:
         old_timestamp = datetime.now(timezone.utc) - timedelta(hours=2)
         self.session.add(
-            AppSettingModel(
-                key="chart_runtime_snapshots",
-                value_json={
-                    self.detail.chart.id: {
-                        "last_refreshed_at": old_timestamp.isoformat(),
-                        "last_refresh_status": "success",
-                        "last_error": None,
-                        "stale": False,
-                    }
-                },
+            ChartModel(
+                id=self.detail.chart.id,
+                chart_source=self.detail.chart.chart_source,
+                chart_name=self.detail.chart.chart_name,
+                chart_type=self.detail.chart.chart_type.value,
+                region=self.detail.chart.region,
+                category=self.detail.chart.category,
+                refresh_hint=self.detail.chart.refresh_hint,
+                item_count=self.detail.item_count,
+                source_updated_at=self.detail.chart.updated_at,
+                last_refreshed_at=old_timestamp,
+                last_refresh_status="success",
+                last_error=None,
+                stale=False,
+                mock=self.detail.mock,
+                note=self.detail.note,
+                integration_point=self.detail.integration_point,
             )
         )
         self.session.commit()
@@ -156,7 +166,7 @@ class ChartRuntimeRouteTest(unittest.TestCase):
         self.assertEqual(data["runtime"]["last_refresh_status"], "success")
         self.assertTrue(data["runtime"]["stale"])
 
-    def test_refresh_chart_updates_runtime_snapshot_without_touching_feed_config(self) -> None:
+    def test_refresh_chart_updates_persisted_chart_runtime_without_touching_feed_config(self) -> None:
         self.session.add(
             AppSettingModel(
                 key="chart_rss_feeds",
@@ -196,25 +206,56 @@ class ChartRuntimeRouteTest(unittest.TestCase):
                 }
             ],
         )
-        self.assertEqual(
-            self.session.get(AppSettingModel, "chart_runtime_snapshots").value_json[self.detail.chart.id]["last_refresh_status"],
-            "success",
-        )
+        persisted_chart = self.session.get(ChartModel, self.detail.chart.id)
+        self.assertIsNotNone(persisted_chart)
+        self.assertEqual(persisted_chart.last_refresh_status, "success")
 
-    def test_refresh_chart_failure_records_last_error_snapshot(self) -> None:
+    def test_refresh_chart_failure_records_last_error_on_persisted_chart(self) -> None:
+        self.service.refresh_chart(self.detail.chart.id)
         failing_service = ChartService(
             adapter=FakeChartAdapter(self.detail, raise_error=RuntimeError("boom")),
             discovery_assembler=build_discovery_assembler(),
             settings_service=self.settings_service,
+            chart_repository=self.chart_repository,
         )
 
         with self.assertRaises(HTTPException):
             failing_service.refresh_chart(self.detail.chart.id)
 
-        snapshot = self.session.get(AppSettingModel, "chart_runtime_snapshots").value_json[self.detail.chart.id]
-        self.assertEqual(snapshot["last_refresh_status"], "failed")
-        self.assertIn("RuntimeError: boom", snapshot["last_error"])
-        self.assertTrue(snapshot["stale"])
+        persisted_chart = self.session.get(ChartModel, self.detail.chart.id)
+        self.assertIsNotNone(persisted_chart)
+        self.assertEqual(persisted_chart.last_refresh_status, "failed")
+        self.assertIn("RuntimeError: boom", persisted_chart.last_error)
+        self.assertTrue(persisted_chart.stale)
+
+    def test_refresh_chart_persists_chart_and_items_for_cached_reads(self) -> None:
+        self.service.refresh_chart(self.detail.chart.id)
+
+        persisted_chart = self.session.get(ChartModel, self.detail.chart.id)
+        persisted_item = self.session.query(ChartItemModel).filter(ChartItemModel.chart_id == self.detail.chart.id).first()
+
+        self.assertIsNotNone(persisted_chart)
+        self.assertEqual(persisted_chart.id, self.detail.chart.id)
+        self.assertEqual(persisted_chart.chart_name, "Demo Chart")
+        self.assertEqual(persisted_chart.item_count, 1)
+        self.assertIsNotNone(persisted_item)
+        self.assertEqual(persisted_item.chart_id, self.detail.chart.id)
+        self.assertEqual(persisted_item.target_name, "Hello")
+
+    def test_get_chart_detail_uses_persisted_chart_when_provider_is_unavailable(self) -> None:
+        self.service.refresh_chart(self.detail.chart.id)
+        failing_service = ChartService(
+            adapter=FakeChartAdapter(self.detail, raise_error=RuntimeError("boom")),
+            discovery_assembler=build_discovery_assembler(),
+            settings_service=self.settings_service,
+            chart_repository=self.chart_repository,
+        )
+
+        detail = failing_service.get_chart_detail(self.detail.chart.id)
+
+        self.assertEqual(detail.chart.id, self.detail.chart.id)
+        self.assertEqual(detail.item_count, 1)
+        self.assertEqual(detail.items[0].target_name, "Hello")
 
 
 if __name__ == "__main__":  # pragma: no cover

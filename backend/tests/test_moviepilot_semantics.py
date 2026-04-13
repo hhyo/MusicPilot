@@ -1302,6 +1302,8 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
                 settings=SimpleNamespace(
                     subscription_scheduler_enabled=True,
                     subscription_scheduler_poll_seconds=30.0,
+                    chart_refresh_enabled=True,
+                    chart_refresh_interval_minutes=60,
                 )
             )
             with patch.object(plugin_module, "_load_local_module", return_value=fake_settings_module):
@@ -1316,6 +1318,13 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
                         "trigger": "interval",
                         "func": plugin.run_scheduler_once,
                         "kwargs": {"seconds": 30},
+                    },
+                    {
+                        "id": "chart-refresh",
+                        "name": "MusicPilot 榜单刷新",
+                        "trigger": "interval",
+                        "func": plugin.run_chart_refresh_once,
+                        "kwargs": {"minutes": 60},
                     }
                 ],
             )
@@ -1353,6 +1362,8 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
                 settings=SimpleNamespace(
                     subscription_scheduler_enabled=True,
                     subscription_scheduler_poll_seconds=30.0,
+                    chart_refresh_enabled=True,
+                    chart_refresh_interval_minutes=60,
                 )
             )
             with patch.object(plugin_module, "_load_local_module", return_value=fake_settings_module):

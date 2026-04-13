@@ -33,6 +33,7 @@ from ..adapters.organize import MockOrganizeAdapter, OrganizeAdapter, RealOrgani
 from ..core.db import SessionLocal, get_db_session
 from ..core.config import settings
 from ..core.runtime_cache import stable_cache_key
+from ..repositories.charts import ChartRepository
 from ..repositories.orchestration import OrchestrationRepository
 from ..services.charts import ChartService
 from ..services.host_capabilities import HostCapabilitiesService
@@ -241,8 +242,31 @@ def get_chart_service(
     adapter: ChartProviderAdapter = Depends(get_chart_provider_adapter),
     discovery_assembler: DiscoveryAssembler = Depends(get_discovery_assembler),
     settings_service: SettingsService = Depends(get_settings_service),
+    session: Session = Depends(get_db_session),
 ) -> ChartService:
-    return ChartService(adapter=adapter, discovery_assembler=discovery_assembler, settings_service=settings_service)
+    return ChartService(
+        adapter=adapter,
+        discovery_assembler=discovery_assembler,
+        settings_service=settings_service,
+        chart_repository=ChartRepository(session),
+    )
+
+
+def build_chart_service(session: Session) -> ChartService:
+    settings_service = SettingsService(session=session, env_settings=settings)
+    metadata_service = MetadataService(session=session, adapter=get_metadata_provider_adapter())
+    music_media_chain = MusicMediaChain(
+        metadata_service=metadata_service,
+        metadata_adapter=get_metadata_provider_adapter(),
+    )
+    discovery_assembler = DiscoveryAssembler(music_media_chain=music_media_chain)
+    adapter = get_chart_provider_adapter(session=session, settings_service=settings_service)
+    return ChartService(
+        adapter=adapter,
+        discovery_assembler=discovery_assembler,
+        settings_service=settings_service,
+        chart_repository=ChartRepository(session),
+    )
 
 
 def get_query_builder_service(

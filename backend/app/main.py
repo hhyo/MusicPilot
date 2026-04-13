@@ -14,6 +14,7 @@ from .api.health import build_health_payload
 from .api.router import plugin_api_router, probe_api_router
 from .core.config import settings
 from .core.dependencies import (
+    build_chart_service,
     build_subscription_scheduler_service,
     get_host_integration_service,
     get_session_factory,
@@ -60,6 +61,26 @@ async def _run_subscription_scheduler_loop() -> None:
         await asyncio.sleep(settings.subscription_scheduler_poll_seconds)
 
 
+async def _run_chart_refresh_loop() -> None:
+    session_factory = get_session_factory()
+    interval_seconds = max(60, int(settings.chart_refresh_interval_minutes) * 60)
+    while True:
+        try:
+            with session_factory() as session:
+                service = build_chart_service(session)
+                result = service.refresh_all_charts()
+                if result.get("refreshed_ids"):
+                    logger.info("chart.refresh.executed ids=%s", ",".join(result["refreshed_ids"]))
+                if result.get("failed"):
+                    logger.warning("chart.refresh.failed ids=%s", ",".join(sorted(result["failed"].keys())))
+                session.commit()
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # noqa: BLE001
+            logger.exception("chart.refresh.loop_failed")
+        await asyncio.sleep(interval_seconds)
+
+
 def _should_start_local_scheduler_loop() -> bool:
     if not settings.subscription_scheduler_enabled:
         return False
@@ -70,8 +91,11 @@ def _should_start_local_scheduler_loop() -> bool:
 async def lifespan(_: FastAPI):
     bootstrap_metadata_storage()
     scheduler_task = None
+    chart_refresh_task = None
     if _should_start_local_scheduler_loop():
         scheduler_task = asyncio.create_task(_run_subscription_scheduler_loop())
+    if settings.chart_refresh_enabled:
+        chart_refresh_task = asyncio.create_task(_run_chart_refresh_loop())
     try:
         yield
     finally:
@@ -79,6 +103,12 @@ async def lifespan(_: FastAPI):
             scheduler_task.cancel()
             try:
                 await scheduler_task
+            except asyncio.CancelledError:
+                pass
+        if chart_refresh_task is not None:
+            chart_refresh_task.cancel()
+            try:
+                await chart_refresh_task
             except asyncio.CancelledError:
                 pass
 

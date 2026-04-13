@@ -29,7 +29,7 @@ FastAPI 工程目录。当前已完成：
 
 当前仍不包含：
 
-- 更多真实榜单源、榜单增量监控与自动刷新
+- 更多真实榜单源、榜单增量监控
 - 更多 metadata provider、provider 配置持久化与后台刷新
 - 真实 PT 搜索命中质量优化、更多下载样例与 path handoff 稳定性收口
 - 生产级订阅调度器能力、失败重试与真实整理规则
@@ -51,14 +51,14 @@ python -m app.db_init --reseed
 - `charts/*` 当前支持三种模式：
   - `mock`：本地 chart seed
   - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings；当前 detail 输出已补 discovery 产品化字段，如 chart summary、hero entry、entry groups，并统一产出 `MusicMediaInput`
-  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取，运行时优先读取项目 settings，环境变量仅作为 fallback；当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，`item_count` 分别可写为 `200`、`100`、`100`。若项目 settings 和环境都未提供 `chart_rss_feeds`，fresh install 默认会带出 5 条内置 RSS feed：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。RSS 条目统一映射为 `MusicMediaInput`，再构造成 `MusicMetaBase`，并通过结构化 `MusicRecognitionAssessment` 暴露识别状态；detail 下钻统一经由 `/media/resolve/detail` 驱动统一音乐媒体解析链。family-specific candidate hints 已下沉到 `MusicMetaBaseBuilder` / `MusicMediaRecognizer` 所消费的标准化输入里。对于 RSS chart entry 订阅，创建阶段会直接解析并持久化统一链显式字段，执行阶段只复用这些正式字段补全 `MusicMediaInfo`
+  - `rss_feed`：按 settings 配置的 RSS feed 列表拉取，运行时优先读取项目 settings，环境变量仅作为 fallback；当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，`item_count` 分别可写为 `200`、`100`、`100`。若项目 settings 和环境都未提供 `chart_rss_feeds`，fresh install 默认会带出 5 条内置 RSS feed：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。RSS 条目统一映射为 `MusicMediaInput`，再构造成 `MusicMetaBase`，并通过结构化 `MusicRecognitionAssessment` 暴露识别状态；detail 下钻统一经由 `/media/resolve/detail` 驱动统一音乐媒体解析链。family-specific candidate hints 已下沉到 `MusicMetaBaseBuilder` / `MusicMediaRecognizer` 所消费的标准化输入里。对于 RSS chart entry 订阅，创建阶段会直接解析并持久化统一链显式字段，执行阶段只复用这些正式字段补全 `MusicMediaInfo`。当前榜单内容会持久化到 `charts` / `chart_items`，后台通过单个 `chart-refresh` 周期任务批量刷新全部启用榜单
 - `downloads/dispatch` 当前支持三类 host 语义：
   - 可靠 `media_in` -> `/api/v1/download/`
   - torrent-only 但已具备宿主媒体参考 -> `/api/v1/download/add`
   - 音乐 torrent-only 候选 -> 宿主 downloader runtime 直接提交下载器
 - `/dashboard/summary` 当前已经是真实聚合接口，会汇总 provider、discovery、handoff、organize、scheduler 五块诊断摘要，不再返回 placeholder 数据
 - `/settings/profiles` 当前已进入真实持久化阶段，用于保存规则 profile 列表
-- `/charts/{chart_id}/refresh` 与 `/charts/{chart_id}/runtime` 当前已提供 discovery source 刷新与运行态接口
+- `/charts/{chart_id}/refresh` 与 `/charts/{chart_id}/runtime` 当前已提供 discovery source 刷新与运行态接口；`/charts`、`/charts/{chart_id}` 优先读取持久化后的榜单数据
 - `/downloads/bindings`、`/downloads/tasks` 及各自 detail 当前已提供下载绑定/下载任务工作台接口，同时支持 binding `retry-dispatch` 与 `retry-handoff`
 - `jobs/{job_id}/retry|cancel|DELETE`、`jobs/{job_id}/candidates/{candidate_id}/confirm|reject` 与 `organize/jobs/{record_id}/retry|rebuild-preview|repair-source-path` 当前已提供管理动作
 - `subscriptions/{id}/run` 当前支持 `preview_only` 和 `retry_run_id`，`subscriptions/{id}/runs` 支持 `execution_status` 与 `limit` 过滤

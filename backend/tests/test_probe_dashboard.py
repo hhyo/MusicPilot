@@ -11,8 +11,8 @@ from sqlalchemy.pool import StaticPool
 from app.core.dependencies import get_dashboard_service, get_host_capabilities_service
 from app.main import app
 from app.models import (
-    AppSettingModel,
     Base,
+    ChartModel,
     DownloadBindingModel,
     OrganizeRecordModel,
     SearchCandidateModel,
@@ -165,24 +165,45 @@ class DashboardDiagnosticsRouteTest(unittest.TestCase):
         self.session = Session(engine)
         now = datetime.now(timezone.utc)
 
-        self.session.add(
-            AppSettingModel(
-                key="chart_runtime_snapshots",
-                value_json={
-                    "chart-a": {
-                        "last_refreshed_at": (now - timedelta(hours=3)).isoformat(),
-                        "last_refresh_status": "success",
-                        "last_error": None,
-                        "stale": True,
-                    },
-                    "chart-b": {
-                        "last_refreshed_at": now.isoformat(),
-                        "last_refresh_status": "error",
-                        "last_error": "rss timeout",
-                        "stale": False,
-                    },
-                },
-            )
+        self.session.add_all(
+            [
+                ChartModel(
+                    id="chart-a",
+                    chart_source="rss_feed",
+                    chart_name="Chart A",
+                    chart_type="track",
+                    region="Global",
+                    category="demo",
+                    refresh_hint="hourly",
+                    item_count=10,
+                    source_updated_at=now - timedelta(hours=3),
+                    last_refreshed_at=now - timedelta(hours=3),
+                    last_refresh_status="success",
+                    last_error=None,
+                    stale=True,
+                    mock=False,
+                    note="live",
+                    integration_point="test",
+                ),
+                ChartModel(
+                    id="chart-b",
+                    chart_source="rss_feed",
+                    chart_name="Chart B",
+                    chart_type="track",
+                    region="Global",
+                    category="demo",
+                    refresh_hint="hourly",
+                    item_count=10,
+                    source_updated_at=now,
+                    last_refreshed_at=now,
+                    last_refresh_status="error",
+                    last_error="rss timeout",
+                    stale=False,
+                    mock=False,
+                    note="live",
+                    integration_point="test",
+                ),
+            ]
         )
         self.session.add_all(
             [

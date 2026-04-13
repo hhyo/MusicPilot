@@ -2,6 +2,7 @@
 
 from .acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
 from .base import Base
+from .charts import ChartItemModel, ChartModel
 from .metadata import AlbumModel, ArtistModel, SearchHistoryModel, TrackModel
 from .orchestration import OrganizeRecordModel, SubscriptionModel, SubscriptionRunModel
 from .settings import AppSettingModel
@@ -11,6 +12,8 @@ __all__ = [
     "ArtistModel",
     "AppSettingModel",
     "Base",
+    "ChartItemModel",
+    "ChartModel",
     "DownloadBindingModel",
     "OrganizeRecordModel",
     "SearchCandidateModel",
