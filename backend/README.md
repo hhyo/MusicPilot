@@ -31,7 +31,7 @@ FastAPI 工程目录。当前已完成：
 
 - 更多真实榜单源、榜单增量监控
 - 更多 metadata provider、provider 配置持久化与后台刷新
-- 真实 PT 搜索命中质量优化、更多下载样例与 path handoff 稳定性收口
+- 更多下载样例与 path handoff 稳定性收口
 - 下载完成回调、自动整理与媒体库刷新
 
 手动初始化本地数据库：
