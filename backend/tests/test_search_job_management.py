@@ -241,6 +241,9 @@ class SearchJobManagementServiceTest(unittest.TestCase):
         self.assertIsNotNone(result.binding)
         self.assertEqual(result.binding.target_downloader, "QB")
         self.assertEqual(result.job.status, JobStatus.DISPATCHED)
+        self.assertEqual(result.job.binding_count, 1)
+        self.assertEqual(result.job.active_download_task_ids, ["task-002"])
+        self.assertEqual(result.job.candidate_decision_counts["auto_download"], 1)
 
     def test_reject_candidate_marks_rejected_with_reason(self) -> None:
         result = self.service.reject_candidate(
@@ -363,6 +366,12 @@ class DownloadsWorkspaceManagementServiceTest(unittest.TestCase):
 
         self.assertEqual(result.total, 1)
         self.assertEqual(result.items[0].task_id, "task-001")
+        self.assertEqual(result.items[0].task_status, "pending_handoff")
+        self.assertEqual(result.items[0].pending_binding_count, 1)
+        self.assertEqual(result.items[0].resolved_binding_count, 0)
+        self.assertEqual(result.items[0].handoff_status_counts["pending_history_sync"], 1)
+        self.assertEqual(result.items[0].job_ids, ["job-001"])
+        self.assertEqual(result.items[0].candidate_ids, ["cand-001"])
 
     def test_retry_dispatch_creates_new_binding(self) -> None:
         result = self.service.retry_dispatch("bind-001", downloader_id="QB", manual_confirm=False)
@@ -491,9 +500,17 @@ class FakeDownloadsWorkspaceService:
             task_id=task_id,
             target_downloader="QB",
             binding_count=1,
+            task_status="pending_handoff",
             latest_dispatch_status="host_submitted",
             latest_dispatched_at="2026-04-12T00:00:00Z",
             mock=False,
+            job_ids=["job-001"],
+            candidate_ids=["cand-001"],
+            dispatch_status_counts={"host_submitted": 1},
+            handoff_status_counts={"pending_history_sync": 1},
+            resolved_binding_count=0,
+            pending_binding_count=1,
+            failed_binding_count=0,
             path_handoff=build_binding_detail().path_handoff,
             host_response_summary={"download_id": task_id},
             bindings=[build_binding_detail()],

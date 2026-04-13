@@ -344,6 +344,10 @@ class SubscriptionSchedulerDiagnostic(BaseModel):
     interval_minutes: int
     last_run_at: datetime | None = None
     next_run_at: datetime | None = None
+    recent_run_id: str | None = None
+    recent_run_status: str | None = None
+    duplicate_guard_until: datetime | None = None
+    retry_eligible_at: datetime | None = None
     error_message: str | None = None
 
 
@@ -362,6 +366,39 @@ class SubscriptionSchedulerSummary(BaseModel):
     handoff_unresolved: int = 0
 
 
+class SubscriptionSchedulerTaskBoundary(BaseModel):
+    scheduler_mode: str = "in_process_polling"
+    execution_mode: str = "inline_subscription_execution"
+    handoff_mode: str = "inline_pending_handoff_reconcile"
+
+
+class PendingHandoffDiagnostic(BaseModel):
+    record_id: str
+    binding_id: str | None = None
+    subscription_run_id: str | None = None
+    reason: str
+    handoff_status: str | None = None
+    age_seconds: int | None = None
+    ttl_seconds: int | None = None
+    error_message: str | None = None
+
+
+class PendingHandoffSummary(BaseModel):
+    applied: int = 0
+    pending: int = 0
+    unresolved: int = 0
+    failed: int = 0
+    skipped: int = 0
+
+
+class PendingHandoffReconcileResult(BaseModel):
+    summary: PendingHandoffSummary = Field(default_factory=PendingHandoffSummary)
+    applied_run_ids: list[str] = Field(default_factory=list)
+    unresolved_run_ids: list[str] = Field(default_factory=list)
+    skipped_record_ids: list[str] = Field(default_factory=list)
+    diagnostics: list[PendingHandoffDiagnostic] = Field(default_factory=list)
+
+
 class SubscriptionSchedulerRunResult(BaseModel):
     executed_ids: list[str] = Field(default_factory=list)
     skipped_ids: list[str] = Field(default_factory=list)
@@ -371,7 +408,8 @@ class SubscriptionSchedulerRunResult(BaseModel):
     reason_counts: dict[str, int] = Field(default_factory=dict)
     window: SubscriptionSchedulerWindow
     diagnostics: list[SubscriptionSchedulerDiagnostic] = Field(default_factory=list)
-    handoff_reconcile: dict[str, Any] = Field(default_factory=dict)
+    handoff_reconcile: PendingHandoffReconcileResult = Field(default_factory=PendingHandoffReconcileResult)
+    task_boundary: SubscriptionSchedulerTaskBoundary = Field(default_factory=SubscriptionSchedulerTaskBoundary)
 
 
 class SubscriptionDetail(SubscriptionSummary):

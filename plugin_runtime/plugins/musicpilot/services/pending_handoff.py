@@ -11,6 +11,11 @@ from ..repositories.acquisition import AcquisitionRepository
 from ..repositories.orchestration import OrchestrationRepository
 from ..schemas.acquisition import PathHandoffInfo
 from ..schemas.orchestration import OrganizeApplyRequest, OrganizeStatus, SubscriptionRunStatus
+from ..schemas.orchestration import (
+    PendingHandoffDiagnostic,
+    PendingHandoffReconcileResult,
+    PendingHandoffSummary,
+)
 
 
 def utc_now() -> datetime:
@@ -33,35 +38,88 @@ class PendingHandoffReconcileService:
         self.acquisition_repository = AcquisitionRepository(session)
         self.orchestration_repository = OrchestrationRepository(session)
 
-    def reconcile_pending_once(self, *, now: datetime | None = None) -> dict[str, list[str]]:
+    def reconcile_pending_once(self, *, now: datetime | None = None) -> dict[str, Any]:
         current_time = now or utc_now()
         applied_run_ids: list[str] = []
         unresolved_run_ids: list[str] = []
         skipped_record_ids: list[str] = []
+        diagnostics: list[PendingHandoffDiagnostic] = []
+        summary = PendingHandoffSummary()
 
         for record in self.orchestration_repository.list_pending_handoff_records():
+            age_seconds = self._record_age_seconds(record=record, now=current_time)
             if not record.binding_id:
                 skipped_record_ids.append(record.id)
+                summary.skipped += 1
+                diagnostics.append(
+                    PendingHandoffDiagnostic(
+                        record_id=record.id,
+                        subscription_run_id=record.subscription_run_id,
+                        reason="missing_binding",
+                        age_seconds=age_seconds,
+                        ttl_seconds=self.handoff_pending_ttl_seconds,
+                    )
+                )
                 continue
 
             binding = self.acquisition_repository.get_binding(record.binding_id)
             if binding is None or not binding.downloader_task_id:
                 skipped_record_ids.append(record.id)
+                summary.skipped += 1
+                diagnostics.append(
+                    PendingHandoffDiagnostic(
+                        record_id=record.id,
+                        binding_id=record.binding_id,
+                        subscription_run_id=record.subscription_run_id,
+                        reason="missing_download_task",
+                        age_seconds=age_seconds,
+                        ttl_seconds=self.handoff_pending_ttl_seconds,
+                    )
+                )
                 continue
 
             resolved = self.path_handoff_service.resolve_from_download(binding.downloader_task_id)
             if resolved is not None:
                 self._store_handoff_state(record=record, binding=binding, handoff=resolved, now=current_time)
-                applied = self.organize_service.apply(OrganizeApplyRequest(organize_job_id=record.id))
-                self._apply_result_to_record(record=record, applied=applied, now=current_time)
-                self._update_run_after_apply(
-                    record=record,
-                    organize_status=applied.organize_status,
-                    handoff=resolved,
-                    now=current_time,
-                )
-                if record.subscription_run_id:
-                    applied_run_ids.append(record.subscription_run_id)
+                try:
+                    applied = self.organize_service.apply(OrganizeApplyRequest(organize_job_id=record.id))
+                    self._apply_result_to_record(record=record, applied=applied, now=current_time)
+                    self._update_run_after_apply(
+                        record=record,
+                        organize_status=applied.organize_status,
+                        handoff=resolved,
+                        now=current_time,
+                    )
+                    if record.subscription_run_id:
+                        applied_run_ids.append(record.subscription_run_id)
+                    summary.applied += 1
+                    diagnostics.append(
+                        PendingHandoffDiagnostic(
+                            record_id=record.id,
+                            binding_id=record.binding_id,
+                            subscription_run_id=record.subscription_run_id,
+                            reason="applied",
+                            handoff_status=resolved.handoff_status,
+                            age_seconds=age_seconds,
+                            ttl_seconds=self.handoff_pending_ttl_seconds,
+                        )
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    self._mark_apply_failed(record=record, handoff=resolved, error_message=str(exc), now=current_time)
+                    self._update_run_apply_failed(record=record, handoff=resolved, error_message=str(exc), now=current_time)
+                    summary.failed += 1
+                    diagnostics.append(
+                        PendingHandoffDiagnostic(
+                            record_id=record.id,
+                            binding_id=record.binding_id,
+                            subscription_run_id=record.subscription_run_id,
+                            reason="apply_failed",
+                            handoff_status=resolved.handoff_status,
+                            age_seconds=age_seconds,
+                            ttl_seconds=self.handoff_pending_ttl_seconds,
+                            error_message=str(exc),
+                        )
+                    )
                 continue
 
             if self._is_stale(binding=binding, now=current_time):
@@ -78,16 +136,42 @@ class PendingHandoffReconcileService:
                 )
                 if record.subscription_run_id:
                     unresolved_run_ids.append(record.subscription_run_id)
+                summary.unresolved += 1
+                diagnostics.append(
+                    PendingHandoffDiagnostic(
+                        record_id=record.id,
+                        binding_id=record.binding_id,
+                        subscription_run_id=record.subscription_run_id,
+                        reason="handoff_unresolved",
+                        handoff_status=unresolved.handoff_status,
+                        age_seconds=age_seconds,
+                        ttl_seconds=self.handoff_pending_ttl_seconds,
+                    )
+                )
                 continue
 
             skipped_record_ids.append(record.id)
+            summary.pending += 1
+            diagnostics.append(
+                PendingHandoffDiagnostic(
+                    record_id=record.id,
+                    binding_id=record.binding_id,
+                    subscription_run_id=record.subscription_run_id,
+                    reason="pending_retry_window",
+                    handoff_status="pending_history_sync",
+                    age_seconds=age_seconds,
+                    ttl_seconds=self.handoff_pending_ttl_seconds,
+                )
+            )
 
         self.session.commit()
-        return {
-            "applied_run_ids": applied_run_ids,
-            "unresolved_run_ids": unresolved_run_ids,
-            "skipped_record_ids": skipped_record_ids,
-        }
+        return PendingHandoffReconcileResult(
+            summary=summary,
+            applied_run_ids=applied_run_ids,
+            unresolved_run_ids=unresolved_run_ids,
+            skipped_record_ids=skipped_record_ids,
+            diagnostics=diagnostics,
+        ).model_dump(mode="json")
 
     def _store_handoff_state(self, *, record, binding, handoff: PathHandoffInfo, now: datetime) -> None:
         handoff_payload = handoff.model_dump(mode="json")
@@ -154,6 +238,16 @@ class PendingHandoffReconcileService:
         record.raw_payload = raw_payload
         record.updated_at = now
 
+    def _mark_apply_failed(self, *, record, handoff: PathHandoffInfo, error_message: str, now: datetime) -> None:
+        raw_payload = dict(record.raw_payload or {})
+        raw_payload["path_handoff"] = handoff.model_dump(mode="json")
+        raw_payload["error_message"] = error_message
+        record.organize_status = OrganizeStatus.FAILED.value
+        record.failure_reason = error_message
+        record.note = "automatic path handoff resolved but organize apply failed"
+        record.raw_payload = raw_payload
+        record.updated_at = now
+
     def _update_run_after_apply(self, *, record, organize_status: OrganizeStatus, handoff: PathHandoffInfo, now: datetime) -> None:
         if not record.subscription_run_id:
             return
@@ -209,6 +303,35 @@ class PendingHandoffReconcileService:
         run.summary_json = summary
         run.updated_at = now
 
+    def _update_run_apply_failed(self, *, record, handoff: PathHandoffInfo, error_message: str, now: datetime) -> None:
+        if not record.subscription_run_id:
+            return
+
+        run = self.orchestration_repository.get_run(record.subscription_run_id)
+        if run is None:
+            return
+
+        summary = dict(run.summary_json or {})
+        summary.update(
+            {
+                "organize_preview_id": record.id,
+                "organize_status": OrganizeStatus.FAILED.value,
+                "path_handoff_status": handoff.handoff_status,
+                "path_handoff_source": handoff.handoff_source,
+                "error_message": error_message,
+            }
+        )
+        self.orchestration_repository.mark_run_finished(
+            run,
+            execution_status=SubscriptionRunStatus.FAILED.value,
+            matched_candidates_count=run.matched_candidates_count,
+            summary_json=summary,
+            search_job_id=run.search_job_id,
+            organize_record_id=record.id,
+            error_message=error_message,
+        )
+        run.updated_at = now
+
     def _is_stale(self, *, binding, now: datetime) -> bool:
         dispatched_at = getattr(binding, "dispatched_at", None)
         if dispatched_at is None:
@@ -216,3 +339,9 @@ class PendingHandoffReconcileService:
         if dispatched_at.tzinfo is None:
             dispatched_at = dispatched_at.replace(tzinfo=timezone.utc)
         return (now - dispatched_at).total_seconds() >= self.handoff_pending_ttl_seconds
+
+    def _record_age_seconds(self, *, record, now: datetime) -> int:
+        baseline = getattr(record, "updated_at", None) or getattr(record, "created_at", None) or now
+        if baseline.tzinfo is None:
+            baseline = baseline.replace(tzinfo=timezone.utc)
+        return max(0, int((now - baseline).total_seconds()))

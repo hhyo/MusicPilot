@@ -349,6 +349,21 @@ class DownloadsWorkspaceBridge:
 
 
 def serialize_job(job: SearchJobModel) -> SearchJobSummary:
+    decision_counts: dict[str, int] = {}
+    handoff_status_counts: dict[str, int] = {}
+    active_download_task_ids: list[str] = []
+
+    for candidate in job.candidates:
+        decision_counts[candidate.decision] = decision_counts.get(candidate.decision, 0) + 1
+
+    for binding in job.bindings:
+        if binding.downloader_task_id and binding.downloader_task_id not in active_download_task_ids:
+            active_download_task_ids.append(binding.downloader_task_id)
+        path_handoff = _extract_path_handoff(binding.raw_payload or {})
+        if path_handoff is not None:
+            handoff_status_counts[path_handoff.handoff_status] = handoff_status_counts.get(path_handoff.handoff_status, 0) + 1
+
+    summary = job.summary_json or {}
     return SearchJobSummary(
         id=job.id,
         music_media_input=MusicMediaInput.model_validate(job.music_media_input),
@@ -368,9 +383,14 @@ def serialize_job(job: SearchJobModel) -> SearchJobSummary:
         mock=job.mock,
         note=job.note,
         query_build=QueryBuildResult.model_validate(job.query_payload) if job.query_payload else None,
-        summary=job.summary_json or {},
+        summary=summary,
+        candidate_decision_counts=decision_counts,
+        binding_count=len(job.bindings),
+        active_download_task_ids=active_download_task_ids,
+        handoff_status_counts=handoff_status_counts,
+        query_trace=dict(summary.get("query_trace") or {}),
         error_message=job.error_message,
-        adapter_resolution=_extract_resolution(job.summary_json or {}),
+        adapter_resolution=_extract_resolution(summary),
     )
 
 

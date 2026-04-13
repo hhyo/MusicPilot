@@ -19,6 +19,17 @@ from ..schemas.acquisition import (
 from .search_job import _extract_path_handoff, serialize_candidate
 
 
+RESOLVED_HANDOFF_STATUSES = {
+    "resolved_from_history_download",
+    "resolved_from_history_transfer",
+}
+
+FAILED_HANDOFF_STATUSES = {
+    "failed",
+    "handoff_unresolved",
+}
+
+
 class DownloadsWorkspaceService:
     def __init__(self, session: Session, *, dispatch_service=None, path_handoff_service=None):
         self.session = session
@@ -140,15 +151,70 @@ class DownloadsWorkspaceService:
         latest = ordered[0]
         raw_payload = dict(latest.raw_payload or {})
         path_handoff = _extract_path_handoff(raw_payload)
+        job_ids: list[str] = []
+        candidate_ids: list[str] = []
+        dispatch_status_counts: dict[str, int] = {}
+        handoff_status_counts: dict[str, int] = {}
+        resolved_binding_count = 0
+        pending_binding_count = 0
+        failed_binding_count = 0
+
+        for binding in ordered:
+            if binding.job_id not in job_ids:
+                job_ids.append(binding.job_id)
+            if binding.candidate_id not in candidate_ids:
+                candidate_ids.append(binding.candidate_id)
+
+            dispatch_status_counts[binding.dispatch_status] = dispatch_status_counts.get(binding.dispatch_status, 0) + 1
+            binding_handoff = _extract_path_handoff(dict(binding.raw_payload or {}))
+            if binding_handoff is None:
+                pending_binding_count += 1
+                continue
+            handoff_status_counts[binding_handoff.handoff_status] = handoff_status_counts.get(binding_handoff.handoff_status, 0) + 1
+            if binding_handoff.handoff_status in RESOLVED_HANDOFF_STATUSES:
+                resolved_binding_count += 1
+            elif binding_handoff.handoff_status in FAILED_HANDOFF_STATUSES:
+                failed_binding_count += 1
+            else:
+                pending_binding_count += 1
+
+        task_status = self._infer_task_status(
+            resolved_binding_count=resolved_binding_count,
+            pending_binding_count=pending_binding_count,
+            failed_binding_count=failed_binding_count,
+        )
         binding_summaries = [self._serialize_binding(binding, include_candidate=False) for binding in ordered]
         return DownloadTaskDetail(
             task_id=task_id,
             target_downloader=latest.target_downloader,
             binding_count=len(ordered),
+            task_status=task_status,
             latest_dispatch_status=latest.dispatch_status,
             latest_dispatched_at=latest.dispatched_at,
             mock=all(binding.mock for binding in ordered),
+            job_ids=job_ids,
+            candidate_ids=candidate_ids,
+            dispatch_status_counts=dispatch_status_counts,
+            handoff_status_counts=handoff_status_counts,
+            resolved_binding_count=resolved_binding_count,
+            pending_binding_count=pending_binding_count,
+            failed_binding_count=failed_binding_count,
             path_handoff=path_handoff,
             host_response_summary=raw_payload.get("host_response_summary") or {},
             bindings=binding_summaries if include_bindings else [],
         )
+
+    @staticmethod
+    def _infer_task_status(
+        *,
+        resolved_binding_count: int,
+        pending_binding_count: int,
+        failed_binding_count: int,
+    ) -> str:
+        if failed_binding_count and not resolved_binding_count and not pending_binding_count:
+            return "failed"
+        if pending_binding_count:
+            return "pending_handoff"
+        if resolved_binding_count:
+            return "handoff_resolved"
+        return "dispatched"

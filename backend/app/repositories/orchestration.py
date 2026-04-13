@@ -173,6 +173,19 @@ class OrchestrationRepository:
         )
         return self.session.scalar(statement)
 
+    def get_latest_run(self, subscription_id: str) -> SubscriptionRunModel | None:
+        statement = (
+            select(SubscriptionRunModel)
+            .options(selectinload(SubscriptionRunModel.subscription))
+            .where(SubscriptionRunModel.subscription_id == subscription_id)
+            .order_by(
+                SubscriptionRunModel.finished_at.desc(),
+                SubscriptionRunModel.created_at.desc(),
+            )
+            .limit(1)
+        )
+        return self.session.scalar(statement)
+
     def create_organize_record(
         self,
         *,

@@ -60,22 +60,32 @@ class QueryContext(BaseModel):
     summary: str
 
 
+class QueryExecutionPlan(BaseModel):
+    ready: bool = True
+    positive_query_count: int = 0
+    negative_term_count: int = 0
+    top_positive_queries: list[str] = Field(default_factory=list)
+    negative_terms: list[str] = Field(default_factory=list)
+    note: str
+
+
 class QueryBuildResult(BaseModel):
     entity_type: EntityType
     provider: str
     provider_id: str
     music_media_info: MusicMediaInfo
     mock: bool = True
+    search_ready: bool = True
     preferences: QueryPreferences
     canonical_queries: list[QueryClause] = Field(default_factory=list)
     alias_queries: list[QueryClause] = Field(default_factory=list)
     relaxed_queries: list[QueryClause] = Field(default_factory=list)
     negative_queries: list[QueryClause] = Field(default_factory=list)
     ordered_queries: list[QueryClause] = Field(default_factory=list)
+    execution_plan: QueryExecutionPlan
     query_context: QueryContext
     note: str
     integration_point: str
-    todo: list[str] = Field(default_factory=list)
 
 
 class HostSearchCandidate(BaseModel):
@@ -149,6 +159,11 @@ class SearchJobSummary(BaseModel):
     note: str | None = None
     query_build: QueryBuildResult | None = None
     summary: dict[str, Any] = Field(default_factory=dict)
+    candidate_decision_counts: dict[str, int] = Field(default_factory=dict)
+    binding_count: int = 0
+    active_download_task_ids: list[str] = Field(default_factory=list)
+    handoff_status_counts: dict[str, int] = Field(default_factory=dict)
+    query_trace: dict[str, Any] = Field(default_factory=dict)
     error_message: str | None = None
     adapter_resolution: AdapterResolution | None = None
 
@@ -240,9 +255,17 @@ class DownloadTaskSummary(BaseModel):
     task_id: str
     target_downloader: str
     binding_count: int = 0
+    task_status: str
     latest_dispatch_status: str
     latest_dispatched_at: datetime
     mock: bool = True
+    job_ids: list[str] = Field(default_factory=list)
+    candidate_ids: list[str] = Field(default_factory=list)
+    dispatch_status_counts: dict[str, int] = Field(default_factory=dict)
+    handoff_status_counts: dict[str, int] = Field(default_factory=dict)
+    resolved_binding_count: int = 0
+    pending_binding_count: int = 0
+    failed_binding_count: int = 0
     path_handoff: PathHandoffInfo | None = None
     host_response_summary: dict[str, Any] = Field(default_factory=dict)
 

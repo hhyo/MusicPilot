@@ -7,9 +7,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from ..schemas.orchestration import (
+    PendingHandoffReconcileResult,
     SubscriptionSchedulerDiagnostic,
     SubscriptionSchedulerRunResult,
     SubscriptionSchedulerSummary,
+    SubscriptionSchedulerTaskBoundary,
     SubscriptionSchedulerWindow,
 )
 
@@ -66,6 +68,17 @@ class SubscriptionSchedulerService:
             return "inactive"
         if self.repository.has_running_run(subscription.id):
             return "running"
+        latest_run = getattr(self.repository, "get_latest_run", lambda _subscription_id: None)(subscription.id)
+        if latest_run is not None:
+            latest_status = str(getattr(latest_run, "execution_status", "") or "")
+            finished_at = getattr(latest_run, "finished_at", None)
+            if finished_at is not None:
+                finished_at = normalize_timestamp(finished_at)
+                if latest_status == "failed":
+                    if now < self._retry_eligible_at(subscription, finished_at):
+                        return "retry_window"
+                elif now < self._duplicate_guard_until(subscription, finished_at):
+                    return "duplicate_guard"
         if now < self._next_run_at(subscription, now):
             return "not_due"
         return None
@@ -87,6 +100,18 @@ class SubscriptionSchedulerService:
             normalized_mode = normalize_subscription_mode(getattr(subscription, "mode", None))
             interval_minutes = self.schedule_interval_minutes(subscription)
             next_run_at = self._next_run_at(subscription, current_time)
+            latest_run = getattr(self.repository, "get_latest_run", lambda _subscription_id: None)(subscription.id)
+            recent_run_id = getattr(latest_run, "id", None)
+            recent_run_status = getattr(latest_run, "execution_status", None)
+            finished_at = getattr(latest_run, "finished_at", None)
+            duplicate_guard_until = None
+            retry_eligible_at = None
+            if finished_at is not None:
+                normalized_finished_at = normalize_timestamp(finished_at)
+                if recent_run_status == "failed":
+                    retry_eligible_at = self._retry_eligible_at(subscription, normalized_finished_at)
+                else:
+                    duplicate_guard_until = self._duplicate_guard_until(subscription, normalized_finished_at)
             reason = self._skip_reason(subscription, current_time)
             if reason is not None:
                 skipped_ids.append(subscription.id)
@@ -101,6 +126,10 @@ class SubscriptionSchedulerService:
                         interval_minutes=interval_minutes,
                         last_run_at=getattr(subscription, "last_run_at", None),
                         next_run_at=next_run_at,
+                        recent_run_id=recent_run_id,
+                        recent_run_status=recent_run_status,
+                        duplicate_guard_until=duplicate_guard_until,
+                        retry_eligible_at=retry_eligible_at,
                     )
                 )
                 continue
@@ -118,6 +147,10 @@ class SubscriptionSchedulerService:
                         interval_minutes=interval_minutes,
                         last_run_at=getattr(subscription, "last_run_at", None),
                         next_run_at=next_run_at,
+                        recent_run_id=recent_run_id,
+                        recent_run_status=recent_run_status,
+                        duplicate_guard_until=duplicate_guard_until,
+                        retry_eligible_at=retry_eligible_at,
                     )
                 )
             except Exception as exc:  # noqa: BLE001
@@ -133,25 +166,25 @@ class SubscriptionSchedulerService:
                         interval_minutes=interval_minutes,
                         last_run_at=getattr(subscription, "last_run_at", None),
                         next_run_at=next_run_at,
+                        recent_run_id=recent_run_id,
+                        recent_run_status=recent_run_status,
+                        duplicate_guard_until=duplicate_guard_until,
+                        retry_eligible_at=retry_eligible_at,
                         error_message=str(exc),
                     )
                 )
 
-        handoff_reconcile = {
-            "applied_run_ids": [],
-            "unresolved_run_ids": [],
-            "skipped_record_ids": [],
-        }
+        handoff_reconcile = PendingHandoffReconcileResult()
         if self.reconcile_pending_handoffs is not None:
-            handoff_reconcile = self.reconcile_pending_handoffs()
+            handoff_reconcile = PendingHandoffReconcileResult.model_validate(self.reconcile_pending_handoffs())
 
         summary = SubscriptionSchedulerSummary(
             considered=considered,
             executed=len(executed_ids),
             skipped=len(skipped_ids),
             errors=len(errors),
-            handoff_applied=len(handoff_reconcile.get("applied_run_ids", [])),
-            handoff_unresolved=len(handoff_reconcile.get("unresolved_run_ids", [])),
+            handoff_applied=handoff_reconcile.summary.applied,
+            handoff_unresolved=handoff_reconcile.summary.unresolved,
         )
         finished_at = utc_now()
         window = SubscriptionSchedulerWindow(
@@ -169,5 +202,19 @@ class SubscriptionSchedulerService:
             window=window,
             diagnostics=diagnostics,
             handoff_reconcile=handoff_reconcile,
+            task_boundary=SubscriptionSchedulerTaskBoundary(),
         )
         return report.model_dump(mode="json")
+
+    def _retry_window_minutes(self, subscription) -> int:
+        preference_json = getattr(subscription, "preference_json", None) or {}
+        value = preference_json.get("scheduler_retry_window_minutes")
+        if isinstance(value, int) and value > 0:
+            return value
+        return self.schedule_interval_minutes(subscription)
+
+    def _duplicate_guard_until(self, subscription, finished_at: datetime) -> datetime:
+        return finished_at + timedelta(minutes=self.schedule_interval_minutes(subscription))
+
+    def _retry_eligible_at(self, subscription, finished_at: datetime) -> datetime:
+        return finished_at + timedelta(minutes=self._retry_window_minutes(subscription))

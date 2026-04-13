@@ -300,8 +300,10 @@ class PendingHandoffReconcileServiceTest(unittest.TestCase):
 
         result = service.reconcile_pending_once(now=utc_now())
 
+        self.assertEqual(result["summary"]["applied"], 1)
         self.assertEqual(result["applied_run_ids"], ["srun-001"])
         self.assertEqual(result["unresolved_run_ids"], [])
+        self.assertEqual(result["diagnostics"][0]["reason"], "applied")
         self.assertEqual(service.organize_service.apply_calls, ["org-001"])
 
         binding = self.session.get(DownloadBindingModel, "bind-001")
@@ -330,8 +332,10 @@ class PendingHandoffReconcileServiceTest(unittest.TestCase):
 
         result = service.reconcile_pending_once(now=utc_now())
 
+        self.assertEqual(result["summary"]["unresolved"], 1)
         self.assertEqual(result["applied_run_ids"], [])
         self.assertEqual(result["unresolved_run_ids"], ["srun-001"])
+        self.assertEqual(result["diagnostics"][0]["reason"], "handoff_unresolved")
         self.assertEqual(service.organize_service.apply_calls, [])
 
         binding = self.session.get(DownloadBindingModel, "bind-001")
@@ -351,6 +355,35 @@ class PendingHandoffReconcileServiceTest(unittest.TestCase):
         second_result = service.reconcile_pending_once(now=utc_now())
         self.assertEqual(second_result["applied_run_ids"], [])
         self.assertEqual(second_result["unresolved_run_ids"], [])
+        self.assertEqual(second_result["summary"]["skipped"], 0)
+
+    def test_reconcile_reports_apply_failure_without_crashing_loop(self) -> None:
+        class FailingOrganizeService:
+            def __init__(self) -> None:
+                self.apply_calls: list[str] = []
+
+            def apply(self, payload):  # noqa: ANN001
+                self.apply_calls.append(payload.organize_job_id)
+                raise RuntimeError("organize apply failed")
+
+        service = PendingHandoffReconcileService(
+            session=self.session,
+            organize_service=FailingOrganizeService(),
+            path_handoff_service=DummyPathHandoffService(resolved=build_resolved_handoff()),
+            handoff_pending_ttl_seconds=120,
+        )
+
+        result = service.reconcile_pending_once(now=utc_now())
+
+        self.assertEqual(result["summary"]["failed"], 1)
+        self.assertEqual(result["diagnostics"][0]["reason"], "apply_failed")
+        self.assertIn("organize apply failed", result["diagnostics"][0]["error_message"])
+
+        run = self.session.get(SubscriptionRunModel, "srun-001")
+        record = self.session.get(OrganizeRecordModel, "org-001")
+        self.assertEqual(run.execution_status, SubscriptionRunStatus.FAILED.value)
+        self.assertEqual(record.organize_status, OrganizeStatus.FAILED.value)
+        self.assertIn("organize apply failed", record.failure_reason)
 
 
 if __name__ == "__main__":

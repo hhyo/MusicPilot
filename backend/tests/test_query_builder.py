@@ -235,6 +235,14 @@ class QueryBuilderServiceTest(unittest.TestCase):
             ],
         )
 
+    def test_query_result_exposes_execution_plan_for_host_search(self) -> None:
+        result = QueryBuilderService.build_from_music_media_info(build_track_media())
+
+        self.assertTrue(result.search_ready)
+        self.assertEqual(result.execution_plan.positive_query_count, len(result.ordered_queries))
+        self.assertEqual(result.execution_plan.top_positive_queries[:3], [query.query for query in result.ordered_queries[:3]])
+        self.assertIn("live", result.execution_plan.negative_terms)
+
 
 if __name__ == "__main__":
     unittest.main()

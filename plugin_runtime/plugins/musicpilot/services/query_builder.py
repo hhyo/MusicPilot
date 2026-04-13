@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from fastapi import HTTPException
 
 from ..schemas.acquisition import (
+    QueryExecutionPlan,
     QueryBuildRequest,
     QueryBuildResult,
     QueryClause,
@@ -18,11 +19,7 @@ from ..schemas.shared import EntityType
 
 
 DEFAULT_NEGATIVE_TERMS = ["karaoke", "instrumental", "tribute", "bootleg"]
-INTEGRATION_POINT = "QueryBuilder 当前围绕 MusicMediaInfo 输出结构化 PT 查询输入，待后续接入真实宿主搜索 adapter。"
-TODO_ITEMS = [
-    "后续可在 MusicMetaBase 或 MusicMediaInfo 中补更多别名与版本线索。",
-    "当前不会直接触发真实 PT 搜索，只生成稳定的查询结构。",
-]
+INTEGRATION_POINT = "QueryBuilder 当前围绕 MusicMediaInfo 输出结构化 PT 查询输入，并为 host search adapter 提供执行级上下文。"
 
 
 def _dedupe(items: Iterable[str]) -> list[str]:
@@ -120,16 +117,24 @@ class QueryBuilderService:
             provider_id=media_info.provider_id,
             music_media_info=media_info,
             mock=False,
+            search_ready=bool(ordered_queries),
             preferences=resolved_preferences,
             canonical_queries=canonical_queries,
             alias_queries=alias_queries,
             relaxed_queries=relaxed_queries,
             negative_queries=negative_queries,
             ordered_queries=ordered_queries,
+            execution_plan=QueryExecutionPlan(
+                ready=bool(ordered_queries),
+                positive_query_count=len(ordered_queries),
+                negative_term_count=len(negative_queries),
+                top_positive_queries=[query.query for query in ordered_queries[:4]],
+                negative_terms=[query.query for query in negative_queries],
+                note="执行计划会按 ordered_queries 顺序交给 host search adapter，negative_terms 用于评分与误匹配过滤。",
+            ),
             query_context=context,
-            note="当前 QueryBuilder 基于 MusicMediaInfo 构造稳定查询词，不直接调用真实宿主搜索。",
+            note="当前 QueryBuilder 基于 MusicMediaInfo 构造稳定查询词，并输出可直接交给 host search adapter 的执行计划。",
             integration_point=INTEGRATION_POINT,
-            todo=TODO_ITEMS,
         )
 
     @staticmethod
