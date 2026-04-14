@@ -868,8 +868,8 @@ class MusicDashboardChain(MusicChainBase):
 # backend/app/startup/runtime.py
 def register_host_services():
     return [
-        ("subscription-scheduler", run_subscribe_scheduler),
-        ("chart-refresh", run_chart_refresh),
+        ("music-subscription-scheduler", run_subscribe_scheduler),
+        ("music-chart-refresh", run_chart_refresh),
         ("music-transfer", run_transfer_loop),
     ]
 ```

@@ -1315,14 +1315,14 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
                 services,
                 [
                     {
-                        "id": "subscription-scheduler",
+                        "id": "music-subscription-scheduler",
                         "name": "MusicPilot 订阅调度",
                         "trigger": "interval",
                         "func": plugin.run_scheduler_once,
                         "kwargs": {"seconds": 30},
                     },
                     {
-                        "id": "chart-refresh",
+                        "id": "music-chart-refresh",
                         "name": "MusicPilot 榜单刷新",
                         "trigger": "interval",
                         "func": plugin.run_chart_refresh_once,

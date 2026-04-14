@@ -137,7 +137,7 @@ if _HostPluginBase is not None:
                 return []
             return [
                 {
-                    "id": "subscription-scheduler",
+                    "id": "music-subscription-scheduler",
                     "name": "MusicPilot 订阅调度",
                     "trigger": "interval",
                     "func": self.run_scheduler_once,
@@ -150,7 +150,7 @@ if _HostPluginBase is not None:
                     },
                 },
                 {
-                    "id": "chart-refresh",
+                    "id": "music-chart-refresh",
                     "name": "MusicPilot 榜单刷新",
                     "trigger": "interval",
                     "func": self.run_chart_refresh_once,
