@@ -50,3 +50,42 @@ class HostValidationMatrixReport(BaseModel):
     summary: HostValidationMatrixSummary
     note: str
 
+
+class DownloadValidationSubmission(BaseModel):
+    requested_downloader: str
+    resolved_downloader: str | None = None
+    download_id: str | None = None
+    dispatch_status: str
+    success: bool = False
+    note: str
+    host_response_summary: dict = Field(default_factory=dict)
+
+
+class DownloadValidationHandoff(BaseModel):
+    download_hash: str | None = None
+    source_path: str | None = None
+    handoff_status: str
+    verification_state: VerificationState = VerificationState.UNVERIFIED
+    note: str
+    raw_summary: dict = Field(default_factory=dict)
+
+
+class DownloadValidationOrganize(BaseModel):
+    preview_id: str | None = None
+    record_id: str | None = None
+    preview_status: str | None = None
+    apply_status: str | None = None
+    target_library_path: str | None = None
+    target_relative_path: str | None = None
+    note: str
+
+
+class DownloadValidationReport(BaseModel):
+    generated_at: datetime
+    host_base_url: str
+    fake_source_path: str
+    download_submission: DownloadValidationSubmission
+    history_handoff: DownloadValidationHandoff
+    organize_result: DownloadValidationOrganize
+    overall_status: Literal["success", "partial", "failed"]
+    note: str
