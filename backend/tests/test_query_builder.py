@@ -8,7 +8,7 @@ from app.schemas.acquisition import QueryPreferences
 from app.schemas.metadata import MetadataDetail
 from app.schemas.music_media import MusicMediaInfo
 from app.schemas.shared import EntityType, ReleaseType
-from app.services.query_builder import QueryBuilderService
+from app.helper.query_builder import MusicQueryBuilder
 
 
 def build_artist_media() -> MusicMediaInfo:
@@ -132,9 +132,9 @@ def build_track_detail() -> MetadataDetail:
     )
 
 
-class QueryBuilderServiceTest(unittest.TestCase):
+class MusicQueryBuilderTest(unittest.TestCase):
     def test_track_ordered_queries_prioritize_pt_release_shapes(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(build_track_media())
+        result = MusicQueryBuilder.build_from_music_media_info(build_track_media())
         top_sources = [query.source for query in result.ordered_queries[:4]]
         self.assertEqual(
             top_sources,
@@ -147,7 +147,7 @@ class QueryBuilderServiceTest(unittest.TestCase):
         )
 
     def test_album_ordered_queries_prioritize_release_title_before_aliases(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(build_album_media())
+        result = MusicQueryBuilder.build_from_music_media_info(build_album_media())
         top_sources = [query.source for query in result.ordered_queries[:4]]
         self.assertEqual(
             top_sources,
@@ -160,39 +160,39 @@ class QueryBuilderServiceTest(unittest.TestCase):
         )
 
     def test_album_canonical_query_contains_artist_and_title(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(build_album_media())
+        result = MusicQueryBuilder.build_from_music_media_info(build_album_media())
         first_query = result.canonical_queries[0].query
         self.assertIn("Adele", first_query)
         self.assertIn("25", first_query)
 
     def test_album_canonical_query_contains_year_by_default(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(build_album_media())
+        result = MusicQueryBuilder.build_from_music_media_info(build_album_media())
         self.assertTrue(any("2015" in query.query for query in result.canonical_queries))
 
     def test_album_alias_queries_include_release_context_aliases(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(build_album_media())
+        result = MusicQueryBuilder.build_from_music_media_info(build_album_media())
         alias_terms = [query.query for query in result.alias_queries]
         self.assertTrue(any("二十五" in query for query in alias_terms))
 
     def test_track_canonical_query_contains_album_context(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(build_track_media())
+        result = MusicQueryBuilder.build_from_music_media_info(build_track_media())
         self.assertTrue(any("25" in query.query for query in result.canonical_queries))
 
     def test_track_relaxed_queries_include_track_only_variant(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(build_track_media())
+        result = MusicQueryBuilder.build_from_music_media_info(build_track_media())
         self.assertTrue(any(query.source == "relaxed_track_only" for query in result.relaxed_queries))
 
     def test_artist_relaxed_queries_keep_artist_only_variant(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(build_artist_media())
+        result = MusicQueryBuilder.build_from_music_media_info(build_artist_media())
         self.assertTrue(any(query.source == "relaxed_artist_only" for query in result.relaxed_queries))
 
     def test_negative_queries_include_live_by_default(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(build_album_media())
+        result = MusicQueryBuilder.build_from_music_media_info(build_album_media())
         negatives = [query.query for query in result.negative_queries]
         self.assertIn("live", negatives)
 
     def test_negative_queries_exclude_live_when_allowed(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(
+        result = MusicQueryBuilder.build_from_music_media_info(
             build_album_media(),
             QueryPreferences(allow_live=True),
         )
@@ -200,7 +200,7 @@ class QueryBuilderServiceTest(unittest.TestCase):
         self.assertNotIn("live", negatives)
 
     def test_negative_queries_include_custom_keywords(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(
+        result = MusicQueryBuilder.build_from_music_media_info(
             build_album_media(),
             QueryPreferences(negative_keywords=["demo", "camrip"]),
         )
@@ -209,7 +209,7 @@ class QueryBuilderServiceTest(unittest.TestCase):
         self.assertIn("camrip", negatives)
 
     def test_query_context_preserves_external_refs(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(build_track_media())
+        result = MusicQueryBuilder.build_from_music_media_info(build_track_media())
         self.assertEqual(
             result.query_context.external_refs["musicbrainz_recording_id"],
             "recording-hello",
@@ -217,14 +217,14 @@ class QueryBuilderServiceTest(unittest.TestCase):
 
     def test_query_preferences_are_embedded_in_result(self) -> None:
         preferences = QueryPreferences(preferred_formats=["FLAC", "APE"], allow_remaster=True)
-        result = QueryBuilderService.build_from_music_media_info(build_album_media(), preferences)
+        result = MusicQueryBuilder.build_from_music_media_info(build_album_media(), preferences)
         self.assertEqual(result.preferences.preferred_formats, ["FLAC", "APE"])
         self.assertTrue(result.preferences.allow_remaster)
 
     def test_query_builder_accepts_music_media_info_track_input(self) -> None:
         media = build_track_media()
 
-        queries = QueryBuilderService.build_queries_from_music_media_info(media)
+        queries = MusicQueryBuilder.build_queries_from_music_media_info(media)
 
         self.assertEqual(
             queries[:3],
@@ -236,7 +236,7 @@ class QueryBuilderServiceTest(unittest.TestCase):
         )
 
     def test_query_result_exposes_execution_plan_for_host_search(self) -> None:
-        result = QueryBuilderService.build_from_music_media_info(build_track_media())
+        result = MusicQueryBuilder.build_from_music_media_info(build_track_media())
 
         self.assertTrue(result.search_ready)
         self.assertEqual(result.execution_plan.positive_query_count, len(result.ordered_queries))

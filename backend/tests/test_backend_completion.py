@@ -10,14 +10,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.core.dependencies import (
-    get_dashboard_service,
-    get_downloads_workspace_service,
-    get_organize_service,
-    get_search_job_service,
-    get_settings_service,
+    get_music_download_chain,
+    get_music_dashboard_chain,
+    get_music_search_chain,
+    get_music_system_chain,
+    get_music_transfer_chain,
 )
+from app.chain.download import MusicDownloadChain
+from app.chain.system import MusicSystemChain
+from app.chain.transfer import MusicTransferChain
 from app.main import app
-from app.models import (
+from app.db.models import (
     AppSettingModel,
     Base,
     DownloadBindingModel,
@@ -41,10 +44,8 @@ from app.schemas.orchestration import (
     OrganizeStatus,
     OrganizeStrategySnapshot,
 )
-from app.services.dashboard import DashboardService
-from app.services.downloads_workspace import DownloadsWorkspaceService
-from app.services.organize import OrganizeService
-from app.services.settings import SettingsService
+from app.chain.dashboard import MusicDashboardChain
+from app.helper.settings import SettingsHelper
 
 
 def build_engine():
@@ -159,14 +160,14 @@ class DashboardRouteTest(unittest.TestCase):
         )
         self.session.commit()
 
-        self.service = DashboardService(session=self.session)
-        app.dependency_overrides[get_dashboard_service] = lambda: self.service
+        self.chain = MusicDashboardChain(session=self.session)
+        app.dependency_overrides[get_music_dashboard_chain] = lambda: self.chain
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self.client.close()
         self.session.close()
-        app.dependency_overrides.pop(get_dashboard_service, None)
+        app.dependency_overrides.pop(get_music_dashboard_chain, None)
 
     def test_dashboard_summary_returns_real_aggregated_counts(self) -> None:
         response = self.client.get("/api/v1/plugin/musicpilot/dashboard/summary")
@@ -194,14 +195,19 @@ class SettingsProfilesRouteTest(unittest.TestCase):
             chart_rss_feeds=[],
             metadata_provider_mode="seed",
         )
-        self.service = SettingsService(session=self.session, env_settings=self.env_settings)
-        app.dependency_overrides[get_settings_service] = lambda: self.service
+        self.chain = MusicSystemChain(
+            settings_helper=SettingsHelper(session=self.session, env_settings=self.env_settings),
+            host_probe=None,
+            host_integration=None,
+            validation_matrix=None,
+        )
+        app.dependency_overrides[get_music_system_chain] = lambda: self.chain
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self.client.close()
         self.session.close()
-        app.dependency_overrides.pop(get_settings_service, None)
+        app.dependency_overrides.pop(get_music_system_chain, None)
 
     def test_get_rule_profiles_returns_real_defaults(self) -> None:
         response = self.client.get("/api/v1/plugin/musicpilot/settings/profiles")
@@ -309,14 +315,14 @@ class DownloadsWorkspaceRouteTest(unittest.TestCase):
         )
         self.session.commit()
 
-        self.service = DownloadsWorkspaceService(session=self.session)
-        app.dependency_overrides[get_downloads_workspace_service] = lambda: self.service
+        self.chain = MusicDownloadChain(session=self.session, resolver=SimpleNamespace())
+        app.dependency_overrides[get_music_download_chain] = lambda: self.chain
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self.client.close()
         self.session.close()
-        app.dependency_overrides.pop(get_downloads_workspace_service, None)
+        app.dependency_overrides.pop(get_music_download_chain, None)
 
     def test_list_download_bindings_supports_filters(self) -> None:
         response = self.client.get("/api/v1/plugin/musicpilot/downloads/bindings", params={"job_id": "job-001"})
@@ -384,12 +390,12 @@ class FakeJobManagementService:
 class JobsManagementRouteTest(unittest.TestCase):
     def setUp(self) -> None:
         self.service = FakeJobManagementService()
-        app.dependency_overrides[get_search_job_service] = lambda: self.service
+        app.dependency_overrides[get_music_search_chain] = lambda: self.service
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self.client.close()
-        app.dependency_overrides.pop(get_search_job_service, None)
+        app.dependency_overrides.pop(get_music_search_chain, None)
 
     def test_retry_job_route_is_available(self) -> None:
         response = self.client.post("/api/v1/plugin/musicpilot/jobs/job-001/retry")
@@ -512,7 +518,7 @@ class OrganizeManagementTest(unittest.TestCase):
             def hydrate(self, media):  # pragma: no cover
                 return None
 
-        self.service = OrganizeService(
+        self.service = MusicTransferChain(
             session=self.session,
             resolver=DummyApplyResolver(),
             strategy_service=SimpleNamespace(build_plan=lambda **kwargs: None),

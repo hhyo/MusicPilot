@@ -12,16 +12,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from app.core.dependencies import get_chart_service
+from app.chain.chart import MusicChartChain
+from app.core.dependencies import get_music_chart_chain
+from app.helper.discovery import MusicDiscoveryBuilder
+from app.helper.settings import SettingsHelper
 from app.main import app
-from app.models import AppSettingModel, Base, ChartItemModel, ChartModel
-from app.repositories.charts import ChartRepository
+from app.db.models import AppSettingModel, Base, ChartItemModel, ChartModel
+from app.db.charts_oper import ChartsOper
 from app.schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo
 from app.schemas.shared import EntityType
-from app.services.charts import ChartService
-from app.services.discovery import DiscoveryAssembler
-from app.services.music_media_chain import MusicMediaChain
-from app.services.settings import SettingsService
+from app.chain.media import MusicMediaChain
 
 
 def build_engine():
@@ -33,9 +33,9 @@ def build_engine():
     )
 
 
-def build_discovery_assembler() -> DiscoveryAssembler:
-    chain = MusicMediaChain(metadata_service=object(), metadata_adapter=object())
-    return DiscoveryAssembler(music_media_chain=chain)
+def build_discovery_builder() -> MusicDiscoveryBuilder:
+    chain = MusicMediaChain(metadata_module=object(), metadata_provider=object())
+    return MusicDiscoveryBuilder(music_media_chain=chain)
 
 
 def build_chart_detail(chart_id: str = "chart-001") -> ChartDetailData:
@@ -117,22 +117,23 @@ class ChartRuntimeRouteTest(unittest.TestCase):
         Base.metadata.create_all(bind=engine)
         self.session = Session(engine)
         self.env_settings = SimpleNamespace(chart_cache_ttl_seconds=900)
-        self.settings_service = SettingsService(session=self.session, env_settings=self.env_settings)
-        self.chart_repository = ChartRepository(self.session)
+        self.settings_service = SettingsHelper(session=self.session, env_settings=self.env_settings)
+        self.chart_repository = ChartsOper(self.session)
         self.detail = build_chart_detail()
-        self.service = ChartService(
+        self.service = MusicChartChain(
             adapter=FakeChartAdapter(self.detail),
-            discovery_assembler=build_discovery_assembler(),
-            settings_service=self.settings_service,
-            chart_repository=self.chart_repository,
+            discovery_assembler=build_discovery_builder(),
+            settings_oper=None,
+            charts_oper=self.chart_repository,
+            env_settings=self.env_settings,
         )
-        app.dependency_overrides[get_chart_service] = lambda: self.service
+        app.dependency_overrides[get_music_chart_chain] = lambda: self.service
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self.client.close()
         self.session.close()
-        app.dependency_overrides.pop(get_chart_service, None)
+        app.dependency_overrides.pop(get_music_chart_chain, None)
 
     def test_get_chart_runtime_returns_persisted_snapshot_and_marks_old_status_stale(self) -> None:
         old_timestamp = datetime.now(timezone.utc) - timedelta(hours=2)
@@ -212,11 +213,12 @@ class ChartRuntimeRouteTest(unittest.TestCase):
 
     def test_refresh_chart_failure_records_last_error_on_persisted_chart(self) -> None:
         self.service.refresh_chart(self.detail.chart.id)
-        failing_service = ChartService(
+        failing_service = MusicChartChain(
             adapter=FakeChartAdapter(self.detail, raise_error=RuntimeError("boom")),
-            discovery_assembler=build_discovery_assembler(),
-            settings_service=self.settings_service,
-            chart_repository=self.chart_repository,
+            discovery_assembler=build_discovery_builder(),
+            settings_oper=None,
+            charts_oper=self.chart_repository,
+            env_settings=self.env_settings,
         )
 
         with self.assertRaises(HTTPException):
@@ -244,11 +246,12 @@ class ChartRuntimeRouteTest(unittest.TestCase):
 
     def test_get_chart_detail_uses_persisted_chart_when_provider_is_unavailable(self) -> None:
         self.service.refresh_chart(self.detail.chart.id)
-        failing_service = ChartService(
+        failing_service = MusicChartChain(
             adapter=FakeChartAdapter(self.detail, raise_error=RuntimeError("boom")),
-            discovery_assembler=build_discovery_assembler(),
-            settings_service=self.settings_service,
-            chart_repository=self.chart_repository,
+            discovery_assembler=build_discovery_builder(),
+            settings_oper=None,
+            charts_oper=self.chart_repository,
+            env_settings=self.env_settings,
         )
 
         detail = failing_service.get_chart_detail(self.detail.chart.id)

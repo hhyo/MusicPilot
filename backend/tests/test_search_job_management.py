@@ -8,9 +8,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from app.core.dependencies import get_downloads_workspace_service, get_search_job_service
+from app.chain.download import MusicDownloadChain
+from app.chain.search import MusicSearchChain
+from app.core.dependencies import get_music_download_chain, get_music_search_chain
 from app.main import app
-from app.models import Base, DownloadBindingModel, SearchCandidateModel, SearchJobModel
+from app.db.models import Base, DownloadBindingModel, SearchCandidateModel, SearchJobModel
 from app.schemas.acquisition import (
     DownloadBindingDetail,
     DownloadTaskDetail,
@@ -27,10 +29,7 @@ from app.schemas.acquisition import (
 from app.schemas.integration import AdapterMode, VerificationState
 from app.schemas.music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase, MusicRecognitionAssessment
 from app.schemas.shared import DecisionStatus, JobStatus
-from app.services.dispatch import DispatchService
-from app.services.downloads_workspace import DownloadsWorkspaceService
-from app.services.query_builder import QueryBuilderService
-from app.services.search_job import SearchJobService
+from app.helper.query_builder import MusicQueryBuilder
 
 
 def build_engine():
@@ -175,7 +174,7 @@ class DummyPathHandoffService:
         )
 
 
-class SearchJobManagementServiceTest(unittest.TestCase):
+class MusicSearchChainTest(unittest.TestCase):
     def setUp(self) -> None:
         engine = build_engine()
         Base.metadata.create_all(bind=engine)
@@ -216,14 +215,16 @@ class SearchJobManagementServiceTest(unittest.TestCase):
         self.session.commit()
 
         self.dispatch_resolver = DummyDispatchResolver()
-        self.dispatch_service = DispatchService(session=self.session, resolver=self.dispatch_resolver)
-        self.service = SearchJobService(
-            self.session,
-            query_builder=QueryBuilderService(music_media_chain=DummyMusicMediaChain()),
+        self.service = MusicSearchChain(
+            session=self.session,
+            query_builder=MusicQueryBuilder(music_media_chain=DummyMusicMediaChain()),
             music_media_chain=DummyMusicMediaChain(),
             host_search_resolver=DummyHostSearchResolver(),
             scorer=DummyScorer(),
-            dispatch_service=self.dispatch_service,
+            dispatch_service=MusicDownloadChain(
+                session=self.session,
+                resolver=self.dispatch_resolver,
+            ),
         )
 
     def tearDown(self) -> None:
@@ -281,7 +282,7 @@ class SearchJobManagementServiceTest(unittest.TestCase):
         self.assertEqual([job.id for job in auto_download], ["job-001"])
 
 
-class DownloadsWorkspaceManagementServiceTest(unittest.TestCase):
+class MusicDownloadChainTest(unittest.TestCase):
     def setUp(self) -> None:
         engine = build_engine()
         Base.metadata.create_all(bind=engine)
@@ -352,9 +353,9 @@ class DownloadsWorkspaceManagementServiceTest(unittest.TestCase):
         self.session.commit()
 
         self.dispatch_resolver = DummyDispatchResolver(task_id="task-002")
-        self.service = DownloadsWorkspaceService(
+        self.service = MusicDownloadChain(
             session=self.session,
-            dispatch_service=DispatchService(session=self.session, resolver=self.dispatch_resolver),
+            resolver=self.dispatch_resolver,
             path_handoff_service=DummyPathHandoffService(source_path="/downloads/Adele - Hello.flac"),
         )
 
@@ -462,7 +463,7 @@ def build_binding_detail() -> DownloadBindingDetail:
     )
 
 
-class FakeSearchJobManagementService:
+class FakeMusicSearchChain:
     def list_jobs(self, **kwargs):  # noqa: ANN003
         return [build_job_summary()]
 
@@ -491,7 +492,7 @@ class FakeSearchJobManagementService:
         return SearchCandidateListData(job_id=job_id, items=[build_candidate_detail()], total=1, mock=False, note="ok")
 
 
-class FakeDownloadsWorkspaceService:
+class FakeMusicDownloadChain:
     def list_tasks(self) -> DownloadTaskListData:
         return DownloadTaskListData(items=[self.get_task("task-001")], total=1, mock=False, note="ok")
 
@@ -527,14 +528,14 @@ class FakeDownloadsWorkspaceService:
 
 class JobsAndDownloadsRouteTest(unittest.TestCase):
     def setUp(self) -> None:
-        app.dependency_overrides[get_search_job_service] = lambda: FakeSearchJobManagementService()
-        app.dependency_overrides[get_downloads_workspace_service] = lambda: FakeDownloadsWorkspaceService()
+        app.dependency_overrides[get_music_search_chain] = lambda: FakeMusicSearchChain()
+        app.dependency_overrides[get_music_download_chain] = lambda: FakeMusicDownloadChain()
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self.client.close()
-        app.dependency_overrides.pop(get_search_job_service, None)
-        app.dependency_overrides.pop(get_downloads_workspace_service, None)
+        app.dependency_overrides.pop(get_music_search_chain, None)
+        app.dependency_overrides.pop(get_music_download_chain, None)
 
     def test_confirm_candidate_route_is_available(self) -> None:
         response = self.client.post(

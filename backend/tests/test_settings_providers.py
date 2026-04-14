@@ -10,10 +10,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from app.core.dependencies import get_settings_service
+from app.chain.system import MusicSystemChain
+from app.core.dependencies import get_music_system_chain
 from app.main import app
-from app.models import AppSettingModel, Base
-from app.services.settings import SettingsService
+from app.db.models import AppSettingModel, Base
+from app.helper.settings import SettingsHelper
 
 
 class SettingsProvidersRouteTest(unittest.TestCase):
@@ -31,14 +32,19 @@ class SettingsProvidersRouteTest(unittest.TestCase):
             chart_rss_feeds=[],
             metadata_provider_mode="seed",
         )
-        self.service = SettingsService(session=self.session, env_settings=self.env_settings)
-        app.dependency_overrides[get_settings_service] = lambda: self.service
+        self.chain = MusicSystemChain(
+            settings_helper=SettingsHelper(session=self.session, env_settings=self.env_settings),
+            host_probe=None,
+            host_integration=None,
+            validation_matrix=None,
+        )
+        app.dependency_overrides[get_music_system_chain] = lambda: self.chain
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self.client.close()
         self.session.close()
-        app.dependency_overrides.pop(get_settings_service, None)
+        app.dependency_overrides.pop(get_music_system_chain, None)
 
     def test_put_then_get_provider_settings_round_trips_structured_values(self) -> None:
         payload = {

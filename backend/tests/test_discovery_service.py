@@ -3,18 +3,18 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest import TestCase
 
-from app.schemas.shared import EntityType
+from app.chain.media import MusicMediaChain
+from app.helper.discovery import MusicDiscoveryBuilder
 from app.schemas.orchestration import ChartDetailData, ChartEntryInfo, ChartInfo
-from app.services.discovery import DiscoveryAssembler
-from app.services.music_media_chain import MusicMediaChain
+from app.schemas.shared import EntityType
 
 
-def build_discovery_assembler() -> DiscoveryAssembler:
-    chain = MusicMediaChain(metadata_service=object(), metadata_adapter=object())
-    return DiscoveryAssembler(music_media_chain=chain)
+def build_discovery_builder() -> MusicDiscoveryBuilder:
+    chain = MusicMediaChain(metadata_module=object(), metadata_provider=object())
+    return MusicDiscoveryBuilder(music_media_chain=chain)
 
 
-class DiscoveryAssemblerTests(TestCase):
+class MusicDiscoveryBuilderTests(TestCase):
     def test_non_rss_entry_exposes_direct_music_media_input(self) -> None:
         detail = ChartDetailData(
             chart=ChartInfo(
@@ -53,7 +53,7 @@ class DiscoveryAssemblerTests(TestCase):
             integration_point="ListenBrainzChartProviderAdapter",
         )
 
-        result = build_discovery_assembler().build_detail(detail)
+        result = build_discovery_builder().build_detail(detail)
 
         self.assertIsNotNone(result.hero_entry)
         self.assertTrue(hasattr(result.hero_entry, "media_input"))
@@ -109,7 +109,7 @@ class DiscoveryAssemblerTests(TestCase):
             integration_point="RssFeedChartProviderAdapter",
         )
 
-        result = build_discovery_assembler().build_detail(detail)
+        result = build_discovery_builder().build_detail(detail)
         media_input = result.hero_entry.media_input
 
         self.assertEqual(result.hero_entry.recognition_assessment.state, "ready")
@@ -159,7 +159,7 @@ class DiscoveryAssemblerTests(TestCase):
             integration_point="RssFeedChartProviderAdapter",
         )
 
-        result = build_discovery_assembler().build_detail(detail)
+        result = build_discovery_builder().build_detail(detail)
 
         self.assertEqual(result.hero_entry.recognition_assessment.state, "insufficient")
         self.assertIn(
@@ -208,7 +208,7 @@ class DiscoveryAssemblerTests(TestCase):
             integration_point="RssFeedChartProviderAdapter",
         )
 
-        result = build_discovery_assembler().build_detail(detail)
+        result = build_discovery_builder().build_detail(detail)
         media_input = result.hero_entry.media_input
 
         self.assertEqual(result.hero_entry.recognition_assessment.state, "ready")

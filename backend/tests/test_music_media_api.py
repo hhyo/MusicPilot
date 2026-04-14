@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.core.dependencies import get_music_media_chain
 from app.main import app
-from app.schemas.metadata import MetadataDetail
+from app.schemas.metadata import MetadataDetail, MetadataSearchData, MetadataSummary
 from app.schemas.music_media import (
     MusicMediaInfo,
     MusicMetaBase,
@@ -21,6 +21,7 @@ from app.schemas.shared import EntityType
 class FakeMusicMediaChain:
     def __init__(self) -> None:
         self.last_input = None
+        self.search_calls = []
 
     def build_base(self, payload):
         return MusicMetaBase(
@@ -171,6 +172,31 @@ class FakeMusicMediaChain:
             detail=detail,
         )
 
+    def search_metadata(self, payload):
+        self.search_calls.append(payload)
+        return MetadataSearchData(
+            keyword=payload.keyword,
+            entity_type=payload.type,
+            page=payload.page,
+            page_size=payload.page_size,
+            total=1,
+            provider="musicbrainz",
+            source_type="musicbrainz",
+            integration_point="test",
+            items=[
+                MetadataSummary(
+                    entity_type=payload.type,
+                    id="artist-adele",
+                    title="Adele",
+                    artist_name="Adele",
+                    provider="musicbrainz",
+                    source_type="musicbrainz",
+                    mock=False,
+                    note="ok",
+                )
+            ],
+        )
+
 
 class MusicMediaApiTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -236,6 +262,17 @@ class MusicMediaApiTests(unittest.TestCase):
         self.assertEqual(body["data"]["id"], "recording-hello")
         self.assertEqual(self.fake_chain.last_input.source_kind, "detail")
         self.assertEqual(self.fake_chain.last_input.external_refs["musicbrainz_recording_id"], "recording-hello")
+
+    def test_metadata_search_route_uses_unified_music_media_chain(self) -> None:
+        response = self.client.post(
+            "/api/v1/plugin/musicpilot/metadata/search",
+            json={"keyword": "Adele", "type": "artist", "page": 1, "page_size": 10},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["items"][0]["id"], "artist-adele")
+        self.assertEqual(len(self.fake_chain.search_calls), 1)
+        self.assertEqual(self.fake_chain.search_calls[0].keyword, "Adele")
 
     def test_album_detail_route_uses_unified_music_media_chain(self) -> None:
         response = self.client.get("/api/v1/plugin/musicpilot/metadata/albums/release-group-25")

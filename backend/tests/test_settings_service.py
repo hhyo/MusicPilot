@@ -10,18 +10,18 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 from pydantic import ValidationError
 
-from app.adapters.chart_provider import RssFeedChartProviderAdapter
+from app.modules.chart_provider import RssFeedChartProviderAdapter
 from app.core.dependencies import get_chart_provider_adapter
-from app.models import AppSettingModel, Base
+from app.db.models import AppSettingModel, Base
+from app.helper.settings import SettingsHelper
 from app.schemas.shared import (
     ChartRssFeedSettings,
     ChartProviderMode,
     ProviderSettingsUpdatePayload,
 )
-from app.services.settings import SettingsService
 
 
-class SettingsServiceTest(unittest.TestCase):
+class SettingsHelperTest(unittest.TestCase):
     def setUp(self) -> None:
         engine = create_engine(
             "sqlite+pysqlite:///:memory:",
@@ -55,7 +55,7 @@ class SettingsServiceTest(unittest.TestCase):
             )
 
     def test_get_provider_settings_falls_back_to_env_settings_when_store_empty(self) -> None:
-        service = SettingsService(
+        service = SettingsHelper(
             session=self.session,
             env_settings=SimpleNamespace(
                 chart_provider_mode="rss_feed",
@@ -73,7 +73,7 @@ class SettingsServiceTest(unittest.TestCase):
             ),
         )
 
-        result = service.get_provider_settings()
+        result = service.provider_settings()
 
         self.assertEqual(result.chart_provider_mode, ChartProviderMode.RSS_FEED)
         self.assertEqual(result.chart_rss_feeds[0].id, "netease-hot-tracks")
@@ -81,7 +81,7 @@ class SettingsServiceTest(unittest.TestCase):
         self.assertEqual(result.metadata_provider_mode, "seed")
 
     def test_get_provider_settings_falls_back_to_builtin_default_feeds_when_store_and_env_empty(self) -> None:
-        service = SettingsService(
+        service = SettingsHelper(
             session=self.session,
             env_settings=SimpleNamespace(
                 chart_provider_mode="mock",
@@ -90,7 +90,7 @@ class SettingsServiceTest(unittest.TestCase):
             ),
         )
 
-        result = service.get_provider_settings()
+        result = service.provider_settings()
 
         self.assertEqual(result.chart_provider_mode, ChartProviderMode.MOCK)
         self.assertEqual(
@@ -112,7 +112,7 @@ class SettingsServiceTest(unittest.TestCase):
         )
         self.session.commit()
 
-        service = SettingsService(
+        service = SettingsHelper(
             session=self.session,
             env_settings=SimpleNamespace(
                 chart_provider_mode="listenbrainz",
@@ -121,7 +121,7 @@ class SettingsServiceTest(unittest.TestCase):
             ),
         )
 
-        result = service.get_provider_settings()
+        result = service.provider_settings()
 
         self.assertEqual(result.chart_provider_mode, ChartProviderMode.LISTENBRAINZ)
 
@@ -148,7 +148,7 @@ class SettingsServiceTest(unittest.TestCase):
         )
         self.session.commit()
 
-        service = SettingsService(
+        service = SettingsHelper(
             session=self.session,
             env_settings=SimpleNamespace(
                 chart_provider_mode="rss_feed",
@@ -166,7 +166,7 @@ class SettingsServiceTest(unittest.TestCase):
             ),
         )
 
-        result = service.get_provider_settings()
+        result = service.provider_settings()
 
         self.assertEqual([feed.id for feed in result.chart_rss_feeds], ["netease-hot-tracks"])
         self.assertEqual(result.chart_rss_feeds[0].label, "网易云热歌榜")
@@ -186,12 +186,12 @@ class SettingsServiceTest(unittest.TestCase):
         )
         self.session.commit()
 
-        fallback_result = service.get_provider_settings()
+        fallback_result = service.provider_settings()
 
         self.assertEqual([feed.id for feed in fallback_result.chart_rss_feeds], ["youtube-top-artists"])
 
     def test_update_provider_settings_persists_chart_fields_in_app_settings_table(self) -> None:
-        service = SettingsService(
+        service = SettingsHelper(
             session=self.session,
             env_settings=SimpleNamespace(
                 chart_provider_mode="mock",
@@ -222,10 +222,10 @@ class SettingsServiceTest(unittest.TestCase):
             self.session.get(AppSettingModel, "chart_rss_feeds").value_json,
             [payload.chart_rss_feeds[0].model_dump(mode="json")],
         )
-        self.assertEqual(service.get_provider_settings().metadata_provider_mode, "seed")
+        self.assertEqual(service.provider_settings().metadata_provider_mode, "seed")
 
     def test_chart_provider_adapter_prefers_persisted_project_settings_over_env(self) -> None:
-        service = SettingsService(
+        service = SettingsHelper(
             session=self.session,
             env_settings=SimpleNamespace(
                 chart_provider_mode="mock",
@@ -249,8 +249,8 @@ class SettingsServiceTest(unittest.TestCase):
             )
         )
 
-        adapter = get_chart_provider_adapter(session=self.session, settings_service=service)
-        same_adapter = get_chart_provider_adapter(session=self.session, settings_service=service)
+        adapter = get_chart_provider_adapter(session=self.session, settings_helper=service)
+        same_adapter = get_chart_provider_adapter(session=self.session, settings_helper=service)
 
         service.update_provider_settings(
             ProviderSettingsUpdatePayload(
@@ -258,7 +258,7 @@ class SettingsServiceTest(unittest.TestCase):
                 chart_rss_feeds=[],
             )
         )
-        updated_adapter = get_chart_provider_adapter(session=self.session, settings_service=service)
+        updated_adapter = get_chart_provider_adapter(session=self.session, settings_helper=service)
 
         self.assertIsInstance(adapter, RssFeedChartProviderAdapter)
         self.assertEqual(adapter.feeds[0]["id"], "netease-hot-tracks")

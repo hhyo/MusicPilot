@@ -1,4 +1,4 @@
-"""Tests for the minimal in-process subscription scheduler."""
+"""Tests for subscribe chain scheduler behavior."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from app.services.subscription_scheduler import SubscriptionSchedulerService
+from app.chain.subscribe import MusicSubscribeChain
 
 
 def utc_now() -> datetime:
@@ -32,7 +32,7 @@ class FakeRepository:
         return self.latest_runs.get(subscription_id)
 
 
-class SubscriptionSchedulerServiceTest(unittest.TestCase):
+class MusicSubscribeChainSchedulerTest(unittest.TestCase):
     def test_due_scheduled_subscription_executes_once(self) -> None:
         executed_ids: list[str] = []
         subscription = SimpleNamespace(
@@ -44,11 +44,11 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
             updated_at=utc_now() - timedelta(minutes=60),
             created_at=utc_now() - timedelta(minutes=90),
         )
-        service = SubscriptionSchedulerService(
-            repository=FakeRepository([subscription]),
-            execute_subscription=lambda subscription_id: executed_ids.append(subscription_id),
-            default_interval_minutes=360,
-        )
+        service = MusicSubscribeChain.__new__(MusicSubscribeChain)
+        service.oper = FakeRepository([subscription])
+        service.execute = lambda subscription_id: executed_ids.append(subscription_id)
+        service.default_interval_minutes = 360
+        service.transfer_chain = None
 
         result = service.run_pending_once(now=utc_now())
 
@@ -71,11 +71,11 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
             updated_at=utc_now() - timedelta(minutes=60),
             created_at=utc_now() - timedelta(minutes=90),
         )
-        service = SubscriptionSchedulerService(
-            repository=FakeRepository([subscription]),
-            execute_subscription=lambda subscription_id: executed_ids.append(subscription_id),
-            default_interval_minutes=360,
-        )
+        service = MusicSubscribeChain.__new__(MusicSubscribeChain)
+        service.oper = FakeRepository([subscription])
+        service.execute = lambda subscription_id: executed_ids.append(subscription_id)
+        service.default_interval_minutes = 360
+        service.transfer_chain = None
 
         result = service.run_pending_once(now=utc_now())
 
@@ -94,11 +94,11 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
             updated_at=utc_now() - timedelta(minutes=60),
             created_at=utc_now() - timedelta(minutes=90),
         )
-        service = SubscriptionSchedulerService(
-            repository=FakeRepository([subscription], running_ids={"sub-1"}),
-            execute_subscription=lambda subscription_id: executed_ids.append(subscription_id),
-            default_interval_minutes=360,
-        )
+        service = MusicSubscribeChain.__new__(MusicSubscribeChain)
+        service.oper = FakeRepository([subscription], running_ids={"sub-1"})
+        service.execute = lambda subscription_id: executed_ids.append(subscription_id)
+        service.default_interval_minutes = 360
+        service.transfer_chain = None
 
         result = service.run_pending_once(now=utc_now())
 
@@ -117,11 +117,11 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
             updated_at=(utc_now() - timedelta(minutes=31)).replace(tzinfo=None),
             created_at=(utc_now() - timedelta(minutes=90)).replace(tzinfo=None),
         )
-        service = SubscriptionSchedulerService(
-            repository=FakeRepository([subscription]),
-            execute_subscription=lambda subscription_id: executed_ids.append(subscription_id),
-            default_interval_minutes=360,
-        )
+        service = MusicSubscribeChain.__new__(MusicSubscribeChain)
+        service.oper = FakeRepository([subscription])
+        service.execute = lambda subscription_id: executed_ids.append(subscription_id)
+        service.default_interval_minutes = 360
+        service.transfer_chain = None
 
         result = service.run_pending_once(now=utc_now())
 
@@ -143,12 +143,11 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
             "skipped_record_ids": [],
             "diagnostics": [],
         }
-        service = SubscriptionSchedulerService(
-            repository=FakeRepository([]),
-            execute_subscription=lambda subscription_id: None,
-            default_interval_minutes=360,
-            reconcile_pending_handoffs=lambda: reconciled,
-        )
+        service = MusicSubscribeChain.__new__(MusicSubscribeChain)
+        service.oper = FakeRepository([])
+        service.execute = lambda subscription_id: None
+        service.default_interval_minutes = 360
+        service.transfer_chain = SimpleNamespace(reconcile_pending_once=lambda: reconciled)
 
         result = service.run_pending_once(now=utc_now())
 
@@ -173,11 +172,11 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
             execution_status="applied",
             finished_at=now - timedelta(minutes=5),
         )
-        service = SubscriptionSchedulerService(
-            repository=FakeRepository([subscription], latest_runs={"sub-1": latest_run}),
-            execute_subscription=lambda subscription_id: executed_ids.append(subscription_id),
-            default_interval_minutes=360,
-        )
+        service = MusicSubscribeChain.__new__(MusicSubscribeChain)
+        service.oper = FakeRepository([subscription], latest_runs={"sub-1": latest_run})
+        service.execute = lambda subscription_id: executed_ids.append(subscription_id)
+        service.default_interval_minutes = 360
+        service.transfer_chain = None
 
         result = service.run_pending_once(now=now)
 
@@ -206,11 +205,11 @@ class SubscriptionSchedulerServiceTest(unittest.TestCase):
             execution_status="failed",
             finished_at=now - timedelta(minutes=5),
         )
-        service = SubscriptionSchedulerService(
-            repository=FakeRepository([subscription], latest_runs={"sub-1": latest_run}),
-            execute_subscription=lambda subscription_id: executed_ids.append(subscription_id),
-            default_interval_minutes=360,
-        )
+        service = MusicSubscribeChain.__new__(MusicSubscribeChain)
+        service.oper = FakeRepository([subscription], latest_runs={"sub-1": latest_run})
+        service.execute = lambda subscription_id: executed_ids.append(subscription_id)
+        service.default_interval_minutes = 360
+        service.transfer_chain = None
 
         result = service.run_pending_once(now=now)
 

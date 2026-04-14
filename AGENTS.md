@@ -93,6 +93,7 @@
   - `MusicSubscribeChain`
   - `MusicChartChain`
   - `MusicDashboardChain`
+  - `MusicSystemChain`
 
 ## Delivery Rules
 

@@ -8,7 +8,7 @@ FastAPI 工程目录。当前已完成：
 - MusicBrainz Artist / Album / Track 搜索与详情最小接入，以及 detail 结构化增强
 - SQLite 最小落库与本地 seed 初始化
 - QueryBuilder、SearchJob、候选评分与 mock dispatch 边界
-- SubscriptionService、subscription run、宿主注册调度与 mock/ListenBrainz chart discovery
+- `MusicSubscribeChain`、subscription run、宿主注册调度与 mock/ListenBrainz chart discovery
 - 音乐 organize preview/apply 与 organize 状态记录
 - search / dispatch / organize 接入模式选择与必要的 mock/real 环境切换
 - `/settings` 最小可用设置页与 `/settings/providers` 真实读写接口
@@ -27,10 +27,7 @@ FastAPI 工程目录。当前已完成：
 
 统一音乐媒体解析链后端收口已经完成：`MusicMediaInput -> MusicMetaBase -> MusicMediaInfo` 现在是 backend 唯一的上层音乐识别主路径。这条统一音乐媒体解析链参考 MoviePilot 的设计方法，但不复用影视模型本身；当前已经正式接管 discovery/detail 主路径、chart_entry 订阅创建、subscription execution、SearchJob、QueryBuilder、candidate scoring 与 organize 上游识别。RSS / 弱来源 chart entry 会在创建订阅时直接固化 `MusicMediaInput`、`MusicMetaBase`、`MusicRecognitionAssessment` 与 `MusicMediaInfo` 显式字段；SearchJob、Subscription、SubscriptionRun、OrganizeRecord 也都已经改为显式持久化统一链对象，不再把这些快照混进 `target_payload_json`、`summary_json` 或 `raw_payload`。
 
-当前仍不包含：
-
-- 更多下载样例与 path handoff 稳定性收口
-- 下载完成回调、自动整理与媒体库刷新
+当前 backend 主结构已激进重排完成：旧 `routes/services/models/repositories/adapters/tasks` 目录已删除，活跃代码只保留 `api/endpoints`、`chain`、`db`、`helper`、`modules`、`core`、`startup`、`utils`。
 
 手动初始化本地数据库：
 

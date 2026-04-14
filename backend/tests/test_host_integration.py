@@ -6,9 +6,9 @@ import unittest
 
 from fastapi import HTTPException
 
-from app.adapters.download_dispatch import DownloadDispatchAdapter
-from app.adapters.host_probe import HostProbeAdapter, RealHostProbeAdapter
-from app.adapters.host_search import HostSearchAdapter, normalize_title
+from app.modules.download_dispatch import DownloadDispatchAdapter
+from app.modules.host_probe import HostProbeAdapter, RealHostProbeAdapter
+from app.modules.host_search import HostSearchAdapter, normalize_title
 from app.core.config import Settings
 from app.schemas.acquisition import DispatchAdapterResult, HostSearchCandidate, QueryBuildResult, SearchCandidateDetail
 from app.schemas.integration import AdapterMode, AdapterSelectionMode, VerificationState
@@ -29,8 +29,8 @@ from app.schemas.probe import (
     ProbeSitesPayload,
     ProbeSiteItem,
 )
-from app.services.host_integration import DispatchAdapterResolver, HostIntegrationService, HostSearchAdapterResolver
-from app.services.query_builder import QueryBuilderService
+from app.modules.host_integration import DispatchAdapterResolver, HostIntegrationModule, HostSearchAdapterResolver
+from app.helper.query_builder import MusicQueryBuilder
 
 from tests.test_query_builder import build_album_media
 
@@ -210,9 +210,9 @@ def build_candidate() -> SearchCandidateDetail:
     )
 
 
-class HostIntegrationServiceTest(unittest.TestCase):
+class HostIntegrationModuleTest(unittest.TestCase):
     def test_runtime_state_stays_observable_when_strict_host_is_unavailable(self) -> None:
-        service = HostIntegrationService(
+        service = HostIntegrationModule(
             settings=build_settings(
                 host_search_mode="strict_host",
                 host_dispatch_mode="strict_host",
@@ -234,13 +234,13 @@ class HostIntegrationServiceTest(unittest.TestCase):
 
     def test_prefer_host_search_raises_on_runtime_error(self) -> None:
         media = build_album_media()
-        query_build = QueryBuilderService.build_from_music_media_info(media)
-        service = HostIntegrationService(
+        query_build = MusicQueryBuilder.build_from_music_media_info(media)
+        service = HostIntegrationModule(
             settings=build_settings(),
             probe_adapter=DummyProbeAdapter(),
         )
         resolver = HostSearchAdapterResolver(
-            integration_service=service,
+            integration_module=service,
             mock_adapter=DummyMockSearchAdapter(),
             host_adapter=DummyBrokenHostSearchAdapter(),
         )
@@ -252,12 +252,12 @@ class HostIntegrationServiceTest(unittest.TestCase):
         self.assertIn("host_search_runtime_error:RuntimeError", str(ctx.exception.detail))
 
     def test_prefer_host_dispatch_raises_on_runtime_error(self) -> None:
-        service = HostIntegrationService(
+        service = HostIntegrationModule(
             settings=build_settings(),
             probe_adapter=DummyProbeAdapter(),
         )
         resolver = DispatchAdapterResolver(
-            integration_service=service,
+            integration_module=service,
             mock_adapter=DummyMockDispatchAdapter(),
             host_adapter=DummyBrokenHostDispatchAdapter(),
         )
@@ -274,13 +274,13 @@ class HostIntegrationServiceTest(unittest.TestCase):
 
     def test_prefer_host_search_raises_when_capability_is_unavailable(self) -> None:
         media = build_album_media()
-        query_build = QueryBuilderService.build_from_music_media_info(media)
-        service = HostIntegrationService(
+        query_build = MusicQueryBuilder.build_from_music_media_info(media)
+        service = HostIntegrationModule(
             settings=build_settings(),
             probe_adapter=DummyProbeAdapter(search_capability=False),
         )
         resolver = HostSearchAdapterResolver(
-            integration_service=service,
+            integration_module=service,
             mock_adapter=DummyMockSearchAdapter(),
             host_adapter=DummyBrokenHostSearchAdapter(),
         )
@@ -293,13 +293,13 @@ class HostIntegrationServiceTest(unittest.TestCase):
 
     def test_strict_host_search_raises_when_capability_is_unavailable(self) -> None:
         media = build_album_media()
-        query_build = QueryBuilderService.build_from_music_media_info(media)
-        service = HostIntegrationService(
+        query_build = MusicQueryBuilder.build_from_music_media_info(media)
+        service = HostIntegrationModule(
             settings=build_settings(host_search_mode="strict_host"),
             probe_adapter=DummyProbeAdapter(search_capability=False),
         )
         resolver = HostSearchAdapterResolver(
-            integration_service=service,
+            integration_module=service,
             mock_adapter=DummyMockSearchAdapter(),
             host_adapter=DummyBrokenHostSearchAdapter(),
         )

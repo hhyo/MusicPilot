@@ -73,7 +73,7 @@ class MusicMediaSchemaTests(unittest.TestCase):
         self.assertEqual(request.input.source_kind, MusicMediaSourceKind.DETAIL)
 
 
-class FakeMetadataService:
+class FakeMetadataModule:
     def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
         return MetadataDetail(
             entity_type=entity_type,
@@ -108,7 +108,7 @@ class FakeMetadataAdapter:
     supports_live_queries = True
 
     def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
-        return FakeMetadataService().get_detail(entity_type, entity_id)
+        return FakeMetadataModule().get_detail(entity_type, entity_id)
 
     def search(self, payload: object) -> None:
         raise AssertionError("search should not run in strong-ref test")
@@ -120,7 +120,7 @@ class FakeExternalProviderAdapter:
     supports_live_queries = True
 
     def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:
-        return FakeMetadataService().get_detail(entity_type, entity_id)
+        return FakeMetadataModule().get_detail(entity_type, entity_id)
 
     def search(self, payload: object) -> None:
         raise AssertionError("search should not run in generic direct-ref test")
@@ -129,11 +129,11 @@ class FakeExternalProviderAdapter:
 class MusicMediaChainTests(unittest.TestCase):
     def test_chain_resolves_strong_ref_track_without_search(self) -> None:
         from app.schemas.music_media import MusicMediaInput, MusicMediaMatchStrategy
-        from app.services.music_media_chain import MusicMediaChain
+        from app.chain.media import MusicMediaChain
 
         chain = MusicMediaChain(
-            metadata_service=FakeMetadataService(),
-            metadata_adapter=FakeMetadataAdapter(),
+            metadata_module=FakeMetadataModule(),
+            metadata_provider=FakeMetadataAdapter(),
         )
         resolved = chain.resolve(
             MusicMediaInput(
@@ -150,12 +150,12 @@ class MusicMediaChainTests(unittest.TestCase):
 
     def test_chain_resolve_detail_hydrates_metadata_detail(self) -> None:
         from app.schemas.music_media import MusicMediaInput
-        from app.services.music_media_chain import MusicMediaChain
+        from app.chain.media import MusicMediaChain
 
-        metadata_service = FakeMetadataService()
+        metadata_module = FakeMetadataModule()
         chain = MusicMediaChain(
-            metadata_service=metadata_service,
-            metadata_adapter=FakeMetadataAdapter(),
+            metadata_module=metadata_module,
+            metadata_provider=FakeMetadataAdapter(),
         )
         result = chain.resolve_detail(
             MusicMediaInput(
@@ -169,15 +169,15 @@ class MusicMediaChainTests(unittest.TestCase):
 
         self.assertEqual(result.detail.id, "recording-hello")
         self.assertEqual(result.media.provider_id, "recording-hello")
-        self.assertEqual(metadata_service.last_provider_ref["provider"], "musicbrainz")
+        self.assertEqual(metadata_module.last_provider_ref["provider"], "musicbrainz")
 
     def test_chain_prepare_from_provider_ref_returns_input_base_and_assessment(self) -> None:
         from app.schemas.music_media import MusicRecognitionState
-        from app.services.music_media_chain import MusicMediaChain
+        from app.chain.media import MusicMediaChain
 
         chain = MusicMediaChain(
-            metadata_service=FakeMetadataService(),
-            metadata_adapter=FakeMetadataAdapter(),
+            metadata_module=FakeMetadataModule(),
+            metadata_provider=FakeMetadataAdapter(),
         )
 
         prepared = chain.prepare_from_provider_ref(
@@ -195,12 +195,12 @@ class MusicMediaChainTests(unittest.TestCase):
 
     def test_chain_resolves_generic_provider_ref_without_search(self) -> None:
         from app.schemas.music_media import MusicMediaInput
-        from app.services.music_media_chain import MusicMediaChain
+        from app.chain.media import MusicMediaChain
 
-        metadata_service = FakeMetadataService()
+        metadata_module = FakeMetadataModule()
         chain = MusicMediaChain(
-            metadata_service=metadata_service,
-            metadata_adapter=FakeExternalProviderAdapter(),
+            metadata_module=metadata_module,
+            metadata_provider=FakeExternalProviderAdapter(),
         )
 
         result = chain.resolve_detail(
@@ -216,16 +216,16 @@ class MusicMediaChainTests(unittest.TestCase):
 
         self.assertEqual(result.media.provider, "external_feed")
         self.assertEqual(result.media.provider_id, "album-42")
-        self.assertEqual(metadata_service.last_provider_ref["provider"], "external_feed")
-        self.assertEqual(metadata_service.last_provider_ref["provider_id"], "album-42")
+        self.assertEqual(metadata_module.last_provider_ref["provider"], "external_feed")
+        self.assertEqual(metadata_module.last_provider_ref["provider_id"], "album-42")
 
     def test_chain_resolve_detail_from_provider_ref_uses_chain_convenience_entrypoint(self) -> None:
-        from app.services.music_media_chain import MusicMediaChain
+        from app.chain.media import MusicMediaChain
 
-        metadata_service = FakeMetadataService()
+        metadata_module = FakeMetadataModule()
         chain = MusicMediaChain(
-            metadata_service=metadata_service,
-            metadata_adapter=FakeMetadataAdapter(),
+            metadata_module=metadata_module,
+            metadata_provider=FakeMetadataAdapter(),
         )
 
         result = chain.resolve_detail_from_provider_ref(
@@ -239,14 +239,14 @@ class MusicMediaChainTests(unittest.TestCase):
 
         self.assertEqual(result.base.entity_type, EntityType.TRACK)
         self.assertEqual(result.detail.id, "recording-hello")
-        self.assertEqual(metadata_service.last_provider_ref["provider_id"], "recording-hello")
+        self.assertEqual(metadata_module.last_provider_ref["provider_id"], "recording-hello")
 
     def test_chain_resolve_from_target_payload_ref_uses_explicit_provider_ref(self) -> None:
-        from app.services.music_media_chain import MusicMediaChain
+        from app.chain.media import MusicMediaChain
 
         chain = MusicMediaChain(
-            metadata_service=FakeMetadataService(),
-            metadata_adapter=FakeExternalProviderAdapter(),
+            metadata_module=FakeMetadataModule(),
+            metadata_provider=FakeExternalProviderAdapter(),
         )
 
         result = chain.resolve_from_target_payload_ref(
@@ -267,11 +267,11 @@ class MusicMediaChainTests(unittest.TestCase):
         self.assertEqual(result.provider_id, "album-99")
 
     def test_chain_resolve_from_target_payload_ref_uses_structured_music_clues_without_provider_assumption(self) -> None:
-        from app.services.music_media_chain import MusicMediaChain
+        from app.chain.media import MusicMediaChain
 
         chain = MusicMediaChain(
-            metadata_service=FakeMetadataService(),
-            metadata_adapter=FakeExternalProviderAdapter(),
+            metadata_module=FakeMetadataModule(),
+            metadata_provider=FakeExternalProviderAdapter(),
         )
 
         prepared = chain.prepare_from_target_payload_ref(
@@ -292,11 +292,11 @@ class MusicMediaChainTests(unittest.TestCase):
         self.assertEqual(prepared.input.external_refs, {})
 
     def test_chain_prepare_from_target_payload_ref_rejects_empty_legacy_payload(self) -> None:
-        from app.services.music_media_chain import MusicMediaChain
+        from app.chain.media import MusicMediaChain
 
         chain = MusicMediaChain(
-            metadata_service=FakeMetadataService(),
-            metadata_adapter=FakeExternalProviderAdapter(),
+            metadata_module=FakeMetadataModule(),
+            metadata_provider=FakeExternalProviderAdapter(),
         )
 
         with self.assertRaises(HTTPException) as ctx:

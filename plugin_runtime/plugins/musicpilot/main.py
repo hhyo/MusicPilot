@@ -2,113 +2,44 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
-from .api.health import build_health_payload
+from .chain.system import MusicSystemChain
 from .api.router import plugin_api_router, probe_api_router
 from .core.config import settings
 from .core.dependencies import (
-    build_chart_service,
-    build_subscription_scheduler_service,
-    get_host_integration_service,
-    get_session_factory,
-    get_validation_matrix_service,
+    get_music_system_chain,
 )
 from .core.http import configure_logging, register_exception_handlers, register_http_middleware
 from .core.responses import success_response
 from .schemas.common import ApiResponse
-from .services.host_integration import HostIntegrationService
-from .services.metadata import bootstrap_metadata_storage
-from .services.validation_matrix import HostValidationMatrixService
+from .startup.bootstrap import bootstrap_runtime_storage
+from .startup.scheduler import build_local_scheduler_tasks, should_start_local_scheduler_loop
 
 
 logger = logging.getLogger("musicpilot.scheduler")
 
 
-async def _run_subscription_scheduler_loop() -> None:
-    session_factory = get_session_factory()
-    while True:
-        try:
-            with session_factory() as session:
-                scheduler = build_subscription_scheduler_service(session)
-                result = scheduler.run_pending_once()
-                if result["executed_ids"]:
-                    logger.info("subscription.scheduler.executed ids=%s", ",".join(result["executed_ids"]))
-                if result["error_ids"]:
-                    logger.warning("subscription.scheduler.errors ids=%s", ",".join(result["error_ids"]))
-                handoff_reconcile = result.get("handoff_reconcile") or {}
-                if handoff_reconcile.get("applied_run_ids"):
-                    logger.info(
-                        "subscription.scheduler.handoff_applied run_ids=%s",
-                        ",".join(handoff_reconcile["applied_run_ids"]),
-                    )
-                if handoff_reconcile.get("unresolved_run_ids"):
-                    logger.warning(
-                        "subscription.scheduler.handoff_unresolved run_ids=%s",
-                        ",".join(handoff_reconcile["unresolved_run_ids"]),
-                    )
-                session.commit()
-        except asyncio.CancelledError:
-            raise
-        except Exception:  # noqa: BLE001
-            logger.exception("subscription.scheduler.loop_failed")
-        await asyncio.sleep(settings.subscription_scheduler_poll_seconds)
-
-
-async def _run_chart_refresh_loop() -> None:
-    session_factory = get_session_factory()
-    interval_seconds = max(60, int(settings.chart_refresh_interval_minutes) * 60)
-    while True:
-        try:
-            with session_factory() as session:
-                service = build_chart_service(session)
-                result = service.refresh_all_charts()
-                if result.get("refreshed_ids"):
-                    logger.info("chart.refresh.executed ids=%s", ",".join(result["refreshed_ids"]))
-                if result.get("failed"):
-                    logger.warning("chart.refresh.failed ids=%s", ",".join(sorted(result["failed"].keys())))
-                session.commit()
-        except asyncio.CancelledError:
-            raise
-        except Exception:  # noqa: BLE001
-            logger.exception("chart.refresh.loop_failed")
-        await asyncio.sleep(interval_seconds)
-
-
-def _should_start_local_scheduler_loop() -> bool:
-    if not settings.subscription_scheduler_enabled:
-        return False
-    return not __name__.startswith("app.plugins.musicpilot.")
-
-
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    bootstrap_metadata_storage()
-    scheduler_task = None
-    chart_refresh_task = None
-    if _should_start_local_scheduler_loop():
-        scheduler_task = asyncio.create_task(_run_subscription_scheduler_loop())
-    if settings.chart_refresh_enabled:
-        chart_refresh_task = asyncio.create_task(_run_chart_refresh_loop())
+    bootstrap_runtime_storage()
+    scheduler_tasks: list[asyncio.Task] = []
+    if should_start_local_scheduler_loop():
+        scheduler_tasks = [asyncio.create_task(task) for task in build_local_scheduler_tasks()]
     try:
         yield
     finally:
-        if scheduler_task is not None:
-            scheduler_task.cancel()
+        for task in scheduler_tasks:
+            task.cancel()
+        for task in scheduler_tasks:
             try:
-                await scheduler_task
-            except asyncio.CancelledError:
-                pass
-        if chart_refresh_task is not None:
-            chart_refresh_task.cancel()
-            try:
-                await chart_refresh_task
+                await task
             except asyncio.CancelledError:
                 pass
 
@@ -138,17 +69,11 @@ def build_application() -> FastAPI:
     @app.get("/", summary="Root information", include_in_schema=False)
     async def root(
         request: Request,
-        integration_service: HostIntegrationService = Depends(get_host_integration_service),
+        chain: MusicSystemChain = Depends(get_music_system_chain),
     ) -> ApiResponse:
         return success_response(
             request,
-            data={
-                "service": settings.app_name,
-                "version": __version__,
-                "phase": "Architecture Simplification",
-                "status": "semantic-driven-runtime",
-                "host_integration": integration_service.runtime_state().model_dump(mode="json"),
-            },
+            data=chain.root_payload(version=__version__),
             message="MusicPilot backend runtime is running.",
             code="ROOT_OK",
             mock=False,
@@ -158,16 +83,11 @@ def build_application() -> FastAPI:
     @app.get("/health", summary="Health check", tags=["Health"])
     async def health(
         request: Request,
-        integration_service: HostIntegrationService = Depends(get_host_integration_service),
-        validation_matrix_service: HostValidationMatrixService = Depends(get_validation_matrix_service),
+        chain: MusicSystemChain = Depends(get_music_system_chain),
     ) -> ApiResponse:
-        summary = validation_matrix_service.summary()
         return success_response(
             request,
-            data=build_health_payload(
-                integration_service.runtime_state().model_dump(mode="json"),
-                summary.model_dump(mode="json") if summary else None,
-            ),
+            data=chain.health_payload(version=__version__),
             message="Health check passed.",
             code="HEALTH_OK",
             mock=False,

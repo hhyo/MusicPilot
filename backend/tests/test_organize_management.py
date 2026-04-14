@@ -7,9 +7,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from app.core.dependencies import get_organize_service
+from app.chain.transfer import MusicTransferChain
+from app.core.dependencies import get_music_transfer_chain
 from app.main import app
-from app.models import Base, DownloadBindingModel, OrganizeRecordModel, SearchCandidateModel, SearchJobModel
+from app.db.models import Base, DownloadBindingModel, OrganizeRecordModel, SearchCandidateModel, SearchJobModel
 from app.schemas.integration import AdapterMode, VerificationState
 from app.schemas.music_media import MusicMediaInfo
 from app.schemas.orchestration import (
@@ -18,10 +19,9 @@ from app.schemas.orchestration import (
     OrganizeStatus,
     OrganizeStrategySnapshot,
 )
-from app.services.host_integration import OrganizeExecutionResult
-from app.services.organize import OrganizeService
-from app.services.organize_strategy import OrganizeStrategyService
-from app.repositories.orchestration import OrchestrationRepository
+from app.modules.host_integration import OrganizeExecutionResult
+from app.helper.organize_strategy import MusicOrganizeStrategy
+from app.db.orchestration_oper import OrchestrationOper
 
 from tests.test_organize_integration import DummyMockOrganizeAdapter
 from tests.test_query_builder import build_track_detail, build_track_media
@@ -107,7 +107,7 @@ class OrganizeManagementRouteTest(unittest.TestCase):
         engine = build_engine()
         Base.metadata.create_all(bind=engine)
         self.session = Session(engine)
-        self.repository = OrchestrationRepository(self.session)
+        self.repository = OrchestrationOper(self.session)
         self.detail = build_track_detail()
         self.media = build_track_media()
         from tests.test_organize_integration import build_settings as build_organize_settings
@@ -230,19 +230,19 @@ class OrganizeManagementRouteTest(unittest.TestCase):
         )
         self.session.commit()
 
-        self.service = OrganizeService(
+        self.service = MusicTransferChain(
             session=self.session,
             resolver=CapturingPreviewResolver(self.preview_result),
-            strategy_service=OrganizeStrategyService(self.settings),
+            strategy_service=MusicOrganizeStrategy(self.settings),
             path_handoff_service=RepairingPathHandoffService(),
             music_media_chain=DummyMusicMediaChain(),
         )
-        app.dependency_overrides[get_organize_service] = lambda: self.service
+        app.dependency_overrides[get_music_transfer_chain] = lambda: self.service
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self.client.close()
-        app.dependency_overrides.pop(get_organize_service, None)
+        app.dependency_overrides.pop(get_music_transfer_chain, None)
         self.session.close()
 
     def test_list_jobs_filters_by_multiple_fields(self) -> None:
