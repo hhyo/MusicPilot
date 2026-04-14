@@ -312,7 +312,7 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 ## 当前阶段未完成范围
 
 - 真实 MoviePilot 宿主安装与挂载逻辑
-- 基于宿主 downloader runtime 的更多真实下载样例与 path handoff 稳定性收口
+- 基于宿主 downloader runtime 的真实提交下载与 `history/download` 回填验证收口，以及使用伪造本地音乐文件对整理链做稳定性验证
 - 复杂 RSS 可视化 CRUD 与更多 discovery 产品化交互
 
 以上能力本轮均只保留目录、接口、注释或说明性占位，不提前实现。
@@ -329,4 +329,5 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 
 1. 在保留现有 response envelope 的前提下，继续增强 MusicPilot 自己的音乐 metadata 识别能力，优先补无标签文件的目录/文件名识别与宿主联调稳定性。
 2. 继续补真实宿主安装/挂载与验证矩阵收口，减少 `unverified` 能力点。
-3. 保持 `plugin_runtime/` 只作为构建产物边界，不把开发源码和宿主产物混放。
+3. 继续补 downloader runtime 的真实提交下载与 `history/download` 回填验证，并用伪造本地音乐文件验证 `music-transfer` 整理链稳定性。
+4. 保持 `plugin_runtime/` 只作为构建产物边界，不把开发源码和宿主产物混放。
