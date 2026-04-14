@@ -8,10 +8,10 @@ from types import SimpleNamespace
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models.base import Base
+from app.db.models.base import Base
 from app.schemas.music_media import MusicMediaInfo, MusicMetaBase, MusicRecognitionAssessment, MusicResolveDetailResponse
 from app.schemas.orchestration import CreateSubscriptionRequest, SubscriptionType
-from app.services.subscriptions import SubscriptionService
+from app.chain.subscribe import MusicSubscribeChain
 from tests.test_query_builder import build_artist_detail, build_artist_media
 
 
@@ -133,15 +133,15 @@ class DummyMusicMediaChain:
         )
 
 
-class SubscriptionServiceTest(unittest.TestCase):
+class MusicSubscribeChainCrudTest(unittest.TestCase):
     def setUp(self) -> None:
         engine = create_engine("sqlite:///:memory:", future=True)
         Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
         Base.metadata.create_all(bind=engine)
         self.session = Session()
         self.music_media_chain = DummyMusicMediaChain()
-        self.service = SubscriptionService(
-            self.session,
+        self.service = MusicSubscribeChain(
+            session=self.session,
             music_media_chain=self.music_media_chain,
         )
 

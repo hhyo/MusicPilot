@@ -11,9 +11,9 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.adapters.organize import OrganizeAdapter
-from app.models.acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
-from app.models.base import Base
+from app.modules.organize import OrganizeAdapter
+from app.db.models.acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
+from app.db.models.base import Base
 from app.schemas.integration import AdapterMode
 from app.schemas.shared import EntityType
 from app.schemas.music_media import MusicMediaInfo
@@ -25,11 +25,11 @@ from app.schemas.orchestration import (
     OrganizeStatus,
     OrganizeStrategySnapshot,
 )
-from app.services.host_integration import HostIntegrationService, OrganizeAdapterResolver, OrganizeExecutionResult
-from app.services.host_path_handoff import HostPathHandoffService
-from app.services.organize import OrganizeService
-from app.services.organize_strategy import OrganizeStrategyService
-from app.repositories.orchestration import OrchestrationRepository
+from app.modules.host_integration import HostIntegrationModule, OrganizeAdapterResolver, OrganizeExecutionResult
+from app.modules.path_handoff import HostPathHandoff
+from app.chain.transfer import MusicTransferChain
+from app.helper.organize_strategy import MusicOrganizeStrategy
+from app.db.orchestration_oper import OrchestrationOper
 
 from tests.test_host_integration import DummyProbeAdapter, build_candidate, build_settings
 from tests.test_moviepilot_semantics import (
@@ -162,7 +162,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         }
 
     def test_music_metadata_recognizer_prefers_track_detail_fields(self) -> None:
-        from app.services.music_metadata import MusicMetadataRecognizer
+        from app.utils.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(update={"title": "Fallback Title", "format_tag": "flac"})
         detail = build_track_detail()
@@ -177,7 +177,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.format_ext, "flac")
 
     def test_music_metadata_recognizer_falls_back_to_candidate_fields(self) -> None:
-        from app.services.music_metadata import MusicMetadataRecognizer
+        from app.utils.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -197,7 +197,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.format_ext, "mp3")
 
     def test_music_metadata_recognizer_uses_artist_detail_title_for_artist_entity(self) -> None:
-        from app.services.music_metadata import MusicMetadataRecognizer
+        from app.utils.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -218,7 +218,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.format_ext, "aac")
 
     def test_music_metadata_recognizer_uses_source_path_hints_when_metadata_missing(self) -> None:
-        from app.services.music_metadata import MusicMetadataRecognizer
+        from app.utils.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -241,7 +241,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.format_ext, "flac")
 
     def test_music_metadata_recognizer_prefers_metadata_detail_over_source_path_hints(self) -> None:
-        from app.services.music_metadata import MusicMetadataRecognizer
+        from app.utils.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -262,7 +262,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.format_ext, "mp3")
 
     def test_music_metadata_recognizer_uses_embedded_tags_before_source_path_hints(self) -> None:
-        from app.services.music_metadata import MusicMetadataRecognizer
+        from app.utils.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -298,11 +298,11 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(result.format_ext, "flac")
 
     def test_music_metadata_recognizer_reads_embedded_tag_hints_with_mutagen_mapping(self) -> None:
-        from app.services.music_metadata import MusicMetadataRecognizer
+        from app.utils.music_metadata import MusicMetadataRecognizer
 
         recognizer = MusicMetadataRecognizer()
         with NamedTemporaryFile(suffix=".flac") as handle:
-            with patch("app.services.music_metadata.MutagenFile") as mock_mutagen_file:
+            with patch("app.utils.music_metadata.MutagenFile") as mock_mutagen_file:
                 mock_mutagen_file.return_value = SimpleNamespace(
                     tags={
                         "title": ["Hello"],
@@ -322,7 +322,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(hints.format_ext, "flac")
 
     def test_music_metadata_recognizer_prefers_metadata_detail_over_embedded_tags(self) -> None:
-        from app.services.music_metadata import MusicMetadataRecognizer
+        from app.utils.music_metadata import MusicMetadataRecognizer
 
         candidate = build_candidate().model_copy(
             update={
@@ -372,7 +372,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
                 "year": None,
             }
         )
-        service = OrganizeStrategyService(build_settings())
+        service = MusicOrganizeStrategy(build_settings())
 
         plan = service.build_plan(candidate=candidate, metadata_detail=detail)
 
@@ -387,7 +387,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
                 },
             }
         )
-        service = OrganizeStrategyService(build_settings())
+        service = MusicOrganizeStrategy(build_settings())
         detail = build_track_detail().model_copy(
             update={
                 "artist_name": None,
@@ -414,7 +414,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(plan.target_relative_path, "adele/2015 - 25/hello.flac")
 
     def test_music_layout_planner_uses_artist_template_for_artist_entity(self) -> None:
-        from app.services.music_layout import MusicLayoutPlanner
+        from app.utils.music_layout import MusicLayoutPlanner
 
         planner = MusicLayoutPlanner()
 
@@ -427,7 +427,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(path, "adele")
 
     def test_music_layout_planner_uses_album_template_for_album_entity(self) -> None:
-        from app.services.music_layout import MusicLayoutPlanner
+        from app.utils.music_layout import MusicLayoutPlanner
 
         planner = MusicLayoutPlanner()
 
@@ -440,7 +440,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(path, "adele/2015 - 25")
 
     def test_music_layout_planner_uses_album_plus_track_for_track_entity(self) -> None:
-        from app.services.music_layout import MusicLayoutPlanner
+        from app.utils.music_layout import MusicLayoutPlanner
 
         planner = MusicLayoutPlanner()
 
@@ -453,7 +453,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertEqual(path, "adele/2015 - 25/hello.flac")
 
     def test_music_layout_planner_falls_back_to_artist_template_when_metadata_missing(self) -> None:
-        from app.services.music_layout import MusicLayoutPlanner
+        from app.utils.music_layout import MusicLayoutPlanner
 
         planner = MusicLayoutPlanner()
 
@@ -468,7 +468,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
     def test_strategy_service_builds_album_relative_path(self) -> None:
         candidate = build_candidate()
         detail = build_album_detail()
-        service = OrganizeStrategyService(build_settings())
+        service = MusicOrganizeStrategy(build_settings())
 
         plan = service.build_plan(candidate=candidate, metadata_detail=detail)
 
@@ -478,7 +478,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
         self.assertTrue(plan.target_library_path.endswith(plan.target_relative_path))
 
     def test_runtime_state_reports_strict_host_organize_blocking_reason(self) -> None:
-        service = HostIntegrationService(
+        service = HostIntegrationModule(
             settings=build_settings(
                 host_organize_mode="strict_host",
             ),
@@ -493,8 +493,8 @@ class OrganizeIntegrationTest(unittest.TestCase):
     def test_prefer_host_organize_preview_raises_on_runtime_error(self) -> None:
         detail = build_album_detail()
         candidate = build_candidate()
-        plan = OrganizeStrategyService(build_settings()).build_plan(candidate=candidate, metadata_detail=detail)
-        service = HostIntegrationService(
+        plan = MusicOrganizeStrategy(build_settings()).build_plan(candidate=candidate, metadata_detail=detail)
+        service = HostIntegrationModule(
             settings=build_settings(
                 host_organize_mode="prefer_host",
                 host_assume_organize_available=True,
@@ -502,7 +502,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
             probe_adapter=DummyProbeAdapter(),
         )
         resolver = OrganizeAdapterResolver(
-            integration_service=service,
+            integration_module=service,
             mock_adapter=DummyMockOrganizeAdapter(),
             host_adapter=DummyBrokenHostOrganizeAdapter(),
         )
@@ -516,8 +516,8 @@ class OrganizeIntegrationTest(unittest.TestCase):
     def test_prefer_host_organize_apply_raises_on_runtime_error(self) -> None:
         detail = build_album_detail()
         candidate = build_candidate()
-        plan = OrganizeStrategyService(build_settings()).build_plan(candidate=candidate, metadata_detail=detail)
-        service = HostIntegrationService(
+        plan = MusicOrganizeStrategy(build_settings()).build_plan(candidate=candidate, metadata_detail=detail)
+        service = HostIntegrationModule(
             settings=build_settings(
                 host_organize_mode="prefer_host",
                 host_assume_organize_available=True,
@@ -525,7 +525,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
             probe_adapter=DummyProbeAdapter(),
         )
         resolver = OrganizeAdapterResolver(
-            integration_service=service,
+            integration_module=service,
             mock_adapter=DummyMockOrganizeAdapter(),
             host_adapter=DummyBrokenHostOrganizeAdapter(),
         )
@@ -545,13 +545,13 @@ class OrganizeIntegrationTest(unittest.TestCase):
     def test_strict_host_organize_preview_raises_when_capability_missing(self) -> None:
         detail = build_album_detail()
         candidate = build_candidate()
-        plan = OrganizeStrategyService(build_settings()).build_plan(candidate=candidate, metadata_detail=detail)
-        service = HostIntegrationService(
+        plan = MusicOrganizeStrategy(build_settings()).build_plan(candidate=candidate, metadata_detail=detail)
+        service = HostIntegrationModule(
             settings=build_settings(host_organize_mode="strict_host"),
             probe_adapter=DummyProbeAdapter(),
         )
         resolver = OrganizeAdapterResolver(
-            integration_service=service,
+            integration_module=service,
             mock_adapter=DummyMockOrganizeAdapter(),
             host_adapter=DummyBrokenHostOrganizeAdapter(),
         )
@@ -571,7 +571,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
                 host_organize_mode="prefer_host",
                 host_assume_organize_available=True,
             )
-            plan = OrganizeStrategyService(settings).build_plan(
+            plan = MusicOrganizeStrategy(settings).build_plan(
                 candidate=build_candidate(),
                 metadata_detail=detail,
             )
@@ -637,18 +637,18 @@ class OrganizeIntegrationTest(unittest.TestCase):
                     }
                 }
             )
-            service = OrganizeService(
+            service = MusicTransferChain(
                 session=session,
                 resolver=OrganizeAdapterResolver(
-                    integration_service=HostIntegrationService(
+                    integration_module=HostIntegrationModule(
                         settings=settings,
                         probe_adapter=DummyProbeAdapter(),
                     ),
                     mock_adapter=DummyMockOrganizeAdapter(),
                     host_adapter=RealOrganizeAdapter(settings=settings, client=host_client),  # type: ignore[arg-type]
                 ),
-                strategy_service=OrganizeStrategyService(settings),
-                path_handoff_service=HostPathHandoffService(
+                strategy_service=MusicOrganizeStrategy(settings),
+                path_handoff_service=HostPathHandoff(
                     settings=settings,
                     client=FakeHostClient(),  # type: ignore[arg-type]
                 ),
@@ -755,17 +755,17 @@ class OrganizeIntegrationTest(unittest.TestCase):
             session.add(binding)
             session.commit()
 
-            service = OrganizeService(
+            service = MusicTransferChain(
                 session=session,
                 resolver=OrganizeAdapterResolver(
-                    integration_service=HostIntegrationService(
+                    integration_module=HostIntegrationModule(
                         settings=settings,
                         probe_adapter=DummyProbeAdapter(),
                     ),
                     mock_adapter=DummyMockOrganizeAdapter(),
                     host_adapter=RealOrganizeAdapter(settings=settings, client=FakeHostClient()),  # type: ignore[arg-type]
                 ),
-                strategy_service=OrganizeStrategyService(settings),
+                strategy_service=MusicOrganizeStrategy(settings),
                 path_handoff_service=RaisingPathHandoffService(),  # type: ignore[arg-type]
                 music_media_chain=DummyMusicMediaChain(),
             )
@@ -842,7 +842,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
             session.add(candidate)
             session.commit()
 
-            repository = OrchestrationRepository(session)
+            repository = OrchestrationOper(session)
             preview_result = OrganizeAdapterResult(
                 organizeable=True,
                 organize_backend=AdapterMode.HOST,
@@ -884,11 +884,11 @@ class OrganizeIntegrationTest(unittest.TestCase):
                     "note": "applied",
                 }
             )
-            service = OrganizeService(
+            service = MusicTransferChain(
                 session=session,
                 resolver=DummyApplyResolver(apply_result),  # type: ignore[arg-type]
-                strategy_service=OrganizeStrategyService(build_settings()),
-                path_handoff_service=HostPathHandoffService(
+                strategy_service=MusicOrganizeStrategy(build_settings()),
+                path_handoff_service=HostPathHandoff(
                     settings=build_settings(),
                     client=FakeHostClient(),  # type: ignore[arg-type]
                 ),
@@ -994,7 +994,7 @@ class OrganizeIntegrationTest(unittest.TestCase):
             session.add(binding)
             session.commit()
 
-            repository = OrchestrationRepository(session)
+            repository = OrchestrationOper(session)
             preview_result = OrganizeAdapterResult(
                 organizeable=True,
                 organize_backend=AdapterMode.HOST,
@@ -1038,11 +1038,11 @@ class OrganizeIntegrationTest(unittest.TestCase):
             )
             resolver = CapturingApplyResolver(apply_result)
             music_media_chain = DummyMusicMediaChain()
-            service = OrganizeService(
+            service = MusicTransferChain(
                 session=session,
                 resolver=resolver,  # type: ignore[arg-type]
-                strategy_service=OrganizeStrategyService(build_settings()),
-                path_handoff_service=HostPathHandoffService(
+                strategy_service=MusicOrganizeStrategy(build_settings()),
+                path_handoff_service=HostPathHandoff(
                     settings=build_settings(),
                     client=FakeHostClient(),  # type: ignore[arg-type]
                 ),

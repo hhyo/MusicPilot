@@ -10,13 +10,13 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from app.adapters.download_dispatch import RealDownloadDispatchAdapter
-from app.adapters.host_http import HostTransportError
-from app.adapters.host_search import RealHostSearchAdapter
-from app.adapters.host_storage_runtime import HostStorageRuntimeBridge
-from app.adapters.organize import RealOrganizeAdapter
+from app.modules.download_dispatch import RealDownloadDispatchAdapter
+from app.modules.host_http import HostTransportError
+from app.modules.host_search import RealHostSearchAdapter
+from app.modules.host_storage_runtime import HostStorageRuntimeBridge
+from app.modules.organize import RealOrganizeAdapter
 from app.core.config import Settings, _derive_plugin_runtime_host_defaults
-from app.services.subscription_scheduler import normalize_subscription_mode
+from app.chain.subscribe import normalize_subscription_mode
 from app.schemas.acquisition import SearchCandidateDetail
 from app.schemas.integration import AdapterMode, VerificationState
 from app.schemas.orchestration import (
@@ -25,8 +25,8 @@ from app.schemas.orchestration import (
     OrganizeStatus,
     OrganizeStrategySnapshot,
 )
-from app.services.host_path_handoff import HostPathHandoffService
-from app.services.query_builder import QueryBuilderService
+from app.modules.path_handoff import HostPathHandoff
+from app.helper.query_builder import MusicQueryBuilder
 
 from tests.test_query_builder import build_album_media
 
@@ -190,7 +190,7 @@ class PluginRuntimeHostDefaultsTest(unittest.TestCase):
 
 class HostDownloaderRuntimeBridgeTest(unittest.TestCase):
     def test_runtime_bridge_submits_qbittorrent_with_optional_download_dir(self) -> None:
-        from app.adapters.host_downloader_runtime import HostDownloaderRuntimeBridge
+        from app.modules.host_downloader_runtime import HostDownloaderRuntimeBridge
 
         client = FakeDownloaderClient()
         helper = FakeDownloaderHelper(FakeDownloaderService(type_name="qbittorrent", instance=client))
@@ -209,7 +209,7 @@ class HostDownloaderRuntimeBridgeTest(unittest.TestCase):
         self.assertIsNone(add_call["download_dir"])
 
     def test_runtime_bridge_fetches_torrent_bytes_before_submitting_url_content(self) -> None:
-        from app.adapters.host_downloader_runtime import HostDownloaderRuntimeBridge
+        from app.modules.host_downloader_runtime import HostDownloaderRuntimeBridge
 
         client = FakeDownloaderClient()
         helper = FakeDownloaderHelper(FakeDownloaderService(type_name="qbittorrent", instance=client))
@@ -241,7 +241,7 @@ class HostDownloaderRuntimeBridgeTest(unittest.TestCase):
         self.assertEqual(client.calls[0][1]["content"], b"torrent-bytes")
 
     def test_runtime_bridge_prefers_detail_page_download_link(self) -> None:
-        from app.adapters.host_downloader_runtime import HostDownloaderRuntimeBridge
+        from app.modules.host_downloader_runtime import HostDownloaderRuntimeBridge
 
         client = FakeDownloaderClient()
         helper = FakeDownloaderHelper(FakeDownloaderService(type_name="qbittorrent", instance=client))
@@ -276,7 +276,7 @@ class HostDownloaderRuntimeBridgeTest(unittest.TestCase):
         self.assertEqual(client.calls[0][1]["content"], b"torrent-bytes")
 
     def test_runtime_bridge_reuses_existing_qbittorrent_task_when_add_returns_false(self) -> None:
-        from app.adapters.host_downloader_runtime import HostDownloaderRuntimeBridge
+        from app.modules.host_downloader_runtime import HostDownloaderRuntimeBridge
 
         client = FakeDownloaderClient(
             add_result=False,
@@ -478,7 +478,7 @@ def build_plan() -> OrganizePlan:
 class RealHostSearchAdapterTest(unittest.TestCase):
     def test_search_title_maps_moviepilot_context_shape(self) -> None:
         media = build_album_media()
-        query_build = QueryBuilderService.build_from_music_media_info(media)
+        query_build = MusicQueryBuilder.build_from_music_media_info(media)
         client = FakeHostClient(
             get_responses={
                 "/api/v1/search/title": {
@@ -519,7 +519,7 @@ class RealHostSearchAdapterTest(unittest.TestCase):
 
     def test_search_media_positive_sample_is_verified(self) -> None:
         media = build_album_media()
-        query_build = QueryBuilderService.build_from_music_media_info(media)
+        query_build = MusicQueryBuilder.build_from_music_media_info(media)
         query_build.query_context.external_refs["moviepilot_tmdb_id"] = "447273"
         client = FakeHostClient(
             get_responses={
@@ -587,7 +587,7 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
         adapter = RealDownloadDispatchAdapter(
             settings=settings,
             client=client,  # type: ignore[arg-type]
-            path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
+            path_handoff_service=HostPathHandoff(settings=settings, client=client),  # type: ignore[arg-type]
             downloader_runtime=runtime,
         )
 
@@ -630,7 +630,7 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
         adapter = RealDownloadDispatchAdapter(
             settings=settings,
             client=client,  # type: ignore[arg-type]
-            path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
+            path_handoff_service=HostPathHandoff(settings=settings, client=client),  # type: ignore[arg-type]
             downloader_runtime=runtime,
         )
 
@@ -668,7 +668,7 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
         adapter = RealDownloadDispatchAdapter(
             settings=build_settings(),
             client=client,  # type: ignore[arg-type]
-            path_handoff_service=HostPathHandoffService(settings=build_settings(), client=client),  # type: ignore[arg-type]
+            path_handoff_service=HostPathHandoff(settings=build_settings(), client=client),  # type: ignore[arg-type]
         )
 
         result = adapter.dispatch(candidate=candidate, downloader_id="mock-downloader", manual_confirm=True)
@@ -709,7 +709,7 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
         adapter = RealDownloadDispatchAdapter(
             settings=settings,
             client=client,  # type: ignore[arg-type]
-            path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
+            path_handoff_service=HostPathHandoff(settings=settings, client=client),  # type: ignore[arg-type]
         )
 
         adapter.dispatch(candidate=candidate, downloader_id="QB", manual_confirm=True)
@@ -765,7 +765,7 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
         adapter = RealDownloadDispatchAdapter(
             settings=settings,
             client=client,  # type: ignore[arg-type]
-            path_handoff_service=HostPathHandoffService(settings=settings, client=client),  # type: ignore[arg-type]
+            path_handoff_service=HostPathHandoff(settings=settings, client=client),  # type: ignore[arg-type]
         )
 
         result = adapter.dispatch(candidate=candidate, downloader_id="QB", manual_confirm=True)
@@ -804,7 +804,7 @@ class RealDownloadDispatchAdapterTest(unittest.TestCase):
                 },
             }
         )
-        handoff_service = HostPathHandoffService(settings=build_settings(), client=client)  # type: ignore[arg-type]
+        handoff_service = HostPathHandoff(settings=build_settings(), client=client)  # type: ignore[arg-type]
 
         self.assertIsNone(handoff_service.resolve_from_download_with_retry("stub-download-002"))
         replay = handoff_service.resolve_from_transfer("stub-download-002")
@@ -1073,9 +1073,9 @@ class HostStorageRuntimeBridgeTest(unittest.TestCase):
         self.assertEqual(result["target_path"], "/library/music/Adele/2015 - 25/hello (1).flac")
 
 
-class HostPathHandoffServiceTest(unittest.TestCase):
+class HostPathHandoffTest(unittest.TestCase):
     def test_build_unresolved_marks_explicit_unresolved_state(self) -> None:
-        service = HostPathHandoffService(settings=build_settings(), client=FakeHostClient())  # type: ignore[arg-type]
+        service = HostPathHandoff(settings=build_settings(), client=FakeHostClient())  # type: ignore[arg-type]
 
         handoff = service.build_unresolved(
             download_hash="hash-missing-001",
@@ -1304,6 +1304,8 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
                     subscription_scheduler_poll_seconds=30.0,
                     chart_refresh_enabled=True,
                     chart_refresh_interval_minutes=60,
+                    host_handoff_retry_enabled=True,
+                    host_handoff_retry_interval_seconds=120,
                 )
             )
             with patch.object(plugin_module, "_load_local_module", return_value=fake_settings_module):
@@ -1325,6 +1327,13 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
                         "trigger": "interval",
                         "func": plugin.run_chart_refresh_once,
                         "kwargs": {"minutes": 60},
+                    },
+                    {
+                        "id": "music-transfer",
+                        "name": "MusicPilot 下载整理",
+                        "trigger": "interval",
+                        "func": plugin.run_transfer_once,
+                        "kwargs": {"seconds": 120},
                     }
                 ],
             )

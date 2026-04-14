@@ -9,15 +9,16 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from app.models import Base
+from app.chain.media import MusicMediaChain
+from app.db.models import Base
+from app.modules.metadata import MetadataModule
+from app.modules.metadata_provider import MetadataProviderAdapter, MusicBrainzMetadataProviderAdapter
 from app.schemas.metadata import MetadataDetail, MetadataSearchData, MetadataSearchRequest, MetadataSummary
 from app.schemas.music_media import MusicMediaInput
 from app.schemas.shared import EntityType, ReleaseType
-from app.services.metadata import MetadataService
-from app.services.music_media_chain import MusicMediaChain
 
 
-class MetadataServiceLiveProviderTest(unittest.TestCase):
+class MetadataModuleLiveProviderTest(unittest.TestCase):
     def setUp(self) -> None:
         engine = create_engine("sqlite+pysqlite:///:memory:", future=True)
         Base.metadata.create_all(bind=engine)
@@ -27,8 +28,6 @@ class MetadataServiceLiveProviderTest(unittest.TestCase):
         self.session.close()
 
     def test_service_uses_live_provider_search_when_adapter_supports_live_queries(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
-
         class FakeLiveAdapter(MetadataProviderAdapter):
             @property
             def provider(self) -> str:
@@ -61,7 +60,7 @@ class MetadataServiceLiveProviderTest(unittest.TestCase):
             def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:  # pragma: no cover - not used
                 raise NotImplementedError
 
-        service = MetadataService(session=self.session, adapter=FakeLiveAdapter())
+        service = MetadataModule(session=self.session, provider=FakeLiveAdapter())
 
         result = service.search(
             MetadataSearchRequest(keyword="Adele", type=EntityType.ARTIST, page=1, page_size=10)
@@ -70,11 +69,9 @@ class MetadataServiceLiveProviderTest(unittest.TestCase):
         self.assertEqual(result.provider, "fake_live")
         self.assertEqual(result.source_type, "live_api")
         self.assertEqual(result.integration_point, "fake.live.search")
-        self.assertEqual(service.repository.summary()["search_history"], 1)
+        self.assertEqual(service.oper.summary()["search_history"], 1)
 
     def test_get_detail_by_provider_ref_rejects_mismatched_provider(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
-
         class FakeLiveAdapter(MetadataProviderAdapter):
             @property
             def provider(self) -> str:
@@ -97,7 +94,7 @@ class MetadataServiceLiveProviderTest(unittest.TestCase):
             def get_detail(self, entity_type: EntityType, entity_id: str) -> MetadataDetail:  # pragma: no cover
                 raise NotImplementedError
 
-        service = MetadataService(session=self.session, adapter=FakeLiveAdapter())
+        service = MetadataModule(session=self.session, provider=FakeLiveAdapter())
 
         with self.assertRaises(HTTPException) as ctx:
             service.get_detail_by_provider_ref(
@@ -119,8 +116,8 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.session.close()
 
     def build_chain(self, adapter) -> MusicMediaChain:
-        service = MetadataService(session=self.session, adapter=adapter)
-        return MusicMediaChain(metadata_service=service, metadata_adapter=adapter)
+        service = MetadataModule(session=self.session, provider=adapter)
+        return MusicMediaChain(metadata_module=service, metadata_provider=adapter)
 
     def build_input(
         self,
@@ -147,7 +144,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         )
 
     def test_track_recognition_search_builds_artist_title_album_keyword_and_returns_detail(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class FakeLiveAdapter(MetadataProviderAdapter):
             def __init__(self) -> None:
@@ -219,7 +216,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(result.detail.id, "track-1")
 
     def test_album_and_artist_recognition_search_keyword_shapes(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class FakeLiveAdapter(MetadataProviderAdapter):
             def __init__(self) -> None:
@@ -294,7 +291,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(adapter.keywords, ["Adele 25", "Adele"])
 
     def test_recognition_search_requires_music_clues_and_raises_404_when_no_result(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class EmptyLiveAdapter(MetadataProviderAdapter):
             @property
@@ -339,7 +336,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(ctx_not_found.exception.status_code, 404)
 
     def test_recognition_search_prefers_precise_match_over_first_item(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class RankedLiveAdapter(MetadataProviderAdapter):
             @property
@@ -417,7 +414,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(result.detail.id, "track-best-second")
 
     def test_track_recognition_search_requires_album_match_when_album_hint_is_provided(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class AlbumMismatchAdapter(MetadataProviderAdapter):
             @property
@@ -471,7 +468,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 404)
 
     def test_track_recognition_search_normalizes_title_noise_before_searching(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class NoisyTitleAdapter(MetadataProviderAdapter):
             def __init__(self) -> None:
@@ -548,7 +545,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(adapter.keywords, ["Adele Hello 25"])
 
     def test_album_recognition_search_tries_fallback_keyword_order_until_match(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class AlbumFallbackAdapter(MetadataProviderAdapter):
             def __init__(self) -> None:
@@ -621,7 +618,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(adapter.keywords, ["Adele 25", "25 Adele"])
 
     def test_recognition_search_raises_404_when_search_has_items_but_none_match_minimum_criteria(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class NonMatchingLiveAdapter(MetadataProviderAdapter):
             @property
@@ -685,7 +682,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 404)
 
     def test_recognition_search_converts_provider_http_failures_to_502(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class FailingSearchAdapter(MetadataProviderAdapter):
             @property
@@ -761,7 +758,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(ctx_detail.exception.status_code, 502)
 
     def test_recognition_search_artist_credit_matches_common_connectors_and_featuring_forms(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class ArtistCreditAdapter(MetadataProviderAdapter):
             def __init__(self) -> None:
@@ -846,7 +843,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(detail_feat.detail.id, "track-1")
 
     def test_artist_recognition_search_normalizes_single_artist_punctuation_variants(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class ArtistPunctuationAdapter(MetadataProviderAdapter):
             @property
@@ -908,7 +905,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertEqual(detail.detail.id, "artist-tyler")
 
     def test_track_recognition_search_uses_candidate_arrays_when_primary_rss_hints_are_weaker(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class CandidateArrayAdapter(MetadataProviderAdapter):
             def __init__(self) -> None:
@@ -992,7 +989,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
         self.assertIn("Lady Gaga Bruno Mars Die With A Smile", adapter.keywords)
 
     def test_track_recognition_search_prefers_full_artist_credit_match_over_weaker_primary_artist_fallback(self) -> None:
-        from app.adapters.metadata_provider import MetadataProviderAdapter
+        from app.modules.metadata_provider import MetadataProviderAdapter
 
         class ArtistFallbackAdapter(MetadataProviderAdapter):
             @property
@@ -1080,7 +1077,7 @@ class MusicMediaChainRecognitionTest(unittest.TestCase):
 
 class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
     def test_search_reuses_cached_result_for_identical_payload(self) -> None:
-        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+        from app.modules.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         call_count = 0
 
@@ -1117,7 +1114,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(first.items[0].title, second.items[0].title)
 
     def test_detail_reuses_cached_result_for_identical_entity(self) -> None:
-        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+        from app.modules.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         call_count = 0
 
@@ -1161,7 +1158,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(first.album_title, second.album_title)
 
     def test_artist_search_maps_musicbrainz_result(self) -> None:
-        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+        from app.modules.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         def handler(request: httpx.Request) -> httpx.Response:
             self.assertEqual(request.url.path, "/ws/2/artist")
@@ -1203,7 +1200,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(result.items[0].external_ids["musicbrainz"], "mb-artist-1")
 
     def test_search_skips_dismax_for_advanced_query(self) -> None:
-        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+        from app.modules.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         def handler(request: httpx.Request) -> httpx.Response:
             self.assertEqual(request.url.path, "/ws/2/artist")
@@ -1228,7 +1225,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(result.total, 0)
 
     def test_artist_detail_exposes_discovery_context(self) -> None:
-        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+        from app.modules.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         def handler(request: httpx.Request) -> httpx.Response:
             self.assertEqual(request.url.path, "/ws/2/artist/mb-artist-adele")
@@ -1297,7 +1294,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         )
 
     def test_album_detail_maps_release_group_result(self) -> None:
-        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+        from app.modules.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         calls: list[str] = []
 
@@ -1375,7 +1372,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(detail.tracks[0].id, "recording-hello")
 
     def test_album_detail_uses_release_tracks_instead_of_release_list(self) -> None:
-        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+        from app.modules.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         calls: list[str] = []
 
@@ -1461,7 +1458,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(detail.tracks[0].track_number, 1)
 
     def test_album_detail_exposes_release_context(self) -> None:
-        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+        from app.modules.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/ws/2/release-group/mb-album-25":
@@ -1546,7 +1543,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(detail.secondary_types, ["Live"])
 
     def test_track_detail_related_album_points_to_release_group(self) -> None:
-        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+        from app.modules.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         calls: list[str] = []
 
@@ -1611,7 +1608,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(detail.related_album.title, "25")
 
     def test_track_detail_fetches_release_when_release_group_missing(self) -> None:
-        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+        from app.modules.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         calls: list[str] = []
 
@@ -1668,7 +1665,7 @@ class MusicBrainzMetadataProviderAdapterTest(unittest.TestCase):
         self.assertEqual(detail.related_album.id, "mb-album-25")
 
     def test_track_detail_exposes_release_context(self) -> None:
-        from app.adapters.metadata_provider import MusicBrainzMetadataProviderAdapter
+        from app.modules.metadata_provider import MusicBrainzMetadataProviderAdapter
 
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/ws/2/recording/mb-track-hello":

@@ -211,9 +211,9 @@ backend/app/
 - `plugins/`、`workflow/`、`agent/` 不提前创建空壳目录
 - 但如果 MusicPilot 后续出现对应职责，目录命名也必须沿 MoviePilot 方式扩展
 
-## 6. MusicPilot 需要落地的 7 条主链
+## 6. MusicPilot 需要落地的 8 条主链
 
-为了与 MoviePilot 的主流程模式对齐，MusicPilot 当前阶段至少要完成这 7 条链：
+为了与 MoviePilot 的主流程模式对齐，MusicPilot 当前阶段至少要完成这 8 条链：
 
 | MusicPilot 主链 | 对齐的 MoviePilot 主链语义 | 说明 |
 |---|---|---|
@@ -224,6 +224,7 @@ backend/app/
 | `MusicSubscribeChain` | `SubscribeChain` | 订阅 CRUD、run、scheduler |
 | `MusicChartChain` | MoviePilot discover/list + refresh 模式 | 榜单、discovery、refresh、entry -> subscribe |
 | `MusicDashboardChain` | `DashboardChain` | summary 与运行态聚合 |
+| `MusicSystemChain` | `SystemChain` 风格入口 | settings / probe / health / root 运行态入口 |
 
 ## 7. MusicPilot 当前目录到目标结构的映射
 

@@ -4,7 +4,7 @@
 
 **Goal:** 将 MusicPilot 后端与 `plugin_runtime` 后端镜像激进重构为与 MoviePilot 同构的结构，只保留音乐领域语义差异，彻底删除旧 `routes/services/models/repositories/adapters/tasks` 主结构。
 
-**Architecture:** 重构后后端只保留 `api/endpoints + chain + db + helper + modules + core + schemas + startup + utils`。API、调度和本地运行入口只直接调用 7 条 `Music*Chain`，数据访问统一进入 `db/*_oper.py`，旧目录物理删除，不保留 wrapper、alias import 或 facade。
+**Architecture:** 重构后后端只保留 `api/endpoints + chain + db + helper + modules + core + schemas + startup + utils`。API、调度和本地运行入口只直接调用 8 条 `Music*Chain`，数据访问统一进入 `db/*_oper.py`，旧目录物理删除，不保留 wrapper、alias import 或 facade。
 
 **Tech Stack:** Python 3、FastAPI、Pydantic、SQLAlchemy、unittest、plugin runtime mirror、MoviePilot 风格 `ChainBase`
 

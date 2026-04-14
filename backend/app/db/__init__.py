@@ -1,0 +1,2 @@
+"""MoviePilot-aligned database package."""
+

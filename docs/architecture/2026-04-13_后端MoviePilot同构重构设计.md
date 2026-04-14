@@ -106,7 +106,7 @@ backend/app/
 
 ### 3.2 `chain`
 
-后端主流程只保留这 7 条链：
+后端主流程只保留这 8 条链：
 
 - `MusicMediaChain`
 - `MusicSearchChain`
@@ -115,6 +115,7 @@ backend/app/
 - `MusicSubscribeChain`
 - `MusicChartChain`
 - `MusicDashboardChain`
+ - `MusicSystemChain`
 
 文件名按 MoviePilot 风格对齐：
 

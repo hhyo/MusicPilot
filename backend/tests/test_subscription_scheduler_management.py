@@ -4,11 +4,11 @@ import unittest
 
 from fastapi.testclient import TestClient
 
-from app.core.dependencies import get_subscription_execution_service
+from app.core.dependencies import get_music_subscribe_chain
 from app.main import app
 
 
-class FakeSubscriptionExecutionService:
+class FakeMusicSubscribeChain:
     def __init__(self) -> None:
         self.execute_calls: list[tuple[str, bool, str | None]] = []
         self.list_runs_calls: list[tuple[str, str | None, int | None]] = []
@@ -43,13 +43,13 @@ class FakeSubscriptionExecutionService:
 
 class SubscriptionRouteManagementTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.service = FakeSubscriptionExecutionService()
-        app.dependency_overrides[get_subscription_execution_service] = lambda: self.service
+        self.service = FakeMusicSubscribeChain()
+        app.dependency_overrides[get_music_subscribe_chain] = lambda: self.service
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self.client.close()
-        app.dependency_overrides.pop(get_subscription_execution_service, None)
+        app.dependency_overrides.pop(get_music_subscribe_chain, None)
 
     def test_run_route_accepts_preview_only_and_retry_run_id(self) -> None:
         response = self.client.post(

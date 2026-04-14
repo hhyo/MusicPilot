@@ -8,9 +8,9 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models.acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
-from app.models.base import Base
-from app.models.orchestration import OrganizeRecordModel, SubscriptionModel, SubscriptionRunModel
+from app.db.models.acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
+from app.db.models.base import Base
+from app.db.models.orchestration import OrganizeRecordModel, SubscriptionModel, SubscriptionRunModel
 from app.schemas.acquisition import PathHandoffInfo
 from app.schemas.music_media import MusicMediaInput
 from app.schemas.integration import AdapterMode, VerificationState
@@ -21,7 +21,7 @@ from app.schemas.orchestration import (
     OrganizeStrategySnapshot,
     SubscriptionRunStatus,
 )
-from app.services.pending_handoff import PendingHandoffReconcileService
+from app.chain.transfer import MusicTransferChain
 from tests.test_query_builder import build_track_media
 
 
@@ -134,7 +134,7 @@ class DummyOrganizeService:
         return self.applied_result
 
 
-class PendingHandoffReconcileServiceTest(unittest.TestCase):
+class MusicTransferChainPendingHandoffTest(unittest.TestCase):
     def setUp(self) -> None:
         engine = create_engine("sqlite:///:memory:", future=True)
         Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
@@ -291,12 +291,16 @@ class PendingHandoffReconcileServiceTest(unittest.TestCase):
         self.session.close()
 
     def test_reconcile_pending_handoff_resolves_and_applies_record(self) -> None:
-        service = PendingHandoffReconcileService(
+        organize = DummyOrganizeService(applied_result=build_applied_record("org-001"))
+        service = MusicTransferChain(
             session=self.session,
-            organize_service=DummyOrganizeService(applied_result=build_applied_record("org-001")),
+            resolver=None,
+            strategy_service=None,
             path_handoff_service=DummyPathHandoffService(resolved=build_resolved_handoff()),
-            handoff_pending_ttl_seconds=120,
+            music_media_chain=None,
         )
+        service.apply = lambda payload: organize.apply(payload)
+        service.handoff_pending_ttl_seconds = 120
 
         result = service.reconcile_pending_once(now=utc_now())
 
@@ -304,7 +308,7 @@ class PendingHandoffReconcileServiceTest(unittest.TestCase):
         self.assertEqual(result["applied_run_ids"], ["srun-001"])
         self.assertEqual(result["unresolved_run_ids"], [])
         self.assertEqual(result["diagnostics"][0]["reason"], "applied")
-        self.assertEqual(service.organize_service.apply_calls, ["org-001"])
+        self.assertEqual(organize.apply_calls, ["org-001"])
 
         binding = self.session.get(DownloadBindingModel, "bind-001")
         candidate = self.session.get(SearchCandidateModel, "cand-001")
@@ -323,12 +327,16 @@ class PendingHandoffReconcileServiceTest(unittest.TestCase):
         binding.dispatched_at = utc_now() - timedelta(seconds=600)
         self.session.commit()
 
-        service = PendingHandoffReconcileService(
+        organize = DummyOrganizeService(applied_result=build_applied_record("org-001"))
+        service = MusicTransferChain(
             session=self.session,
-            organize_service=DummyOrganizeService(applied_result=build_applied_record("org-001")),
+            resolver=None,
+            strategy_service=None,
             path_handoff_service=DummyPathHandoffService(resolved=None),
-            handoff_pending_ttl_seconds=120,
+            music_media_chain=None,
         )
+        service.apply = lambda payload: organize.apply(payload)
+        service.handoff_pending_ttl_seconds = 120
 
         result = service.reconcile_pending_once(now=utc_now())
 
@@ -336,7 +344,7 @@ class PendingHandoffReconcileServiceTest(unittest.TestCase):
         self.assertEqual(result["applied_run_ids"], [])
         self.assertEqual(result["unresolved_run_ids"], ["srun-001"])
         self.assertEqual(result["diagnostics"][0]["reason"], "handoff_unresolved")
-        self.assertEqual(service.organize_service.apply_calls, [])
+        self.assertEqual(organize.apply_calls, [])
 
         binding = self.session.get(DownloadBindingModel, "bind-001")
         candidate = self.session.get(SearchCandidateModel, "cand-001")
@@ -366,12 +374,16 @@ class PendingHandoffReconcileServiceTest(unittest.TestCase):
                 self.apply_calls.append(payload.organize_job_id)
                 raise RuntimeError("organize apply failed")
 
-        service = PendingHandoffReconcileService(
+        organize = FailingOrganizeService()
+        service = MusicTransferChain(
             session=self.session,
-            organize_service=FailingOrganizeService(),
+            resolver=None,
+            strategy_service=None,
             path_handoff_service=DummyPathHandoffService(resolved=build_resolved_handoff()),
-            handoff_pending_ttl_seconds=120,
+            music_media_chain=None,
         )
+        service.apply = lambda payload: organize.apply(payload)
+        service.handoff_pending_ttl_seconds = 120
 
         result = service.reconcile_pending_once(now=utc_now())
 

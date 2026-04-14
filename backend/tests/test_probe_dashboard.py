@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import unittest
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from app.core.dependencies import get_dashboard_service, get_host_capabilities_service
+from app.core.dependencies import get_music_dashboard_chain, get_music_system_chain
 from app.main import app
-from app.models import (
+from app.db.models import (
     Base,
     ChartModel,
     DownloadBindingModel,
@@ -20,7 +21,7 @@ from app.models import (
     SubscriptionModel,
     SubscriptionRunModel,
 )
-from app.services.dashboard import DashboardService
+from app.chain.dashboard import MusicDashboardChain
 
 
 def build_engine():
@@ -32,7 +33,7 @@ def build_engine():
     )
 
 
-class DummyHostCapabilitiesService:
+class DummyMusicSystemChain:
     def __init__(self) -> None:
         self._summary = {
             "capability": "health",
@@ -133,12 +134,12 @@ class DummyHostCapabilitiesService:
 
 class ProbeRouteContractTest(unittest.TestCase):
     def setUp(self) -> None:
-        app.dependency_overrides[get_host_capabilities_service] = lambda: DummyHostCapabilitiesService()
+        app.dependency_overrides[get_music_system_chain] = lambda: DummyMusicSystemChain()
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self.client.close()
-        app.dependency_overrides.pop(get_host_capabilities_service, None)
+        app.dependency_overrides.pop(get_music_system_chain, None)
 
     def test_probe_health_route_drops_generic_todo_copy(self) -> None:
         response = self.client.get("/api/v1/plugin/musicpilot/probe/health")
@@ -474,13 +475,13 @@ class DashboardDiagnosticsRouteTest(unittest.TestCase):
         )
         self.session.commit()
 
-        app.dependency_overrides[get_dashboard_service] = lambda: DashboardService(session=self.session)
+        app.dependency_overrides[get_music_dashboard_chain] = lambda: MusicDashboardChain(session=self.session)
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self.client.close()
         self.session.close()
-        app.dependency_overrides.pop(get_dashboard_service, None)
+        app.dependency_overrides.pop(get_music_dashboard_chain, None)
 
     def test_dashboard_summary_exposes_runtime_ops_blocks(self) -> None:
         response = self.client.get("/api/v1/plugin/musicpilot/dashboard/summary")

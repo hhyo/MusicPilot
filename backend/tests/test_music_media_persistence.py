@@ -5,9 +5,9 @@ import unittest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models.base import Base
-from app.repositories.acquisition import AcquisitionRepository
-from app.repositories.orchestration import OrchestrationRepository
+from app.db.models.base import Base
+from app.db.acquisition_oper import AcquisitionOper
+from app.db.orchestration_oper import OrchestrationOper
 from app.schemas.acquisition import QueryPreferences, SearchJobCreateRequest
 from app.schemas.music_media import MusicMediaInfo, MusicMediaInput, MusicMetaBase, MusicRecognitionAssessment
 from app.schemas.shared import EntityType, TriggerSource
@@ -25,8 +25,8 @@ class MusicMediaPersistenceTests(unittest.TestCase):
         Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
         Base.metadata.create_all(bind=engine)
         self.session = Session()
-        self.acquisition_repository = AcquisitionRepository(self.session)
-        self.orchestration_repository = OrchestrationRepository(self.session)
+        self.acquisition_repository = AcquisitionOper(self.session)
+        self.orchestration_repository = OrchestrationOper(self.session)
 
     def tearDown(self) -> None:
         self.session.close()

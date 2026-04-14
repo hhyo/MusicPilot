@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import unittest
 
-from app.adapters.host_search import normalize_title
+from app.helper.scoring import MusicCandidateScorer
+from app.modules.host_search import normalize_title
 from app.schemas.acquisition import HostSearchCandidate, QueryPreferences
 from app.schemas.shared import DecisionStatus
-from app.services.query_builder import QueryBuilderService
-from app.services.scoring import MusicCandidateScorer
+from app.helper.query_builder import MusicQueryBuilder
 from tests.test_query_builder import build_album_media, build_track_media
 
 
@@ -18,7 +18,7 @@ class MusicCandidateScorerTest(unittest.TestCase):
 
     def test_exact_lossless_candidate_is_auto_download(self) -> None:
         media = build_track_media()
-        query_build = QueryBuilderService.build_from_music_media_info(media)
+        query_build = MusicQueryBuilder.build_from_music_media_info(media)
         candidate = HostSearchCandidate(
             site_id="mock-site-lossless",
             site_name="Mock Lossless",
@@ -43,7 +43,7 @@ class MusicCandidateScorerTest(unittest.TestCase):
 
     def test_deluxe_aac_candidate_is_manual_confirm(self) -> None:
         media = build_album_media()
-        query_build = QueryBuilderService.build_from_music_media_info(media)
+        query_build = MusicQueryBuilder.build_from_music_media_info(media)
         candidate = HostSearchCandidate(
             site_id="mock-site-scene",
             site_name="Mock Scene",
@@ -68,7 +68,7 @@ class MusicCandidateScorerTest(unittest.TestCase):
 
     def test_karaoke_candidate_is_rejected(self) -> None:
         media = build_track_media()
-        query_build = QueryBuilderService.build_from_music_media_info(media)
+        query_build = MusicQueryBuilder.build_from_music_media_info(media)
         candidate = HostSearchCandidate(
             site_id="mock-site-noisy",
             site_name="Mock Noisy",
@@ -94,7 +94,7 @@ class MusicCandidateScorerTest(unittest.TestCase):
 
     def test_seeders_raise_score(self) -> None:
         media = build_album_media()
-        query_build = QueryBuilderService.build_from_music_media_info(media)
+        query_build = MusicQueryBuilder.build_from_music_media_info(media)
         base_candidate = {
             "site_id": "mock-site",
             "site_name": "Mock Site",

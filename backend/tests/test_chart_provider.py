@@ -7,7 +7,10 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from fastapi import HTTPException
 
-from app.adapters.chart_provider import ListenBrainzChartProviderAdapter, RssFeedChartProviderAdapter
+from app.helper.discovery import MusicDiscoveryBuilder
+from app.chain.chart import MusicChartChain
+from app.chain.media import MusicMediaChain
+from app.modules.chart_provider import ListenBrainzChartProviderAdapter, RssFeedChartProviderAdapter
 from app.schemas.shared import EntityType
 from app.schemas.orchestration import (
     ChartDetailData,
@@ -17,15 +20,12 @@ from app.schemas.orchestration import (
     DiscoveryEntryView,
     SubscriptionType,
 )
-from app.services.charts import ChartService
-from app.services.discovery import DiscoveryAssembler
-from app.services.music_media_chain import MusicMediaChain
-from app.services.subscriptions import SubscriptionService
+from app.chain.subscribe import MusicSubscribeChain
 
 
-def build_discovery_assembler() -> DiscoveryAssembler:
-    chain = MusicMediaChain(metadata_service=object(), metadata_adapter=object())
-    return DiscoveryAssembler(music_media_chain=chain)
+def build_discovery_builder() -> MusicDiscoveryBuilder:
+    chain = MusicMediaChain(metadata_module=object(), metadata_provider=object())
+    return MusicDiscoveryBuilder(music_media_chain=chain)
 
 
 class FakeSettingsService:
@@ -322,13 +322,14 @@ class FakeLiveChartAdapter:
         raise NotImplementedError
 
 
-class ChartServiceLiveModeTest(unittest.TestCase):
-    def test_chart_service_live_mode_is_not_mock(self) -> None:
-        service = ChartService(
+class MusicChartChainLiveModeTest(unittest.TestCase):
+    def test_chart_chain_live_mode_is_not_mock(self) -> None:
+        service = MusicChartChain(
             adapter=FakeLiveChartAdapter(),
-            discovery_assembler=build_discovery_assembler(),
-            settings_service=FakeSettingsService(),
-            chart_repository=InMemoryChartRepository(),
+            discovery_assembler=build_discovery_builder(),
+            settings_oper=None,
+            charts_oper=InMemoryChartRepository(),
+            env_settings=FakeSettingsService().env_settings,
         )
 
         result = service.list_charts()
@@ -379,13 +380,14 @@ class FakeDetailChartAdapter(FakeLiveChartAdapter):
         )
 
 
-class ChartServiceDiscoveryEnrichmentTest(unittest.TestCase):
-    def test_chart_service_enriches_detail(self) -> None:
-        service = ChartService(
+class MusicChartChainDiscoveryEnrichmentTest(unittest.TestCase):
+    def test_chart_chain_enriches_detail(self) -> None:
+        service = MusicChartChain(
             adapter=FakeDetailChartAdapter(),
-            discovery_assembler=build_discovery_assembler(),
-            settings_service=FakeSettingsService(),
-            chart_repository=InMemoryChartRepository(),
+            discovery_assembler=build_discovery_builder(),
+            settings_oper=None,
+            charts_oper=InMemoryChartRepository(),
+            env_settings=FakeSettingsService().env_settings,
         )
 
         detail = service.get_chart_detail("chart-listenbrainz-top-tracks-week")
@@ -453,7 +455,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
   </channel>
 </rss>"""
         }
-        service = ChartService(
+        service = MusicChartChain(
             adapter=RssFeedChartProviderAdapter(
                 feeds=[
                     {
@@ -465,9 +467,10 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
                 ],
                 fetcher=lambda url: feed_xml_by_url[url],
             ),
-            discovery_assembler=build_discovery_assembler(),
-            settings_service=FakeSettingsService(),
-            chart_repository=InMemoryChartRepository(),
+            discovery_assembler=build_discovery_builder(),
+            settings_oper=None,
+            charts_oper=InMemoryChartRepository(),
+            env_settings=FakeSettingsService().env_settings,
         )
 
         detail = service.get_chart_detail("rss-feed-feed-netease-playlist")
@@ -624,15 +627,16 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
   </channel>
 </rss>"""
         }
-        service = ChartService(
+        service = MusicChartChain(
             adapter=RssFeedChartProviderAdapter(
                 feeds=[{"id": "feed-artist-no-name", "enabled": True, "url": "https://rsshub.app/youtube/charts/TopArtists/us"}],
                 fetcher=lambda url: feed_xml_by_url[url],
                 cache_enabled=False,
             ),
-            discovery_assembler=build_discovery_assembler(),
-            settings_service=FakeSettingsService(),
-            chart_repository=InMemoryChartRepository(),
+            discovery_assembler=build_discovery_builder(),
+            settings_oper=None,
+            charts_oper=InMemoryChartRepository(),
+            env_settings=FakeSettingsService().env_settings,
         )
 
         detail = service.get_chart_detail("rss-feed-feed-artist-no-name")
@@ -682,7 +686,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
             fetcher=lambda url: feed_xml_by_url[url],
         )
 
-        with self.assertLogs("app.adapters.chart_provider", level="WARNING") as logs:
+        with self.assertLogs("app.modules.chart_provider", level="WARNING") as logs:
             charts = adapter.list_charts()
 
         self.assertEqual(len(charts), 1)
@@ -747,7 +751,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
             return """<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0"><channel><title>x</title><item><title>a - b</title></item></channel></rss>"""
 
-        with self.assertLogs("app.adapters.chart_provider", level="WARNING") as logs:
+        with self.assertLogs("app.modules.chart_provider", level="WARNING") as logs:
             adapter = RssFeedChartProviderAdapter(
                 feeds=[
                     {"id": "badxml", "enabled": True, "url": "https://rsshub.app/163/music/playlist/badxml"},
@@ -768,7 +772,7 @@ class RssFeedChartProviderAdapterTest(unittest.TestCase):
             adapter_with_bug.list_charts()
 
 
-class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
+class MusicSubscribeChainChartEntryPayloadTest(unittest.TestCase):
     def test_create_from_chart_entry_preserves_entry_target_payload(self) -> None:
         class FakeMusicMediaChain:
             def resolve(self, payload):  # noqa: ANN001
@@ -813,7 +817,7 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
                     ),
                 )
 
-        service = SubscriptionService(
+        service = MusicSubscribeChain(
             session=SimpleNamespace(),
             music_media_chain=FakeMusicMediaChain(),
         )
@@ -854,7 +858,7 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
             def refresh(self, _obj):  # noqa: ANN001
                 return None
 
-        service.repository = FakeRepository()
+        service.oper = FakeRepository()
         service.session = FakeSession()
 
         entry = DiscoveryEntryView(
@@ -944,7 +948,7 @@ class SubscriptionServiceChartEntryPayloadTest(unittest.TestCase):
             def resolve(self, payload):  # noqa: ANN001
                 raise AssertionError("resolve should not run for insufficient entries")
 
-        service = SubscriptionService(
+        service = MusicSubscribeChain(
             session=SimpleNamespace(),
             music_media_chain=FakeMusicMediaChain(),
         )

@@ -30,9 +30,9 @@ logger = logging.getLogger("musicpilot.plugin")
 
 
 def _bootstrap_plugin_storage() -> None:
-    from .services.metadata import bootstrap_metadata_storage
+    from .startup.bootstrap import bootstrap_runtime_storage
 
-    bootstrap_metadata_storage()
+    bootstrap_runtime_storage()
 
 
 def _load_local_module(relative_name: str):
@@ -80,6 +80,13 @@ def _build_plugin_api_manifest() -> list[dict[str, Any]]:
     return apis
 
 
+def _scheduler_seconds(module: Any, attr: str, fallback: int) -> int:
+    func = getattr(module, attr, None)
+    if callable(func):
+        return int(func())
+    return fallback
+
+
 def _resolve_remote_dist_path() -> str:
     remotes_dir = Path(__file__).resolve().parent / "static" / "remotes"
     if remotes_dir.exists():
@@ -91,67 +98,6 @@ def _resolve_remote_dist_path() -> str:
             latest_remote = max(remote_dirs, key=lambda path: path.stat().st_mtime)
             return f"static/remotes/{latest_remote.name}"
     return "static/assets"
-
-
-def _subscription_scheduler_interval_seconds() -> int:
-    settings_module = _load_local_module("core.config")
-    return max(1, int(round(settings_module.settings.subscription_scheduler_poll_seconds)))
-
-
-def _chart_refresh_interval_minutes() -> int:
-    settings_module = _load_local_module("core.config")
-    return max(1, int(round(settings_module.settings.chart_refresh_interval_minutes)))
-
-
-def _run_registered_scheduler_once() -> dict[str, Any]:
-    dependencies_module = _load_local_module("core.dependencies")
-
-    session_factory = dependencies_module.get_session_factory()
-    with session_factory() as session:
-        try:
-            scheduler = dependencies_module.build_subscription_scheduler_service(session)
-            result = scheduler.run_pending_once()
-            session.commit()
-            if result.get("executed_ids"):
-                logger.info(
-                    "moviepilot.scheduler.executed ids=%s",
-                    ",".join(result["executed_ids"]),
-                )
-            if result.get("error_ids"):
-                logger.warning(
-                    "moviepilot.scheduler.errors ids=%s",
-                    ",".join(result["error_ids"]),
-                )
-            return result
-        except Exception:  # noqa: BLE001
-            session.rollback()
-            logger.exception("moviepilot.scheduler.run_failed")
-            raise
-
-
-def _run_registered_chart_refresh_once() -> dict[str, Any]:
-    dependencies_module = _load_local_module("core.dependencies")
-
-    session_factory = dependencies_module.get_session_factory()
-    with session_factory() as session:
-        try:
-            service = dependencies_module.build_chart_service(session)
-            result = service.refresh_all_charts()
-            if result.get("refreshed_ids"):
-                logger.info(
-                    "moviepilot.chart_refresh.refreshed ids=%s",
-                    ",".join(result["refreshed_ids"]),
-                )
-            if result.get("failed"):
-                logger.warning(
-                    "moviepilot.chart_refresh.failed ids=%s",
-                    ",".join(sorted(result["failed"].keys())),
-                )
-            return result
-        except Exception:  # noqa: BLE001
-            session.rollback()
-            logger.exception("moviepilot.chart_refresh.run_failed")
-            raise
 
 
 if _HostPluginBase is not None:
@@ -186,6 +132,7 @@ if _HostPluginBase is not None:
 
         def get_service(self) -> list[dict[str, Any]]:
             settings_module = _load_local_module("core.config")
+            scheduler_module = _load_local_module("startup.scheduler")
             if not self._enabled or not settings_module.settings.subscription_scheduler_enabled:
                 return []
             return [
@@ -194,14 +141,39 @@ if _HostPluginBase is not None:
                     "name": "MusicPilot 订阅调度",
                     "trigger": "interval",
                     "func": self.run_scheduler_once,
-                    "kwargs": {"seconds": _subscription_scheduler_interval_seconds()},
+                    "kwargs": {
+                        "seconds": _scheduler_seconds(
+                            scheduler_module,
+                            "subscription_scheduler_interval_seconds",
+                            max(1, int(round(settings_module.settings.subscription_scheduler_poll_seconds))),
+                        )
+                    },
                 },
                 {
                     "id": "chart-refresh",
                     "name": "MusicPilot 榜单刷新",
                     "trigger": "interval",
                     "func": self.run_chart_refresh_once,
-                    "kwargs": {"minutes": _chart_refresh_interval_minutes()},
+                    "kwargs": {
+                        "minutes": _scheduler_seconds(
+                            scheduler_module,
+                            "chart_refresh_interval_minutes",
+                            max(1, int(round(settings_module.settings.chart_refresh_interval_minutes))),
+                        )
+                    },
+                },
+                {
+                    "id": "music-transfer",
+                    "name": "MusicPilot 下载整理",
+                    "trigger": "interval",
+                    "func": self.run_transfer_once,
+                    "kwargs": {
+                        "seconds": _scheduler_seconds(
+                            scheduler_module,
+                            "transfer_interval_seconds",
+                            max(60, int(round(settings_module.settings.host_handoff_retry_interval_seconds))),
+                        )
+                    },
                 }
             ]
 
@@ -252,7 +224,8 @@ if _HostPluginBase is not None:
             if not self._storage_bootstrapped:
                 _bootstrap_plugin_storage()
                 self._storage_bootstrapped = True
-            return _run_registered_scheduler_once()
+            scheduler_module = _load_local_module("startup.scheduler")
+            return scheduler_module.run_subscription_scheduler_once()
 
         def run_chart_refresh_once(self) -> dict[str, Any]:
             if not self._enabled:
@@ -260,7 +233,17 @@ if _HostPluginBase is not None:
             if not self._storage_bootstrapped:
                 _bootstrap_plugin_storage()
                 self._storage_bootstrapped = True
-            return _run_registered_chart_refresh_once()
+            scheduler_module = _load_local_module("startup.scheduler")
+            return scheduler_module.run_chart_refresh_once()
+
+        def run_transfer_once(self) -> dict[str, Any]:
+            if not self._enabled:
+                return {"reason": "plugin_disabled"}
+            if not self._storage_bootstrapped:
+                _bootstrap_plugin_storage()
+                self._storage_bootstrapped = True
+            scheduler_module = _load_local_module("startup.scheduler")
+            return scheduler_module.run_transfer_once()
 
         def stop_service(self):
             return None

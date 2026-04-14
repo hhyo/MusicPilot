@@ -9,8 +9,8 @@ from types import SimpleNamespace
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models.base import Base
-from app.repositories.orchestration import OrchestrationRepository
+from app.db.models.base import Base
+from app.db.orchestration_oper import OrchestrationOper
 from app.schemas.acquisition import (
     DispatchResult,
     PathHandoffInfo,
@@ -39,7 +39,7 @@ from app.schemas.orchestration import (
     SubscriptionRunStatus,
     SubscriptionType,
 )
-from app.services.subscription_execution import SubscriptionExecutionService
+from app.chain.subscribe import MusicSubscribeChain
 
 from tests.test_query_builder import build_artist_detail, build_artist_media
 
@@ -398,13 +398,13 @@ class DummyMusicMediaChain:
         return self.resolve_detail(payload)
 
 
-class SubscriptionExecutionServiceTest(unittest.TestCase):
+class MusicSubscribeChainExecutionTest(unittest.TestCase):
     def setUp(self) -> None:
         engine = create_engine("sqlite:///:memory:", future=True)
         Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
         Base.metadata.create_all(bind=engine)
         self.session = Session()
-        self.repository = OrchestrationRepository(self.session)
+        self.repository = OrchestrationOper(self.session)
         self.subscription = self.repository.create_subscription(
             subscription_type=SubscriptionType.ARTIST.value,
             target_id="artist-adele",
@@ -470,12 +470,12 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
             )
         )
         organize_service = DummyOrganizeService()
-        service = SubscriptionExecutionService(
-            self.session,
-            search_job_service=search_job_service,
-            organize_service=organize_service,
+        service = MusicSubscribeChain(
+            session=self.session,
             music_media_chain=DummyMusicMediaChain(),
-            dispatch_service=dispatch_service,
+            search_chain=search_job_service,
+            transfer_chain=organize_service,
+            download_chain=dispatch_service,
         )
 
         result = service.execute(self.subscription.id)
@@ -510,12 +510,12 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
             )
         )
         organize_service = DummyOrganizeService()
-        service = SubscriptionExecutionService(
-            self.session,
-            search_job_service=search_job_service,
-            organize_service=organize_service,
+        service = MusicSubscribeChain(
+            session=self.session,
             music_media_chain=DummyMusicMediaChain(),
-            dispatch_service=dispatch_service,
+            search_chain=search_job_service,
+            transfer_chain=organize_service,
+            download_chain=dispatch_service,
         )
 
         result = service.execute(self.subscription.id)
@@ -537,15 +537,15 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
         self.session.refresh(self.subscription)
 
         music_media_chain = DummyMusicMediaChain()
-        service = SubscriptionExecutionService(
-            self.session,
-            search_job_service=DummySearchJobService(
+        service = MusicSubscribeChain(
+            session=self.session,
+            search_chain=DummySearchJobService(
                 executed_job=build_search_job_summary(status=JobStatus.QUEUED),
                 candidates=[],
             ),
-            organize_service=DummyOrganizeService(),
+            transfer_chain=DummyOrganizeService(),
             music_media_chain=music_media_chain,
-            dispatch_service=DummyDispatchService(
+            download_chain=DummyDispatchService(
                 result=DispatchResult(
                     candidate_id="cand-1",
                     job_id="job-001",
@@ -613,12 +613,12 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
                 raw_summary={},
             ),
         )
-        service = SubscriptionExecutionService(
-            self.session,
-            search_job_service=search_job_service,
-            organize_service=organize_service,
+        service = MusicSubscribeChain(
+            session=self.session,
             music_media_chain=DummyMusicMediaChain(),
-            dispatch_service=dispatch_service,
+            search_chain=search_job_service,
+            transfer_chain=organize_service,
+            download_chain=dispatch_service,
         )
 
         result = service.execute(self.subscription.id)
@@ -637,12 +637,12 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
         }
         search_job_service = DummySearchJobService(executed_job=executed_job, candidates=[])
         organize_service = DummyOrganizeService()
-        service = SubscriptionExecutionService(
-            self.session,
-            search_job_service=search_job_service,
-            organize_service=organize_service,
+        service = MusicSubscribeChain(
+            session=self.session,
             music_media_chain=DummyMusicMediaChain(),
-            dispatch_service=None,
+            search_chain=search_job_service,
+            transfer_chain=organize_service,
+            download_chain=None,
         )
 
         result = service.execute(self.subscription.id)
@@ -674,12 +674,12 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
             ],
         )
         organize_service = DummyOrganizeService()
-        service = SubscriptionExecutionService(
-            self.session,
-            search_job_service=search_job_service,
-            organize_service=organize_service,
+        service = MusicSubscribeChain(
+            session=self.session,
             music_media_chain=DummyMusicMediaChain(),
-            dispatch_service=None,
+            search_chain=search_job_service,
+            transfer_chain=organize_service,
+            download_chain=None,
         )
 
         result = service.execute(
@@ -720,15 +720,15 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
         )
         self.session.commit()
 
-        service = SubscriptionExecutionService(
-            self.session,
-            search_job_service=DummySearchJobService(
+        service = MusicSubscribeChain(
+            session=self.session,
+            search_chain=DummySearchJobService(
                 executed_job=build_search_job_summary(status=JobStatus.NO_RESULT),
                 candidates=[],
             ),
-            organize_service=DummyOrganizeService(),
+            transfer_chain=DummyOrganizeService(),
             music_media_chain=DummyMusicMediaChain(),
-            dispatch_service=None,
+            download_chain=None,
         )
 
         result = service.list_runs(
@@ -829,12 +829,12 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
                 release_context={},
             )
         )
-        service = SubscriptionExecutionService(
-            self.session,
-            search_job_service=search_job_service,
-            organize_service=organize_service,
+        service = MusicSubscribeChain(
+            session=self.session,
             music_media_chain=chain,
-            dispatch_service=None,
+            search_chain=search_job_service,
+            transfer_chain=organize_service,
+            download_chain=None,
         )
 
         result = service.execute(subscription.id)
@@ -846,7 +846,7 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
         self.assertEqual(search_job_service.created_payloads[0].input.artist_names, ["Adele"])
 
     def test_build_job_request_prefers_persisted_music_media_info_for_search(self) -> None:
-        service = SubscriptionExecutionService.__new__(SubscriptionExecutionService)
+        service = MusicSubscribeChain.__new__(MusicSubscribeChain)
         service.music_media_chain = DummyMusicMediaChain()
         media = MusicMediaInfo(
             entity_type=EntityType.TRACK,
@@ -888,7 +888,7 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
         self.assertEqual(payload.input.album_title, "25")
 
     def test_resolve_or_build_music_media_info_uses_persisted_info_when_present(self) -> None:
-        service = SubscriptionExecutionService.__new__(SubscriptionExecutionService)
+        service = MusicSubscribeChain.__new__(MusicSubscribeChain)
         service.session = SimpleNamespace(flush=lambda: None)
         service.music_media_chain = DummyMusicMediaChain()
         subscription = type(
@@ -925,7 +925,7 @@ class SubscriptionExecutionServiceTest(unittest.TestCase):
         self.assertEqual(media.provider_id, "recording-hello")
 
     def test_resolve_or_build_music_media_info_builds_from_persisted_music_media_input(self) -> None:
-        service = SubscriptionExecutionService.__new__(SubscriptionExecutionService)
+        service = MusicSubscribeChain.__new__(MusicSubscribeChain)
         service.session = SimpleNamespace(flush=lambda: None)
         service.music_media_chain = DummyMusicMediaChain(
             MusicMediaInfo(
