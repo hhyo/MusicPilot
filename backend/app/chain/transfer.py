@@ -56,7 +56,72 @@ class MusicTransferChain(MusicChainBase):
         self.repository = OrchestrationOper(session)
 
     def process(self, *, now: datetime | None = None) -> dict:
-        return self.reconcile_pending_once(now=now)
+        current_time = now or utc_now()
+        summary = PendingHandoffSummary()
+        processed_binding_ids: list[str] = []
+        created_record_ids: list[str] = []
+        applied_record_ids: list[str] = []
+        pending_record_ids: list[str] = []
+        skipped_binding_ids: list[str] = []
+        diagnostics: list[PendingHandoffDiagnostic] = []
+
+        for binding in self.acquisition_repository.list_transfer_bindings():
+            if not binding.id:
+                continue
+            if self.repository.get_organize_record_by_binding(binding.id):
+                continue
+            try:
+                preview = self.preview(OrganizePreviewRequest(binding_id=binding.id))
+            except HTTPException:
+                skipped_binding_ids.append(binding.id)
+                summary.skipped += 1
+                continue
+
+            processed_binding_ids.append(binding.id)
+            created_record_ids.append(preview.id)
+            summary.created += 1
+
+            if self._handoff_ready(preview=preview, binding=binding):
+                applied = self.apply(OrganizeApplyRequest(organize_job_id=preview.id))
+                applied_record_ids.append(applied.id)
+                summary.applied += 1
+                diagnostics.append(
+                    PendingHandoffDiagnostic(
+                        record_id=applied.id,
+                        binding_id=binding.id,
+                        subscription_run_id=None,
+                        reason="applied",
+                        handoff_status=applied.path_handoff.handoff_status if applied.path_handoff else None,
+                        age_seconds=0,
+                        ttl_seconds=self.handoff_pending_ttl_seconds,
+                    )
+                )
+            else:
+                pending_record_ids.append(preview.id)
+                summary.pending += 1
+
+        pending_result = self.reconcile_pending_once(now=current_time, skip_record_ids=set(created_record_ids))
+        pending_summary = pending_result.get("summary") or {}
+        summary.applied += int(pending_summary.get("applied", 0))
+        summary.unresolved += int(pending_summary.get("unresolved", 0))
+        summary.failed += int(pending_summary.get("failed", 0))
+        summary.pending += int(pending_summary.get("pending", 0))
+        summary.skipped += int(pending_summary.get("skipped", 0))
+        diagnostics.extend(
+            [PendingHandoffDiagnostic.model_validate(item) for item in pending_result.get("diagnostics", [])]
+        )
+
+        return {
+            "summary": summary.model_dump(mode="json"),
+            "processed_binding_ids": processed_binding_ids,
+            "created_record_ids": created_record_ids,
+            "applied_record_ids": applied_record_ids,
+            "pending_record_ids": pending_record_ids,
+            "unresolved_record_ids": [],
+            "failed_record_ids": [],
+            "skipped_binding_ids": skipped_binding_ids,
+            "diagnostics": [item.model_dump(mode="json") for item in diagnostics],
+        }
 
     def preview(
         self,
@@ -157,15 +222,23 @@ class MusicTransferChain(MusicChainBase):
     def retry(self, record_id: str) -> OrganizePreviewResult:
         return self.apply(OrganizeApplyRequest(organize_job_id=record_id))
 
-    def reconcile_pending_once(self, *, now: datetime | None = None) -> dict:
+    def reconcile_pending_once(
+        self,
+        *,
+        now: datetime | None = None,
+        skip_record_ids: set[str] | None = None,
+    ) -> dict:
         current_time = now or utc_now()
         applied_run_ids: list[str] = []
         unresolved_run_ids: list[str] = []
         skipped_record_ids: list[str] = []
         diagnostics: list[PendingHandoffDiagnostic] = []
         summary = PendingHandoffSummary()
+        skip_record_ids = skip_record_ids or set()
 
         for record in self.repository.list_pending_handoff_records():
+            if record.id in skip_record_ids:
+                continue
             age_seconds = self._record_age_seconds(record=record, now=current_time)
             if not record.binding_id:
                 skipped_record_ids.append(record.id)
@@ -678,6 +751,17 @@ class MusicTransferChain(MusicChainBase):
             or payload.get("host_transfer_source")
             or payload.get("source_fileitem")
         )
+
+    def _handoff_ready(self, *, preview: OrganizePreviewResult, binding) -> bool:
+        if preview.path_handoff and preview.path_handoff.source_path:
+            return True
+        binding_payload = dict(binding.raw_payload or {})
+        if self._has_source_payload(binding_payload):
+            return True
+        path_handoff = binding_payload.get("path_handoff")
+        if isinstance(path_handoff, dict) and path_handoff.get("source_path"):
+            return True
+        return False
 
     def _hydrate_path_handoff_payload(
         self,

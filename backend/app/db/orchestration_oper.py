@@ -309,7 +309,15 @@ class OrchestrationOper:
         )
         return list(self.session.scalars(statement).all())
 
+    def get_organize_record_by_binding(self, binding_id: str) -> OrganizeRecordModel | None:
+        statement = (
+            select(OrganizeRecordModel)
+            .where(OrganizeRecordModel.binding_id == binding_id)
+            .order_by(OrganizeRecordModel.updated_at.desc(), OrganizeRecordModel.created_at.desc())
+            .limit(1)
+        )
+        return self.session.scalar(statement)
+
     def get_organize_record(self, record_id: str) -> OrganizeRecordModel | None:
         statement = select(OrganizeRecordModel).where(OrganizeRecordModel.id == record_id)
         return self.session.scalar(statement)
-

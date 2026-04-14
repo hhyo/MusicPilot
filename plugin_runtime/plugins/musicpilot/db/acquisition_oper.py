@@ -211,6 +211,27 @@ class AcquisitionOper:
             statement = statement.where(DownloadBindingModel.dispatch_status == dispatch_status)
         return list(self.session.scalars(statement).all())
 
+    def list_transfer_bindings(self) -> list[DownloadBindingModel]:
+        statement = (
+            select(DownloadBindingModel)
+            .options(
+                selectinload(DownloadBindingModel.candidate).selectinload(SearchCandidateModel.job),
+                selectinload(DownloadBindingModel.job),
+            )
+            .where(
+                DownloadBindingModel.dispatch_status.in_(
+                    [
+                        "host_submitted",
+                        "downloaded",
+                        "pending_history_sync",
+                        "handoff_resolved",
+                    ]
+                )
+            )
+            .order_by(DownloadBindingModel.dispatched_at.asc())
+        )
+        return list(self.session.scalars(statement).all())
+
     def list_bindings_for_task(self, task_id: str) -> list[DownloadBindingModel]:
         statement = (
             select(DownloadBindingModel)
@@ -265,4 +286,3 @@ class AcquisitionOper:
             candidate.dispatch_status = dispatch_status
         if note is not None:
             candidate.note = note
-

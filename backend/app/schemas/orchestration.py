@@ -384,6 +384,7 @@ class PendingHandoffDiagnostic(BaseModel):
 
 
 class PendingHandoffSummary(BaseModel):
+    created: int = 0
     applied: int = 0
     pending: int = 0
     unresolved: int = 0
