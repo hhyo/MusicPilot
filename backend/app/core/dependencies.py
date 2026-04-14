@@ -12,6 +12,7 @@ from ..chain.chart import MusicChartChain
 from ..chain.dashboard import MusicDashboardChain
 from ..chain.download import MusicDownloadChain
 from ..chain.media import MusicMediaChain
+from ..chain.mediaserver import MusicMediaServerChain
 from ..chain.search import MusicSearchChain
 from ..chain.subscribe import MusicSubscribeChain
 from ..chain.system import MusicSystemChain
@@ -37,6 +38,7 @@ from ..modules.download_dispatch import DownloadDispatchAdapter, MockDownloadDis
 from ..modules.host_downloader_runtime import HostDownloaderRuntimeBridge
 from ..modules.host_http import HostHttpClient, HostHttpClientConfig
 from ..modules.host_integration import DispatchAdapterResolver, HostIntegrationModule, HostSearchAdapterResolver, OrganizeAdapterResolver
+from ..modules.host_mediaserver_runtime import HostMediaServerRuntimeBridge
 from ..modules.host_probe import HostProbeAdapter, MockHostProbeAdapter, RealHostProbeAdapter
 from ..modules.host_search import HostSearchAdapter, MockHostSearchAdapter, RealHostSearchAdapter
 from ..modules.host_storage_runtime import HostStorageRuntimeBridge
@@ -195,6 +197,15 @@ def get_music_dashboard_chain(
     return MusicDashboardChain(session=session)
 
 
+def get_music_mediaserver_chain(
+    session: Session = Depends(get_db_session),
+) -> MusicMediaServerChain:
+    return MusicMediaServerChain(
+        session=session,
+        runtime=get_host_mediaserver_runtime_bridge(),
+    )
+
+
 def get_music_system_chain(
     session: Session = Depends(get_db_session),
 ) -> MusicSystemChain:
@@ -296,6 +307,11 @@ def get_organize_adapter() -> OrganizeAdapter:
 @lru_cache
 def get_host_storage_runtime_bridge() -> HostStorageRuntimeBridge:
     return HostStorageRuntimeBridge()
+
+
+@lru_cache
+def get_host_mediaserver_runtime_bridge() -> HostMediaServerRuntimeBridge:
+    return HostMediaServerRuntimeBridge()
 
 
 @lru_cache
@@ -437,6 +453,13 @@ def build_music_subscribe_chain(session: Session) -> MusicSubscribeChain:
         download_chain=download_chain,
         transfer_chain=transfer_chain,
         default_interval_minutes=settings.subscription_scheduler_default_interval_minutes,
+    )
+
+
+def build_music_mediaserver_chain(session: Session) -> MusicMediaServerChain:
+    return MusicMediaServerChain(
+        session=session,
+        runtime=get_host_mediaserver_runtime_bridge(),
     )
 
 

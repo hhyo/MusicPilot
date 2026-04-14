@@ -41,7 +41,7 @@ python -m app.db_init --reseed
 - `metadata/*` 当前支持两种模式：
   - `seed`：本地 seed metadata
   - `musicbrainz`：实时查询 MusicBrainz Artist / Album / Track 搜索与详情；album detail 会从最佳 release 读取真实 track listing，track detail 的 related album 会对齐 release-group 语义。普通 keyword search 会按 MusicBrainz plain indexed search 语义带 `dismax=true`；recording detail 会直接请求 `release-groups`；album / track detail 还会补充最佳 release 的发行上下文，例如 `status`、`country`、`barcode`、`label_names`、`media_format`、`track_count`、`disc_count` 与 `secondary_types`；artist detail 还会补 discovery 更关心的上下文，例如 `sort_name`、`artist_type`、`area_name`、`begin_area_name`、`ended`、`release_group_count`、`primary_release_types`，以及 `featured_albums / featured_singles / featured_other_releases` 分类摘要
-- `subscriptions/{id}/run` 为同步最小执行骨架；独立 backend 开发模式下保留应用内 scheduler，MoviePilot 插件运行态则通过插件 `get_service()` 向宿主注册 `music-subscription-scheduler`、`music-chart-refresh` 与 `music-transfer` 三个 interval 服务，由宿主调度同一条执行链。若最佳候选为 `AUTO_DOWNLOAD`，当前会继续自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则继续自动 apply。对于 `path_handoff.handoff_status=pending_history_sync` 的已派发 run，scheduler 还会继续轮询宿主 download history：命中真实源文件后自动续跑 organize apply；超过 `host_handoff_pending_ttl_seconds` 仍未命中时，会把 organize record 标记为 `failed`，并在 run 摘要中写入 `handoff_unresolved`
+- `subscriptions/{id}/run` 为同步最小执行骨架；独立 backend 开发模式下保留应用内 scheduler，MoviePilot 插件运行态则通过插件 `get_service()` 向宿主注册 `music-subscription-scheduler`、`music-chart-refresh`、`music-transfer` 与 `music-mediaserver-sync` 四个 interval 服务，由宿主调度同一条执行链。若最佳候选为 `AUTO_DOWNLOAD`，当前会继续自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则继续自动 apply。对于 `path_handoff.handoff_status=pending_history_sync` 的已派发 run，scheduler 还会继续轮询宿主 download history：命中真实源文件后自动续跑 organize apply；超过 `host_handoff_pending_ttl_seconds` 仍未命中时，会把 organize record 标记为 `failed`，并在 run 摘要中写入 `handoff_unresolved`。媒体库同步则参考 MoviePilot `MediaServerChain`，由独立 `music-mediaserver-sync` 周期任务处理。
 - `charts/*` 当前支持三种模式：
   - `mock`：本地 chart seed
   - `listenbrainz`：真实 ListenBrainz sitewide artists / recordings；当前 detail 输出已补 discovery 产品化字段，如 chart summary、hero entry、entry groups，并统一产出 `MusicMediaInput`
@@ -56,7 +56,7 @@ python -m app.db_init --reseed
 - `/downloads/bindings`、`/downloads/tasks` 及各自 detail 当前已提供下载绑定/下载任务工作台接口，同时支持 binding `retry-dispatch` 与 `retry-handoff`
 - `jobs/{job_id}/retry|cancel|DELETE`、`jobs/{job_id}/candidates/{candidate_id}/confirm|reject` 与 `organize/jobs/{record_id}/retry|rebuild-preview|repair-source-path` 当前已提供管理动作
 - `subscriptions/{id}/run` 当前支持 `preview_only` 和 `retry_run_id`，`subscriptions/{id}/runs` 支持 `execution_status` 与 `limit` 过滤
-- `organize/preview` 当前是 MusicPilot 本地音乐路径预览；`organize/apply` 当前通过宿主底层 file/storage 执行音乐文件整理。metadata 识别优先使用显式 detail，其次使用已有上下文、嵌入标签与 `source_path` 线索
+- `organize/preview` 当前是 MusicPilot 本地音乐路径预览；`organize/apply` 当前通过宿主底层 file/storage 执行音乐文件整理。媒体库同步则通过独立 `MusicMediaServerChain` 参考 MoviePilot `MediaServerChain` 周期执行。metadata 识别优先使用显式 detail，其次使用已有上下文、嵌入标签与 `source_path` 线索
 - `jobs/*` 与 `downloads/dispatch` 会根据 host integration settings 在 mock 与 host 模式间切换
 - 当前真实运行时不再根据验证矩阵决定业务路径；矩阵只保留为验证产物
 

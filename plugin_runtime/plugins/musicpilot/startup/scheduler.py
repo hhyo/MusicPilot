@@ -9,6 +9,7 @@ from collections.abc import Awaitable, Callable
 from ..core.config import settings
 from ..core.dependencies import (
     build_music_chart_chain,
+    build_music_mediaserver_chain,
     build_music_subscribe_chain,
     build_music_transfer_chain,
     get_session_factory,
@@ -29,6 +30,10 @@ def subscription_scheduler_interval_seconds() -> int:
 
 def chart_refresh_interval_minutes() -> int:
     return max(1, int(round(settings.chart_refresh_interval_minutes)))
+
+
+def mediaserver_sync_interval_minutes() -> int:
+    return max(1, int(round(settings.mediaserver_sync_interval_minutes)))
 
 
 def transfer_interval_seconds() -> int:
@@ -88,6 +93,24 @@ def run_transfer_once() -> dict:
             raise
 
 
+def run_mediaserver_sync_once() -> dict:
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        try:
+            chain = build_music_mediaserver_chain(session)
+            result = chain.sync()
+            session.commit()
+            if result.get("success"):
+                logger.info("moviepilot.mediaserver_sync.status=%s", result.get("sync_status", "synced"))
+            else:
+                logger.warning("moviepilot.mediaserver_sync.status=%s", result.get("sync_status", "failed"))
+            return result
+        except Exception:  # noqa: BLE001
+            session.rollback()
+            logger.exception("moviepilot.mediaserver_sync.run_failed")
+            raise
+
+
 async def run_interval_loop(
     *,
     runner: Callable[[], dict],
@@ -128,6 +151,14 @@ def build_local_scheduler_tasks() -> list[Awaitable[None]]:
                 runner=run_transfer_once,
                 interval_seconds=transfer_interval_seconds(),
                 logger_key="music.transfer",
+            )
+        )
+    if settings.mediaserver_sync_enabled:
+        tasks.append(
+            run_interval_loop(
+                runner=run_mediaserver_sync_once,
+                interval_seconds=max(60, int(settings.mediaserver_sync_interval_minutes) * 60),
+                logger_key="music.mediaserver_sync",
             )
         )
     return tasks

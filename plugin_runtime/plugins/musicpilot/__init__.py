@@ -133,49 +133,74 @@ if _HostPluginBase is not None:
         def get_service(self) -> list[dict[str, Any]]:
             settings_module = _load_local_module("core.config")
             scheduler_module = _load_local_module("startup.scheduler")
-            if not self._enabled or not settings_module.settings.subscription_scheduler_enabled:
+            if not self._enabled:
                 return []
-            return [
-                {
-                    "id": "music-subscription-scheduler",
-                    "name": "MusicPilot 订阅调度",
-                    "trigger": "interval",
-                    "func": self.run_scheduler_once,
-                    "kwargs": {
-                        "seconds": _scheduler_seconds(
-                            scheduler_module,
-                            "subscription_scheduler_interval_seconds",
-                            max(1, int(round(settings_module.settings.subscription_scheduler_poll_seconds))),
-                        )
-                    },
-                },
-                {
-                    "id": "music-chart-refresh",
-                    "name": "MusicPilot 榜单刷新",
-                    "trigger": "interval",
-                    "func": self.run_chart_refresh_once,
-                    "kwargs": {
-                        "minutes": _scheduler_seconds(
-                            scheduler_module,
-                            "chart_refresh_interval_minutes",
-                            max(1, int(round(settings_module.settings.chart_refresh_interval_minutes))),
-                        )
-                    },
-                },
-                {
-                    "id": "music-transfer",
-                    "name": "MusicPilot 下载整理",
-                    "trigger": "interval",
-                    "func": self.run_transfer_once,
-                    "kwargs": {
-                        "seconds": _scheduler_seconds(
-                            scheduler_module,
-                            "transfer_interval_seconds",
-                            max(60, int(round(settings_module.settings.host_handoff_retry_interval_seconds))),
-                        )
-                    },
-                }
-            ]
+            services: list[dict[str, Any]] = []
+            if settings_module.settings.subscription_scheduler_enabled:
+                services.append(
+                    {
+                        "id": "music-subscription-scheduler",
+                        "name": "MusicPilot 订阅调度",
+                        "trigger": "interval",
+                        "func": self.run_scheduler_once,
+                        "kwargs": {
+                            "seconds": _scheduler_seconds(
+                                scheduler_module,
+                                "subscription_scheduler_interval_seconds",
+                                max(1, int(round(settings_module.settings.subscription_scheduler_poll_seconds))),
+                            )
+                        },
+                    }
+                )
+            if settings_module.settings.chart_refresh_enabled:
+                services.append(
+                    {
+                        "id": "music-chart-refresh",
+                        "name": "MusicPilot 榜单刷新",
+                        "trigger": "interval",
+                        "func": self.run_chart_refresh_once,
+                        "kwargs": {
+                            "minutes": _scheduler_seconds(
+                                scheduler_module,
+                                "chart_refresh_interval_minutes",
+                                max(1, int(round(settings_module.settings.chart_refresh_interval_minutes))),
+                            )
+                        },
+                    }
+                )
+            if settings_module.settings.host_handoff_retry_enabled:
+                services.append(
+                    {
+                        "id": "music-transfer",
+                        "name": "MusicPilot 下载整理",
+                        "trigger": "interval",
+                        "func": self.run_transfer_once,
+                        "kwargs": {
+                            "seconds": _scheduler_seconds(
+                                scheduler_module,
+                                "transfer_interval_seconds",
+                                max(60, int(round(settings_module.settings.host_handoff_retry_interval_seconds))),
+                            )
+                        },
+                    }
+                )
+            if getattr(settings_module.settings, "mediaserver_sync_enabled", False):
+                services.append(
+                    {
+                        "id": "music-mediaserver-sync",
+                        "name": "MusicPilot 媒体库同步",
+                        "trigger": "interval",
+                        "func": self.run_mediaserver_sync_once,
+                        "kwargs": {
+                            "minutes": _scheduler_seconds(
+                                scheduler_module,
+                                "mediaserver_sync_interval_minutes",
+                                max(1, int(round(settings_module.settings.mediaserver_sync_interval_minutes))),
+                            )
+                        },
+                    }
+                )
+            return services
 
         def get_form(self):
             return [], {"enabled": True}
@@ -244,6 +269,15 @@ if _HostPluginBase is not None:
                 self._storage_bootstrapped = True
             scheduler_module = _load_local_module("startup.scheduler")
             return scheduler_module.run_transfer_once()
+
+        def run_mediaserver_sync_once(self) -> dict[str, Any]:
+            if not self._enabled:
+                return {"reason": "plugin_disabled"}
+            if not self._storage_bootstrapped:
+                _bootstrap_plugin_storage()
+                self._storage_bootstrapped = True
+            scheduler_module = _load_local_module("startup.scheduler")
+            return scheduler_module.run_mediaserver_sync_once()
 
         def stop_service(self):
             return None

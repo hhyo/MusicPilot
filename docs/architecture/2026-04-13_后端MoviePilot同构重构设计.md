@@ -106,26 +106,29 @@ backend/app/
 
 ### 3.2 `chain`
 
-后端主流程只保留这 8 条链：
+后端主流程只保留这 9 条链：
 
 - `MusicMediaChain`
+- `MusicMediaServerChain`
 - `MusicSearchChain`
 - `MusicDownloadChain`
 - `MusicTransferChain`
 - `MusicSubscribeChain`
 - `MusicChartChain`
 - `MusicDashboardChain`
- - `MusicSystemChain`
+- `MusicSystemChain`
 
 文件名按 MoviePilot 风格对齐：
 
 - `chain/media.py`
+- `chain/mediaserver.py`
 - `chain/search.py`
 - `chain/download.py`
 - `chain/transfer.py`
 - `chain/subscribe.py`
 - `chain/chart.py`
 - `chain/dashboard.py`
+- `chain/system.py`
 
 类命名保留 MusicPilot 语义，统一使用 `Music*Chain`。
 
@@ -200,7 +203,7 @@ backend/app/
 - 以任何 `Service`、`Repository`、`Adapter`、`Task` 概念承担完整跨模块主流程
 - 为保留旧结构，在新链外再加一层 facade
 
-## 5. 7 条主链职责
+## 5. 9 条主链职责
 
 ## 5.1 `MusicMediaChain`
 
@@ -220,7 +223,16 @@ backend/app/
 
 `/media/*` 以及 detail 相关入口全部直接调用该链。
 
-## 5.2 `MusicSearchChain`
+## 5.2 `MusicMediaServerChain`
+
+职责：
+
+- 对齐 MoviePilot `MediaServerChain`
+- 统一承接媒体库同步与媒体服务器侧后处理
+- 作为 `music-mediaserver-sync` 周期任务唯一入口
+- 与 `MusicTransferChain` 保持 `TransferChain + MediaServerChain` 分层
+
+## 5.3 `MusicSearchChain`
 
 职责：
 
@@ -231,7 +243,7 @@ backend/app/
 
 它吸收现有 `query_builder`、`search_job`、`scoring` 的主编排逻辑。
 
-## 5.3 `MusicDownloadChain`
+## 5.4 `MusicDownloadChain`
 
 职责：
 
@@ -242,7 +254,7 @@ backend/app/
 
 它吸收现有 `dispatch` 与 `downloads_workspace` 的主编排逻辑。
 
-## 5.4 `MusicTransferChain`
+## 5.5 `MusicTransferChain`
 
 职责：
 
@@ -261,7 +273,7 @@ backend/app/
 
 这是 MusicPilot 对齐 MoviePilot `TransferChain` 的核心。
 
-## 5.5 `MusicSubscribeChain`
+## 5.6 `MusicSubscribeChain`
 
 职责：
 
@@ -272,7 +284,7 @@ backend/app/
 
 它吸收现有 `subscriptions`、`subscription_execution`、`subscription_scheduler` 的主编排逻辑。
 
-## 5.6 `MusicChartChain`
+## 5.7 `MusicChartChain`
 
 职责：
 
@@ -284,7 +296,7 @@ backend/app/
 
 它吸收现有 `charts` 与 `discovery` 的主编排逻辑。
 
-## 5.7 `MusicDashboardChain`
+## 5.8 `MusicDashboardChain`
 
 职责：
 
@@ -293,6 +305,14 @@ backend/app/
 - diagnostics 摘要
 
 它吸收现有 `dashboard` 的主编排逻辑。
+
+## 5.9 `MusicSystemChain`
+
+职责：
+
+- 对齐 MoviePilot `SystemChain` 风格入口
+- 承接 health / settings / probe / root 运行态入口的系统级装配
+- 统一暴露非业务主链的系统级聚合能力
 
 ## 6. 同步与异步边界
 

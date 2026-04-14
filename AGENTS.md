@@ -87,6 +87,7 @@
 - 跨模块链路应通过稳定桥接层连接，不在页面或零散调用点里堆来源特判。
 - 当前后端主链长期目标固定为：
   - `MusicMediaChain`
+  - `MusicMediaServerChain`
   - `MusicSearchChain`
   - `MusicDownloadChain`
   - `MusicTransferChain`

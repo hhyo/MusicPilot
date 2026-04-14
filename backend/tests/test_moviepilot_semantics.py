@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from app.modules.download_dispatch import RealDownloadDispatchAdapter
 from app.modules.host_http import HostTransportError
+from app.modules.host_mediaserver_runtime import HostMediaServerRuntimeBridge
 from app.modules.host_search import RealHostSearchAdapter
 from app.modules.host_storage_runtime import HostStorageRuntimeBridge
 from app.modules.organize import RealOrganizeAdapter
@@ -1073,6 +1074,28 @@ class HostStorageRuntimeBridgeTest(unittest.TestCase):
         self.assertEqual(result["target_path"], "/library/music/Adele/2015 - 25/hello (1).flac")
 
 
+class HostMediaServerRuntimeBridgeTest(unittest.TestCase):
+    def test_sync_uses_in_process_mediaserver_chain(self) -> None:
+        class FakeMediaServerChain:
+            def __init__(self):
+                self.calls: list[str] = []
+
+            def sync(self):
+                self.calls.append("sync")
+
+        fake_chain = FakeMediaServerChain()
+        bridge = HostMediaServerRuntimeBridge(
+            import_module_func=lambda _name: SimpleNamespace(MediaServerChain=lambda: fake_chain)
+        )
+
+        result = bridge.sync()
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["sync_status"], "synced")
+        self.assertEqual(result["message"], "")
+        self.assertEqual(fake_chain.calls, ["sync"])
+
+
 class HostPathHandoffTest(unittest.TestCase):
     def test_build_unresolved_marks_explicit_unresolved_state(self) -> None:
         service = HostPathHandoff(settings=build_settings(), client=FakeHostClient())  # type: ignore[arg-type]
@@ -1306,6 +1329,8 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
                     chart_refresh_interval_minutes=60,
                     host_handoff_retry_enabled=True,
                     host_handoff_retry_interval_seconds=120,
+                    mediaserver_sync_enabled=True,
+                    mediaserver_sync_interval_minutes=60,
                 )
             )
             with patch.object(plugin_module, "_load_local_module", return_value=fake_settings_module):
@@ -1334,7 +1359,14 @@ class HostPluginEntryBootstrapTest(unittest.TestCase):
                         "trigger": "interval",
                         "func": plugin.run_transfer_once,
                         "kwargs": {"seconds": 120},
-                    }
+                    },
+                    {
+                        "id": "music-mediaserver-sync",
+                        "name": "MusicPilot 媒体库同步",
+                        "trigger": "interval",
+                        "func": plugin.run_mediaserver_sync_once,
+                        "kwargs": {"minutes": 60},
+                    },
                 ],
             )
         finally:

@@ -94,7 +94,7 @@ python -m app.db_init --reseed
 ## 当前执行模式与宿主集成边界
 
 - Metadata provider：当前支持 `seed` 与 `musicbrainz` 两种模式。`seed` 继续作为默认开发数据；`musicbrainz` 提供 Artist / Album / Track 的实时搜索与详情。当前 detail 已补齐最小结构化增强：album detail 会从最佳 release 读取真实 track listing，track detail 的 related album 会对齐到 release-group 语义，并带出可选的 `disambiguation` / `release_count` / `track_number` / `disc_number`。普通 keyword search 会按 MusicBrainz 官方 plain indexed search 方式带 `dismax=true`；recording detail 会直接请求 `release-groups`。album / track detail 会补充最佳 release 的发行上下文，例如 `status`、`country`、`barcode`、`label_names`、`media_format`、`track_count`、`disc_count` 和 `secondary_types`；artist detail 则会补 discovery 更关心的上下文，例如 `sort_name`、`artist_type`、`area_name`、`begin_area_name`、`ended`、`release_group_count`、`primary_release_types`，以及面向 discovery 的 `featured_albums / featured_singles / featured_other_releases` 分类摘要。
-- Subscription 执行模式：当前支持手动触发一次同步 run；独立 backend 开发模式下保留最小应用内 scheduler，MoviePilot 插件运行态则通过插件 `get_service()` 向宿主注册 interval 服务，由宿主 APScheduler 触发同一条执行链。执行链已能对最佳 `AUTO_DOWNLOAD` 候选自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则会继续自动 apply。对于 `path_handoff.handoff_status=pending_history_sync` 的已派发 run，后台 scheduler 现在也会继续轮询宿主 download history：一旦回填到明确本地源路径，就会自动续跑 organize apply；若超过 `host_handoff_pending_ttl_seconds` 仍未命中，则会把 organize record 标记为 `failed`，并在 run 摘要中写入 `handoff_unresolved`。
+- Subscription 执行模式：当前支持手动触发一次同步 run；独立 backend 开发模式下保留最小应用内 scheduler，MoviePilot 插件运行态则通过插件 `get_service()` 向宿主注册 interval 服务，由宿主 APScheduler 触发同一条执行链。执行链已能对最佳 `AUTO_DOWNLOAD` 候选自动 dispatch 并生成 organize preview；若 preview 已具备明确本地源文件，则会继续自动 apply。对于 `path_handoff.handoff_status=pending_history_sync` 的已派发 run，后台 scheduler 现在也会继续轮询宿主 download history：一旦回填到明确本地源路径，就会自动续跑 organize apply；若超过 `host_handoff_pending_ttl_seconds` 仍未命中，则会把 organize record 标记为 `failed`，并在 run 摘要中写入 `handoff_unresolved`。文件整理完成后的媒体库同步则参考 MoviePilot `MediaServerChain`，由独立 `music-mediaserver-sync` 周期任务推进，而不是塞回 `MusicTransferChain.apply`。
 - Chart discovery：当前支持 `mock`、`listenbrainz` 与 `rss_feed` 三种模式。运行时会优先读取项目 settings 里的 chart provider 配置，环境变量仅作为 fallback。`listenbrainz` 第一版已接入 sitewide artists / recordings 榜单；`rss_feed` 已能通过 settings 配置真实进入 discovery，当前验证样本包括网易云热歌榜 playlist RSS、YouTube TopSongs RSS、YouTube TopArtists RSS，且 `item_count` 分别可写为 `200`、`100`、`100`。fresh install 时，`chart_rss_feeds` 还会带出 5 条内置默认源：网易云热歌榜、网易云新歌榜、网易云原创榜、YouTube 热门歌曲榜、YouTube 热门歌手榜。榜单当前内容现已持久化到 `charts` / `chart_items`，打开列表与详情优先读库；后台只注册一个全局 `music-chart-refresh` 周期任务，按统一固定周期批量刷新全部启用榜单，并在源失败时保留最近一次成功快照。discovery 条目现在统一先进入统一媒体解析准备阶段，再下钻正式 metadata detail；对于 RSS / 弱来源 chart entry，创建订阅时会直接持久化统一链显式字段，run 阶段再统一按正式 `MusicMediaInfo` 继续 search / organize。
 - Settings / Dashboard / Downloads workspace：`/settings/providers` 与 `/settings/profiles` 都已经是真实读写接口；`/dashboard/summary` 已切到真实聚合实现，并输出 provider/discovery/handoff/organize/scheduler 诊断摘要；`/downloads/bindings`、`/downloads/tasks` 以及对应 detail 接口都已可用，同时补齐了 `retry-dispatch` 与 `retry-handoff`。SearchJob 额外补齐了 `retry`、`delete`、`cancel`、candidate `confirm/reject`，organize records 也补了 `retry`、`rebuild-preview`、`repair-source-path` 管理动作。
 - Host search：当前保留 `mock + host-backed selectable`，但真实运行时按固定接口语义工作。`/api/v1/search/title` 与 `/api/v1/search/media/{mediaid}` 是两个不同语义，不再互相伪装成 fallback。
@@ -195,6 +195,7 @@ export MUSICPILOT_CHART_RSS_FEEDS='[
 - 历史重放或补充查询时，`source_path` 补充来源才是 `/api/v1/history/transfer`。
 - organize preview 只走 MusicPilot 本地音乐路径预览。
 - organize apply 只走宿主底层 file/storage transfer runtime。
+- 媒体库同步只走独立 `music-mediaserver-sync` 周期任务，对齐 MoviePilot `TransferChain + MediaServerChain` 的分层。
 
 这意味着当前系统不再做运行时路径计算：
 
@@ -310,11 +311,8 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 
 ## 当前阶段未完成范围
 
-- 真实 organize 文件处理增强与媒体库刷新
 - 真实 MoviePilot 宿主安装与挂载逻辑
-- 基于宿主 downloader runtime 的更多真实下载样例、path handoff 稳定性与自动 organize 收口
-- 真实 MoviePilot `download_media` 到 organize 的稳定成功映射
-- 下载完成后的自动整理、刮削与媒体库刷新
+- 基于宿主 downloader runtime 的更多真实下载样例与 path handoff 稳定性收口
 - 复杂 RSS 可视化 CRUD 与更多 discovery 产品化交互
 
 以上能力本轮均只保留目录、接口、注释或说明性占位，不提前实现。
@@ -330,5 +328,5 @@ backend/.venv/bin/python scripts/run_phase8_real_host_matrix.py \
 ## 下一阶段建议推进方式
 
 1. 在保留现有 response envelope 的前提下，继续增强 MusicPilot 自己的音乐 metadata 识别能力，优先补无标签文件的目录/文件名识别与宿主联调稳定性。
-2. 在当前 SubscriptionExecutionService 骨架上继续补下载完成回调与 organize job 状态机。
-4. 保持 `plugin_runtime/` 只作为构建产物边界，不把开发源码和宿主产物混放。
+2. 继续补真实宿主安装/挂载与验证矩阵收口，减少 `unverified` 能力点。
+3. 保持 `plugin_runtime/` 只作为构建产物边界，不把开发源码和宿主产物混放。

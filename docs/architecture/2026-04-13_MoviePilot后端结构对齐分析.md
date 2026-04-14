@@ -211,13 +211,14 @@ backend/app/
 - `plugins/`、`workflow/`、`agent/` 不提前创建空壳目录
 - 但如果 MusicPilot 后续出现对应职责，目录命名也必须沿 MoviePilot 方式扩展
 
-## 6. MusicPilot 需要落地的 8 条主链
+## 6. MusicPilot 需要落地的 9 条主链
 
-为了与 MoviePilot 的主流程模式对齐，MusicPilot 当前阶段至少要完成这 8 条链：
+为了与 MoviePilot 的主流程模式对齐，MusicPilot 当前阶段至少要完成这 9 条链：
 
 | MusicPilot 主链 | 对齐的 MoviePilot 主链语义 | 说明 |
 |---|---|---|
 | `MusicMediaChain` | `MediaChain` | 统一音乐媒体解析链 |
+| `MusicMediaServerChain` | `MediaServerChain` | 媒体库同步与媒体服务器侧后处理 |
 | `MusicSearchChain` | `SearchChain` | query preview、search job、candidate 决策 |
 | `MusicDownloadChain` | `DownloadChain` | dispatch、binding/task 状态推进 |
 | `MusicTransferChain` | `TransferChain` | 下载后整理闭环、handoff、preview/apply |

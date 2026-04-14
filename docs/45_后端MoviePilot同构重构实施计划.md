@@ -1044,7 +1044,7 @@ git commit -m "docs: finalize moviepilot-aligned backend refactor"
 ### Spec coverage
 
 - 目录同构：Task 1、Task 2、Task 9、Task 10
-- 7 条主链：Task 3 到 Task 9
+- 9 条主链：Task 3 到 Task 9，加上后续补齐的 `MusicMediaServerChain` 与 `MusicSystemChain`
 - 旧目录物理删除：Task 10、Task 11
 - runtime mirror 同构：Task 10
 - API / 调度只调 chain：Task 1、Task 3 到 Task 9
@@ -1060,12 +1060,14 @@ git commit -m "docs: finalize moviepilot-aligned backend refactor"
 
 - 统一链名称固定为：
   - `MusicMediaChain`
+  - `MusicMediaServerChain`
   - `MusicSearchChain`
   - `MusicDownloadChain`
   - `MusicTransferChain`
   - `MusicSubscribeChain`
   - `MusicChartChain`
   - `MusicDashboardChain`
+  - `MusicSystemChain`
 - 统一目标目录固定为：
   - `api/endpoints`
   - `chain`

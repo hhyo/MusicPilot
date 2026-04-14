@@ -251,6 +251,7 @@ class RealOrganizeAdapter(OrganizeAdapter):
             default_note=(
                 "当前 organize apply 通过隔离宿主运行时复用 MoviePilot 底层文件/存储操作。"
                 "MusicPilot 仍负责 organize input 解析、音乐目录规划与结果记录；宿主只负责实际文件整理执行。"
+                "媒体库同步则由独立的 music-mediaserver-sync 周期任务参考 MoviePilot MediaServerChain 单独推进。"
             ),
             integration_point="RealOrganizeAdapter.apply.music_storage_runtime_transfer",
             plan=plan,

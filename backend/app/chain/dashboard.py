@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from . import MusicChainBase
 from .subscribe import normalize_subscription_mode
 from ..core.config import settings
+from ..db.settings_oper import SettingsOper
 from ..db.models.acquisition import DownloadBindingModel, SearchCandidateModel, SearchJobModel
 from ..db.models.charts import ChartModel
 from ..db.models.orchestration import OrganizeRecordModel, SubscriptionModel, SubscriptionRunModel
@@ -206,7 +207,8 @@ class MusicDashboardChain(MusicChainBase):
             poll_seconds=settings.subscription_scheduler_poll_seconds,
         )
 
-    def _scheduler_runtime_diagnostics(self) -> dict[str, int]:
+    def _scheduler_runtime_diagnostics(self) -> dict[str, int | str]:
+        mediaserver_runtime = SettingsOper(self.session).get_value("mediaserver_sync_runtime") or {}
         return {
             "failed_runs_total": self._count(
                 select(func.count()).select_from(SubscriptionRunModel).where(SubscriptionRunModel.execution_status == "failed")
@@ -214,6 +216,9 @@ class MusicDashboardChain(MusicChainBase):
             "manual_pending_runs_total": self._count(
                 select(func.count()).select_from(SubscriptionRunModel).where(SubscriptionRunModel.execution_status == "manual_pending")
             ),
+            "mediaserver_sync_enabled": int(bool(settings.mediaserver_sync_enabled)),
+            "mediaserver_last_success": int(bool(mediaserver_runtime.get("success"))),
+            "mediaserver_last_status": str(mediaserver_runtime.get("sync_status") or "unknown"),
         }
 
     def _count(self, statement) -> int:
